@@ -148,56 +148,52 @@ button:disabled { cursor: not-allowed; }
 
 /* Inspector → canvas focus highlight.
    When the canvas wrapper carries `data-active-inspector-target="X.Y"`,
-   any descendant with `data-inspector-target="X.Y"` (or that contains it
-   in a space-separated list of targets) breathes with a soft pulsing
-   outline so the user can see exactly which part of the node their
-   field controls. */
+   the selected node's descendants whose `data-inspector-target` includes
+   `X.Y` breathe with a slow pulsing ring so the user can see exactly
+   which part of the node their field controls. */
 @keyframes inspector-target-breath {
   0%, 100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 70%, transparent),
-                0 0 12px 0 color-mix(in srgb, var(--ring) 35%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 65%, transparent),
+                0 0 14px 2px color-mix(in srgb, var(--ring) 30%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 55%, transparent),
-                0 0 22px 4px color-mix(in srgb, var(--ring) 25%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ring) 45%, transparent),
+                0 0 26px 6px color-mix(in srgb, var(--ring) 22%, transparent);
   }
 }
-[data-active-inspector-target] [data-inspector-target] {
-  border-radius: inherit;
-}
-[data-active-inspector-target="color"] [data-inspector-target="color"] {
-  animation: inspector-target-breath 1.6s ease-in-out infinite;
-}
-[data-active-inspector-target]:not([data-active-inspector-target="color"]) [data-inspector-target] {
-  /* Fallback selector when the wrapper attribute contains a single key. */
-}
-[data-active-inspector-target^="config.gateHeaderColor"] [data-inspector-target~="config.gateHeaderColor"],
-[data-active-inspector-target^="config.gateTitleColor"] [data-inspector-target~="config.gateTitleColor"],
-[data-active-inspector-target^="config.gateLabel"] [data-inspector-target~="config.gateLabel"],
-[data-active-inspector-target^="config.gateIconKey"] [data-inspector-target~="config.gateIconKey"],
-[data-active-inspector-target^="title"] [data-inspector-target~="title"],
-[data-active-inspector-target^="description"] [data-inspector-target~="description"],
-[data-active-inspector-target^="config.conditionsTitle"] [data-inspector-target~="config.conditionsTitle"],
-[data-active-inspector-target^="config.conditionsSubtitle"] [data-inspector-target~="config.conditionsSubtitle"],
-[data-active-inspector-target^="config.checklistTitle"] [data-inspector-target~="config.checklistTitle"],
-[data-active-inspector-target^="config.checklistHint"] [data-inspector-target~="config.checklistHint"],
-[data-active-inspector-target^="config.conditionLabel"] [data-inspector-target~="config.conditionLabel"],
-[data-active-inspector-target^="config.addConditionLabel"] [data-inspector-target~="config.addConditionLabel"],
-[data-active-inspector-target^="config.documentsLabel"] [data-inspector-target~="config.documentsLabel"],
-[data-active-inspector-target^="config.addDocumentLabel"] [data-inspector-target~="config.addDocumentLabel"],
-[data-active-inspector-target^="config.decisionTitle"] [data-inspector-target~="config.decisionTitle"],
-[data-active-inspector-target^="config.decisionSubtitle"] [data-inspector-target~="config.decisionSubtitle"],
-[data-active-inspector-target^="config.departmentLabel"] [data-inspector-target~="config.departmentLabel"],
-[data-active-inspector-target^="config.approverLabel"] [data-inspector-target~="config.approverLabel"],
-[data-active-inspector-target^="config.detailsNeededLabel"] [data-inspector-target~="config.detailsNeededLabel"],
-[data-active-inspector-target^="config.stage"] [data-inspector-target~="config.stage"],
-[data-active-inspector-target^="config.iconKey"] [data-inspector-target~="config.iconKey"],
-[data-active-inspector-target^="config.color"] [data-inspector-target~="config.color"] {
-  animation: inspector-target-breath 1.6s ease-in-out infinite;
+/* Each rule matches when the wrapper attribute equals the active key,
+   then narrows to descendants of the currently selected node whose
+   own data-inspector-target list contains the same key. */
+.react-flow__node.selected [data-inspector-target] {
+  transition: box-shadow 200ms ease;
   border-radius: 6px;
 }
+[data-active-inspector-target="color"] .react-flow__node.selected [data-inspector-target~="color"],
+[data-active-inspector-target="config.gateHeaderColor"] .react-flow__node.selected [data-inspector-target~="config.gateHeaderColor"],
+[data-active-inspector-target="config.gateTitleColor"] .react-flow__node.selected [data-inspector-target~="config.gateTitleColor"],
+[data-active-inspector-target="config.gateLabel"] .react-flow__node.selected [data-inspector-target~="config.gateLabel"],
+[data-active-inspector-target="config.gateIconKey"] .react-flow__node.selected [data-inspector-target~="config.gateIconKey"],
+[data-active-inspector-target="title"] .react-flow__node.selected [data-inspector-target~="title"],
+[data-active-inspector-target="description"] .react-flow__node.selected [data-inspector-target~="description"],
+[data-active-inspector-target="config.conditionsTitle"] .react-flow__node.selected [data-inspector-target~="config.conditionsTitle"],
+[data-active-inspector-target="config.conditionsSubtitle"] .react-flow__node.selected [data-inspector-target~="config.conditionsSubtitle"],
+[data-active-inspector-target="config.checklistTitle"] .react-flow__node.selected [data-inspector-target~="config.checklistTitle"],
+[data-active-inspector-target="config.checklistHint"] .react-flow__node.selected [data-inspector-target~="config.checklistHint"],
+[data-active-inspector-target="config.conditionLabel"] .react-flow__node.selected [data-inspector-target~="config.conditionLabel"],
+[data-active-inspector-target="config.addConditionLabel"] .react-flow__node.selected [data-inspector-target~="config.addConditionLabel"],
+[data-active-inspector-target="config.documentsLabel"] .react-flow__node.selected [data-inspector-target~="config.documentsLabel"],
+[data-active-inspector-target="config.addDocumentLabel"] .react-flow__node.selected [data-inspector-target~="config.addDocumentLabel"],
+[data-active-inspector-target="config.decisionTitle"] .react-flow__node.selected [data-inspector-target~="config.decisionTitle"],
+[data-active-inspector-target="config.decisionSubtitle"] .react-flow__node.selected [data-inspector-target~="config.decisionSubtitle"],
+[data-active-inspector-target="config.departmentLabel"] .react-flow__node.selected [data-inspector-target~="config.departmentLabel"],
+[data-active-inspector-target="config.approverLabel"] .react-flow__node.selected [data-inspector-target~="config.approverLabel"],
+[data-active-inspector-target="config.detailsNeededLabel"] .react-flow__node.selected [data-inspector-target~="config.detailsNeededLabel"],
+[data-active-inspector-target="config.stage"] .react-flow__node.selected [data-inspector-target~="config.stage"],
+[data-active-inspector-target="config.iconKey"] .react-flow__node.selected [data-inspector-target~="config.iconKey"] {
+  animation: inspector-target-breath 1.8s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  [data-active-inspector-target] [data-inspector-target] {
-    animation: none;
+  .react-flow__node.selected [data-inspector-target] {
+    animation: none !important;
   }
 }
