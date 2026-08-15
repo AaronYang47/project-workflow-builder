@@ -102,8 +102,8 @@ const routedPoints = (
   targetPosition: Position,
   route: EdgeRoutePoint[],
 ) => {
-  const sourceStub = stub(source, sourcePosition, 18);
-  const targetStub = stub(target, targetPosition, 18);
+  const sourceStub = stub(source, sourcePosition, 12);
+  const targetStub = stub(target, targetPosition, 12);
   const middle = collapseRedundantBends(route.slice(1, -1));
   const points: Point[] = [source, sourceStub];
   for (const point of middle) {
