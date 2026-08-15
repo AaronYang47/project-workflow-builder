@@ -48,8 +48,15 @@ export const secureEqual = (left: string, right: string) => {
 export const sessionCookie = (token: string, maxAge = 60 * 60 * 24 * 30) =>
   `pwb_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-export const createSession = async (db: D1Database, userId: string) => {
-  const token = randomToken();
+export const createSession = async (
+  db: D1Database,
+  userId: string,
+  secret = "",
+) => {
+  const rawToken = randomToken();
+  // When a SESSION_SECRET is configured we bind it into the stored hash so
+  // tokens leaked from the DB alone can't be replayed.
+  const token = secret ? `${rawToken}.${secret}` : rawToken;
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await db.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(now.toISOString()).run();
@@ -57,17 +64,23 @@ export const createSession = async (db: D1Database, userId: string) => {
     .prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(crypto.randomUUID(), userId, await sha256(token), expires.toISOString(), now.toISOString())
     .run();
-  return token;
+  // Return only the random half to the client; secret never leaves the server.
+  return rawToken;
 };
 
-export const currentUser = async (request: Request, db: D1Database) => {
+export const currentUser = async (
+  request: Request,
+  db: D1Database,
+  secret = "",
+) => {
   const token = request.headers.get("cookie")?.match(/(?:^|; )pwb_session=([^;]+)/)?.[1];
   if (!token) return null;
+  const hashed = await sha256(secret ? `${token}.${secret}` : token);
   return db
     .prepare(
       "SELECT users.id, users.email, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?",
     )
-    .bind(await sha256(token), new Date().toISOString())
+    .bind(hashed, new Date().toISOString())
     .first<{ id: string; email: string; name: string }>();
 };
 

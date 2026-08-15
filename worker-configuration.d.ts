@@ -3,11 +3,14 @@
 // Runtime types generated with workerd@1.20260811.1 2026-08-13 nodejs_compat
 interface __BaseEnv_Env {
 	DB: D1Database;
+	SESSION_SECRET?: string;
 }
 declare namespace Cloudflare {
 	interface Env extends __BaseEnv_Env {}
 }
-interface Env extends __BaseEnv_Env {}
+interface Env extends __BaseEnv_Env {
+	SESSION_SECRET?: string;
+}
 
 // Begin runtime types
 /*! *****************************************************************************

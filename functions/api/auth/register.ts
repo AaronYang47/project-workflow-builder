@@ -18,6 +18,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch {
     return json({ error: "An account already exists for this email." }, 409);
   }
-  const token = await createSession(env.DB, userId);
+  const token = await createSession(env.DB, userId, env.SESSION_SECRET);
   return json({ user: { id: userId, email, name } }, 201, { "set-cookie": sessionCookie(token) });
 };

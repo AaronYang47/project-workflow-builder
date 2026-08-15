@@ -10,6 +10,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const candidate = await hashPassword(body?.password || "", record.password_salt);
   if (!secureEqual(candidate.hash, record.password_hash))
     return json({ error: "Incorrect email or password." }, 401);
-  const token = await createSession(env.DB, record.id);
+  const token = await createSession(env.DB, record.id, env.SESSION_SECRET);
   return json({ user: { id: record.id, email: record.email, name: record.name } }, 200, { "set-cookie": sessionCookie(token) });
 };
