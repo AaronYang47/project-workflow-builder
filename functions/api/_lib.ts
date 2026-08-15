@@ -84,8 +84,12 @@ export const currentUser = async (
     .first<{ id: string; email: string; name: string }>();
 };
 
-export const requireUser = async (request: Request, db: D1Database) => {
-  const user = await currentUser(request, db);
+export const requireUser = async (
+  request: Request,
+  db: D1Database,
+  secret = "",
+) => {
+  const user = await currentUser(request, db, secret);
   return user
     ? { user, response: null }
     : { user: null, response: json({ error: "Please sign in." }, 401) };

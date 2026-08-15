@@ -1,7 +1,7 @@
 import { json, readJson, requireUser } from "../_lib";
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const auth = await requireUser(request, env.DB);
+  const auth = await requireUser(request, env.DB, env.SESSION_SECRET);
   if (auth.response) return auth.response;
   const result = await env.DB.prepare(
     "SELECT id, name, project_number, created_at, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
@@ -10,7 +10,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const auth = await requireUser(request, env.DB);
+  const auth = await requireUser(request, env.DB, env.SESSION_SECRET);
   if (auth.response) return auth.response;
   const body = await readJson<{ name?: string; projectNumber?: string; workflow?: unknown }>(request);
   if (!body?.name?.trim() || !body.workflow) return json({ error: "Project name and workflow are required." }, 400);
