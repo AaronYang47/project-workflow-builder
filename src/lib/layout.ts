@@ -13,7 +13,9 @@ import type {
 import { getAdaptiveNodeSize, PHASE_CONTENT_TOP } from "@/lib/node-layout";
 import { PRE_GATE_SALES_NODES } from "@/lib/pre-gate-sales-flow";
 
-const layoutOptions: LayoutOptions = {
+// `unnecessaryBendpoints` is missing from elkjs' typed `LayoutOptions`; cast
+// through `Record<string, unknown>` so the option actually reaches ELK.
+const layoutOptions = {
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
   "elk.edgeRouting": "ORTHOGONAL",
@@ -25,8 +27,9 @@ const layoutOptions: LayoutOptions = {
   "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
   "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+  "elk.layered.unnecessaryBendpoints": "false",
   "elk.padding": "[top=96,left=72,bottom=72,right=72]",
-};
+} as unknown as LayoutOptions;
 
 const legacyAuxiliaryTypes = new Set<WorkflowNodeType>([
   "document",

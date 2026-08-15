@@ -128,33 +128,51 @@ const routedPoints = (
   points.push(targetStub, target);
   return compact(points);
 };
-// Collapse pass-through bends: when an intermediate point lies on the axis
-// shared by its neighbours and stepping through it adds no detour, drop it.
-// ELK occasionally emits a stair-step sequence that this can collapse back
-// to a single L.
+// Collapse ELK's bend sequences back to a sensible Manhattan path.
+//
+// Two rules:
+//   1. A point on the axis shared by both neighbours (e.g. A=(0,0) →
+//      P=(0,5) → B=(0,10)) adds only a corner — drop it.
+//   2. A point that creates a strict U-turn — the previous segment goes
+//      +x and the next goes -x (or vice-versa for y) — is a detour
+//      because ELK always routes around obstacles, never back. Drop it.
+//
+// Both rules together also collapse stair-step sequences where several
+// consecutive bends sit along a single axis.
 const collapseRedundantBends = (points: Point[]) => {
-  if (points.length < 4) return points;
-  const result: Point[] = [];
-  for (let index = 0; index < points.length; index++) {
-    const point = points[index];
-    const previous = points[index - 1];
-    const next = points[index + 1];
-    // Keep the first/last point and any neighbour that's missing.
-    if (!previous || !next) {
-      result.push(point);
-      continue;
+  if (points.length < 3) return points;
+  let current = points;
+  for (let pass = 0; pass < 4; pass++) {
+    if (current.length < 3) break;
+    const next: Point[] = [];
+    for (let index = 0; index < current.length; index++) {
+      const point = current[index];
+      const previous = current[index - 1];
+      const after = current[index + 1];
+      if (!previous || !after) {
+        next.push(point);
+        continue;
+      }
+      const collinearX = previous.x === after.x;
+      const collinearY = previous.y === after.y;
+      const onSharedAxis =
+        (collinearX && point.x === previous.x) ||
+        (collinearY && point.y === previous.y);
+      if (onSharedAxis) continue;
+      // U-turn: segment went +x then -x (or +y then -y).
+      const xSeg1 = Math.sign(point.x - previous.x);
+      const xSeg2 = Math.sign(after.x - point.x);
+      const ySeg1 = Math.sign(point.y - previous.y);
+      const ySeg2 = Math.sign(after.y - point.y);
+      const uTurnX = xSeg1 !== 0 && xSeg1 === -xSeg2;
+      const uTurnY = ySeg1 !== 0 && ySeg1 === -ySeg2;
+      if (uTurnX || uTurnY) continue;
+      next.push(point);
     }
-    // If the current bend lies on the axis shared by both neighbours, it
-    // contributes no path length and only adds a corner — drop it.
-    const prevCollinearX = previous.x === next.x;
-    const prevCollinearY = previous.y === next.y;
-    const onSharedAxis =
-      (prevCollinearX && point.x === previous.x) ||
-      (prevCollinearY && point.y === previous.y);
-    if (onSharedAxis) continue;
-    result.push(point);
+    if (next.length === current.length) break;
+    current = next;
   }
-  return result;
+  return current;
 };
 
 type PathPoint = Point & { tangent: Point };
