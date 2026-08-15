@@ -15,7 +15,7 @@ export function GateNode({
 }) {
   const metrics = getGateLayoutMetrics(node);
   return (
-    <div data-canvas-node className="relative h-full w-full overflow-hidden rounded-2xl">
+    <div data-canvas-node className="relative h-full w-full overflow-visible rounded-2xl">
       <NodeResizer
         minWidth={metrics.width}
         minHeight={metrics.height}

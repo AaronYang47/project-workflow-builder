@@ -379,12 +379,20 @@ function CanvasInner() {
           const content = card.querySelector<HTMLElement>(
             "[data-conditions-content]",
           );
+          const decision = flowNode?.querySelector<HTMLElement>(
+            "[data-decision-content]",
+          );
           const domain = current.graph.nodes.find((node) => node.id === id);
           if (!id || !content || domain?.type !== "gate") return;
           const metrics = getGateLayoutMetrics(domain);
           const conditionsHeight = Math.ceil(48 + content.scrollHeight + 16);
+          // Measure the decision section so a short outcome list collapses the
+          // gate instead of leaving empty padding inside the section.
+          const decisionHeight = decision
+            ? Math.ceil(48 + decision.scrollHeight + 16)
+            : metrics.decisionHeight;
           patches[id] = {
-            height: metrics.conditionsTop + conditionsHeight + GATE_SECTION_GAP + metrics.decisionHeight,
+            height: metrics.conditionsTop + conditionsHeight + GATE_SECTION_GAP + decisionHeight,
           };
         });
       root

@@ -102,9 +102,9 @@ const routedPoints = (
   targetPosition: Position,
   route: EdgeRoutePoint[],
 ) => {
-  const sourceStub = stub(source, sourcePosition, 44);
-  const targetStub = stub(target, targetPosition, 44);
-  const middle = route.slice(1, -1);
+  const sourceStub = stub(source, sourcePosition, 18);
+  const targetStub = stub(target, targetPosition, 18);
+  const middle = collapseRedundantBends(route.slice(1, -1));
   const points: Point[] = [source, sourceStub];
   for (const point of middle) {
     const current = points.at(-1)!;
@@ -127,6 +127,34 @@ const routedPoints = (
   }
   points.push(targetStub, target);
   return compact(points);
+};
+// Collapse pass-through bends: when an intermediate point lies on the axis
+// shared by its neighbours and stepping through it adds no detour, drop it.
+// ELK occasionally emits a stair-step sequence that this can collapse back
+// to a single L.
+const collapseRedundantBends = (points: Point[]) => {
+  if (points.length < 4) return points;
+  const result: Point[] = [];
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index];
+    const previous = points[index - 1];
+    const next = points[index + 1];
+    // Keep the first/last point and any neighbour that's missing.
+    if (!previous || !next) {
+      result.push(point);
+      continue;
+    }
+    // If the current bend lies on the axis shared by both neighbours, it
+    // contributes no path length and only adds a corner — drop it.
+    const prevCollinearX = previous.x === next.x;
+    const prevCollinearY = previous.y === next.y;
+    const onSharedAxis =
+      (prevCollinearX && point.x === previous.x) ||
+      (prevCollinearY && point.y === previous.y);
+    if (onSharedAxis) continue;
+    result.push(point);
+  }
+  return result;
 };
 
 type PathPoint = Point & { tangent: Point };

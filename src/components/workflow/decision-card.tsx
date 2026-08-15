@@ -79,10 +79,10 @@ export function DecisionCard({
   ) => void;
 }) {
   const yes = outcomes.find((outcome) => outcome.id === "yes");
-  const cardHeight = (metrics.contentHeight ?? metrics.height) - metrics.decisionTop;
   return (
     <section
       data-completion-state={decisionState}
+      data-decision-content=""
       aria-label="Approval decision card"
       className={cn(
         "absolute min-h-[272px] overflow-visible rounded-2xl border px-3 pb-5 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
@@ -92,7 +92,6 @@ export function DecisionCard({
         left: metrics.conditionsLeft,
         width: GATE_PANEL_WIDTH,
         top: metrics.decisionTop,
-        height: cardHeight,
       }}
     >
       <div data-decision-header className="mb-2 flex min-h-7 items-center gap-1">
