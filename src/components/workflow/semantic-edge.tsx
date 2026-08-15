@@ -595,7 +595,7 @@ export function SemanticEdge({
         path={path}
         style={{
           stroke: color,
-          strokeWidth: selected || active ? 3.2 : 2.2,
+          strokeWidth: selected || active ? 3.8 : 2.8,
           opacity: active === false ? 0.25 : 1,
           filter: active ? `drop-shadow(0 0 3px ${color}55)` : undefined,
           strokeLinejoin: "round",
