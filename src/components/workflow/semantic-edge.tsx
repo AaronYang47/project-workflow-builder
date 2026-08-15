@@ -432,13 +432,57 @@ export function SemanticEdge({
         const targetLeft = targetObstacle?.x ?? targetX;
         const escapeX = sourceRight + 28;
         const approachX = targetLeft - 28;
+        // Exclude obstacles that *contain* the source or target node — the
+        // edge ends inside them, so they can't be in the way between the two
+        // endpoints.
+        const containsEndpoint = (obstacle: { id: string; x: number; y: number; width: number; height: number }) => {
+          if (sourceObstacle && obstacle.id === sourceObstacle.id) return true;
+          if (targetObstacle && obstacle.id === targetObstacle.id) return true;
+          const sourceInside =
+            sourceX >= obstacle.x &&
+            sourceX <= obstacle.x + obstacle.width &&
+            sourceY >= obstacle.y &&
+            sourceY <= obstacle.y + obstacle.height;
+          const targetInside =
+            targetX >= obstacle.x &&
+            targetX <= obstacle.x + obstacle.width &&
+            targetY >= obstacle.y &&
+            targetY <= obstacle.y + obstacle.height;
+          return sourceInside || targetInside;
+        };
         const left = Math.min(sourceRight, targetLeft);
         const right = Math.max(sourceRight, targetLeft);
         const crossedObstacles = obstacles.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
-        const lowestCardBottom = crossedObstacles.length
-          ? Math.max(...crossedObstacles.map((item) => item.y + item.height))
+        // Pick the corridor closer to where the edge needs to go: route above
+        // both endpoints when the target sits higher than the source, below
+        // when the target sits lower.
+        const routeAbove = targetY < sourceY;
+        if (routeAbove) {
+          const highestCardTop = crossedObstacles.length
+            ? Math.min(
+                ...crossedObstacles
+                  .filter((item) => !containsEndpoint(item))
+                  .map((item) => item.y),
+                sourceY,
+                targetY,
+              )
+            : Math.min(sourceY, targetY);
+          const lane = Math.abs(data?.labelLane ?? 0) % 3;
+          const corridorY = highestCardTop - 56 - lane * 30;
+          return compact([
+            { x: sourceX, y: sourceY },
+            { x: escapeX, y: sourceY },
+            { x: escapeX, y: corridorY },
+            { x: approachX, y: corridorY },
+            { x: approachX, y: targetY },
+            { x: targetX, y: targetY },
+          ]);
+        }
+        const filteredCrossed = crossedObstacles.filter((item) => !containsEndpoint(item));
+        const lowestCardBottom = filteredCrossed.length
+          ? Math.max(...filteredCrossed.map((item) => item.y + item.height))
           : Math.max(sourceY, targetY);
         const lane = Math.abs(data?.labelLane ?? 0) % 3;
         const corridorY = lowestCardBottom + 48 + lane * 30;
