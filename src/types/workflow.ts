@@ -173,7 +173,6 @@ export interface DomainNode {
   color?: string;
   icon?: string;
   metadata: Record<string, string>;
-  roles: string[];
   conditions: Condition[];
   documents: string[];
   criteria: string[];
@@ -289,5 +288,3 @@ export interface ValidationRule {
   nodeType?: WorkflowNodeType;
   field?: string;
 }
-export type DisplayMode =
-  "detailed" | "executive" | "dependency" | "responsibility";

@@ -63,7 +63,6 @@ const gateNode = (
   description,
   color,
   metadata: { phase, responsibleDepartment: department },
-  roles: [department],
   conditions: [],
   documents: rules.flatMap((item) =>
     (item.signatures || []).map((document) => document.abbreviation),
@@ -134,7 +133,6 @@ const phaseNode = (
   description,
   color,
   metadata: {},
-  roles: [],
   conditions: [],
   documents: [],
   criteria: [],
@@ -155,7 +153,6 @@ const referenceNode = (
   description,
   color,
   metadata: {},
-  roles: [],
   conditions: [],
   documents: [],
   criteria: [],

@@ -32,7 +32,6 @@ export const createProjectWorkflow = (
           description: "Start the project and establish its project record.",
           color: "#2563a9",
           metadata: {},
-          roles: [],
           conditions: [
             { id: "project-id-required", label: "Project ID is entered", required: true, checked: Boolean(projectId), locked: true },
           ],

@@ -21,13 +21,6 @@ const common: InspectorField[] = [
     section: "General",
   },
   { key: "color", label: "Accent color", type: "color", section: "Appearance" },
-  {
-    key: "roles",
-    label: "Responsible roles",
-    type: "tags",
-    placeholder: "Comma-separated roles",
-    section: "Ownership",
-  },
 ];
 const document: InspectorField[] = [
   {

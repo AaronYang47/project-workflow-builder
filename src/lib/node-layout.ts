@@ -44,7 +44,7 @@ export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout,
   }
 
   const terminal = node.type === "start" || node.type === "end";
-  const longestWord = `${node.title} ${node.description} ${node.roles.join(" ")}`.split(/\s+/).reduce((longest, word) => Math.max(longest, word.length), 0);
+  const longestWord = `${node.title} ${node.description}`.split(/\s+/).reduce((longest, word) => Math.max(longest, word.length), 0);
   const generalCard = node.type === "general";
   const width = clamp(Math.max(generalCard ? 300 : terminal ? 210 : 230, 142 + node.title.length * 5, 80 + longestWord * 7), generalCard ? 300 : terminal ? 210 : 230, generalCard ? 480 : 380);
   const titleLines = clamp(Math.ceil(node.title.length / Math.max(16, Math.floor((width - 76) / 6.5))), 1, 3);
@@ -52,7 +52,7 @@ export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout,
   const releaseConditionsHeight = generalCard
     ? 72 + Math.max(1, node.conditions?.length || 0) * 48
     : 0;
-  const height = Math.max(generalCard ? 224 : terminal ? 104 : 112, 120 + titleLines * 20 + descriptionLines * 17 + (node.roles.length ? 27 : 8) + releaseConditionsHeight);
+  const height = Math.max(generalCard ? 224 : terminal ? 104 : 112, 120 + titleLines * 20 + descriptionLines * 17 + releaseConditionsHeight);
 
   return { width: Math.round(width), height: Math.round(height) };
 }

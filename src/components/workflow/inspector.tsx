@@ -277,7 +277,6 @@ export function Inspector() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     General: true,
     Appearance: true,
-    Ownership: true,
     Configuration: true,
     "Document details": true,
     Controls: true,

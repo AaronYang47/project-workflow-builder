@@ -13,7 +13,6 @@ import { validateWorkflow } from "@/lib/validation";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { migrateWorkflowFile } from "@/lib/workflow-migration";
 import type {
-  DisplayMode,
   DomainEdge,
   DomainNode,
   NodeLayout,
@@ -97,7 +96,6 @@ function createDomainNode(type: WorkflowNodeType, id: string): DomainNode {
       : def.description,
     color: def.color,
     metadata: {},
-    roles: [],
     conditions: projectStart
       ? [{ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true }]
       : [],
@@ -184,7 +182,6 @@ interface WorkflowState {
   focusedInspectorField?: string;
   validationOpen: boolean;
   issues: ValidationIssue[];
-  displayMode: DisplayMode;
   search: string;
   deleteBlocked?: {
     title: string;
@@ -234,7 +231,6 @@ interface WorkflowState {
   setViewport: (viewport: WorkflowFile["layout"]["viewport"]) => void;
   validate: () => void;
   togglePanel: (panel: "left" | "right" | "validation") => void;
-  setDisplayMode: (mode: DisplayMode) => void;
   setSearch: (value: string) => void;
 }
 
@@ -254,7 +250,6 @@ export const useWorkflowStore = create<WorkflowState>()(
       focusedInspectorField: undefined,
       validationOpen: false,
       issues: [],
-      displayMode: "detailed",
       search: "",
       deleteBlocked: undefined,
       setHydrated: () =>
@@ -630,7 +625,6 @@ export const useWorkflowStore = create<WorkflowState>()(
             description: "Grouped workflow stage",
             color: "#64748b",
             metadata: {},
-            roles: [],
             conditions: [],
             documents: [],
             criteria: [],
@@ -817,7 +811,6 @@ export const useWorkflowStore = create<WorkflowState>()(
               ? { rightOpen: !state.rightOpen }
               : { validationOpen: !state.validationOpen },
         ),
-      setDisplayMode: (displayMode) => set({ displayMode }),
       setSearch: (search) => set({ search }),
     }),
     {
@@ -829,7 +822,6 @@ export const useWorkflowStore = create<WorkflowState>()(
         activeProjectId: state.activeProjectId,
         dirty: state.dirty,
         lastSavedAt: state.lastSavedAt,
-        displayMode: state.displayMode,
       }),
       onRehydrateStorage: () => (state) => state?.setHydrated(),
     },

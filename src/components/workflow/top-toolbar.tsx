@@ -14,7 +14,6 @@ import {
   Moon,
   PanelLeftClose,
   PanelRightClose,
-  Play,
   Redo2,
   Search,
   Sun,
@@ -256,16 +255,6 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
         onClick={() => window.dispatchEvent(new Event("workflow:fit"))}
       >
         <Focus className="size-4" />
-      </ToolButton>
-      <ToolButton
-        label="Preview in Executive View"
-        onClick={() =>
-          store.setDisplayMode(
-            store.displayMode === "executive" ? "detailed" : "executive",
-          )
-        }
-      >
-        <Play className="size-4" />
       </ToolButton>
       <div className="mx-1 h-7 w-px bg-border" />
       <Button

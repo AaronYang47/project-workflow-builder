@@ -58,7 +58,6 @@ function CanvasInner() {
   const {
     file,
     selection,
-    displayMode,
     search,
     addNode,
     addEdge,
@@ -71,7 +70,6 @@ function CanvasInner() {
   } = useWorkflowStore(useShallow((state) => ({
     file: state.file,
     selection: state.selection,
-    displayMode: state.displayMode,
     search: state.search,
     addNode: state.addNode,
     addEdge: state.addEdge,
@@ -94,28 +92,9 @@ function CanvasInner() {
           const q = search.trim().toLowerCase();
           const searchMatch =
             q &&
-            `${domain.title} ${domain.description} ${domain.roles.join(" ")}`
+            `${domain.title} ${domain.description}`
               .toLowerCase()
               .includes(q);
-          const executiveHidden =
-            displayMode === "executive" &&
-            [
-              "document",
-              "documentGroup",
-              "note",
-              "continuousControl",
-              "systemRule",
-              "commercialRule",
-              "exception",
-              "risk",
-            ].includes(domain.type);
-          const dependencyRelevant =
-            displayMode === "dependency" &&
-            ["document", "documentGroup", "activity", "gate"].includes(
-              domain.type,
-            );
-          const responsibilityRelevant =
-            displayMode === "responsibility" && domain.roles.length > 0;
           const rendererType =
             domain.type === "phase"
               ? "phase"
@@ -134,14 +113,11 @@ function CanvasInner() {
               domain.type === "phase"
                 ? false
                 : selection.nodeIds.includes(domain.id),
-            hidden: executiveHidden,
             draggable: true,
             data: {
               domain,
               reached: progress.reachedNodeIds.has(domain.id),
-              emphasized: Boolean(
-                searchMatch || dependencyRelevant || responsibilityRelevant,
-              ),
+              emphasized: Boolean(searchMatch),
               dimmed: Boolean(q && !searchMatch),
             },
           };
@@ -151,7 +127,6 @@ function CanvasInner() {
     [
       file.graph.nodes,
       file.layout.nodes,
-      displayMode,
       search,
       selection.nodeIds,
       progress.reachedNodeIds,
@@ -227,10 +202,6 @@ function CanvasInner() {
           sourceHandle: domain.sourceHandle,
           targetHandle: domain.targetHandle,
           selected: selection.edgeId === domain.id,
-          hidden:
-            displayMode === "dependency"
-              ? !["dependency", "supporting"].includes(domain.type)
-              : false,
           markerEnd:
             domain.arrowStyle === "none"
               ? undefined
@@ -253,7 +224,6 @@ function CanvasInner() {
       edgeIndexes,
       file.layout.edges,
       selection.edgeId,
-      displayMode,
       labelObstacles,
       progress,
     ],

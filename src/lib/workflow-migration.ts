@@ -434,7 +434,6 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       title: node.title || canonical.title,
       description: node.description || canonical.description,
       metadata: { ...canonical.metadata, ...node.metadata },
-      roles: node.roles?.length ? node.roles : canonical.roles,
     };
   });
   const canonicalPreGateEdges = new Map(
@@ -466,7 +465,6 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         description: "Enter the required Project ID before the workflow can continue.",
         color: "#2563a9",
         metadata: {},
-        roles: [],
         conditions: [{ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true }],
         documents: [],
         criteria: [],

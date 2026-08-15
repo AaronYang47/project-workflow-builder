@@ -18,7 +18,6 @@ export function parseWorkflow(input: string): WorkflowFile {
       typeof item.description === "string" &&
       item.metadata !== null &&
       typeof item.metadata === "object" &&
-      Array.isArray(item.roles) &&
       Array.isArray(item.conditions) &&
       Array.isArray(item.documents) &&
       Array.isArray(item.criteria) &&
