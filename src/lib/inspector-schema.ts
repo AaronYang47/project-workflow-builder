@@ -28,13 +28,6 @@ const common: InspectorField[] = [
     placeholder: "Comma-separated roles",
     section: "Ownership",
   },
-  {
-    key: "criteria",
-    label: "Criteria",
-    type: "tags",
-    placeholder: "Comma-separated criteria",
-    section: "Configuration",
-  },
 ];
 const document: InspectorField[] = [
   {
@@ -42,55 +35,6 @@ const document: InspectorField[] = [
     label: "Abbreviation",
     type: "text",
     section: "Document details",
-  },
-  {
-    key: "config.document.fullName",
-    label: "Full name",
-    type: "text",
-    section: "Document details",
-  },
-  {
-    key: "config.document.purpose",
-    label: "Purpose",
-    type: "textarea",
-    section: "Document details",
-  },
-  {
-    key: "config.document.owner",
-    label: "Owner",
-    type: "text",
-    section: "Document details",
-  },
-  {
-    key: "config.document.requirementType",
-    label: "Requirement",
-    type: "select",
-    options: ["Required", "Conditional", "Optional"],
-    section: "Document details",
-  },
-  {
-    key: "config.document.status",
-    label: "Status",
-    type: "text",
-    section: "Document details",
-  },
-  {
-    key: "config.document.requiresApproval",
-    label: "Requires approval",
-    type: "boolean",
-    section: "Controls",
-  },
-  {
-    key: "config.document.requiresSignature",
-    label: "Requires signature",
-    type: "boolean",
-    section: "Controls",
-  },
-  {
-    key: "config.document.revisionControlled",
-    label: "Revision controlled",
-    type: "boolean",
-    section: "Controls",
   },
 ];
 const gate: InspectorField[] = [
@@ -141,13 +85,6 @@ const gate: InspectorField[] = [
   { key: "config.departmentLabel", label: "Department field", type: "text", section: "Interface text" },
   { key: "config.approverLabel", label: "Approver field", type: "text", section: "Interface text" },
   { key: "config.detailsNeededLabel", label: "Incomplete status", type: "text", section: "Interface text" },
-  {
-    key: "criteria",
-    label: "Additional criteria",
-    type: "tags",
-    placeholder: "Comma-separated criteria",
-    section: "Decision configuration",
-  },
 ];
 const general: InspectorField[] = [
   { key: "config.stage", label: "Stage", type: "text", section: "General" },
@@ -225,85 +162,6 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
   ],
   document,
   gate,
-  approval: [
-    {
-      key: "metadata.approver",
-      label: "Approver",
-      type: "text",
-      section: "Approval",
-    },
-    {
-      key: "metadata.sla",
-      label: "Review SLA",
-      type: "text",
-      section: "Approval",
-    },
-  ],
-  handoff: [
-    {
-      key: "metadata.from",
-      label: "From role",
-      type: "text",
-      section: "Handoff",
-    },
-    { key: "metadata.to", label: "To role", type: "text", section: "Handoff" },
-  ],
-  risk: [
-    {
-      key: "metadata.likelihood",
-      label: "Likelihood",
-      type: "select",
-      options: ["Low", "Medium", "High"],
-      section: "Risk assessment",
-    },
-    {
-      key: "metadata.impact",
-      label: "Impact",
-      type: "select",
-      options: ["Low", "Medium", "High"],
-      section: "Risk assessment",
-    },
-  ],
-  commercialRule: [
-    {
-      key: "metadata.ruleOwner",
-      label: "Rule owner",
-      type: "text",
-      section: "Rule configuration",
-    },
-  ],
-  continuousControl: [
-    {
-      key: "metadata.frequency",
-      label: "Control frequency",
-      type: "text",
-      section: "Control configuration",
-    },
-  ],
-  systemRule: [
-    {
-      key: "metadata.system",
-      label: "System",
-      type: "text",
-      section: "System configuration",
-    },
-  ],
-  documentGroup: [
-    {
-      key: "config.collapsed",
-      label: "Collapse documents",
-      type: "boolean",
-      section: "Group configuration",
-    },
-  ],
-  phase: [
-    {
-      key: "config.collapsed",
-      label: "Collapse group",
-      type: "boolean",
-      section: "Group configuration",
-    },
-  ],
 };
 export const getInspectorSchema = (type: WorkflowNodeType) =>
   [...common, ...(configByType[type] || [])].filter(

@@ -7,7 +7,7 @@ import {
 } from "@/types/workflow";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
-  document: ["title", "config.document.fullName", "config.document.owner"],
+  document: ["title"],
   general: ["title", "config.stage"],
   gate: ["config.approvedDepartment", "config.approvedBy"],
   approval: ["title"],
