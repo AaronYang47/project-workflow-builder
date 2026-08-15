@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #f8f9fb; --foreground: #172033; --card: #ffffff; --card-foreground: #172033;
+  --popover: #ffffff; --popover-foreground: #172033; --primary: #245e9b; --primary-foreground: #ffffff;
+  --secondary: #eef1f5; --secondary-foreground: #263449; --muted: #eef1f5; --muted-foreground: #667085;
+  --accent: #e9eef5; --accent-foreground: #172033; --destructive: #bd3f3f; --border: #dfe3e9;
+  --input: #d8dde5; --ring: #3979b8; --panel: #fbfcfd; --canvas: #f4f6f8; --canvas-export: #f4f6f8; --grid-dot: #c5cbd4;
+  --radius: .55rem;
+}
+.dark {
+  --background: #10141c; --foreground: #e8ecf3; --card: #171d27; --card-foreground: #e8ecf3;
+  --popover: #171d27; --popover-foreground: #e8ecf3; --primary: #6ba5de; --primary-foreground: #0d1a28;
+  --secondary: #202734; --secondary-foreground: #e8ecf3; --muted: #202734; --muted-foreground: #929db0;
+  --accent: #283140; --accent-foreground: #f2f5f9; --destructive: #db6666; --border: #2b3442;
+  --input: #364151; --ring: #6ba5de; --panel: #131923; --canvas: #0f141c; --canvas-export: #0f141c; --grid-dot: #344052;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter); --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground); --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground); --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring); --color-panel: var(--panel); --color-canvas: var(--canvas);
+  --radius-sm: calc(var(--radius) * .75); --radius-md: var(--radius); --radius-lg: calc(var(--radius) * 1.35); --radius-xl: calc(var(--radius) * 1.75);
+}
+
+* { border-color: var(--border); }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif; }
+button, input, textarea, select { font: inherit; }
+textarea { field-sizing: content; overflow-wrap: anywhere; word-break: break-word; }
+input { min-width: 0; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+::selection { background: color-mix(in srgb, var(--primary) 24%, transparent); }
+.scroll-thin { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent) transparent; }
+.workflow-flow .react-flow__node { transition: opacity 160ms ease; }
+.workflow-flow .react-flow__node:focus { outline: none; }
+.workflow-flow .react-flow__handle {
+  pointer-events: all;
+  touch-action: none;
+}
+.workflow-flow .react-flow__controls button { background: var(--background); border-color: var(--border); color: var(--foreground); fill: currentColor; }
+.workflow-flow .react-flow__controls button:hover { background: var(--muted); }
+.dark .workflow-flow .react-flow__controls button { background: var(--panel); border-color: var(--border); color: var(--foreground); }
+.dark [data-workflow-toolbar] .text-muted-foreground { color: color-mix(in srgb, var(--muted-foreground) 92%, var(--foreground) 8%); }
+.dark .workflow-node { box-shadow: 0 3px 12px rgb(0 0 0 / 35%), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent); }
+.workflow-flow .react-flow__minimap { background: var(--background); }
+.workflow-flow .workflow-minimap {
+  right: 16px !important;
+  bottom: 16px !important;
+  width: 176px !important;
+  height: 112px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
+  border-color: var(--border);
+}
+.workflow-flow .workflow-minimap svg { display: block; width: 100%; height: 100%; }
+.workflow-edge-flow {
+  stroke-width: 3.2;
+  stroke-dasharray: 1 13;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
+  animation: workflow-edge-flow 1.25s linear infinite;
+}
+.panel-edge-toggle {
+  position: absolute;
+  top: 50%;
+  z-index: 30;
+  display: flex;
+  width: 26px;
+  height: 44px;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  color: var(--muted-foreground);
+  box-shadow: 0 5px 18px rgb(15 23 42 / 12%);
+  backdrop-filter: blur(8px);
+}
+.panel-edge-toggle:hover { background: var(--muted); color: var(--foreground); }
+@keyframes workflow-edge-flow { to { stroke-dashoffset: -28; } }
+@media (prefers-reduced-motion: reduce) {
+  .workflow-edge-flow { animation: none; opacity: .35 !important; }
+}
+.workflow-flow .react-flow__selection { background: color-mix(in srgb, var(--primary) 8%, transparent); border: 1px solid var(--primary); }
+.workflow-flow .react-flow__attribution { display: none; }
+.workflow-node { container-type: size; }
+[data-canvas-node] :is(input, textarea, select):focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary) 58%, transparent);
+}
+/* Keep the dense workflow UI readable. These selectors deliberately override
+   legacy pixel utilities that were designed for a much larger canvas zoom. */
+.text-\[7px\],
+.text-\[8px\],
+.text-\[9px\] { font-size: 11px !important; }
+.text-\[10px\],
+.text-\[11px\] { font-size: 12px !important; }
+.workflow-node :is(input, textarea, select, button) { line-height: 1.4; }
+[data-decision-outcomes] > div {
+  min-height: 40px;
+  height: auto !important;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  gap: 6px;
+}
+[data-decision-outcomes] > div > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-align: right;
+}
+[aria-label="Approval decision card"] {
+  display: flex;
+  flex-direction: column;
+}
+[aria-label="Approval decision card"] [data-decision-outcomes] {
+  margin-top: auto;
+  flex: 0 0 auto;
+  width: 100%;
+  padding-bottom: 2px;
+}
+[data-rule-card] { min-height: 126px; }
+[data-rule-card] textarea { field-sizing: content; }
+[data-node-title] { margin-top: 2px; }
+[data-approved-edge-label="true"] {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+@media (max-width: 900px) {
+  [data-workflow-toolbar] { overflow-x: auto; scrollbar-width: thin; }
+}
+@media (max-height: 700px) {
+  .workflow-flow .workflow-minimap { width: 132px !important; height: 84px !important; }
+}

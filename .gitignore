@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+.wrangler
+.verification
+*.tsbuildinfo
+.DS_Store
+.cursor
+.env*
