@@ -101,10 +101,16 @@ export function ApprovalConditionsPanel({
           <ShieldCheck className="size-3.5" />
         </span>
         <span className="ml-2">
-          <span className="block text-[9px] font-black uppercase tracking-[0.13em] text-foreground">
+          <span
+            data-inspector-target="config.conditionsTitle"
+            className="block text-[9px] font-black uppercase tracking-[0.13em] text-foreground"
+          >
             {interfaceText.conditionsTitle}
           </span>
-          <span className="mt-0.5 block text-[7px] font-medium text-muted-foreground">
+          <span
+            data-inspector-target="config.conditionsSubtitle"
+            className="mt-0.5 block text-[7px] font-medium text-muted-foreground"
+          >
             {conditionProgress.completed} of {conditionProgress.total}{" "}
             {interfaceText.conditionsSubtitle}
           </span>
@@ -121,14 +127,21 @@ export function ApprovalConditionsPanel({
       </div>
       <div data-conditions-content className="nodrag px-4 py-3">
         <div className="mb-2 flex h-7 items-center">
-          <span className="text-[8px] font-black uppercase tracking-[0.11em] text-muted-foreground">
+          <span
+            data-inspector-target="config.checklistTitle"
+            className="text-[8px] font-black uppercase tracking-[0.11em] text-muted-foreground"
+          >
             {interfaceText.checklistTitle}
           </span>
-          <span className="ml-2 text-[7px] text-muted-foreground">
+          <span
+            data-inspector-target="config.checklistHint"
+            className="ml-2 text-[7px] text-muted-foreground"
+          >
             {interfaceText.checklistHint}
           </span>
           <button
             aria-label="Add decision condition"
+            data-inspector-target="config.addConditionLabel"
             onClick={stopBubble(() =>
               saveRules([
                 ...rules,
@@ -383,7 +396,10 @@ function ConditionRow({
             className={cn("size-3.5", !rule.checked && "opacity-0")}
           />
         </button>
-        <span className="flex min-h-14 items-center justify-center self-stretch whitespace-normal rounded bg-slate-900 px-2 py-1.5 text-center text-[7px] font-black uppercase leading-4 text-white dark:bg-slate-100 dark:text-slate-900">
+        <span
+          data-inspector-target="config.conditionLabel"
+          className="flex min-h-14 items-center justify-center self-stretch whitespace-normal rounded bg-slate-900 px-2 py-1.5 text-center text-[7px] font-black uppercase leading-4 text-white dark:bg-slate-100 dark:text-slate-900"
+        >
           {interfaceText.conditionLabel} {index + 1}
         </span>
         <span className="min-w-0 self-stretch">
@@ -433,7 +449,10 @@ function ConditionRow({
         </button>
       </div>
       <div className="mt-2 flex items-center justify-end gap-1">
-        <span className="mr-auto self-center text-[7px] font-bold uppercase tracking-wide text-muted-foreground">
+        <span
+          data-inspector-target="config.documentsLabel"
+          className="mr-auto self-center text-[7px] font-bold uppercase tracking-wide text-muted-foreground"
+        >
           {interfaceText.documentsLabel}
         </span>
         <label
@@ -466,6 +485,7 @@ function ConditionRow({
         </label>
         <button
           aria-label={`Add signed document to Condition ${index + 1}`}
+          data-inspector-target="config.addDocumentLabel"
           title="Add signed document"
           onClick={stopBubble(onAddDocument)}
           className="flex h-7 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 text-[8px] font-bold text-primary hover:bg-primary/10"

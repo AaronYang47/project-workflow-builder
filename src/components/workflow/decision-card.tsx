@@ -99,10 +99,16 @@ export function DecisionCard({
           <ShieldCheck className="size-3.5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-foreground">
+          <span
+            data-inspector-target="config.decisionTitle"
+            className="block text-[9px] font-black uppercase tracking-[0.14em] text-foreground"
+          >
             {interfaceText.decisionTitle}
           </span>
-          <span className="mt-0.5 block text-[7px] font-medium text-muted-foreground">
+          <span
+            data-inspector-target="config.decisionSubtitle"
+            className="mt-0.5 block text-[7px] font-medium text-muted-foreground"
+          >
             {interfaceText.decisionSubtitle}
           </span>
         </span>
@@ -113,6 +119,7 @@ export function DecisionCard({
           className="ml-auto"
         />
         <span
+          data-inspector-target="config.detailsNeededLabel"
           className={cn(
             "ml-1 shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[7px] font-black uppercase tracking-wider",
             approvalReady
@@ -125,6 +132,7 @@ export function DecisionCard({
       </div>
       <div data-decision-fields className="nodrag mb-2 grid grid-cols-2 gap-2">
         <label
+          data-inspector-target="config.departmentLabel"
           className={cn(
             "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
             checklistSatisfied && !approvedDepartment && "border-amber-400",
@@ -146,6 +154,7 @@ export function DecisionCard({
           />
         </label>
         <label
+          data-inspector-target="config.approverLabel"
           className={cn(
             "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
             checklistSatisfied && !approvedBy && "border-amber-400",

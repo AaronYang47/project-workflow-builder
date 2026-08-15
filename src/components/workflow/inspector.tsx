@@ -80,6 +80,13 @@ function Field({
 }) {
   const raw = readPath(node, field.key);
   const initial = useRef<DomainNode | null>(null);
+  const setFocusedInspectorField =
+    useWorkflowStore.getState().setFocusedInspectorField;
+  const onContainerFocus = () => setFocusedInspectorField(field.key);
+  const onContainerBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+    setFocusedInspectorField(undefined);
+  };
   const set = (value: unknown, transient = false) => {
     const store = useWorkflowStore.getState();
     const next = writePath(node, field.key, value);
@@ -119,7 +126,11 @@ function Field({
         ? String(raw || "").replace(/\D/g, "")
         : String(raw || "");
   return (
-    <div className="space-y-1.5">
+    <div
+      className="space-y-1.5"
+      onFocus={onContainerFocus}
+      onBlur={onContainerBlur}
+    >
       <Label>{field.label}</Label>
       {field.type === "textarea" ? (
         <Textarea

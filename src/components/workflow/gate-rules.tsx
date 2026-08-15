@@ -215,6 +215,7 @@ export function GateRules({ node }: { node: DomainNode }) {
       />
       <section
         aria-label="Decision Module card"
+        data-inspector-target="config.color"
         className="absolute left-0 top-0 overflow-hidden rounded-2xl border border-[#233a54] bg-card shadow-[0_12px_32px_rgba(15,35,58,.20)]"
         style={{ width: GATE_CARD_WIDTH, height: metrics.gateCardHeight }}
       >
@@ -223,12 +224,14 @@ export function GateRules({ node }: { node: DomainNode }) {
           className="absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-[#d6b46c] via-[#f0d68d] to-[#9b722e]"
         />
         <div
+          data-inspector-target="config.gateHeaderColor"
           className="relative flex h-[62px] items-center px-4 pt-1 text-white"
           style={{
             background: `linear-gradient(135deg, ${gateHeaderColor}, color-mix(in srgb, ${gateHeaderColor} 72%, #0f172a))`,
           }}
         >
           <span
+            data-inspector-target="config.gateTitleColor config.gateIconKey"
             className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 shadow-inner"
             style={{ color: gateTitleColor }}
           >
@@ -243,6 +246,7 @@ export function GateRules({ node }: { node: DomainNode }) {
           <input
             key={gateLabel}
             aria-label="Decision module label"
+            data-inspector-target="config.gateLabel config.gateTitleColor"
             defaultValue={gateLabel}
             onBlur={(event) => {
               const value = event.target.value.trim() || "GATE";
@@ -292,6 +296,7 @@ export function GateRules({ node }: { node: DomainNode }) {
             <textarea
               key={node.title}
               aria-label="Decision name"
+              data-inspector-target="title"
               defaultValue={node.title}
               rows={textareaRows(node.title, 62, 1)}
               onBlur={(event) => saveText(node, "title", event.target.value)}
@@ -304,6 +309,7 @@ export function GateRules({ node }: { node: DomainNode }) {
             <textarea
               key={node.description}
               aria-label="Decision content"
+              data-inspector-target="description"
               defaultValue={node.description}
               rows={textareaRows(node.description, 82, 3)}
               onBlur={(event) =>

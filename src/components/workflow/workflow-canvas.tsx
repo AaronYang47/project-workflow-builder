@@ -67,6 +67,7 @@ function CanvasInner() {
     setViewport,
     selectNodes,
     selectEdge,
+    focusedInspectorField,
   } = useWorkflowStore(useShallow((state) => ({
     file: state.file,
     selection: state.selection,
@@ -79,6 +80,7 @@ function CanvasInner() {
     setViewport: state.setViewport,
     selectNodes: state.selectNodes,
     selectEdge: state.selectEdge,
+    focusedInspectorField: state.focusedInspectorField,
   })));
   const progress = useMemo(
     () => getWorkflowProgress(file.graph.nodes, file.graph.edges),
@@ -487,6 +489,7 @@ function CanvasInner() {
     <div
       ref={wrapper}
       className="relative h-full min-w-0 flex-1 overflow-hidden bg-canvas"
+      data-active-inspector-target={focusedInspectorField}
       onDrop={onDrop}
       onDragOver={(e) => {
         e.preventDefault();

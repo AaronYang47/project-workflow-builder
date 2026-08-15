@@ -145,3 +145,59 @@ button:disabled { cursor: not-allowed; }
 @media (max-height: 700px) {
   .workflow-flow .workflow-minimap { width: 132px !important; height: 84px !important; }
 }
+
+/* Inspector → canvas focus highlight.
+   When the canvas wrapper carries `data-active-inspector-target="X.Y"`,
+   any descendant with `data-inspector-target="X.Y"` (or that contains it
+   in a space-separated list of targets) breathes with a soft pulsing
+   outline so the user can see exactly which part of the node their
+   field controls. */
+@keyframes inspector-target-breath {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 70%, transparent),
+                0 0 12px 0 color-mix(in srgb, var(--ring) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 55%, transparent),
+                0 0 22px 4px color-mix(in srgb, var(--ring) 25%, transparent);
+  }
+}
+[data-active-inspector-target] [data-inspector-target] {
+  border-radius: inherit;
+}
+[data-active-inspector-target="color"] [data-inspector-target="color"] {
+  animation: inspector-target-breath 1.6s ease-in-out infinite;
+}
+[data-active-inspector-target]:not([data-active-inspector-target="color"]) [data-inspector-target] {
+  /* Fallback selector when the wrapper attribute contains a single key. */
+}
+[data-active-inspector-target^="config.gateHeaderColor"] [data-inspector-target~="config.gateHeaderColor"],
+[data-active-inspector-target^="config.gateTitleColor"] [data-inspector-target~="config.gateTitleColor"],
+[data-active-inspector-target^="config.gateLabel"] [data-inspector-target~="config.gateLabel"],
+[data-active-inspector-target^="config.gateIconKey"] [data-inspector-target~="config.gateIconKey"],
+[data-active-inspector-target^="title"] [data-inspector-target~="title"],
+[data-active-inspector-target^="description"] [data-inspector-target~="description"],
+[data-active-inspector-target^="config.conditionsTitle"] [data-inspector-target~="config.conditionsTitle"],
+[data-active-inspector-target^="config.conditionsSubtitle"] [data-inspector-target~="config.conditionsSubtitle"],
+[data-active-inspector-target^="config.checklistTitle"] [data-inspector-target~="config.checklistTitle"],
+[data-active-inspector-target^="config.checklistHint"] [data-inspector-target~="config.checklistHint"],
+[data-active-inspector-target^="config.conditionLabel"] [data-inspector-target~="config.conditionLabel"],
+[data-active-inspector-target^="config.addConditionLabel"] [data-inspector-target~="config.addConditionLabel"],
+[data-active-inspector-target^="config.documentsLabel"] [data-inspector-target~="config.documentsLabel"],
+[data-active-inspector-target^="config.addDocumentLabel"] [data-inspector-target~="config.addDocumentLabel"],
+[data-active-inspector-target^="config.decisionTitle"] [data-inspector-target~="config.decisionTitle"],
+[data-active-inspector-target^="config.decisionSubtitle"] [data-inspector-target~="config.decisionSubtitle"],
+[data-active-inspector-target^="config.departmentLabel"] [data-inspector-target~="config.departmentLabel"],
+[data-active-inspector-target^="config.approverLabel"] [data-inspector-target~="config.approverLabel"],
+[data-active-inspector-target^="config.detailsNeededLabel"] [data-inspector-target~="config.detailsNeededLabel"],
+[data-active-inspector-target^="config.stage"] [data-inspector-target~="config.stage"],
+[data-active-inspector-target^="config.iconKey"] [data-inspector-target~="config.iconKey"],
+[data-active-inspector-target^="config.color"] [data-inspector-target~="config.color"] {
+  animation: inspector-target-breath 1.6s ease-in-out infinite;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-active-inspector-target] [data-inspector-target] {
+    animation: none;
+  }
+}

@@ -163,6 +163,7 @@ export function GeneralNode({
   return (
     <div
       data-canvas-node
+      data-inspector-target="color"
       className={cn(
         "workflow-node group h-full w-full overflow-hidden rounded-xl border bg-card shadow-[0_3px_12px_rgba(15,23,42,.09)] transition",
         emphasized &&
@@ -205,6 +206,7 @@ export function GeneralNode({
         style={{ backgroundColor: `${color}0d` }}
       >
         <label
+          data-inspector-target="config.iconKey"
           className="nodrag relative mr-2 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
           style={{ backgroundColor: color }}
           title="Change icon"
@@ -235,6 +237,7 @@ export function GeneralNode({
           <input
             key={node.config.stage}
             aria-label="Stage"
+            data-inspector-target="config.stage"
             defaultValue={node.config.stage || "Stage"}
             onBlur={(event) =>
               updateNode(node.id, {
@@ -293,6 +296,7 @@ export function GeneralNode({
           <textarea
             key={node.title}
             aria-label="Node name"
+            data-inspector-target="title"
             defaultValue={node.title}
             rows={textareaRows(node.title, 42, 1)}
             onBlur={(event) => saveText(node, "title", event.target.value)}
@@ -484,6 +488,7 @@ export function GeneralNode({
           <textarea
             key={node.description}
             aria-label="Node content"
+            data-inspector-target="description"
             defaultValue={node.description}
             rows={textareaRows(node.description, 48, 3)}
             onBlur={(event) =>

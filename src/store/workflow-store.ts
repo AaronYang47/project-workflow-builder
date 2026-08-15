@@ -181,6 +181,7 @@ interface WorkflowState {
   selection: { nodeIds: string[]; edgeId?: string };
   leftOpen: boolean;
   rightOpen: boolean;
+  focusedInspectorField?: string;
   validationOpen: boolean;
   issues: ValidationIssue[];
   displayMode: DisplayMode;
@@ -202,6 +203,7 @@ interface WorkflowState {
   markSaved: () => void;
   selectNodes: (ids: string[]) => void;
   selectEdge: (id?: string) => void;
+  setFocusedInspectorField: (key?: string) => void;
   addNode: (
     type: WorkflowNodeType,
     position: { x: number; y: number },
@@ -249,6 +251,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       selection: { nodeIds: [] },
       leftOpen: true,
       rightOpen: true,
+      focusedInspectorField: undefined,
       validationOpen: false,
       issues: [],
       displayMode: "detailed",
@@ -351,6 +354,8 @@ export const useWorkflowStore = create<WorkflowState>()(
       },
       selectNodes: (nodeIds) => set({ selection: { nodeIds } }),
       selectEdge: (edgeId) => set({ selection: { nodeIds: [], edgeId } }),
+      setFocusedInspectorField: (focusedInspectorField) =>
+        set({ focusedInspectorField }),
       addNode: (type, position, parentId) => {
         if (type === "projectStart") {
           const existing = get().file.graph.nodes.find(
