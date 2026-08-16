@@ -116,7 +116,6 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
       placeholder: "B-01",
       pattern: "^B-\\d{2}$",
       section: "Service details",
-      visibleWhen: { key: "config.serviceType", equals: "Paid Service" },
     },
     {
       key: "config.moduleCode",
@@ -125,7 +124,6 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
       placeholder: "M-001",
       pattern: "^M-\\d{3}$",
       section: "Service details",
-      visibleWhen: { key: "config.serviceType", equals: "Paid Service" },
     },
     {
       key: "customFields.projectId",

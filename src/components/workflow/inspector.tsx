@@ -80,6 +80,42 @@ const normalizeProjectIdInput = (value: string, serviceType: string): string => 
   if (match[1] === desiredPrefix) return value;
   return `${desiredPrefix}-${match[2]}-${match[3]}`;
 };
+// Typing a complete Building or Module code is only meaningful for Paid
+// Service projects, so flip serviceType → Paid Service and rewrite the
+// Project ID prefix in one step. The pattern check uses the same regex
+// the schema enforces, so half-typed values like "B-0" don't trigger it.
+const shouldAutoPromoteToPaid = (fieldKey: string, value: string): boolean => {
+  if (!value) return false;
+  if (fieldKey === "config.buildingCode") return /^B-\d{2}$/.test(value);
+  if (fieldKey === "config.moduleCode") return /^M-\d{3}$/.test(value);
+  return false;
+};
+// When a complete B-XX / M-XXX value lands on a project-start node, switch
+// serviceType → "Paid Service" and rewrite the Project ID prefix so the
+// stored ID always matches the chosen service type. Returns the updated
+// node so callers can apply it once.
+const promoteToPaidService = (node: DomainNode): DomainNode => {
+  const currentService = String(node.config?.serviceType || "");
+  const currentProjectId = String(node.customFields?.projectId || "");
+  const desiredProjectId = normalizeProjectIdInput(currentProjectId, "Paid Service");
+  const nextConfig = { ...node.config, serviceType: "Paid Service" };
+  const nextCustomFields =
+    desiredProjectId === currentProjectId
+      ? node.customFields
+      : { ...node.customFields, projectId: desiredProjectId };
+  if (
+    currentService === "Paid Service" &&
+    desiredProjectId === currentProjectId
+  ) {
+    return node;
+  }
+  return {
+    ...node,
+    config: nextConfig,
+    customFields: nextCustomFields,
+    conditions: syncPaidConditions(node, true),
+  };
+};
 
 function Field({
   field,
@@ -240,6 +276,19 @@ function Field({
                       ? normalizeProjectIdInput(raw, String(node.config?.serviceType || ""))
                       : raw;
             set(value, true);
+            // Typing a complete B-XX / M-XXX value implicitly means this is
+            // a Paid Service project, so promote serviceType and rewrite
+            // the Project ID prefix in one shot.
+            if (
+              shouldAutoPromoteToPaid(field.key, String(value)) &&
+              String(node.config?.serviceType || "") !== "Paid Service"
+            ) {
+              const promoted = promoteToPaidService({
+                ...node,
+                config: { ...node.config, [field.key.replace(/^config\./, "")]: value },
+              });
+              update(promoted);
+            }
           }}
           {...textProps}
         />
