@@ -32,6 +32,7 @@ export type SemanticFlowEdge = Edge<
     obstacles?: LabelObstacle[];
     labelLane?: number;
     labelHugsPath?: boolean;
+    preGateSales?: boolean;
   },
   "semantic"
 >;
@@ -57,6 +58,8 @@ export function getSemanticEdgeColor(edge: DomainEdge) {
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+const pathLength = (points: Point[]) =>
+  points.slice(1).reduce((sum, point, index) => sum + distance(points[index], point), 0);
 const toward = (from: Point, to: Point, amount: number): Point => {
   const length = distance(from, to) || 1;
   return {
@@ -368,7 +371,9 @@ export function SemanticEdge({
     sourcePosition,
     targetPosition,
   });
-  const preGateSales = domain.customFields.workflowSection === "Pre-Gate Sales";
+  const preGateSales =
+    data?.preGateSales ||
+    domain.customFields.workflowSection === "Pre-Gate Sales";
   const preGateSalesRoute = preGateSales
     ? domain.sourceHandle === "no"
       ? (() => {
@@ -522,41 +527,67 @@ export function SemanticEdge({
       })()
     : undefined;
   const automaticRoute = (() => {
-    if (preGateSalesRoute || deniedRoute || approvedRoute || routed) return undefined;
+    if (preGateSalesRoute || deniedRoute || approvedRoute) return undefined;
     const obstacles = data?.obstacles ?? [];
     const sourceObstacle = obstacles.find((item) => item.id === domain.source);
     const targetObstacle = obstacles.find((item) => item.id === domain.target);
-    const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 36);
-    const targetStub = stub({ x: targetX, y: targetY }, targetPosition, 36);
+    const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 16);
+    const targetStub = stub({ x: targetX, y: targetY }, targetPosition, 16);
     const horizontalHandles =
       [sourcePosition, targetPosition].every(
         (position) => position === Position.Left || position === Position.Right,
       );
     if (horizontalHandles) {
-      const directGap = Math.abs(targetStub.x - sourceStub.x);
-      if (directGap >= 72) {
-        const middleX = (sourceStub.x + targetStub.x) / 2;
+      const escapeX =
+        sourcePosition === Position.Right
+          ? Math.max(
+              sourceStub.x,
+              sourceObstacle ? sourceObstacle.x + sourceObstacle.width + 16 : sourceStub.x,
+            )
+          : sourceStub.x;
+      const approachX =
+        targetPosition === Position.Left
+          ? Math.min(
+              targetStub.x,
+              targetObstacle ? targetObstacle.x - 16 : targetStub.x,
+            )
+          : targetStub.x;
+      const sourceTop = sourceObstacle?.y ?? sourceY;
+      const sourceBottom = sourceObstacle
+        ? sourceObstacle.y + sourceObstacle.height
+        : sourceY;
+      const targetTop = targetObstacle?.y ?? targetY;
+      const targetBottom = targetObstacle
+        ? targetObstacle.y + targetObstacle.height
+        : targetY;
+      const stacked =
+        sourceBottom + 12 < targetTop || targetBottom + 12 < sourceTop;
+      if (approachX - escapeX >= 24 || stacked) {
+        const middleX =
+          approachX - escapeX >= 24 ? (escapeX + approachX) / 2 : escapeX;
         return compact([
           { x: sourceX, y: sourceY },
-          sourceStub,
-          { x: middleX, y: sourceStub.y },
-          { x: middleX, y: targetStub.y },
-          targetStub,
+          { x: escapeX, y: sourceY },
+          { x: middleX, y: sourceY },
+          { x: middleX, y: targetY },
+          { x: approachX, y: targetY },
           { x: targetX, y: targetY },
         ]);
       }
       const lane = Math.abs(data?.labelLane ?? 0) % 3;
-      const lowestBottom = Math.max(
-        sourceObstacle ? sourceObstacle.y + sourceObstacle.height : sourceY,
-        targetObstacle ? targetObstacle.y + targetObstacle.height : targetY,
-      );
-      const corridorY = lowestBottom + 48 + lane * 28;
+      const aboveY = Math.min(sourceTop, targetTop) - 40 - lane * 24;
+      const belowY = Math.max(sourceBottom, targetBottom) + 40 + lane * 24;
+      const aboveCost =
+        Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
+      const belowCost =
+        Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
+      const corridorY = aboveCost <= belowCost ? aboveY : belowY;
       return compact([
         { x: sourceX, y: sourceY },
-        sourceStub,
-        { x: sourceStub.x, y: corridorY },
-        { x: targetStub.x, y: corridorY },
-        targetStub,
+        { x: escapeX, y: sourceY },
+        { x: escapeX, y: corridorY },
+        { x: approachX, y: corridorY },
+        { x: approachX, y: targetY },
         { x: targetX, y: targetY },
       ]);
     }
@@ -570,11 +601,18 @@ export function SemanticEdge({
       { x: targetX, y: targetY },
     ]);
   })();
-  // Return paths are always regenerated from the current node bounds. Stored
-  // auto-layout routes can become stale after cards grow and must never be
-  // allowed to cut through a workflow card.
+  // Live routes win when a stored auto-layout polyline has become a long
+  // detour — typical after dragging one endpoint while the old bend points
+  // stay behind.
+  const storedDetour =
+    Boolean(routed && automaticRoute) &&
+    pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40;
   const visibleRoute =
-    preGateSalesRoute ?? deniedRoute ?? approvedRoute ?? routed ?? automaticRoute;
+    preGateSalesRoute ??
+    deniedRoute ??
+    approvedRoute ??
+    (storedDetour ? automaticRoute : routed) ??
+    automaticRoute;
   const path = visibleRoute ? roundedPath(visibleRoute) : bezierPath;
   const labelGuide = visibleRoute ?? [
     { x: sourceX, y: sourceY },

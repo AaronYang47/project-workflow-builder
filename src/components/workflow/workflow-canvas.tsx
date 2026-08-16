@@ -196,8 +196,11 @@ function CanvasInner() {
     return { siblings, returnIndex };
   }, [file.graph.edges]);
   const edges = useMemo<Edge[]>(
-    () =>
-      file.graph.edges.map((domain) => {
+    () => {
+      const nodesById = new Map(
+        file.graph.nodes.map((node) => [node.id, node]),
+      );
+      return file.graph.edges.map((domain) => {
         const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
         const siblingIndex = siblingEdges.findIndex(
           (edge) => edge.id === domain.id,
@@ -211,6 +214,13 @@ function CanvasInner() {
           returnIndex >= 0
             ? returnIndex
             : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
+        const sourceNode = nodesById.get(domain.source);
+        const targetNode = nodesById.get(domain.target);
+        const preGateSales =
+          domain.customFields.workflowSection === "Pre-Gate Sales" ||
+          sourceNode?.metadata.workflowSection === "Pre-Gate Sales" ||
+          targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
+          sourceNode?.type === "projectStart";
         return {
           id: domain.id,
           type: "semantic",
@@ -234,11 +244,14 @@ function CanvasInner() {
             obstacles: labelObstacles,
             labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
             labelHugsPath,
+            preGateSales,
           },
         };
-      }),
+      });
+    },
     [
       file.graph.edges,
+      file.graph.nodes,
       edgeIndexes,
       file.layout.edges,
       selection.edgeId,

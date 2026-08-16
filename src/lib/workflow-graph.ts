@@ -258,29 +258,16 @@ export function applyLayoutDrag(
                   y: targetAfter.y - targetBefore.y,
                 }
               : { x: 0, y: 0 };
-          const points = route.points.map((point, index, all) => {
-            if (
-              moved.has(edge.source) &&
-              moved.has(edge.target) &&
-              sourceDelta.x === targetDelta.x &&
-              sourceDelta.y === targetDelta.y
-            )
-              return {
-                x: point.x + sourceDelta.x,
-                y: point.y + sourceDelta.y,
-              };
-            if (moved.has(edge.source) && index <= 1)
-              return {
-                x: point.x + sourceDelta.x,
-                y: point.y + sourceDelta.y,
-              };
-            if (moved.has(edge.target) && index >= all.length - 2)
-              return {
-                x: point.x + targetDelta.x,
-                y: point.y + targetDelta.y,
-              };
-            return point;
-          });
+          const lockstep =
+            moved.has(edge.source) &&
+            moved.has(edge.target) &&
+            sourceDelta.x === targetDelta.x &&
+            sourceDelta.y === targetDelta.y;
+          if (!lockstep) return [edgeId, { ...route, points: [] }];
+          const points = route.points.map((point) => ({
+            x: point.x + sourceDelta.x,
+            y: point.y + sourceDelta.y,
+          }));
           return [edgeId, { ...route, points }];
         }),
       )
