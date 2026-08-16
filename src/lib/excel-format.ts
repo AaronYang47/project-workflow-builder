@@ -6,7 +6,7 @@ export const EXCEL_MIME =
 export const PAYLOAD_CHUNK = 30000;
 
 export const SHEETS = {
-  map: "Workflow Map",
+  map: "Visual Flow",
   overview: "Overview",
   nodes: "Nodes",
   conditions: "Conditions",
@@ -28,6 +28,8 @@ export const NODE_HEADERS = [
   "description",
   "color",
   "icon",
+  "parentId",
+  "phase",
   "stage",
   "projectId",
   "nodeUuid",

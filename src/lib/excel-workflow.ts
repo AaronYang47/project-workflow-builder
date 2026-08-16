@@ -134,7 +134,7 @@ function writeOverview(workbook: Workbook, file: WorkflowFile) {
     ["gridSize", file.layout.gridSize],
     [
       "guide",
-      "This workbook is a complete bidirectional copy of the workflow. The Workflow Map is a visual overview. Edit the data sheets (Nodes, Conditions, Documents, Approvals, Signatures, Connections, Layout) and Import Excel to update the canvas. Nested objects are also stored as JSON so a round-trip restores every field.",
+      "The Visual Flow sheet mirrors the web canvas left-to-right: each Phase is a container and every Gate is drawn inside its Phase. Edit the data sheets to change values. Layout.parentId is what restores Phase membership on import.",
     ],
   ];
   sheet.columns = [{ width: 22 }, { width: 88 }];
@@ -154,7 +154,11 @@ function overviewValue(rows: TableRow[], key: string) {
   return rows.find((row) => asString(row.key) === key)?.value;
 }
 
-function nodeRow(node: DomainNode): TableRow {
+function nodeRow(node: DomainNode, file: WorkflowFile): TableRow {
+  const layout = file.layout.nodes[node.id];
+  const parent = layout?.parentId
+    ? file.graph.nodes.find((item) => item.id === layout.parentId)
+    : undefined;
   return {
     id: node.id,
     type: node.type,
@@ -162,6 +166,8 @@ function nodeRow(node: DomainNode): TableRow {
     description: node.description,
     color: node.color || "",
     icon: node.icon || "",
+    parentId: layout?.parentId || "",
+    phase: parent?.type === "phase" ? parent.title : "",
     stage: node.config.stage || "",
     projectId: node.customFields.projectId ?? "",
     nodeUuid: node.customFields.nodeUuid ?? "",
@@ -188,8 +194,8 @@ function writeDataSheets(workbook: Workbook, file: WorkflowFile) {
   writeTable(
     workbook.addWorksheet(SHEETS.nodes),
     NODE_HEADERS,
-    file.graph.nodes.map(nodeRow),
-    [22, 16, 28, 42, 12, 12, 14, 16, 38, 16, 18, 12, 12, 18, 16, 14, 14, 12, 10, 28, 28, 28, 28, 36, 48],
+    file.graph.nodes.map((node) => nodeRow(node, file)),
+    [22, 16, 28, 42, 12, 12, 18, 22, 14, 16, 38, 16, 18, 12, 12, 18, 16, 14, 14, 12, 10, 28, 28, 28, 28, 36, 48],
   );
 
   writeTable(
@@ -744,7 +750,9 @@ function applyLayout(workbook: Workbook, file: WorkflowFile): WorkflowFile {
         y: y ?? nodes[nodeId]?.y ?? 0,
         width: width ?? nodes[nodeId]?.width ?? 240,
         height: height ?? nodes[nodeId]?.height ?? 132,
-        parentId: overlayString(nodes[nodeId]?.parentId || "", row.parentId) || undefined,
+        parentId:
+          overlayString(nodes[nodeId]?.parentId || "", row.parentId) ||
+          undefined,
         zIndex: zIndex ?? nodes[nodeId]?.zIndex,
       };
     }
@@ -814,6 +822,28 @@ function applyRules(workbook: Workbook, file: WorkflowFile): WorkflowFile {
   return { ...file, graph: { ...file.graph, rules } };
 }
 
+function applyNodeParents(workbook: Workbook, file: WorkflowFile): WorkflowFile {
+  const rows = readTable(workbook.getWorksheet(SHEETS.nodes));
+  if (!rows.length) return file;
+  const nodes = { ...file.layout.nodes };
+  for (const row of rows) {
+    const nodeId = asString(row.id);
+    const parentId = asString(row.parentId);
+    if (!nodeId || isBlank(row.parentId) || nodes[nodeId]?.parentId) continue;
+    const current = nodes[nodeId];
+    nodes[nodeId] = {
+      nodeId,
+      x: current?.x ?? 64,
+      y: current?.y ?? 64,
+      width: current?.width ?? 240,
+      height: current?.height ?? 132,
+      parentId,
+      zIndex: current?.zIndex,
+    };
+  }
+  return { ...file, layout: { ...file.layout, nodes } };
+}
+
 export async function workflowToExcelBuffer(
   file: WorkflowFile,
 ): Promise<ArrayBuffer> {
@@ -853,6 +883,7 @@ export async function parseWorkflowExcel(
   file = applyOutcomes(workbook, file);
   file = applyConnections(workbook, file);
   file = applyLayout(workbook, file);
+  file = applyNodeParents(workbook, file);
   file = applyEdgeRoutes(workbook, file);
   file = applyRules(workbook, file);
   return parseWorkflowValue(file);

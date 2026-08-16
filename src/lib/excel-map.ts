@@ -1,31 +1,60 @@
-import type { Worksheet } from "exceljs";
+import type { Border, Worksheet } from "exceljs";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { projectNodeUuid } from "@/lib/project-id";
+import { isReferenceNodeType } from "@/types/workflow";
 import type {
   DomainEdge,
   DomainNode,
+  WorkflowEdgeType,
   WorkflowFile,
 } from "@/types/workflow";
-import {
-  headerFill,
-  headerFont,
-  hexArgb,
-  mixWhite,
-  thinBorder,
-} from "@/lib/excel-format";
+import { hexArgb, mixWhite } from "@/lib/excel-format";
 
-const CARD_COLS = 5;
-const CARD_ROWS = 9;
-const GAP_COLS = 2;
-const CARDS_PER_ROW = 5;
+const GATE_COLS = 8;
+const ARROW_COLS = 2;
+const PHASE_PAD = 1;
+const CANVAS_ROW = 6;
 const EDGE_COLORS: Record<string, string> = {
   success: "#16866f",
   failure: "#b34a47",
   hold: "#c2410c",
-  rework: "#b34a47",
+  rework: "#b45309",
   approval: "#6d5c9d",
   normal: "#3f668c",
+  dependency: "#64748b",
+  supporting: "#64748b",
+  exception: "#aa5540",
+  reopen: "#7c3aed",
 };
+const ROUTE_NAMES: Record<WorkflowEdgeType, string> = {
+  success: "APPROVE",
+  failure: "REJECT",
+  hold: "HOLD",
+  rework: "REWORK",
+  approval: "APPROVAL",
+  normal: "NEXT",
+  dependency: "DEPENDENCY",
+  supporting: "SUPPORT",
+  exception: "EXCEPTION",
+  reopen: "REOPEN",
+};
+
+type LineKind =
+  | "banner"
+  | "title"
+  | "text"
+  | "section"
+  | "item"
+  | "route"
+  | "meta";
+interface CardLine {
+  text: string;
+  kind: LineKind;
+  color?: string;
+}
+type FlowBlock =
+  | { kind: "phase"; phase: DomainNode; children: DomainNode[]; x: number }
+  | { kind: "node"; node: DomainNode; x: number };
 
 function absolutePosition(file: WorkflowFile, nodeId: string) {
   const seen = new Set<string>();
@@ -51,44 +80,240 @@ function outgoing(file: WorkflowFile, nodeId: string) {
   return file.graph.edges.filter((edge) => edge.source === nodeId);
 }
 
-function conditionSummary(node: DomainNode) {
+function routeName(edge: DomainEdge) {
+  return edge.label || ROUTE_NAMES[edge.type] || edge.type.toUpperCase();
+}
+
+function mark(checked?: boolean) {
+  return checked ? "☑" : "☐";
+}
+
+function nodeStatus(node: DomainNode) {
   const rules = node.config.gateRules || [];
   if (rules.length) {
-    const ready = rules.filter((rule) => rule.checked).length;
-    const signatures = rules.flatMap((rule) => rule.signatures || []);
-    const signed = signatures.filter((item) => item.checked).length;
-    return `Rules ${ready}/${rules.length} · Signatures ${signed}/${signatures.length}`;
+    const required = rules.filter((rule) => rule.requirementType !== "Optional");
+    const ready = required.filter((rule) => {
+      const signatures = (rule.signatures || []).filter(
+        (item) => item.requirementType !== "Optional",
+      );
+      return (
+        rule.checked && signatures.every((item) => item.checked)
+      );
+    });
+    if (required.length && ready.length === required.length)
+      return { label: "READY", color: "#16866f" };
+    if (ready.length) return { label: "IN PROGRESS", color: "#c2410c" };
+    return { label: "BLOCKED", color: "#b34a47" };
   }
-  if (!node.conditions.length) return "No conditions";
-  const ready = node.conditions.filter((item) => item.checked).length;
-  return `Conditions ${ready}/${node.conditions.length}`;
+  if (node.conditions.length) {
+    const required = node.conditions.filter((item) => item.required !== false);
+    const ready = required.filter((item) => item.checked);
+    if (required.length && ready.length === required.length)
+      return { label: "READY", color: "#16866f" };
+    if (ready.length) return { label: "IN PROGRESS", color: "#c2410c" };
+    return { label: "BLOCKED", color: "#b34a47" };
+  }
+  return { label: "OPEN", color: "#3f668c" };
 }
 
-function edgeCaption(edge: DomainEdge, file: WorkflowFile) {
-  const target = nodeById(file, edge.target);
-  const label = edge.label || edge.type.toUpperCase();
-  return `${label} → ${target?.title || edge.target}`;
+function cardLines(
+  node: DomainNode,
+  file: WorkflowFile,
+  projectStart?: DomainNode,
+  phaseTitle?: string,
+): CardLine[] {
+  const typeLabel = getNodeDefinition(node.type).label.toUpperCase();
+  const status = nodeStatus(node);
+  const uuid = projectNodeUuid(node, projectStart);
+  const lines: CardLine[] = [
+    {
+      text: `${typeLabel}    ${status.label}`,
+      kind: "banner",
+      color: node.color || getNodeDefinition(node.type).color,
+    },
+    { text: node.title, kind: "title" },
+  ];
+  if (phaseTitle) {
+    lines.push({ text: `Phase: ${phaseTitle}`, kind: "meta" });
+  }
+  if (node.description) {
+    lines.push({ text: node.description, kind: "text" });
+  }
+  if (node.conditions.length) {
+    lines.push({ text: "CONDITIONS", kind: "section" });
+    for (const condition of node.conditions) {
+      lines.push({
+        text: `${mark(condition.checked)}  ${condition.label || condition.id || "Condition"}${condition.required === false ? "" : " *"}`,
+        kind: "item",
+        color: condition.checked ? "#16866f" : "#b34a47",
+      });
+    }
+  }
+  if (node.documents.length) {
+    lines.push({ text: "DOCUMENTS", kind: "section" });
+    for (const document of node.documents) {
+      lines.push({ text: `•  ${document}`, kind: "item" });
+    }
+  }
+  const rules = node.config.gateRules || [];
+  if (rules.length) {
+    lines.push({ text: "APPROVALS", kind: "section" });
+    for (const rule of rules) {
+      lines.push({
+        text: `${mark(rule.checked)}  ${rule.label}${rule.requirementType ? `  ·  ${rule.requirementType}` : ""}`,
+        kind: "item",
+        color: rule.checked ? "#16866f" : "#b34a47",
+      });
+      for (const signature of rule.signatures || []) {
+        lines.push({
+          text: `    ${mark(signature.checked)}  ${signature.abbreviation || signature.fullName}  ·  ${signature.department || signature.signedBy || "unsigned"}`,
+          kind: "item",
+          color: signature.checked ? "#16866f" : "#64748b",
+        });
+      }
+    }
+  }
+  if (node.config.approvedDepartment || node.config.approvedBy || node.type === "gate") {
+    lines.push({ text: "DECISION", kind: "section" });
+    lines.push({
+      text: `Department: ${node.config.approvedDepartment || "—"}`,
+      kind: "item",
+    });
+    lines.push({
+      text: `Approved by: ${node.config.approvedBy || "—"}`,
+      kind: "item",
+    });
+  }
+  const edges = outgoing(file, node.id);
+  lines.push({ text: "ROUTES", kind: "section" });
+  if (edges.length) {
+    for (const edge of edges) {
+      const target = nodeById(file, edge.target);
+      lines.push({
+        text: `${routeName(edge)}  →  ${target?.title || edge.target}`,
+        kind: "route",
+        color: EDGE_COLORS[edge.type] || "#3f668c",
+      });
+    }
+  } else {
+    lines.push({ text: "No outgoing connection", kind: "meta" });
+  }
+  if (uuid) lines.push({ text: `UUID ${uuid}`, kind: "meta" });
+  lines.push({ text: node.id, kind: "meta" });
+  return lines;
 }
 
-function paintRange(
+function patchBorder(
   sheet: Worksheet,
   row: number,
   col: number,
-  rowSpan: number,
-  colSpan: number,
-  fill: string,
-  borderHex: string,
+  side: "top" | "left" | "bottom" | "right",
+  hex: string,
+  style: Border["style"] = "medium",
 ) {
-  for (let r = row; r < row + rowSpan; r += 1) {
-    for (let c = col; c < col + colSpan; c += 1) {
-      const cell = sheet.getCell(r, c);
-      cell.fill = {
+  const cell = sheet.getCell(row, col);
+  cell.border = {
+    ...(cell.border || {}),
+    [side]: { style, color: { argb: hexArgb(hex) } },
+  };
+}
+
+function fillRect(
+  sheet: Worksheet,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  fill: string,
+) {
+  for (let row = r1; row <= r2; row += 1) {
+    for (let col = c1; col <= c2; col += 1) {
+      sheet.getCell(row, col).fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: fill },
       };
-      cell.border = thinBorder(borderHex);
     }
+  }
+}
+
+function strokeRect(
+  sheet: Worksheet,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  hex: string,
+  style: Border["style"] = "medium",
+) {
+  for (let col = c1; col <= c2; col += 1) {
+    patchBorder(sheet, r1, col, "top", hex, style);
+    patchBorder(sheet, r2, col, "bottom", hex, style);
+  }
+  for (let row = r1; row <= r2; row += 1) {
+    patchBorder(sheet, row, c1, "left", hex, style);
+    patchBorder(sheet, row, c2, "right", hex, style);
+  }
+}
+
+function writeLine(
+  sheet: Worksheet,
+  row: number,
+  col: number,
+  cols: number,
+  line: CardLine,
+  bodyFill: string,
+) {
+  sheet.mergeCells(row, col, row, col + cols - 1);
+  fillRect(sheet, row, col, row, col + cols - 1, bodyFill);
+  const cell = sheet.getCell(row, col);
+  cell.value = line.text;
+  cell.alignment = {
+    vertical: line.kind === "title" || line.kind === "banner" ? "middle" : "top",
+    wrapText: true,
+    indent: line.kind === "item" || line.kind === "route" ? 1 : 0,
+  };
+  if (line.kind === "banner") {
+    fillRect(sheet, row, col, row, col + cols - 1, hexArgb(line.color || "#1e3a5f"));
+    cell.font = {
+      name: "Calibri",
+      size: 9,
+      bold: true,
+      color: { argb: "FFFFFFFF" },
+    };
+  } else if (line.kind === "title") {
+    cell.font = { name: "Calibri", size: 13, bold: true, color: { argb: "FF0F172A" } };
+    sheet.getRow(row).height = 22;
+  } else if (line.kind === "section") {
+    cell.font = {
+      name: "Calibri",
+      size: 9,
+      bold: true,
+      color: { argb: "FF1E3A5F" },
+    };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" },
+    };
+  } else if (line.kind === "route") {
+    cell.font = {
+      name: "Calibri",
+      size: 9,
+      bold: true,
+      color: { argb: hexArgb(line.color || "#3f668c") },
+    };
+  } else if (line.kind === "item") {
+    cell.font = {
+      name: "Calibri",
+      size: 9,
+      color: { argb: hexArgb(line.color || "#334155") },
+    };
+  } else if (line.kind === "meta") {
+    cell.font = { name: "Calibri", size: 8, color: { argb: "FF64748B" } };
+  } else {
+    cell.font = { name: "Calibri", size: 9, color: { argb: "FF475569" } };
+    sheet.getRow(row).height = 28;
   }
 }
 
@@ -96,185 +321,256 @@ function writeCard(
   sheet: Worksheet,
   row: number,
   col: number,
+  height: number,
   node: DomainNode,
   file: WorkflowFile,
   projectStart?: DomainNode,
+  phaseTitle?: string,
 ) {
   const color = node.color || getNodeDefinition(node.type).color;
-  const edges = outgoing(file, node.id);
-  const uuid = projectNodeUuid(node, projectStart);
-  const typeLabel = getNodeDefinition(node.type).label.toUpperCase();
-  const stage = String(node.config.stage || node.customFields.phase || "");
-  paintRange(sheet, row, col, CARD_ROWS, CARD_COLS, mixWhite(color), color);
-  sheet.mergeCells(row, col, row, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 1, col, row + 1, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 2, col, row + 3, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 4, col, row + 4, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 5, col, row + 6, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 7, col, row + 7, col + CARD_COLS - 1);
-  sheet.mergeCells(row + 8, col, row + 8, col + CARD_COLS - 1);
-
-  const header = sheet.getCell(row, col);
-  header.value = stage ? `${typeLabel}  ·  ${stage}` : typeLabel;
-  header.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
-  header.alignment = { vertical: "middle", wrapText: true };
-  header.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: hexArgb(color) },
-  };
-
-  const title = sheet.getCell(row + 1, col);
-  title.value = node.title;
-  title.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FF0F172A" } };
-  title.alignment = { vertical: "middle", wrapText: true };
-
-  const description = sheet.getCell(row + 2, col);
-  description.value = node.description || "—";
-  description.font = { name: "Calibri", size: 10, color: { argb: "FF334155" } };
-  description.alignment = { vertical: "top", wrapText: true };
-
-  const summary = sheet.getCell(row + 4, col);
-  summary.value = conditionSummary(node);
-  summary.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF475569" } };
-
-  const routes = sheet.getCell(row + 5, col);
-  routes.value = edges.length
-    ? edges.map((edge) => edgeCaption(edge, file)).join("\n")
-    : "No outgoing connections";
-  routes.font = { name: "Calibri", size: 9, color: { argb: "FF1E3A5F" } };
-  routes.alignment = { vertical: "top", wrapText: true };
-
-  const uuidCell = sheet.getCell(row + 7, col);
-  uuidCell.value = uuid ? `UUID ${uuid}` : "";
-  uuidCell.font = { name: "Calibri", size: 8, color: { argb: "FF64748B" } };
-
-  const idCell = sheet.getCell(row + 8, col);
-  idCell.value = node.id;
-  idCell.font = { name: "Calibri", size: 8, color: { argb: "FF94A3B8" } };
+  const body = mixWhite(color, 0.9);
+  const lines = cardLines(node, file, projectStart, phaseTitle);
+  fillRect(sheet, row, col, row + height - 1, col + GATE_COLS - 1, body);
+  lines.forEach((line, index) => {
+    writeLine(sheet, row + index, col, GATE_COLS, line, body);
+  });
+  strokeRect(
+    sheet,
+    row,
+    col,
+    row + height - 1,
+    col + GATE_COLS - 1,
+    color,
+    "medium",
+  );
 }
 
 function writeArrow(
   sheet: Worksheet,
   row: number,
   col: number,
+  height: number,
   edge?: DomainEdge,
 ) {
   if (!edge) return;
-  sheet.mergeCells(row, col, row + CARD_ROWS - 1, col + GAP_COLS - 1);
-  const cell = sheet.getCell(row, col);
-  cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+  sheet.mergeCells(row, col, row + height - 1, col + ARROW_COLS - 1);
   const color = EDGE_COLORS[edge.type] || "#3f668c";
-  cell.value = `${edge.label || edge.type.toUpperCase()}\n→`;
+  const cell = sheet.getCell(row, col);
+  cell.value = `${routeName(edge)}\n→`;
+  cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
   cell.font = {
     name: "Calibri",
-    size: 10,
+    size: 9,
     bold: true,
     color: { argb: hexArgb(color) },
   };
 }
 
-function writeSection(
+function edgeBetween(file: WorkflowFile, sourceId: string, targetId: string) {
+  return outgoing(file, sourceId).find((edge) => edge.target === targetId);
+}
+
+function rightmostId(block: FlowBlock) {
+  if (block.kind === "node") return block.node.id;
+  return block.children[block.children.length - 1]?.id || block.phase.id;
+}
+
+function leftmostId(block: FlowBlock) {
+  if (block.kind === "node") return block.node.id;
+  return block.children[0]?.id || block.phase.id;
+}
+
+function writePhase(
   sheet: Worksheet,
-  startRow: number,
-  title: string,
-  color: string,
-  nodes: DomainNode[],
+  row: number,
+  col: number,
+  phase: DomainNode,
+  children: DomainNode[],
+  cardHeight: number,
   file: WorkflowFile,
   projectStart?: DomainNode,
 ) {
-  if (!nodes.length) return startRow;
-  const columns = Math.min(CARDS_PER_ROW, nodes.length) * (CARD_COLS + GAP_COLS);
-  sheet.mergeCells(startRow, 1, startRow, Math.max(columns, CARD_COLS));
-  const heading = sheet.getCell(startRow, 1);
-  heading.value = title;
-  heading.font = { name: "Calibri", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
-  heading.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: hexArgb(color) },
-  };
-  heading.alignment = { vertical: "middle", indent: 1 };
-  sheet.getRow(startRow).height = 26;
-
-  let row = startRow + 2;
-  for (let index = 0; index < nodes.length; index += CARDS_PER_ROW) {
-    const slice = nodes.slice(index, index + CARDS_PER_ROW);
-    slice.forEach((node, offset) => {
-      const col = 1 + offset * (CARD_COLS + GAP_COLS);
-      writeCard(sheet, row, col, node, file, projectStart);
-      if (offset < slice.length - 1) {
-        const next = slice[offset + 1];
-        const edge = outgoing(file, node.id).find(
-          (item) => item.target === next.id,
-        );
-        writeArrow(sheet, row, col + CARD_COLS, edge);
-      }
-    });
-    for (let extra = 0; extra < CARD_ROWS; extra += 1) {
-      sheet.getRow(row + extra).height = extra === 1 ? 24 : extra === 2 || extra === 5 ? 32 : 18;
+  const inner = Math.max(1, children.length);
+  const width =
+    PHASE_PAD +
+    inner * GATE_COLS +
+    Math.max(0, inner - 1) * ARROW_COLS +
+    PHASE_PAD;
+  const headerRows = 2;
+  const height = headerRows + 1 + cardHeight + 1;
+  const color = phase.color || "#64748b";
+  fillRect(
+    sheet,
+    row,
+    col,
+    row + height - 1,
+    col + width - 1,
+    mixWhite(color, 0.94),
+  );
+  sheet.mergeCells(row, col, row + headerRows - 1, col + width - 1);
+  fillRect(
+    sheet,
+    row,
+    col,
+    row + headerRows - 1,
+    col + width - 1,
+    hexArgb(color),
+  );
+  const header = sheet.getCell(row, col);
+  header.value = `${phase.title || "Phase"}    ·    ${children.length} node${children.length === 1 ? "" : "s"}`;
+  header.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+  header.alignment = { vertical: "middle", indent: 1 };
+  sheet.getRow(row).height = 22;
+  const gateRow = row + headerRows + 1;
+  const nodes = children.length ? children : [];
+  nodes.forEach((node, index) => {
+    const gateCol = col + PHASE_PAD + index * (GATE_COLS + ARROW_COLS);
+    writeCard(
+      sheet,
+      gateRow,
+      gateCol,
+      cardHeight,
+      node,
+      file,
+      projectStart,
+      phase.title,
+    );
+    if (index < nodes.length - 1) {
+      writeArrow(
+        sheet,
+        gateRow,
+        gateCol + GATE_COLS,
+        cardHeight,
+        edgeBetween(file, node.id, nodes[index + 1].id),
+      );
     }
-    row += CARD_ROWS + 2;
-  }
-  return row;
+  });
+  strokeRect(
+    sheet,
+    row,
+    col,
+    row + height - 1,
+    col + width - 1,
+    color,
+    "medium",
+  );
+  return { width, height };
 }
 
-function writePathTable(
+function writeStandalone(
   sheet: Worksheet,
-  startRow: number,
+  row: number,
+  col: number,
+  node: DomainNode,
+  cardHeight: number,
   file: WorkflowFile,
+  projectStart?: DomainNode,
 ) {
-  sheet.mergeCells(startRow, 1, startRow, 8);
-  const heading = sheet.getCell(startRow, 1);
-  heading.value = "Approval and connection paths";
-  heading.font = headerFont;
-  heading.fill = headerFill;
-  heading.alignment = { vertical: "middle", indent: 1 };
-  sheet.getRow(startRow).height = 22;
+  const color = node.color || getNodeDefinition(node.type).color;
+  const height = 2 + 1 + cardHeight + 1;
+  fillRect(
+    sheet,
+    row,
+    col,
+    row + height - 1,
+    col + GATE_COLS + 1,
+    mixWhite(color, 0.94),
+  );
+  sheet.mergeCells(row, col, row + 1, col + GATE_COLS + 1);
+  fillRect(sheet, row, col, row + 1, col + GATE_COLS + 1, hexArgb(color));
+  const header = sheet.getCell(row, col);
+  header.value = getNodeDefinition(node.type).label;
+  header.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+  header.alignment = { vertical: "middle", indent: 1 };
+  writeCard(
+    sheet,
+    row + 3,
+    col + 1,
+    cardHeight,
+    node,
+    file,
+    projectStart,
+  );
+  strokeRect(
+    sheet,
+    row,
+    col,
+    row + height - 1,
+    col + GATE_COLS + 1,
+    color,
+    "medium",
+  );
+  return { width: GATE_COLS + 2, height };
+}
 
-  const headers = ["From", "From ID", "Route", "Type", "To", "To ID", "Condition"];
-  headers.forEach((header, index) => {
-    const cell = sheet.getCell(startRow + 1, index + 1);
-    cell.value = header;
-    cell.font = { name: "Calibri", size: 10, bold: true };
+function flowBlocks(file: WorkflowFile): FlowBlock[] {
+  const phases = file.graph.nodes
+    .filter((node) => node.type === "phase")
+    .map((phase) => {
+      const children = file.graph.nodes
+        .filter((node) => file.layout.nodes[node.id]?.parentId === phase.id)
+        .sort((a, b) => {
+          const left = file.layout.nodes[a.id];
+          const right = file.layout.nodes[b.id];
+          return (left?.x || 0) - (right?.x || 0) || (left?.y || 0) - (right?.y || 0);
+        });
+      return {
+        kind: "phase" as const,
+        phase,
+        children,
+        x: absolutePosition(file, phase.id).x,
+      };
+    });
+  const nested = new Set(
+    phases.flatMap((block) => [
+      block.phase.id,
+      ...block.children.map((node) => node.id),
+    ]),
+  );
+  const loose = file.graph.nodes
+    .filter(
+      (node) =>
+        !nested.has(node.id) &&
+        !isReferenceNodeType(node.type) &&
+        node.type !== "phase",
+    )
+    .map((node) => ({
+      kind: "node" as const,
+      node,
+      x: absolutePosition(file, node.id).x,
+    }));
+  return [...phases, ...loose].sort((a, b) => a.x - b.x);
+}
+
+function writeLegend(sheet: Worksheet) {
+  const items: [string, string][] = [
+    ["APPROVE / YES", "#16866f"],
+    ["REJECT / NO", "#b34a47"],
+    ["HOLD", "#c2410c"],
+    ["REWORK", "#b45309"],
+    ["NEXT", "#3f668c"],
+  ];
+  items.forEach(([label, color], index) => {
+    const col = 1 + index * 3;
+    sheet.mergeCells(3, col, 3, col + 2);
+    const cell = sheet.getCell(3, col);
+    cell.value = label;
+    cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
+      fgColor: { argb: hexArgb(color) },
     };
-    cell.border = thinBorder("#94a3b8");
   });
-
-  file.graph.edges.forEach((edge, index) => {
-    const source = nodeById(file, edge.source);
-    const target = nodeById(file, edge.target);
-    const color = EDGE_COLORS[edge.type] || "#3f668c";
-    const values = [
-      source?.title || edge.source,
-      edge.source,
-      edge.label || edge.type.toUpperCase(),
-      edge.type,
-      target?.title || edge.target,
-      edge.target,
-      edge.condition?.expression || edge.condition?.description || "",
-    ];
-    values.forEach((value, column) => {
-      const cell = sheet.getCell(startRow + 2 + index, column + 1);
-      cell.value = value;
-      cell.border = thinBorder("#cbd5e1");
-      cell.alignment = { vertical: "middle", wrapText: true };
-      if (column === 2) {
-        cell.font = { bold: true, color: { argb: hexArgb(color) } };
-      }
-    });
-    sheet.getRow(startRow + 2 + index).height = 22;
-  });
+  sheet.getRow(3).height = 18;
 }
 
 export function writeWorkflowMap(sheet: Worksheet, file: WorkflowFile) {
-  sheet.views = [{ state: "frozen", ySplit: 3, showGridLines: false, zoomScale: 90 }];
+  sheet.views = [
+    { state: "frozen", ySplit: 4, showGridLines: false, zoomScale: 85 },
+  ];
   sheet.properties.tabColor = { argb: "FF2563A9" };
-  for (let column = 1; column <= 40; column += 1) sheet.getColumn(column).width = 14;
 
   const meta = file.graph.metadata;
   sheet.mergeCells(1, 1, 1, 18);
@@ -286,65 +582,107 @@ export function writeWorkflowMap(sheet: Worksheet, file: WorkflowFile) {
   sheet.mergeCells(2, 1, 2, 18);
   const hint = sheet.getCell(2, 1);
   hint.value =
-    "Visual overview of the workflow. Edit Nodes, Conditions, Documents, Approvals, Connections, and Layout sheets to change data, then Import Excel. Canvas positions are restored from the Layout sheet.";
+    "Canvas replica · left → right. Each Phase is a container; every Gate is drawn inside its Phase. Connections show APPROVE / REJECT / HOLD / REWORK. Layout.parentId restores Phase membership on import.";
   hint.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF64748B" } };
   sheet.getRow(2).height = 20;
+  writeLegend(sheet);
 
   const projectStart = file.graph.nodes.find((node) => node.type === "projectStart");
-  const phases = file.graph.nodes
-    .filter((node) => node.type === "phase")
-    .sort(
-      (a, b) =>
-        absolutePosition(file, a.id).x - absolutePosition(file, b.id).x,
-    );
-  const childIds = new Set(
-    Object.values(file.layout.nodes)
-      .filter((layout) => layout.parentId)
-      .map((layout) => layout.nodeId),
+  const blocks = flowBlocks(file);
+  const lineCounts = blocks.flatMap((block) =>
+    block.kind === "phase"
+      ? (block.children.length ? block.children : [block.phase]).map(
+          (node) =>
+            cardLines(
+              node,
+              file,
+              projectStart,
+              block.kind === "phase" ? block.phase.title : undefined,
+            ).length,
+        )
+      : [cardLines(block.node, file, projectStart).length],
   );
-  const ungrouped = file.graph.nodes
-    .filter(
-      (node) =>
-        node.type !== "phase" &&
-        !childIds.has(node.id) &&
-        !file.graph.nodes.some(
-          (item) => file.layout.nodes[item.id]?.parentId === node.id,
-        ),
-    )
-    .sort(
-      (a, b) =>
-        absolutePosition(file, a.id).x - absolutePosition(file, b.id).x ||
-        absolutePosition(file, a.id).y - absolutePosition(file, b.id).y,
-    );
+  const cardHeight = Math.max(12, ...lineCounts, 1);
+  let col = 2;
+  let maxRow = CANVAS_ROW;
+  const placed: { block: FlowBlock; col: number; width: number }[] = [];
 
-  let row = 4;
-  if (ungrouped.length) {
-    row = writeSection(
-      sheet,
-      row,
-      "Workflow",
-      "#1e3a5f",
-      ungrouped,
-      file,
-      projectStart,
-    );
-  }
-  for (const phase of phases) {
-    const children = file.graph.nodes
-      .filter((node) => file.layout.nodes[node.id]?.parentId === phase.id)
-      .sort(
-        (a, b) =>
-          (file.layout.nodes[a.id]?.x || 0) - (file.layout.nodes[b.id]?.x || 0),
+  for (const block of blocks) {
+    if (block.kind === "phase") {
+      const size = writePhase(
+        sheet,
+        CANVAS_ROW,
+        col,
+        block.phase,
+        block.children,
+        cardHeight,
+        file,
+        projectStart,
       );
-    row = writeSection(
-      sheet,
-      row,
-      phase.title || "Phase",
-      phase.color || "#64748b",
-      children.length ? children : [phase],
-      file,
-      projectStart,
-    );
+      placed.push({ block, col, width: size.width });
+      maxRow = Math.max(maxRow, CANVAS_ROW + size.height);
+      col += size.width + ARROW_COLS;
+    } else {
+      const size = writeStandalone(
+        sheet,
+        CANVAS_ROW,
+        col,
+        block.node,
+        cardHeight,
+        file,
+        projectStart,
+      );
+      placed.push({ block, col, width: size.width });
+      maxRow = Math.max(maxRow, CANVAS_ROW + size.height);
+      col += size.width + ARROW_COLS;
+    }
   }
-  writePathTable(sheet, row + 1, file);
+
+  placed.forEach((item, index) => {
+    const next = placed[index + 1];
+    if (!next) return;
+    const source = rightmostId(item.block);
+    const target = leftmostId(next.block);
+    writeArrow(
+      sheet,
+      CANVAS_ROW + 3,
+      item.col + item.width,
+      cardHeight,
+      edgeBetween(file, source, target) ||
+        outgoing(file, source).find((edge) =>
+          next.block.kind === "phase"
+            ? next.block.children.some((node) => node.id === edge.target)
+            : edge.target === target,
+        ),
+    );
+  });
+
+  const nested = new Set(
+    blocks.flatMap((block) =>
+      block.kind === "phase"
+        ? [block.phase.id, ...block.children.map((node) => node.id)]
+        : [block.node.id],
+    ),
+  );
+  const references = file.graph.nodes.filter(
+    (node) => isReferenceNodeType(node.type) && !nested.has(node.id),
+  );
+  if (references.length) {
+    const row = maxRow + 2;
+    sheet.mergeCells(row, 2, row, 10);
+    const heading = sheet.getCell(row, 2);
+    heading.value = "Reference cards (below the main canvas)";
+    heading.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FF334155" } };
+    let refCol = 2;
+    references.forEach((node) => {
+      const height = cardLines(node, file, projectStart).length;
+      writeCard(sheet, row + 2, refCol, height, node, file, projectStart);
+      refCol += GATE_COLS + 1;
+    });
+    col = Math.max(col, refCol);
+  }
+
+  for (let column = 1; column <= Math.max(col + 2, 24); column += 1) {
+    sheet.getColumn(column).width = 12;
+  }
 }
