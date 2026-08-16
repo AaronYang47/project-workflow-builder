@@ -549,29 +549,34 @@ function CanvasInner() {
             : undefined;
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout || !domain || domain.type === "gate") return;
+          const styles = getComputedStyle(header);
+          const padX =
+            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+          let childrenWidth = 0;
+          let gaps = 0;
+          // Reserve space for the Stage input even when flex has collapsed it.
+          // icon + Stage label + divider + suffix controls must all fit.
           const stageInput = header.querySelector<HTMLElement>(
             'input[aria-label="Stage"]',
           );
           const stageMinWidth = stageInput
             ? parseFloat(getComputedStyle(stageInput).minWidth) || 0
             : 0;
-          // Sum children at their natural width. icon + Stage label + divider +
-          // stage input + suffix controls must all fit in the header, plus the
-          // container's horizontal padding so the controls aren't flush against
-          // the edge.
-          const styles = getComputedStyle(header);
-          const padX =
-            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-          let childrenWidth = 0;
-          let gaps = 0;
           header.querySelectorAll<HTMLElement>("[data-header-child]").forEach(
             (child, index) => {
-              if (index > 0) gaps += parseFloat(styles.columnGap || styles.gap || "0");
-              const rect = child.getBoundingClientRect();
-              childrenWidth += rect.width;
+              if (index > 0)
+                gaps += parseFloat(
+                  styles.columnGap || styles.gap || "0",
+                );
+              if (child.contains(stageInput)) {
+                childrenWidth +=
+                  Math.max(child.getBoundingClientRect().width, stageMinWidth);
+              } else {
+                childrenWidth += child.getBoundingClientRect().width;
+              }
             },
           );
-          const naturalWidth = childrenWidth + gaps + stageMinWidth + padX + 2;
+          const naturalWidth = childrenWidth + gaps + padX + 2;
           if (naturalWidth > layout.width) {
             patches[id] = { ...patches[id], width: Math.ceil(naturalWidth) };
           }

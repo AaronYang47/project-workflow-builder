@@ -202,7 +202,7 @@ export function GeneralNode({
             ))}
           </select>
         </label>
-        <label className="flex min-w-0 flex-1 items-center gap-2" data-header-child>
+        <label className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden" data-header-child>
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
@@ -224,7 +224,7 @@ export function GeneralNode({
                 });
               }
             }}
-            className="nodrag h-8 min-w-[5.5rem] flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
+            className="nodrag h-8 min-w-[5rem] flex-1 truncate border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
         <span data-header-child>
@@ -523,7 +523,7 @@ export function GeneralNode({
           position={Position.Top}
           id="rework-in"
           aria-label="Denied return entry"
-          className="!top-[-10px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+          className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
         />
       ) : null}
     </div>
