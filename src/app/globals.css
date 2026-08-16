@@ -273,8 +273,83 @@ button:disabled { cursor: not-allowed; }
   border-left-style: solid;
   animation: signature-rail-breath-complete 3.6s ease-in-out infinite;
 }
+
+/* Whole rule card breathes in the same colour scheme as the inner rail
+   so the eye picks up which conditions still need attention at a glance:
+     Required    → red while pending, sky-blue when ready, green when done
+     Conditional → amber while pending, sky-blue when ready, green when done
+     Optional    → blue while pending, sky-blue when ready, green when done */
+@keyframes rule-card-breath-required-pending {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(251 113 133),
+                0 0 16px 2px rgba(225, 29, 72, 0.40);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(225 29 72),
+                0 0 26px 6px rgba(225, 29, 72, 0.30);
+  }
+}
+@keyframes rule-card-breath-conditional-pending {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(252 211 77),
+                0 0 16px 2px rgba(245, 158, 11, 0.40);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(245 158 11),
+                0 0 26px 6px rgba(245, 158, 11, 0.30);
+  }
+}
+@keyframes rule-card-breath-optional-pending {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(147 197 253),
+                0 0 16px 2px rgba(37, 99, 235, 0.40);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(37 99 235),
+                0 0 26px 6px rgba(37, 99, 235, 0.30);
+  }
+}
+@keyframes rule-card-breath-ready {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(125 211 252),
+                0 0 14px 2px rgba(14, 165, 233, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(14 165 233),
+                0 0 22px 5px rgba(14, 165, 233, 0.28);
+  }
+}
+@keyframes rule-card-breath-complete {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(110 231 183),
+                0 0 14px 2px rgba(16, 185, 129, 0.30);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(16 185 129),
+                0 0 22px 5px rgba(16, 185, 129, 0.25);
+  }
+}
+[data-rule-card] {
+  transition: box-shadow 200ms ease;
+}
+[data-rule-card][data-rule-type="Required"][data-rule-state="pending"] {
+  animation: rule-card-breath-required-pending 3.6s ease-in-out infinite;
+}
+[data-rule-card][data-rule-type="Conditional"][data-rule-state="pending"] {
+  animation: rule-card-breath-conditional-pending 3.6s ease-in-out infinite;
+}
+[data-rule-card][data-rule-type="Optional"][data-rule-state="pending"] {
+  animation: rule-card-breath-optional-pending 3.6s ease-in-out infinite;
+}
+[data-rule-card][data-rule-state="ready"] {
+  animation: rule-card-breath-ready 3.6s ease-in-out infinite;
+}
+[data-rule-card][data-rule-state="complete"] {
+  animation: rule-card-breath-complete 3.6s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  [data-signature-rail] {
+  [data-signature-rail],
+  [data-rule-card] {
     animation: none !important;
   }
 }
