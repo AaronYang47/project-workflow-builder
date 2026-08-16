@@ -250,16 +250,10 @@ function migrateGateNode(node: DomainNode): DomainNode {
         revisions,
         checked: Boolean(signature.checked && revisionReady),
         requirementType: signature.requirementType || "Required",
-        applicable: signature.applicable ?? true,
       };
     });
     const requiredDocumentsReady = signatures
-      .filter(
-        (signature) =>
-          signature.requirementType !== "Optional" &&
-          (signature.requirementType !== "Conditional" ||
-            signature.applicable !== false),
-      )
+      .filter((signature) => signature.requirementType !== "Optional")
       .every(
         (signature) =>
           signature.checked &&
@@ -278,7 +272,6 @@ function migrateGateNode(node: DomainNode): DomainNode {
           !(index === 0 && legacySignatures.length > 0 && !hasNestedSignatures),
       ),
       requirementType: rule.requirementType || "Required",
-      applicable: rule.applicable ?? true,
       signatureLogic: undefined,
       signatures,
     };

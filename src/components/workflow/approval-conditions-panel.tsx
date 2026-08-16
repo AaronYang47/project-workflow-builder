@@ -150,7 +150,6 @@ export function ApprovalConditionsPanel({
                   label: "New condition",
                   checked: false,
                   requirementType: "Required",
-                  applicable: true,
                   signatures: [],
                 },
               ])
@@ -219,22 +218,6 @@ export function ApprovalConditionsPanel({
                         ? {
                             ...item,
                             requirementType: value as RequirementType,
-                            applicable:
-                              value === "Conditional"
-                                ? (item.applicable ?? true)
-                                : true,
-                          }
-                        : item,
-                    ),
-                  )
-                }
-                onToggleApplicable={() =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? {
-                            ...item,
-                            applicable: item.applicable === false,
                           }
                         : item,
                     ),
@@ -296,7 +279,6 @@ export function ApprovalConditionsPanel({
                       signedBy: "",
                       checked: false,
                       requirementType: "Required",
-                      applicable: true,
                       status: "Draft",
                       revisionControlled: true,
                       revisions: [],
@@ -330,7 +312,6 @@ interface ConditionRowProps {
   nodeId: string;
   onToggleChecked: () => void;
   onChangeRequirementType: (value: string) => void;
-  onToggleApplicable: () => void;
   onLabelBlur: (value: string) => void;
   onDelete: () => void;
   onChangeServiceType: (value: string) => void;
@@ -354,7 +335,6 @@ function ConditionRow({
   nodeId,
   onToggleChecked,
   onChangeRequirementType,
-  onToggleApplicable,
   onLabelBlur,
   onDelete,
   onChangeServiceType,
@@ -382,9 +362,7 @@ function ConditionRow({
           ? rule.checked
             ? "border-emerald-300"
             : "border-sky-300"
-          : requirementType === "Conditional"
-            ? "border-amber-300"
-            : requirementType === "Optional"
+          : requirementType === "Optional"
               ? "border-blue-300"
               : "border-rose-300",
       )}
@@ -424,25 +402,11 @@ function ConditionRow({
             aria-label={`Condition ${index + 1} requirement type`}
             value={requirementType}
             onChange={(event) => onChangeRequirementType(event.target.value)}
-            className={cn(
-              "w-full min-w-0 rounded border bg-background px-1.5 py-1 text-[7px] font-bold leading-4",
-              requirementType === "Conditional" ? "h-8" : "h-full min-h-14",
-            )}
+            className="h-full min-h-14 w-full min-w-0 rounded border bg-background px-1.5 py-1 text-[7px] font-bold leading-4"
           >
             <option>Required</option>
-            <option>Conditional</option>
             <option>Optional</option>
           </select>
-          {requirementType === "Conditional" ? (
-            <button
-              aria-label={`Condition ${index + 1} applicable`}
-              aria-pressed={rule.applicable !== false}
-              onClick={stopBubble(onToggleApplicable)}
-              className="mt-1 w-full rounded border text-[7px] font-bold"
-            >
-              {rule.applicable === false ? "N/A" : "Applies"}
-            </button>
-          ) : null}
         </span>
         <textarea
           aria-label={`Decision condition ${index + 1}`}

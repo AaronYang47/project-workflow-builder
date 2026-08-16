@@ -103,7 +103,7 @@ export function RuleSignatureCard({
         "min-w-0 overflow-hidden rounded-xl border bg-card p-2 shadow-sm transition",
         signature.checked
           ? "border-emerald-300 ring-1 ring-emerald-500/10"
-          : requirementType === "Optional" || signature.applicable === false
+          : requirementType === "Optional"
             ? "border-slate-200 opacity-70"
             : "border-amber-200/80",
       )}
@@ -142,30 +142,13 @@ export function RuleSignatureCard({
           onChange={(event) =>
             update({
               requirementType: event.target.value as RequirementType,
-              applicable:
-                event.target.value === "Conditional"
-                  ? (signature.applicable ?? true)
-                  : true,
             })
           }
           className="ml-auto h-5 shrink-0 rounded border bg-background px-1 text-[7px] font-bold"
         >
           <option>Required</option>
-          <option>Conditional</option>
           <option>Optional</option>
         </select>
-        {requirementType === "Conditional" ? (
-          <button
-            aria-label={`${prefix} applicable`}
-            aria-pressed={signature.applicable !== false}
-            onClick={stopBubble(() =>
-              update({ applicable: signature.applicable === false })
-            )}
-            className="rounded border px-1.5 py-0.5 text-[7px] font-bold"
-          >
-            {signature.applicable === false ? "N/A" : "Applies"}
-          </button>
-        ) : null}
         <ComponentNoteButton
           nodeId={nodeId}
           noteKey={`signature:${signature.id}`}

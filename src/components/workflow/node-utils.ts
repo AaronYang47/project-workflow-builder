@@ -90,12 +90,8 @@ const signatureIsComplete = (signature: GateSignatureRequirement) =>
     signature.signedBy.trim() &&
     currentRevisionComplete(signature),
   );
-const requirementApplies = (item: {
-  requirementType?: RequirementType;
-  applicable?: boolean;
-}) =>
-  item.requirementType !== "Optional" &&
-  (item.requirementType !== "Conditional" || item.applicable !== false);
+const requirementApplies = (item: { requirementType?: RequirementType }) =>
+  item.requirementType !== "Optional";
 const statusStyles: Record<
   GateCompletionState,
   { card: string; header: string; accent: string; label: string }

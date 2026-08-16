@@ -80,7 +80,7 @@ export interface OutcomeHandle {
   enabled?: boolean;
   rule?: string;
 }
-export type RequirementType = "Required" | "Conditional" | "Optional";
+export type RequirementType = "Required" | "Optional";
 export interface RevisionRecord {
   id: string;
   revision: string;
@@ -97,7 +97,6 @@ export interface GateSignatureRequirement {
   signedBy: string;
   checked: boolean;
   requirementType?: RequirementType;
-  applicable?: boolean;
   owner?: string;
   receivedDate?: string;
   revision?: string;
@@ -113,7 +112,6 @@ export interface GateRule {
   checked: boolean;
   signatures?: GateSignatureRequirement[];
   requirementType?: RequirementType;
-  applicable?: boolean;
   condition?: string;
   serviceTypeId?: string;
   buildingCode?: string;
@@ -149,7 +147,7 @@ export interface DocumentConfig {
   fullName: string;
   purpose: string;
   owner: string;
-  requirementType: "Required" | "Conditional" | "Optional";
+  requirementType: "Required" | "Optional";
   requiresApproval: boolean;
   requiresSignature: boolean;
   status: string;

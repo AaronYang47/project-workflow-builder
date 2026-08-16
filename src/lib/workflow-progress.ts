@@ -9,9 +9,8 @@ import { REFERENCE_NODE_TYPES } from "@/types/workflow";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
-const applies = (item: { requirementType?: string; applicable?: boolean }) =>
-  item.requirementType !== "Optional" &&
-  (item.requirementType !== "Conditional" || item.applicable !== false);
+const applies = (item: { requirementType?: string }) =>
+  item.requirementType !== "Optional";
 const currentRevisionComplete = (item: GateSignatureRequirement) => {
   if (!item.revisionControlled) return true;
   const current = item.revisions?.find(

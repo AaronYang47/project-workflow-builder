@@ -152,7 +152,6 @@ function createDomainNode(type: WorkflowNodeType, id: string): DomainNode {
               label: "Enter required condition",
               checked: false,
               requirementType: "Required",
-              applicable: true,
               signatures: [],
             },
           ],

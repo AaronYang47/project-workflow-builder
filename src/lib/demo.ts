@@ -24,7 +24,6 @@ const signature = (
   signedBy: "",
   checked: false,
   requirementType: "Required",
-  applicable: true,
   owner: department,
   receivedDate: "",
   revision: "",
@@ -43,7 +42,6 @@ const rule = (
   label,
   checked: false,
   requirementType: "Required",
-  applicable: true,
   signatures,
 });
 

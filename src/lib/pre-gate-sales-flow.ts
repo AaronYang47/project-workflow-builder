@@ -79,7 +79,6 @@ const decisionGate = (
         label: condition,
         checked: false,
         requirementType: "Required",
-        applicable: true,
         signatures: [],
       },
     ],

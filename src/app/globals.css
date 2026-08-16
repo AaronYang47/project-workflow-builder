@@ -217,18 +217,6 @@ button:disabled { cursor: not-allowed; }
                 -6px 0 30px 8px rgba(225, 29, 72, 0.40);
   }
 }
-@keyframes signature-rail-breath-conditional-pending {
-  0%, 100% {
-    border-left-color: rgb(252 211 77);
-    box-shadow: -2px 0 0 0 rgb(252 211 77),
-                -4px 0 18px 2px rgba(245, 158, 11, 0.55);
-  }
-  50% {
-    border-left-color: rgb(245 158 11);
-    box-shadow: -2px 0 0 2px rgb(245 158 11),
-                -6px 0 30px 8px rgba(245, 158, 11, 0.40);
-  }
-}
 @keyframes signature-rail-breath-optional-pending {
   0%, 100% {
     border-left-color: rgb(147 197 253);
@@ -258,11 +246,6 @@ button:disabled { cursor: not-allowed; }
   border-left-style: solid;
   animation: signature-rail-breath-required-pending 3.6s ease-in-out infinite;
 }
-[data-signature-rail][data-rail-type="Conditional"][data-rail-state="pending"] {
-  border-left-width: 2px;
-  border-left-style: solid;
-  animation: signature-rail-breath-conditional-pending 3.6s ease-in-out infinite;
-}
 [data-signature-rail][data-rail-type="Optional"][data-rail-state="pending"] {
   border-left-width: 2px;
   border-left-style: solid;
@@ -287,16 +270,6 @@ button:disabled { cursor: not-allowed; }
   50% {
     box-shadow: 0 0 0 2px rgb(225 29 72),
                 0 0 26px 6px rgba(225, 29, 72, 0.30);
-  }
-}
-@keyframes rule-card-breath-conditional-pending {
-  0%, 100% {
-    box-shadow: 0 0 0 1px rgb(252 211 77),
-                0 0 16px 2px rgba(245, 158, 11, 0.40);
-  }
-  50% {
-    box-shadow: 0 0 0 2px rgb(245 158 11),
-                0 0 26px 6px rgba(245, 158, 11, 0.30);
   }
 }
 @keyframes rule-card-breath-optional-pending {
@@ -334,9 +307,6 @@ button:disabled { cursor: not-allowed; }
 }
 [data-rule-card][data-rule-type="Required"][data-rule-state="pending"] {
   animation: rule-card-breath-required-pending 3.6s ease-in-out infinite;
-}
-[data-rule-card][data-rule-type="Conditional"][data-rule-state="pending"] {
-  animation: rule-card-breath-conditional-pending 3.6s ease-in-out infinite;
 }
 [data-rule-card][data-rule-type="Optional"][data-rule-state="pending"] {
   animation: rule-card-breath-optional-pending 3.6s ease-in-out infinite;
