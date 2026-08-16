@@ -5,8 +5,8 @@ import {
   AlignHorizontalDistributeCenter,
   CheckCircle2,
   Download,
-  FileDown,
-  FileInput,
+  FileSpreadsheet,
+  FileUp,
   Focus,
   Group,
   ImageDown,
@@ -22,11 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { autoLayout } from "@/lib/layout";
-import {
-  downloadText,
-  parseWorkflow,
-  serializeWorkflow,
-} from "@/lib/serialization";
+import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { CloudProjectControls } from "./cloud-project-controls";
 
@@ -100,7 +96,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
           "This project has unsaved changes. Importing will discard those changes. Continue?",
         )
       ) return;
-      store.replaceFile(parseWorkflow(await file.text()));
+      store.replaceFile(await parseWorkflowExcel(await file.arrayBuffer()));
     } catch (error) {
       window.alert(
         error instanceof Error ? error.message : "Could not import workflow.",
@@ -249,26 +245,29 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
       </Button>
       <div className="ml-auto flex shrink-0 items-center pl-2">
         <ToolButton
-          label="Export JSON"
-          onClick={() =>
-            downloadText(
-              `${store.file.graph.metadata.name.replace(/\W+/g, "-").toLowerCase()}.json`,
-              serializeWorkflow(store.file),
-            )
-          }
+          label="Export Excel"
+          onClick={() => {
+            void downloadWorkflowExcel(store.file).catch((error) => {
+              window.alert(
+                error instanceof Error
+                  ? error.message
+                  : "Could not export workflow.",
+              );
+            });
+          }}
         >
-          <FileDown className="size-4" />
+          <FileSpreadsheet className="size-4" />
         </ToolButton>
         <ToolButton
-          label="Import JSON"
+          label="Import Excel"
           onClick={() => inputRef.current?.click()}
         >
-          <FileInput className="size-4" />
+          <FileUp className="size-4" />
         </ToolButton>
         <input
           ref={inputRef}
           type="file"
-          accept="application/json,.json"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => importFile(e.target.files?.[0])}
         />

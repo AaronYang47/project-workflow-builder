@@ -40,6 +40,6 @@
 ## Save and share
 
 1. Changes autosave locally; the toolbar indicates whether the canvas is saved.
-2. Use **Export JSON** for a portable editable workflow and **Import JSON** to restore it.
+2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The spreadsheet includes a visual map plus Nodes, Conditions, Documents, Approvals, Connections, and Layout so round-tripping preserves the canvas.
 3. Use **Export image** for PNG or SVG output.
 4. Run **Validate workflow** before sharing. Click a validation item to focus the related node.

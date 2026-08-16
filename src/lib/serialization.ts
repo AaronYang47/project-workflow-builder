@@ -7,7 +7,10 @@ import {
 export const serializeWorkflow = (file: WorkflowFile) =>
   JSON.stringify(file, null, 2);
 export function parseWorkflow(input: string): WorkflowFile {
-  const value = JSON.parse(input) as Partial<WorkflowFile>;
+  return parseWorkflowValue(JSON.parse(input));
+}
+export function parseWorkflowValue(input: unknown): WorkflowFile {
+  const value = input as Partial<WorkflowFile>;
   const validNode = (node: unknown) => {
     if (!node || typeof node !== "object") return false;
     const item = node as Record<string, unknown>;
@@ -72,15 +75,18 @@ export function parseWorkflow(input: string): WorkflowFile {
     );
   return value as WorkflowFile;
 }
-export function downloadText(
-  name: string,
-  content: string,
-  type = "application/json",
-) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+export function downloadBlob(name: string, data: BlobPart, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = name;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+export function downloadText(
+  name: string,
+  content: string,
+  type = "application/json",
+) {
+  downloadBlob(name, content, type);
 }
