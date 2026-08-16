@@ -52,6 +52,7 @@ export function GateRules({ node }: { node: DomainNode }) {
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
   );
+  const nodeUuid = String(node.customFields.nodeUuid || "");
   const conditionState = conditionProgress.state;
   const decisionState: GateCompletionState =
     conditionProgress.completed === 0
@@ -364,6 +365,16 @@ export function GateRules({ node }: { node: DomainNode }) {
             />
           </label>
         </div>
+        {nodeUuid ? (
+          <div className="nodrag pointer-events-none absolute bottom-1 right-2 z-10">
+            <span
+              title={nodeUuid}
+              className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+            >
+              UUID {nodeUuid.slice(0, 8)}
+            </span>
+          </div>
+        ) : null}
       </section>
       <div
         aria-hidden
