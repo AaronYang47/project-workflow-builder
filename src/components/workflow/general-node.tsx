@@ -202,11 +202,22 @@ export function GeneralNode({
             ))}
           </select>
         </label>
-        <label className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden" data-header-child>
-          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <label
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
+          data-header-child
+          data-header-stage
+        >
+          <span
+            className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+            data-header-child
+          >
             Stage
           </span>
-          <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
+          <span
+            aria-hidden
+            className="h-5 w-px shrink-0 bg-border"
+            data-header-child
+          />
           <input
             key={node.config.stage}
             aria-label="Stage"
@@ -224,7 +235,7 @@ export function GeneralNode({
                 });
               }
             }}
-            className="nodrag h-8 min-w-[5rem] flex-1 truncate border-0 bg-transparent p-0 text-xs font-bold outline-none"
+            className="nodrag h-8 min-w-[6rem] flex-1 truncate border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
         <span data-header-child>

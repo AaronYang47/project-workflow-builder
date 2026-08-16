@@ -257,15 +257,7 @@ function CanvasInner() {
           targetHandle: domain.targetHandle,
           reconnectable: isDeniedEdge(domain) ? "target" : false,
           selected: selection.edgeId === domain.id,
-          markerEnd:
-            domain.arrowStyle === "none"
-              ? undefined
-              : {
-                  type: MarkerType.ArrowClosed,
-                  width: 18,
-                  height: 18,
-                  color: getSemanticEdgeColor(domain),
-                },
+          markerEnd: undefined,
           data: {
             domain,
             route: file.layout.edges?.[domain.id]?.points,
@@ -552,33 +544,40 @@ function CanvasInner() {
           const styles = getComputedStyle(header);
           const padX =
             parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-          let childrenWidth = 0;
-          let gaps = 0;
-          // Reserve space for the Stage input even when flex has collapsed it.
-          // icon + Stage label + divider + suffix controls must all fit.
-          const stageInput = header.querySelector<HTMLElement>(
-            'input[aria-label="Stage"]',
-          );
-          const stageMinWidth = stageInput
-            ? parseFloat(getComputedStyle(stageInput).minWidth) || 0
-            : 0;
-          header.querySelectorAll<HTMLElement>("[data-header-child]").forEach(
-            (child, index) => {
-              if (index > 0)
-                gaps += parseFloat(
-                  styles.columnGap || styles.gap || "0",
-                );
-              if (child.contains(stageInput)) {
-                childrenWidth +=
-                  Math.max(child.getBoundingClientRect().width, stageMinWidth);
-              } else {
-                childrenWidth += child.getBoundingClientRect().width;
-              }
-            },
-          );
-          const naturalWidth = childrenWidth + gaps + padX + 2;
+          const gap = parseFloat(styles.columnGap || styles.gap || "0");
+          let width = padX;
+          // Sum each top-level child's true width so the Stage label and
+          // input always get their declared minimum even when flex collapses
+          // them. Suffix controls (badge, note, drag) already render at their
+          // natural width.
+          const topChildren = Array.from(
+            header.children,
+          ) as HTMLElement[];
+          topChildren.forEach((child) => {
+            const stageContainer = child.querySelector<HTMLElement>(
+              "[data-header-stage]",
+            );
+            if (stageContainer) {
+              const stageInput = stageContainer.querySelector<HTMLElement>(
+                'input[aria-label="Stage"]',
+              );
+              const stageInputMin = stageInput
+                ? parseFloat(getComputedStyle(stageInput).minWidth) || 0
+                : 0;
+              // Take the wider of the rendered Stage container or its
+              // declared minimum so flex-1 collapse doesn't shrink the label
+              // group below what's needed to show "Stage" + a few characters.
+              const labelWidth = stageContainer.getBoundingClientRect().width;
+              const stageMin = Math.max(labelWidth, 180);
+              width += stageMin;
+            } else {
+              width += child.getBoundingClientRect().width;
+            }
+            width += gap;
+          });
+          const naturalWidth = Math.ceil(width) + 2;
           if (naturalWidth > layout.width) {
-            patches[id] = { ...patches[id], width: Math.ceil(naturalWidth) };
+            patches[id] = { ...patches[id], width: naturalWidth };
           }
         });
       root
