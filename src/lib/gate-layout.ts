@@ -102,8 +102,16 @@ export function getGateLayoutMetrics(
         20,
     0,
   );
+  const decisionPaidCodesHeight = (node.config.gateRules || []).some(
+    ruleHasPaidService,
+  )
+    ? GATE_PAID_CODES_HEIGHT
+    : 0;
   const decisionHeight =
-    GATE_DECISION_HEIGHT + Math.max(0, outcomeCount - 2) * 44 + outcomeExtra;
+    GATE_DECISION_HEIGHT +
+    decisionPaidCodesHeight +
+    Math.max(0, outcomeCount - 2) * 44 +
+    outcomeExtra;
   const conditionsTop = gateCardHeight + GATE_INTERNAL_GAP;
   const decisionTop = conditionsTop + conditionsHeight + GATE_SECTION_GAP;
   const contentHeight = decisionTop + decisionHeight;

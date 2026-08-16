@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import {
   Boxes,
   Building2,
@@ -13,7 +13,11 @@ import { Handle, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
 import { GATE_PANEL_WIDTH, type GateLayoutMetrics } from "@/lib/gate-layout";
-import { projectNodeUuid } from "@/lib/project-id";
+import {
+  projectNodeUuid,
+  sanitizeBuildingCode,
+  sanitizeModuleCode,
+} from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { textareaRows } from "./node-utils";
 import type { DomainNode, OutcomeHandle } from "@/types/workflow";
@@ -53,7 +57,7 @@ export function DecisionCard({
   projectStartNodeId,
   outcomes,
   saveApprovalField,
-  updateProjectStartConfig,
+  onChangeLocationCode,
 }: {
   node: DomainNode;
   metrics: GateLayoutMetrics & {
@@ -76,7 +80,7 @@ export function DecisionCard({
     field: "approvedDepartment" | "approvedBy",
     value: string,
   ) => void;
-  updateProjectStartConfig: (
+  onChangeLocationCode: (
     field: "buildingCode" | "moduleCode",
     value: string,
   ) => void;
@@ -86,38 +90,24 @@ export function DecisionCard({
   );
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const yes = outcomes.find((outcome) => outcome.id === "yes");
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const [actualBottom, setActualBottom] = useState(0);
-  useLayoutEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const measure = () => {
-      // offsetTop + offsetHeight gives the section's bottom in CSS pixels
-      // relative to its offsetParent, which is unaffected by the React Flow
-      // viewport's scale transform (so the badge position matches the card).
-      setActualBottom(el.offsetTop + el.offsetHeight);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [outcomes, approvedDepartment, approvedBy]);
   return (
     <Fragment>
+    <div
+      className="absolute"
+      style={{
+        left: metrics.conditionsLeft,
+        top: metrics.decisionTop,
+        width: GATE_PANEL_WIDTH,
+      }}
+    >
     <section
-      ref={sectionRef}
       data-completion-state={decisionState}
       data-decision-content=""
       aria-label="Approval decision card"
       className={cn(
-        "absolute min-h-[272px] overflow-visible rounded-2xl border px-3 pb-7 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
+        "relative min-h-[272px] w-full overflow-visible rounded-2xl border px-3 pb-7 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
         decisionStyle.card,
       )}
-      style={{
-        left: metrics.conditionsLeft,
-        width: GATE_PANEL_WIDTH,
-        top: metrics.decisionTop,
-      }}
     >
       <div data-decision-header className="mb-2 flex min-h-7 items-center gap-1">
         <span className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900">
@@ -218,9 +208,12 @@ export function DecisionCard({
             </span>
             <input
               aria-label="Building code (from Decision card)"
-              defaultValue={projectStart.buildingCode}
-              onBlur={(event) =>
-                updateProjectStartConfig("buildingCode", event.target.value)
+              value={projectStart.buildingCode}
+              onChange={(event) =>
+                onChangeLocationCode(
+                  "buildingCode",
+                  sanitizeBuildingCode(event.target.value),
+                )
               }
               placeholder="B-01"
               className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
@@ -238,9 +231,12 @@ export function DecisionCard({
             </span>
             <input
               aria-label="Module code (from Decision card)"
-              defaultValue={projectStart.moduleCode}
-              onBlur={(event) =>
-                updateProjectStartConfig("moduleCode", event.target.value)
+              value={projectStart.moduleCode}
+              onChange={(event) =>
+                onChangeLocationCode(
+                  "moduleCode",
+                  sanitizeModuleCode(event.target.value),
+                )
               }
               placeholder="M-001"
               className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
@@ -327,14 +323,8 @@ export function DecisionCard({
     </section>
     {nodeUuid ? (
       <div
-        className="nodrag pointer-events-none absolute z-10"
-        style={{
-          top: actualBottom
-            ? actualBottom + 6
-            : metrics.decisionTop + metrics.decisionHeight + 6,
-          left: metrics.conditionsLeft + GATE_PANEL_WIDTH,
-          transform: "translateX(-100%)",
-        }}
+        className="nodrag pointer-events-none absolute right-0 z-10"
+        style={{ top: "100%", marginTop: 6 }}
       >
         <span
           title={nodeUuid}
@@ -344,6 +334,7 @@ export function DecisionCard({
         </span>
       </div>
     ) : null}
+    </div>
     </Fragment>
   );
 }

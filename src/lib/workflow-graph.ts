@@ -5,7 +5,53 @@ import type {
   DomainNode,
   NodeLayout,
   WorkflowFile,
+  WorkflowNodeType,
 } from "@/types/workflow";
+
+export const DENIED_RETURN_HANDLE = "rework-in";
+
+export function isDeniedSourceHandle(sourceHandle?: string | null) {
+  return Boolean(sourceHandle?.startsWith("no"));
+}
+
+export function isDeniedEdge(edge: {
+  sourceHandle?: string | null;
+  type?: string;
+}) {
+  return (
+    isDeniedSourceHandle(edge.sourceHandle) ||
+    ["failure", "rework", "exception", "hold"].includes(String(edge.type || ""))
+  );
+}
+
+export function canReceiveDeniedReturn(type?: WorkflowNodeType) {
+  return Boolean(type) && type !== "projectStart" && type !== "phase";
+}
+
+export function deniedTargetHandle(options: {
+  sourceHandle?: string | null;
+  preGateSales?: boolean;
+  droppedHandle?: string | null;
+}) {
+  if (options.preGateSales) return options.droppedHandle || "in";
+  if (isDeniedSourceHandle(options.sourceHandle)) return DENIED_RETURN_HANDLE;
+  return options.droppedHandle || undefined;
+}
+
+export function clearEdgeRoute(file: WorkflowFile, id: string): WorkflowFile {
+  const route = file.layout.edges?.[id];
+  if (!route) return file;
+  return {
+    ...file,
+    layout: {
+      ...file.layout,
+      edges: {
+        ...file.layout.edges,
+        [id]: { ...route, points: [] },
+      },
+    },
+  };
+}
 
 export function insertNode(
   file: WorkflowFile,

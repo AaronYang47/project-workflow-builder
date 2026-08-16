@@ -96,10 +96,10 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
           {showBadge ? (
             <span
               title={`${displayedProjectId} · Legacy ${legacyJobNumberFromProjectId(displayedProjectId) || "—"}`}
-              className="flex flex-col items-end gap-0.5 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-tight tracking-tight text-primary"
+              className="flex flex-col items-end gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight text-primary"
             >
               <span>{displayedProjectId}</span>
-              <span className="rounded bg-primary/20 px-1 text-[8px] font-bold tracking-tight text-primary">
+              <span className="rounded bg-primary/20 px-1 text-[10px] font-bold tracking-tight text-primary">
                 Legacy {legacyJobNumberFromProjectId(displayedProjectId) || "—"}
               </span>
             </span>

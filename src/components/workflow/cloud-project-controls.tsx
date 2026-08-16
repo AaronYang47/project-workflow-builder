@@ -275,7 +275,7 @@ export function CloudProjectControls() {
           <span className="truncate">{user?.name || "Account"}</span>
         </div>
         {user ? (
-          <Button title="Sign out" aria-label="Sign out" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={() => void signOut()}>
+          <Button title="Sign out" aria-label="Sign out" variant="ghost" size="icon" className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={busy} onClick={() => void signOut()}>
             <LogOut className="size-3.5" />
           </Button>
         ) : null}

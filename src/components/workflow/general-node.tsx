@@ -147,6 +147,7 @@ export function GeneralNode({
     updateNode(node.id, { conditions: next });
   return (
     <Fragment>
+    <div className="relative h-full w-full overflow-visible">
     <div
       data-canvas-node
       data-inspector-target="color"
@@ -173,19 +174,6 @@ export function GeneralNode({
         }
         lineClassName="!border-primary"
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in"
-        className="!size-3 !border-2 !border-background !bg-slate-500"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="out"
-        className="!size-3 !border-2 !border-background"
-        style={{ backgroundColor: color }}
       />
       <div
         className="nowheel flex h-11 cursor-grab items-center border-b px-3 active:cursor-grabbing"
@@ -243,7 +231,7 @@ export function GeneralNode({
               : "Set a Project ID to display here"
           }
           className={cn(
-            "ml-2 flex shrink-0 flex-col items-end gap-0.5 rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold leading-tight tracking-tight",
+            "ml-2 flex shrink-0 flex-col items-end gap-1 rounded-md border px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight",
             displayedProjectId
               ? "border-primary/30 bg-primary/10 text-primary"
               : "border-border bg-muted/40 text-muted-foreground"
@@ -252,7 +240,7 @@ export function GeneralNode({
           <span>{displayedProjectId || "L-—"}</span>
           <span
             className={cn(
-              "rounded px-1 text-[8px] font-bold tracking-tight",
+              "rounded px-1 text-[10px] font-bold tracking-tight",
               displayedProjectId
                 ? "bg-primary/20 text-primary"
                 : "bg-background text-muted-foreground"
@@ -532,6 +520,29 @@ export function GeneralNode({
           </button>
         </section>
       </div>
+    </div>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in"
+        className="!size-3 !border-2 !border-background !bg-slate-500"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="out"
+        className="!size-3 !border-2 !border-background"
+        style={{ backgroundColor: color }}
+      />
+      {node.type !== "projectStart" ? (
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="rework-in"
+          aria-label="Denied return entry"
+          className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+        />
+      ) : null}
     </div>
     {nodeUuid ? (
       <div

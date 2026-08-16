@@ -1,10 +1,12 @@
 import type { ElkExtendedEdge, ElkPoint } from "elkjs/lib/elk-api";
 import type {
+  DomainEdge,
   DomainNode,
   EdgeLayout,
   NodeLayout,
   WorkflowFile,
 } from "@/types/workflow";
+import { requiredEdgeLabelGap } from "@/lib/layout-geometry";
 import { PHASE_CONTENT_TOP } from "@/lib/node-layout";
 
 const rounded = (value: number | undefined) => Math.round(value || 0);
@@ -32,6 +34,64 @@ const PHASE_TOP = 64;
 const PHASE_GAP = 240;
 const GATE_CONNECTOR_GAP = 240;
 const SALES_GAP = 96;
+const OVERLAP_SLOP = 24;
+
+const overlapsY = (a: NodeLayout, b: NodeLayout, slop = OVERLAP_SLOP) =>
+  a.y - slop < b.y + b.height && b.y - slop < a.y + a.height;
+const overlapsX = (a: NodeLayout, b: NodeLayout, slop = OVERLAP_SLOP) =>
+  a.x - slop < b.x + b.width && b.x - slop < a.x + a.width;
+
+function layoutDisplayLabel(file: WorkflowFile, edge: DomainEdge) {
+  const source = file.graph.nodes.find((node) => node.id === edge.source);
+  const target = file.graph.nodes.find((node) => node.id === edge.target);
+  const preGateSales =
+    edge.customFields.workflowSection === "Pre-Gate Sales" ||
+    source?.metadata.workflowSection === "Pre-Gate Sales" ||
+    target?.metadata.workflowSection === "Pre-Gate Sales" ||
+    source?.type === "projectStart";
+  const denied =
+    !preGateSales &&
+    (edge.sourceHandle?.startsWith("no") ||
+      ["rework", "exception", "hold"].includes(edge.type));
+  const approved =
+    !preGateSales &&
+    (edge.sourceHandle === "yes" || edge.type === "approval");
+  return approved ? "APPROVED" : denied ? "DENIED" : edge.label ?? "";
+}
+
+function isCorridorEdge(edge: DomainEdge) {
+  if (
+    edge.type === "rework" ||
+    edge.type === "reopen" ||
+    edge.type === "supporting" ||
+    edge.type === "dependency" ||
+    edge.type === "failure" ||
+    edge.type === "exception" ||
+    edge.type === "hold"
+  ) {
+    return false;
+  }
+  if (edge.sourceHandle?.startsWith("no")) return false;
+  return true;
+}
+
+function gapForLabeledPair(
+  file: WorkflowFile,
+  fromId: string,
+  toId: string,
+  axis: "horizontal" | "vertical",
+  fallback: number,
+) {
+  const edge = file.graph.edges.find(
+    (item) =>
+      (item.source === fromId && item.target === toId) ||
+      (item.source === toId && item.target === fromId),
+  );
+  if (!edge || !isCorridorEdge(edge)) return fallback;
+  const label = layoutDisplayLabel(file, edge);
+  if (!label.trim()) return fallback;
+  return Math.max(fallback, requiredEdgeLabelGap(label, axis));
+}
 
 export function restoreChildCoordinates(
   file: WorkflowFile,
@@ -86,14 +146,25 @@ export function packPhases(
     if (!children.length) continue;
     let childCursorX = phaseCursorX + 42;
     let phaseBottom = childTop;
-    for (const child of children) {
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index];
+      const next = children[index + 1];
       nodes[child.nodeId] = {
         ...child,
         x: childCursorX,
         y: childTop,
         parentId: undefined,
       };
-      childCursorX += child.width + GATE_CONNECTOR_GAP;
+      const gap = next
+        ? gapForLabeledPair(
+            file,
+            child.nodeId,
+            next.nodeId,
+            "horizontal",
+            GATE_CONNECTOR_GAP,
+          )
+        : GATE_CONNECTOR_GAP;
+      childCursorX += child.width + gap;
       phaseBottom = Math.max(phaseBottom, childTop + child.height);
     }
     const phaseWidth = Math.max(420, childCursorX - phaseCursorX - 78);
@@ -133,6 +204,7 @@ export function placeDecorativeReferences(
 }
 
 export function placeSalesIntake(
+  file: WorkflowFile,
   original: WorkflowFile["layout"]["nodes"],
   nodes: Record<string, NodeLayout>,
   phases: DomainNode[],
@@ -143,24 +215,44 @@ export function placeSalesIntake(
   const mainTop = PHASE_TOP;
   const gateOne = nodes["g1-opportunity"] || original["g1-opportunity"];
   const salesMainline = SALES_MAINLINE.filter((id) => nodes[id]);
+  const salesGap = (fromId: string, toId: string) =>
+    gapForLabeledPair(file, fromId, toId, "horizontal", SALES_GAP);
   const salesWidth = salesMainline.reduce(
-    (sum, id, index) => sum + nodes[id].width + (index ? SALES_GAP : 0),
+    (sum, id, index) =>
+      sum +
+      nodes[id].width +
+      (index ? salesGap(salesMainline[index - 1], id) : 0),
     0,
   );
+  const firstSalesId = salesMainline[0];
+  const startToSalesGap =
+    projectStartNode && firstSalesId
+      ? salesGap(projectStartNode.id, firstSalesId)
+      : SALES_GAP;
   const standaloneSalesStart = projectStartLayout
-    ? 64 + projectStartLayout.width + SALES_GAP
+    ? 64 + projectStartLayout.width + startToSalesGap
     : 64;
-  let salesX = gateOne ? gateOne.x - 120 - salesWidth : standaloneSalesStart;
+  const lastSalesId = salesMainline.at(-1);
+  const salesToGateGap =
+    gateOne && lastSalesId
+      ? gapForLabeledPair(file, lastSalesId, "g1-opportunity", "horizontal", 120)
+      : 120;
+  let salesX = gateOne
+    ? gateOne.x - salesToGateGap - salesWidth
+    : standaloneSalesStart;
   const salesY = gateOne?.y ?? mainTop;
-  for (const id of salesMainline) {
+  for (let index = 0; index < salesMainline.length; index++) {
+    const id = salesMainline[index];
+    const nextId = salesMainline[index + 1];
     nodes[id] = { ...nodes[id], x: salesX, y: salesY, parentId: undefined };
-    salesX += nodes[id].width + SALES_GAP;
+    salesX += nodes[id].width + (nextId ? salesGap(id, nextId) : 0);
   }
   const leadInquiry = nodes["lead-inquiry"];
   if (leadInquiry && projectStartNode && projectStartLayout) {
+    const startGap = salesGap(projectStartNode.id, leadInquiry.nodeId);
     nodes[projectStartNode.id] = {
       ...projectStartLayout,
-      x: leadInquiry.x - SALES_GAP - projectStartLayout.width,
+      x: leadInquiry.x - startGap - projectStartLayout.width,
       y: salesY,
       parentId: undefined,
     };
@@ -178,15 +270,39 @@ export function placeSalesIntake(
         .map((node) => nodes[node.id])
         .filter(Boolean)
         .sort((a, b) => a.x - b.x || a.y - b.y);
-      let disconnectedX = 64 + projectStartLayout.width + 144;
-      for (const layout of disconnectedMainline) {
+      const firstDisconnected = disconnectedMainline[0];
+      let disconnectedX =
+        64 +
+        projectStartLayout.width +
+        (firstDisconnected
+          ? gapForLabeledPair(
+              file,
+              projectStartNode.id,
+              firstDisconnected.nodeId,
+              "horizontal",
+              144,
+            )
+          : 144);
+      for (let index = 0; index < disconnectedMainline.length; index++) {
+        const layout = disconnectedMainline[index];
+        const next = disconnectedMainline[index + 1];
         nodes[layout.nodeId] = {
           ...layout,
           x: disconnectedX,
           y: mainTop,
           parentId: undefined,
         };
-        disconnectedX += layout.width + 144;
+        disconnectedX +=
+          layout.width +
+          (next
+            ? gapForLabeledPair(
+                file,
+                layout.nodeId,
+                next.nodeId,
+                "horizontal",
+                144,
+              )
+            : 144);
       }
     }
   }
@@ -240,6 +356,144 @@ export function placeNoBranches(nodes: Record<string, NodeLayout>) {
   };
   placeNoBranch("qualified-opportunity", "archive-follow-up");
   placeNoBranch("budget-fit", "hold-archive");
+}
+
+function refitPhases(
+  file: WorkflowFile,
+  original: WorkflowFile["layout"]["nodes"],
+  nodes: Record<string, NodeLayout>,
+  phases: DomainNode[],
+) {
+  for (const phase of phases) {
+    const children = file.graph.nodes
+      .filter((node) => original[node.id]?.parentId === phase.id)
+      .map((node) => nodes[node.id])
+      .filter(Boolean);
+    const current = nodes[phase.id];
+    if (!children.length || !current) continue;
+    const minX = Math.min(...children.map((child) => child.x));
+    const maxX = Math.max(...children.map((child) => child.x + child.width));
+    const maxBottom = Math.max(
+      ...children.map((child) => child.y + child.height),
+    );
+    const nextX = Math.min(current.x, minX - 42);
+    nodes[phase.id] = {
+      ...current,
+      x: nextX,
+      y: PHASE_TOP,
+      width: Math.max(420, maxX + 42 - nextX),
+      height: Math.max(current.height, maxBottom - PHASE_TOP + 42),
+      zIndex: -1,
+    };
+  }
+}
+
+function translateAxis(
+  nodes: Record<string, NodeLayout>,
+  axis: "x" | "y",
+  amount: number,
+  shouldMove: (layout: NodeLayout) => boolean,
+) {
+  if (!amount) return;
+  for (const id of Object.keys(nodes)) {
+    if (!shouldMove(nodes[id])) continue;
+    nodes[id] = { ...nodes[id], [axis]: rounded(nodes[id][axis] + amount) };
+  }
+}
+
+export function expandGapsForLabeledEdges(
+  file: WorkflowFile,
+  original: WorkflowFile["layout"]["nodes"],
+  nodes: Record<string, NodeLayout>,
+  phases: DomainNode[],
+) {
+  for (let pass = 0; pass < 8; pass++) {
+    let moved = false;
+    for (const edge of file.graph.edges) {
+      if (!isCorridorEdge(edge)) continue;
+      const source = nodes[edge.source];
+      const target = nodes[edge.target];
+      if (!source || !target) continue;
+      const label = layoutDisplayLabel(file, edge);
+      if (!label.trim()) continue;
+      const neededH = requiredEdgeLabelGap(label, "horizontal");
+      const neededV = requiredEdgeLabelGap(label, "vertical");
+      if (overlapsY(source, target)) {
+        const left = source.x <= target.x ? source : target;
+        const right = left === source ? target : source;
+        const gap = right.x - (left.x + left.width);
+        const deficit = Math.ceil(neededH - gap);
+        if (deficit <= 0) continue;
+        const hasLeftNeighbor = Object.values(nodes).some(
+          (layout) =>
+            layout.nodeId !== left.nodeId &&
+            overlapsY(layout, left) &&
+            layout.x + layout.width <= left.x + 1,
+        );
+        if (!hasLeftNeighbor) {
+          translateAxis(
+            nodes,
+            "x",
+            -deficit,
+            (layout) => layout.nodeId === left.nodeId,
+          );
+        } else {
+          const threshold = right.x;
+          translateAxis(
+            nodes,
+            "x",
+            deficit,
+            (layout) =>
+              layout.nodeId !== left.nodeId &&
+              layout.x >= threshold &&
+              overlapsY(layout, right),
+          );
+        }
+        moved = true;
+      } else if (overlapsX(source, target)) {
+        const top = source.y <= target.y ? source : target;
+        const bottom = top === source ? target : source;
+        const gap = bottom.y - (top.y + top.height);
+        const deficit = Math.ceil(neededV - gap);
+        if (deficit <= 0) continue;
+        const hasAboveNeighbor = Object.values(nodes).some(
+          (layout) =>
+            layout.nodeId !== top.nodeId &&
+            overlapsX(layout, top) &&
+            layout.y + layout.height <= top.y + 1,
+        );
+        if (!hasAboveNeighbor) {
+          translateAxis(
+            nodes,
+            "y",
+            -deficit,
+            (layout) => layout.nodeId === top.nodeId,
+          );
+        } else {
+          const threshold = bottom.y;
+          translateAxis(
+            nodes,
+            "y",
+            deficit,
+            (layout) =>
+              layout.nodeId !== top.nodeId &&
+              layout.y >= threshold &&
+              overlapsX(layout, bottom),
+          );
+        }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  refitPhases(file, original, nodes, phases);
+  return Math.max(
+    PHASE_TOP,
+    ...phases.map((phase) => {
+      const layout = nodes[phase.id];
+      return layout ? layout.y + layout.height : PHASE_TOP;
+    }),
+  );
 }
 
 export function routeRemainingEdges(
@@ -301,7 +555,11 @@ export function routeRemainingEdges(
     } else if (isReturn) {
       topReturnChannel -= 34;
       const sourceX = source.x + source.width;
-      const targetX = target.x + target.width * 0.78;
+      const targetType = file.graph.nodes.find(
+        (node) => node.id === edge.target,
+      )?.type;
+      const targetX =
+        target.x + target.width * (targetType === "gate" ? 0.78 : 0.5);
       edges[edge.id] = {
         edgeId: edge.id,
         points: [
@@ -345,7 +603,6 @@ export function routeRemainingEdges(
 export function normalizeGateHandles(file: WorkflowFile) {
   return file.graph.edges.map((edge) => {
     const source = file.graph.nodes.find((node) => node.id === edge.source);
-    const target = file.graph.nodes.find((node) => node.id === edge.target);
     const sourceHandle =
       source?.type === "gate"
         ? source.config.outcomes?.some(
@@ -356,11 +613,14 @@ export function normalizeGateHandles(file: WorkflowFile) {
             ? "no"
             : "yes"
         : edge.sourceHandle || "out";
+    const deniedReturn =
+      edge.type === "rework" || sourceHandle?.startsWith("no");
+    const preGateSales =
+      edge.customFields.workflowSection === "Pre-Gate Sales";
     const targetHandle =
-      target?.type === "gate" &&
-      (edge.type === "rework" || sourceHandle?.startsWith("no"))
+      deniedReturn && !preGateSales
         ? "rework-in"
-        : "in";
+        : edge.targetHandle || "in";
     return { ...edge, sourceHandle, targetHandle };
   });
 }

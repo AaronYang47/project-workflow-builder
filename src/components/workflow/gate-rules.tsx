@@ -88,11 +88,22 @@ export function GateRules({ node }: { node: DomainNode }) {
         return `(${rule.label}${signatures ? ` AND ${signatures}` : ""})`;
       })
       .join(" AND ");
+    const startBuilding = String(projectStartNode?.config?.buildingCode || "");
+    const startModule = String(projectStartNode?.config?.moduleCode || "");
+    const syncedRules = nextRules.map((rule) =>
+      ruleHasPaidService(rule)
+        ? {
+            ...rule,
+            buildingCode: rule.buildingCode || startBuilding,
+            moduleCode: rule.moduleCode || startModule,
+          }
+        : rule,
+    );
     const nextNode = {
       ...currentNode,
       config: {
         ...currentNode.config,
-        gateRules: nextRules,
+        gateRules: syncedRules,
         signatureRequirements: undefined,
       },
     };
@@ -221,21 +232,31 @@ export function GateRules({ node }: { node: DomainNode }) {
       },
     }));
   };
-  const updateProjectStartConfig = (
+  const savePaidLocationCode = (
     field: "buildingCode" | "moduleCode",
     value: string,
   ) => {
-    if (!projectStartNode) return;
-    const next = value.trim();
     useWorkflowStore.getState().commit((file) => ({
       ...file,
       graph: {
         ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.id === projectStartNode.id
-            ? { ...item, config: { ...item.config, [field]: next } }
-            : item,
-        ),
+        nodes: file.graph.nodes.map((item) => {
+          if (item.type === "projectStart") {
+            return { ...item, config: { ...item.config, [field]: value } };
+          }
+          if (item.type !== "gate") return item;
+          const nextRules = item.config.gateRules || [];
+          if (!nextRules.some((rule) => ruleHasPaidService(rule))) return item;
+          return {
+            ...item,
+            config: {
+              ...item.config,
+              gateRules: nextRules.map((rule) =>
+                ruleHasPaidService(rule) ? { ...rule, [field]: value } : rule,
+              ),
+            },
+          };
+        }),
       },
     }));
   };
@@ -304,7 +325,7 @@ export function GateRules({ node }: { node: DomainNode }) {
                 ? `${projectStart.displayedProjectId} · Legacy ${projectStart.legacyJobNumber || "—"}`
                 : "Set a Project ID on Project Start to display here"
             }
-            className={`ml-auto flex shrink-0 flex-col items-end gap-0.5 rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-bold leading-tight tracking-tight ${
+            className={`ml-auto flex shrink-0 flex-col items-end gap-1 rounded-md border px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight ${
               projectStart.showBadge
                 ? "border-white/30 bg-white/15 text-white"
                 : "border-white/20 bg-white/10 text-white/70"
@@ -312,7 +333,7 @@ export function GateRules({ node }: { node: DomainNode }) {
           >
             <span>{projectStart.displayedProjectId || "L-——"}</span>
             <span
-              className={`rounded px-1 text-[7px] font-bold tracking-tight ${
+              className={`rounded px-1 text-[10px] font-bold tracking-tight ${
                 projectStart.showBadge
                   ? "bg-white/25 text-white"
                   : "bg-white/15 text-white/70"
@@ -424,6 +445,9 @@ export function GateRules({ node }: { node: DomainNode }) {
         metrics={metrics}
         saveRules={saveRules}
         updateSignature={updateSignature}
+        locationBuildingCode={projectStart.buildingCode}
+        locationModuleCode={projectStart.moduleCode}
+        onChangeLocationCode={savePaidLocationCode}
       />
       <div
         className="absolute w-px -translate-x-1/2 bg-slate-300"
@@ -470,7 +494,7 @@ export function GateRules({ node }: { node: DomainNode }) {
         projectStartNodeId={projectStartNode?.id}
         outcomes={outcomes}
         saveApprovalField={saveApprovalField}
-        updateProjectStartConfig={updateProjectStartConfig}
+        onChangeLocationCode={savePaidLocationCode}
       />
     </div>
   );

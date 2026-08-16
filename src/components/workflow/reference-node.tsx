@@ -70,6 +70,7 @@ function ReferenceNodeComponent({
     });
 
   return (
+    <div className="relative h-full w-full overflow-visible">
     <div
       data-canvas-node
       className={cn(
@@ -93,21 +94,6 @@ function ReferenceNodeComponent({
             )
         }
       />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in"
-        className="!size-3 !border-2 !border-background !bg-slate-500"
-      />
-      {node.type !== "terminal" ? (
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="out"
-          className="!size-3 !border-2 !border-background"
-          style={{ backgroundColor: node.color || definition.color }}
-        />
-      ) : null}
       <div
         className="flex min-h-14 items-center border-b px-4 py-2"
         style={{ backgroundColor: `${node.color || definition.color}12` }}
@@ -519,6 +505,29 @@ function ReferenceNodeComponent({
           </div>
         ) : null}
       </div>
+    </div>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in"
+        className="!size-3 !border-2 !border-background !bg-slate-500"
+      />
+      {node.type !== "terminal" ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="out"
+          className="!size-3 !border-2 !border-background"
+          style={{ backgroundColor: node.color || definition.color }}
+        />
+      ) : null}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="rework-in"
+        aria-label="Denied return entry"
+        className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+      />
     </div>
   );
 }

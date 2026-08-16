@@ -531,11 +531,11 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
             ? "no"
             : "yes"
           : "out";
-      const targetHandle =
-        nodeById.get(edge.target)?.type === "gate" &&
-        (edge.type === "rework" || sourceHandle?.startsWith("no"))
-          ? "rework-in"
-          : edge.targetHandle || "in";
+      const deniedReturn =
+        edge.type === "rework" || sourceHandle?.startsWith("no");
+      const targetHandle = deniedReturn
+        ? edge.targetHandle || "rework-in"
+        : edge.targetHandle || "in";
       const outcome = source.config.outcomes?.find(
         (item) => item.id === sourceHandle,
       );

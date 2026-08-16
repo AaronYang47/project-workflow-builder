@@ -12,6 +12,9 @@ import {
   useReactFlow,
   type Connection,
   type Edge,
+  type FinalConnectionState,
+  type HandleType,
+  type IsValidConnection,
   type Node,
   type OnNodeDrag,
   type OnSelectionChangeParams,
@@ -35,11 +38,28 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useNodeDragHandlers } from "./use-node-drag-handlers";
+import {
+  canReceiveDeniedReturn,
+  deniedTargetHandle,
+  isDeniedEdge,
+  isDeniedSourceHandle,
+} from "@/lib/workflow-graph";
 import type {
   DomainEdge,
   NodeLayout,
   WorkflowNodeType,
 } from "@/types/workflow";
+
+function nodeIdFromPointer(event: MouseEvent | TouchEvent) {
+  const point =
+    "changedTouches" in event ? event.changedTouches.item(0) : event;
+  if (!point) return undefined;
+  for (const el of document.elementsFromPoint(point.clientX, point.clientY)) {
+    const id = el.closest(".react-flow__node")?.getAttribute("data-id");
+    if (id) return id;
+  }
+  return undefined;
+}
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -62,6 +82,7 @@ function CanvasInner() {
     search,
     addNode,
     addEdge,
+    updateEdge,
     commitLayoutDrag,
     updateLayouts,
     setViewport,
@@ -74,6 +95,7 @@ function CanvasInner() {
     search: state.search,
     addNode: state.addNode,
     addEdge: state.addEdge,
+    updateEdge: state.updateEdge,
     commitLayoutDrag: state.commitLayoutDrag,
     updateLayouts: state.updateLayouts,
     setViewport: state.setViewport,
@@ -229,6 +251,7 @@ function CanvasInner() {
           target: domain.target,
           sourceHandle: domain.sourceHandle,
           targetHandle: domain.targetHandle,
+          reconnectable: isDeniedEdge(domain) ? "target" : false,
           selected: selection.edgeId === domain.id,
           markerEnd:
             domain.arrowStyle === "none"
@@ -263,15 +286,23 @@ function CanvasInner() {
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
       const source = file.graph.nodes.find((n) => n.id === connection.source);
+      const target = file.graph.nodes.find((n) => n.id === connection.target);
+      if (!target || target.type === "phase") return;
       const outcome = source?.config.outcomes?.find(
         (o) => o.id === connection.sourceHandle,
       );
+      const preGateSales =
+        source?.metadata.workflowSection === "Pre-Gate Sales";
       const edge: DomainEdge = {
         id: `edge-${crypto.randomUUID().slice(0, 8)}`,
         source: connection.source,
         target: connection.target,
         sourceHandle: connection.sourceHandle || undefined,
-        targetHandle: connection.targetHandle || undefined,
+        targetHandle: deniedTargetHandle({
+          sourceHandle: connection.sourceHandle,
+          preGateSales,
+          droppedHandle: connection.targetHandle,
+        }),
         type: outcome?.edgeType || "normal",
         label: outcome?.label
           ? outcome.label[0] + outcome.label.slice(1).toLowerCase()
@@ -283,6 +314,97 @@ function CanvasInner() {
       addEdge(edge);
     },
     [addEdge, file.graph.nodes],
+  );
+  const isValidConnection = useCallback<IsValidConnection>(
+    (connection) => {
+      if (!connection.source || !connection.target) return false;
+      const target = file.graph.nodes.find((node) => node.id === connection.target);
+      if (!target || target.type === "phase" || target.type === "projectStart") {
+        return false;
+      }
+      if (
+        isDeniedSourceHandle(connection.sourceHandle) &&
+        !canReceiveDeniedReturn(target.type)
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [file.graph.nodes],
+  );
+  const connectDeniedToNode = useCallback(
+    (sourceId: string, sourceHandle: string | null | undefined, targetId: string) => {
+      const source = file.graph.nodes.find((node) => node.id === sourceId);
+      const target = file.graph.nodes.find((node) => node.id === targetId);
+      if (!source || !target || !canReceiveDeniedReturn(target.type)) return;
+      onConnect({
+        source: sourceId,
+        sourceHandle: sourceHandle ?? null,
+        target: targetId,
+        targetHandle: deniedTargetHandle({
+          sourceHandle,
+          preGateSales: source.metadata.workflowSection === "Pre-Gate Sales",
+          droppedHandle: "rework-in",
+        }) ?? null,
+      });
+    },
+    [file.graph.nodes, onConnect],
+  );
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
+      if (state.isValid || !state.fromNode || state.fromHandle?.type !== "source") {
+        return;
+      }
+      if (!isDeniedSourceHandle(state.fromHandle?.id)) return;
+      const targetId = nodeIdFromPointer(event);
+      if (!targetId) return;
+      connectDeniedToNode(state.fromNode.id, state.fromHandle?.id, targetId);
+    },
+    [connectDeniedToNode],
+  );
+  const onReconnect = useCallback(
+    (oldEdge: Edge, connection: Connection) => {
+      if (!connection.source || !connection.target) return;
+      if (!isValidConnection(connection)) return;
+      const source = file.graph.nodes.find((node) => node.id === connection.source);
+      updateEdge(oldEdge.id, {
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle || undefined,
+        targetHandle: deniedTargetHandle({
+          sourceHandle: connection.sourceHandle,
+          preGateSales: source?.metadata.workflowSection === "Pre-Gate Sales",
+          droppedHandle: connection.targetHandle,
+        }),
+      });
+    },
+    [file.graph.nodes, isValidConnection, updateEdge],
+  );
+  const onReconnectEnd = useCallback(
+    (
+      event: MouseEvent | TouchEvent,
+      edge: Edge,
+      handleType: HandleType,
+      state: FinalConnectionState,
+    ) => {
+      if (state.isValid || handleType !== "target") return;
+      const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
+      if (!isDeniedSourceHandle(domain?.sourceHandle ?? edge.sourceHandle)) return;
+      const targetId = nodeIdFromPointer(event);
+      if (!targetId) return;
+      const target = file.graph.nodes.find((node) => node.id === targetId);
+      if (!target || !canReceiveDeniedReturn(target.type)) return;
+      const source = file.graph.nodes.find((node) => node.id === edge.source);
+      updateEdge(edge.id, {
+        target: targetId,
+        targetHandle: deniedTargetHandle({
+          sourceHandle: domain?.sourceHandle ?? edge.sourceHandle,
+          preGateSales: source?.metadata.workflowSection === "Pre-Gate Sales",
+          droppedHandle: "rework-in",
+        }),
+      });
+    },
+    [file.graph.nodes, updateEdge],
   );
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -572,7 +694,12 @@ function CanvasInner() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
+        onReconnect={onReconnect}
+        onReconnectEnd={onReconnectEnd}
+        isValidConnection={isValidConnection}
         connectionRadius={32}
+        reconnectRadius={32}
         onNodesChange={onNodesChange}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}

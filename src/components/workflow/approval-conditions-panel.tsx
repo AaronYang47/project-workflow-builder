@@ -8,7 +8,11 @@ import {
   GATE_PANEL_WIDTH,
   type GateLayoutMetrics,
 } from "@/lib/gate-layout";
-import { projectNodeUuid } from "@/lib/project-id";
+import {
+  projectNodeUuid,
+  sanitizeBuildingCode,
+  sanitizeModuleCode,
+} from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import {
   requirementApplies,
@@ -56,6 +60,12 @@ export interface ApprovalConditionsPanelProps {
     signatureId: string,
     patch: Partial<GateSignatureRequirement>,
   ) => void;
+  locationBuildingCode: string;
+  locationModuleCode: string;
+  onChangeLocationCode: (
+    field: "buildingCode" | "moduleCode",
+    value: string,
+  ) => void;
 }
 
 /**
@@ -72,6 +82,9 @@ export function ApprovalConditionsPanel({
   metrics,
   saveRules,
   updateSignature,
+  locationBuildingCode,
+  locationModuleCode,
+  onChangeLocationCode,
 }: ApprovalConditionsPanelProps) {
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
@@ -79,19 +92,22 @@ export function ApprovalConditionsPanel({
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   return (
     <Fragment>
-    <section
-      data-completion-state={conditionState}
-      aria-label="Approval conditions card"
-      className={cn(
-        "absolute overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
-        conditionStyle.card,
-      )}
+    <div
+      className="absolute"
       style={{
         left: metrics.conditionsLeft,
         top: metrics.conditionsTop,
         width: GATE_PANEL_WIDTH,
         height: metrics.conditionsHeight,
       }}
+    >
+    <section
+      data-completion-state={conditionState}
+      aria-label="Approval conditions card"
+      className={cn(
+        "h-full overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
+        conditionStyle.card,
+      )}
     >
       <div
         className={cn(
@@ -245,23 +261,13 @@ export function ApprovalConditionsPanel({
                 onDelete={() =>
                   saveRules(rules.filter((item) => item.id !== rule.id))
                 }
+                locationBuildingCode={locationBuildingCode}
+                locationModuleCode={locationModuleCode}
                 onChangeBuildingCode={(value) =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? { ...item, buildingCode: value }
-                        : item,
-                    ),
-                  )
+                  onChangeLocationCode("buildingCode", value)
                 }
                 onChangeModuleCode={(value) =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? { ...item, moduleCode: value }
-                        : item,
-                    ),
-                  )
+                  onChangeLocationCode("moduleCode", value)
                 }
                 onAddDocument={() =>
                   updateSignatures([
@@ -296,12 +302,8 @@ export function ApprovalConditionsPanel({
     </section>
     {nodeUuid ? (
       <div
-        className="nodrag pointer-events-none absolute z-10"
-        style={{
-          top: metrics.conditionsTop + metrics.conditionsHeight + 6,
-          left: metrics.conditionsLeft + GATE_PANEL_WIDTH,
-          transform: "translateX(-100%)",
-        }}
+        className="nodrag pointer-events-none absolute right-0 z-10"
+        style={{ top: "100%", marginTop: 6 }}
       >
         <span
           title={nodeUuid}
@@ -311,6 +313,7 @@ export function ApprovalConditionsPanel({
         </span>
       </div>
     ) : null}
+    </div>
     </Fragment>
   );
 }
@@ -327,6 +330,8 @@ interface ConditionRowProps {
   onChangeRequirementType: (value: string) => void;
   onLabelBlur: (value: string) => void;
   onDelete: () => void;
+  locationBuildingCode: string;
+  locationModuleCode: string;
   onChangeBuildingCode: (value: string) => void;
   onChangeModuleCode: (value: string) => void;
   onAddDocument: () => void;
@@ -349,6 +354,8 @@ function ConditionRow({
   onChangeRequirementType,
   onLabelBlur,
   onDelete,
+  locationBuildingCode,
+  locationModuleCode,
   onChangeBuildingCode,
   onChangeModuleCode,
   onAddDocument,
@@ -451,14 +458,9 @@ function ConditionRow({
             </span>
             <input
               aria-label={`Condition ${index + 1} building code`}
-              value={rule.buildingCode || ""}
+              value={locationBuildingCode}
               onChange={(event) =>
-                onChangeBuildingCode(
-                  event.target.value
-                    .toUpperCase()
-                    .replace(/[^BM0-9-]/g, "")
-                    .slice(0, 4),
-                )
+                onChangeBuildingCode(sanitizeBuildingCode(event.target.value))
               }
               placeholder="B-XX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"
@@ -470,14 +472,9 @@ function ConditionRow({
             </span>
             <input
               aria-label={`Condition ${index + 1} module code`}
-              value={rule.moduleCode || ""}
+              value={locationModuleCode}
               onChange={(event) =>
-                onChangeModuleCode(
-                  event.target.value
-                    .toUpperCase()
-                    .replace(/[^BM0-9-]/g, "")
-                    .slice(0, 5),
-                )
+                onChangeModuleCode(sanitizeModuleCode(event.target.value))
               }
               placeholder="M-XXX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"

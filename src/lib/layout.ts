@@ -5,6 +5,7 @@ import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { PRE_GATE_SALES_NODES } from "@/lib/pre-gate-sales-flow";
 import { absoluteLayoutPosition } from "@/lib/layout-geometry";
 import {
+  expandGapsForLabeledEdges,
   normalizeGateHandles,
   packPhases,
   placeDecorativeReferences,
@@ -144,15 +145,8 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     nodes,
     phases,
   );
-  placeDecorativeReferences(
-    file,
-    nodes,
-    groupBottom,
-    isPhaseChild,
-    isDecorativeReference,
-    legacyAuxiliaryTypes,
-  );
   placeSalesIntake(
+    file,
     original,
     nodes,
     phases,
@@ -162,11 +156,26 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   );
   placeEmptyPhases(file, original, nodes, phases, phaseIds);
   placeNoBranches(nodes);
+  const packedBottom = expandGapsForLabeledEdges(
+    file,
+    original,
+    nodes,
+    phases,
+  );
+  const layoutBottom = Math.max(groupBottom, packedBottom);
+  placeDecorativeReferences(
+    file,
+    nodes,
+    layoutBottom,
+    isPhaseChild,
+    isDecorativeReference,
+    legacyAuxiliaryTypes,
+  );
   const edges = routeRemainingEdges(
     file,
     nodes,
     (result.edges || []) as ElkExtendedEdge[],
-    groupBottom,
+    layoutBottom,
   );
 
   return {

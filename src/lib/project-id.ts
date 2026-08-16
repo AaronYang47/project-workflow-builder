@@ -21,6 +21,20 @@ export const LEGACY_JOB_NUMBER_PATTERN = /^\d{5}$/;
 export const BUILDING_PATTERN = /^B-\d{2}$/;
 export const MODULE_PATTERN = /^M-\d{3}$/;
 
+export function sanitizeBuildingCode(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^BM0-9-]/g, "")
+    .slice(0, 4);
+}
+
+export function sanitizeModuleCode(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^BM0-9-]/g, "")
+    .slice(0, 5);
+}
+
 export function currentYearSuffix(date = new Date()): string {
   return String(date.getFullYear()).slice(-2);
 }

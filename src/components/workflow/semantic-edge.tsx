@@ -15,6 +15,7 @@ import {
   aboveRouteCardTop,
   phaseHeaderObstacles,
 } from "@/lib/edge-routing";
+import { estimateEdgeLabelChip } from "@/lib/layout-geometry";
 
 type Point = { x: number; y: number };
 export type LabelObstacle = Point & {
@@ -249,8 +250,7 @@ const placeLabel = (
   exactMidpoint?: Point,
   lockToConnectorGap = false,
 ) => {
-  const width = Math.min(360, Math.max(52, label.length * 7 + 20));
-  const height = 28 + Math.max(0, Math.ceil((label.length * 7 + 20) / 360) - 1) * 16;
+  const { width, height } = estimateEdgeLabelChip(label);
   const source = obstacles.find((obstacle) => obstacle.id === sourceId);
   const target = obstacles.find((obstacle) => obstacle.id === targetId);
   const gapCenterX = source && target

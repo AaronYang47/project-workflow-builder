@@ -11,6 +11,7 @@ import { migrateWorkflowFile } from "@/lib/workflow-migration";
 import {
   addOrReplaceEdge,
   applyLayoutDrag,
+  clearEdgeRoute,
   deleteNodesFromFile,
   duplicateNodes,
   groupNodesIntoPhase,
@@ -304,15 +305,23 @@ export const useWorkflowStore = create<WorkflowState>()(
             })
           : get().commit((file) => addOrReplaceEdge(file, edge)),
       updateEdge: (id, patch) =>
-        get().commit((file) => ({
-          ...file,
-          graph: {
-            ...file.graph,
-            edges: file.graph.edges.map((edge) =>
-              edge.id === id ? { ...edge, ...patch } : edge,
-            ),
-          },
-        })),
+        get().commit((file) => {
+          const reconnects =
+            patch.source !== undefined ||
+            patch.target !== undefined ||
+            patch.sourceHandle !== undefined ||
+            patch.targetHandle !== undefined;
+          const next = {
+            ...file,
+            graph: {
+              ...file.graph,
+              edges: file.graph.edges.map((edge) =>
+                edge.id === id ? { ...edge, ...patch } : edge,
+              ),
+            },
+          };
+          return reconnects ? clearEdgeRoute(next, id) : next;
+        }),
       duplicateSelected: () => {
         const ids = get().selection.nodeIds.filter(
           (id) =>

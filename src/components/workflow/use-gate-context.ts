@@ -43,21 +43,23 @@ export function useGateContext(node: DomainNode) {
   const projectStart = useMemo<GateProjectStartInfo>(() => {
     const config = projectStartNode?.config ?? {};
     const serviceType = String(config.serviceType ?? "Standard");
-    const buildingCode = String(config.buildingCode ?? "");
-    const moduleCode = String(config.moduleCode ?? "");
     const rawProjectId = String(projectStartNode?.customFields.projectId ?? "");
     const baseProjectId = projectIdForDisplay(rawProjectId, serviceType);
-    // The building/module codes live on the gate rules (one pair per paid
-    // condition); once both are entered, append them to the badge so the gate
-    // shows the full paid-service identifier rather than just the project ID.
+    // Building / module codes are project-wide: the Decision card and every
+    // paid condition show the same pair. Prefer the paid-condition values so
+    // a code typed above the Decision card is what the Decision card displays.
     const paidRule = (node.config.gateRules || []).find((rule) =>
       ruleHasPaidService(rule),
     );
-    const conditionBuildingCode = String(paidRule?.buildingCode ?? "");
-    const conditionModuleCode = String(paidRule?.moduleCode ?? "");
+    const buildingCode = String(
+      paidRule?.buildingCode || config.buildingCode || "",
+    );
+    const moduleCode = String(
+      paidRule?.moduleCode || config.moduleCode || "",
+    );
     const suffixParts: string[] = [];
-    if (conditionBuildingCode) suffixParts.push(conditionBuildingCode);
-    if (conditionModuleCode) suffixParts.push(conditionModuleCode);
+    if (buildingCode) suffixParts.push(buildingCode);
+    if (moduleCode) suffixParts.push(moduleCode);
     const displayedProjectId = suffixParts.length
       ? `${baseProjectId}-${suffixParts.join("-")}`
       : baseProjectId;
