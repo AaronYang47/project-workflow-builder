@@ -229,12 +229,12 @@ button:disabled { cursor: not-allowed; }
 [data-signature-rail][data-rail-state="pending"] {
   border-left-width: 2px;
   border-left-style: solid;
-  animation: signature-rail-breath-pending 1.8s ease-in-out infinite;
+  animation: signature-rail-breath-pending 3.6s ease-in-out infinite;
 }
 [data-signature-rail][data-rail-state="complete"] {
   border-left-width: 2px;
   border-left-style: solid;
-  animation: signature-rail-breath-complete 1.8s ease-in-out infinite;
+  animation: signature-rail-breath-complete 3.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-signature-rail] {
