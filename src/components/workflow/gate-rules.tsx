@@ -28,7 +28,11 @@ import {
 import { useGateContext } from "./use-gate-context";
 import { DecisionCard } from "./decision-card";
 import { ApprovalConditionsPanel } from "./approval-conditions-panel";
-import { promoteToPaidService, syncPaidConditions } from "@/lib/project-id";
+import {
+  demoteToStandardService,
+  promoteToPaidService,
+  syncPaidConditions,
+} from "@/lib/project-id";
 
 export function GateRules({ node }: { node: DomainNode }) {
   const {
@@ -87,13 +91,25 @@ export function GateRules({ node }: { node: DomainNode }) {
       },
     };
     // Setting any condition's service-type tag to "Paid Service" is the user's
-    // way of declaring this engagement is paid work. Mirror that onto the
-    // project-start node so the gate badge flips from L-YY-XXX to P-YY-XXX in
-    // one shot instead of asking the user to edit two fields in lockstep.
+    // way of declaring this engagement is paid work; clearing the last one
+    // back to "Standard" is the user's way of undoing that. Mirror both
+    // transitions onto the project-start node so the gate badge stays in
+    // lockstep with the conditions instead of asking the user to also edit
+    // the project-start inspector.
+    const hasPaidCondition = nextRules.some(
+      (rule) => rule.serviceTypeId === "paid",
+    );
+    const projectStartServiceType = String(
+      projectStartNode?.config?.serviceType || "",
+    );
     const shouldPromoteProjectStart =
-      nextRules.some((rule) => rule.serviceTypeId === "paid") &&
+      hasPaidCondition &&
       Boolean(projectStartNode) &&
-      String(projectStartNode?.config?.serviceType || "") !== "Paid Service";
+      projectStartServiceType !== "Paid Service";
+    const shouldDemoteProjectStart =
+      !hasPaidCondition &&
+      Boolean(projectStartNode) &&
+      projectStartServiceType === "Paid Service";
     const nextMetrics = getGateLayoutMetrics(nextNode);
     store.commit((file) => ({
       ...file,
@@ -110,6 +126,17 @@ export function GateRules({ node }: { node: DomainNode }) {
             return {
               ...promoted,
               conditions: syncPaidConditions(promoted, true),
+            };
+          }
+          if (
+            shouldDemoteProjectStart &&
+            projectStartNode &&
+            item.id === projectStartNode.id
+          ) {
+            const demoted = demoteToStandardService(item);
+            return {
+              ...demoted,
+              conditions: syncPaidConditions(demoted, false),
             };
           }
           return item;

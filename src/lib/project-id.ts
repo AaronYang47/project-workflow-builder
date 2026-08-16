@@ -170,3 +170,23 @@ export const promoteToPaidService = (node: DomainNode): DomainNode => {
         : { ...node.customFields, projectId: desiredProjectId },
   };
 };
+
+// Mirror of `promoteToPaidService`: drop the project back to Standard and
+// flip the project-id prefix from P-YY-XXX to L-YY-XXX. Used when the user
+// removes the "Paid Service" tag from every condition so the gate badge
+// doesn't stay on P-YY-XXX when the conditions no longer require it.
+export const demoteToStandardService = (node: DomainNode): DomainNode => {
+  const currentProjectId = String(node.customFields?.projectId || "");
+  const desiredProjectId = normalizeProjectIdInput(
+    currentProjectId,
+    "Standard",
+  );
+  return {
+    ...node,
+    config: { ...node.config, serviceType: "Standard" },
+    customFields:
+      desiredProjectId === currentProjectId
+        ? node.customFields
+        : { ...node.customFields, projectId: desiredProjectId },
+  };
+};
