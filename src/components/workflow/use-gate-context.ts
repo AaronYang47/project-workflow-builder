@@ -51,20 +51,34 @@ export function useGateContext(node: DomainNode) {
     const buildingCode = String(config.buildingCode ?? "");
     const moduleCode = String(config.moduleCode ?? "");
     const rawProjectId = String(projectStartNode?.customFields.projectId ?? "");
-    const displayedProjectId = projectIdForDisplay(rawProjectId, serviceType);
+    const baseProjectId = projectIdForDisplay(rawProjectId, serviceType);
+    // The building/module codes live on the gate rules (one pair per paid
+    // condition); once both are entered, append them to the badge so the gate
+    // shows the full paid-service identifier rather than just the project ID.
+    const paidRule = (node.config.gateRules || []).find(
+      (rule) => rule.serviceTypeId === "paid",
+    );
+    const conditionBuildingCode = String(paidRule?.buildingCode ?? "");
+    const conditionModuleCode = String(paidRule?.moduleCode ?? "");
+    const suffixParts: string[] = [];
+    if (conditionBuildingCode) suffixParts.push(conditionBuildingCode);
+    if (conditionModuleCode) suffixParts.push(conditionModuleCode);
+    const displayedProjectId = suffixParts.length
+      ? `${baseProjectId}-${suffixParts.join("-")}`
+      : baseProjectId;
     const isPaid = serviceType === "Paid Service";
     return {
       serviceType,
       displayedProjectId,
-      legacyJobNumber: legacyJobNumberFromProjectId(displayedProjectId),
+      legacyJobNumber: legacyJobNumberFromProjectId(baseProjectId),
       buildingCode,
       moduleCode,
       paidMissingBuilding:
         isPaid && !BUILDING_PATTERN.test(buildingCode),
       paidMissingModule: isPaid && !MODULE_PATTERN.test(moduleCode),
-      showBadge: PROJECT_ID_PATTERN.test(displayedProjectId),
+      showBadge: PROJECT_ID_PATTERN.test(baseProjectId),
     };
-  }, [projectStartNode]);
+  }, [projectStartNode, node.config.gateRules]);
 
   const interfaceText = useMemo(
     () => ({

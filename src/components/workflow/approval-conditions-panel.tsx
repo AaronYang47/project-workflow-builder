@@ -477,7 +477,7 @@ function ConditionRow({
                     .slice(0, 4),
                 )
               }
-              placeholder="B-01"
+              placeholder="B-XX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"
             />
           </label>
@@ -496,7 +496,7 @@ function ConditionRow({
                     .slice(0, 5),
                 )
               }
-              placeholder="M-001"
+              placeholder="M-XXX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"
             />
           </label>
