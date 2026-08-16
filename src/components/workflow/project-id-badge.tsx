@@ -44,7 +44,7 @@ export function ProjectIdBadge({
     <span
       title={title}
       className={cn(
-        "flex w-max max-w-[min(100%,11.5rem)] shrink-0 flex-col items-end gap-0.5 rounded-md border px-1.5 py-1 font-mono font-bold leading-none tracking-tight",
+        "flex w-max max-w-[min(100%,12rem)] shrink-0 flex-col items-end gap-0.5 rounded-md border px-2 py-1 font-mono font-bold leading-none tracking-tight",
         onDark
           ? ready
             ? "border-white/30 bg-white/15 text-white"

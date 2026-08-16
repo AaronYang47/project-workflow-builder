@@ -173,12 +173,12 @@ export function GeneralNode({
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
       <div
-        className="nowheel flex h-14 cursor-grab items-center border-b px-3 active:cursor-grabbing"
+        className="nowheel flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
         style={{ backgroundColor: `${color}0d` }}
       >
         <label
           data-inspector-target="config.iconKey"
-          className="nodrag relative mr-2 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
+          className="nodrag relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
           style={{ backgroundColor: color }}
           title="Change icon"
         >
@@ -221,18 +221,18 @@ export function GeneralNode({
             className="nodrag h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
-        <ProjectIdBadge className="ml-2" showPlaceholder />
+        <ProjectIdBadge className="shrink-0" showPlaceholder />
         <ComponentNoteButton
           nodeId={node.id}
           noteKey="node-card"
           label={`${node.title} node card`}
-          className="ml-2"
+          className="shrink-0"
         />
         <span
           role="button"
           tabIndex={0}
           aria-label="Drag node"
-          className="ml-2 shrink-0 cursor-grab text-muted-foreground/50"
+          className="shrink-0 cursor-grab text-muted-foreground/50"
         >
           <GripVertical className="size-3.5" />
         </span>
