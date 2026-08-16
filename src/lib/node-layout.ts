@@ -11,6 +11,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 // modules read as content inside the swimlane instead of touching its title.
 export const PHASE_HEADER_HEIGHT = 112;
 export const PHASE_CONTENT_TOP = 168;
+export const NODE_HEADER_HEIGHT = 56;
 
 export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout, "width" | "height">) {
   if (node.type === "gate") return getGateLayoutMetrics(node);
@@ -22,7 +23,7 @@ export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout,
       height: Math.max(
         current?.height || 0,
         fallback.height,
-        336 + Math.max(1, node.conditions?.length || 0) * 48,
+        360 + Math.max(1, node.conditions?.length || 0) * 48,
       ),
     };
   }

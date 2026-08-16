@@ -31,7 +31,7 @@ import {
 } from "./semantic-edge";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { resolveAbsolutePosition, fitCanvasToWorkflow, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
-import { PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
+import { NODE_HEADER_HEIGHT, PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
 import { GATE_SECTION_GAP, getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -532,7 +532,7 @@ function CanvasInner() {
           const domain = current.graph.nodes.find((node) => node.id === id);
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout || !domain || domain.type === "gate") return;
-          const requiredHeight = Math.ceil(46 + content.scrollHeight);
+          const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
           if (requiredHeight > layout.height) {
             patches[id] = {
               ...patches[id],

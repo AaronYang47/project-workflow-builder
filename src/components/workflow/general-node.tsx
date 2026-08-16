@@ -173,16 +173,16 @@ export function GeneralNode({
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
       <div
-        className="nowheel flex h-11 cursor-grab items-center border-b px-3 active:cursor-grabbing"
+        className="nowheel flex h-14 cursor-grab items-center border-b px-3 active:cursor-grabbing"
         style={{ backgroundColor: `${color}0d` }}
       >
         <label
           data-inspector-target="config.iconKey"
-          className="nodrag relative mr-2 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
+          className="nodrag relative mr-2 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
           style={{ backgroundColor: color }}
           title="Change icon"
         >
-          <Icon className="size-3.5" />
+          <Icon className="size-4" />
           <select
             aria-label="Node icon"
             value={iconKey}
@@ -201,10 +201,10 @@ export function GeneralNode({
           </select>
         </label>
         <label className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 text-[7px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
-          <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+          <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
           <input
             key={node.config.stage}
             aria-label="Stage"
@@ -218,7 +218,7 @@ export function GeneralNode({
                 },
               })
             }
-            className="nodrag h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-[10px] font-bold outline-none"
+            className="nodrag h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
         <ProjectIdBadge className="ml-2" showPlaceholder />
@@ -252,8 +252,8 @@ export function GeneralNode({
           />
         </label>
         {node.type === "projectStart" ? (
-          <div className="space-y-2">
-            <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-2.5 py-2">
+          <div className="my-3 space-y-2">
+            <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-3">
               <span className="mb-1 flex items-center justify-between text-[8px] font-bold uppercase tracking-[0.14em] text-primary">
                 <span>
                   Project ID <span className="text-destructive">*</span>
