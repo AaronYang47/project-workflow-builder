@@ -1,149 +1,41 @@
 import type { Cell, Workbook, Worksheet } from "exceljs";
 
-export const EXCEL_FORMAT = "project-workflow-builder.excel.v1";
+export const EXCEL_FORMAT = "project-workflow-builder.excel.v3";
+export const EXCEL_FORMAT_LEGACY = [
+  "project-workflow-builder.excel.v1",
+  "project-workflow-builder.excel.v2",
+] as const;
 export const EXCEL_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export const PAYLOAD_CHUNK = 30000;
+export const PAYLOAD_SHEET = "_Payload";
 
-export const SHEETS = {
-  map: "Visual Flow",
-  overview: "Overview",
-  nodes: "Nodes",
-  conditions: "Conditions",
-  documents: "Documents",
-  approvals: "Approvals",
-  signatures: "Signatures",
-  outcomes: "Outcomes",
-  connections: "Connections",
-  layout: "Layout",
-  edgeRoutes: "Edge Routes",
-  rules: "Validation Rules",
-  payload: "_Payload",
+export const KEY = {
+  phase: "#phase",
+  phaseDesc: "#phase.desc",
+  gate: "#gate",
+  gateId: "#gate.id",
+  gateUuid: "#gate.uuid",
+  gateTitle: "#gate.title",
+  gateDescription: "#gate.description",
+  gateStatus: "#gate.status",
+  gateOwner: "#gate.owner",
+  gateDepartment: "#gate.department",
+  gateApprover: "#gate.approver",
+  gateResult: "#gate.result",
+  gateNotes: "#gate.notes",
+  section: "#section",
+  condition: "#condition",
+  document: "#document",
 } as const;
 
-export const NODE_HEADERS = [
-  "id",
-  "type",
-  "title",
-  "description",
-  "color",
-  "icon",
-  "parentId",
-  "phase",
-  "stage",
-  "projectId",
-  "nodeUuid",
-  "legacyJobNumber",
-  "serviceType",
-  "buildingCode",
-  "moduleCode",
-  "approvedDepartment",
-  "approvedBy",
-  "gateLabel",
-  "decisionMode",
-  "collapsed",
-  "locked",
-  "documents",
-  "criteria",
-  "metadataJson",
-  "customFieldsJson",
-  "configJson",
-  "nodeJson",
-] as const;
-
-export const CONDITION_HEADERS = [
-  "nodeId",
-  "id",
-  "label",
-  "required",
-  "checked",
-  "locked",
-  "expression",
-  "description",
-] as const;
-
-export const DOCUMENT_HEADERS = ["nodeId", "order", "name"] as const;
-
-export const APPROVAL_HEADERS = [
-  "nodeId",
-  "id",
-  "label",
-  "checked",
-  "requirementType",
-  "condition",
-  "serviceTypeId",
-  "buildingCode",
-  "moduleCode",
-] as const;
-
-export const SIGNATURE_HEADERS = [
-  "nodeId",
-  "ruleId",
-  "id",
-  "abbreviation",
-  "fullName",
-  "department",
-  "signedBy",
-  "checked",
-  "requirementType",
-  "owner",
-  "receivedDate",
-  "revision",
-  "status",
-  "serviceType",
-  "revisionControlled",
-  "collapsed",
-  "revisionsJson",
-] as const;
-
-export const OUTCOME_HEADERS = [
-  "nodeId",
-  "id",
-  "label",
-  "edgeType",
-  "color",
-  "enabled",
-  "rule",
-] as const;
-
-export const CONNECTION_HEADERS = [
-  "id",
-  "type",
-  "source",
-  "target",
-  "sourceHandle",
-  "targetHandle",
-  "label",
-  "lineStyle",
-  "arrowStyle",
-  "conditionJson",
-  "customFieldsJson",
-  "edgeJson",
-] as const;
-
-export const LAYOUT_HEADERS = [
-  "nodeId",
-  "x",
-  "y",
-  "width",
-  "height",
-  "parentId",
-  "zIndex",
-] as const;
-
-export const EDGE_ROUTE_HEADERS = ["edgeId", "pointsJson"] as const;
-
-export const RULE_HEADERS = [
-  "id",
-  "name",
-  "enabled",
-  "severity",
-  "kind",
-  "nodeType",
-  "field",
-] as const;
-
-export type TableRow = Record<string, unknown>;
+export const LISTS = {
+  boolean: '"TRUE,FALSE"',
+  requirement: '"Required,Optional"',
+  docStatus: '"Draft,In Review,Current,Approved,Superseded"',
+  approvalResult: '"Pending,Approved,Denied,Hold"',
+  gateStatus: '"Blocked,In Progress,Ready,Open,Approved"',
+} as const;
 
 export const isBlank = (value: unknown) =>
   value === null || value === undefined || value === "";
@@ -174,49 +66,50 @@ export function asString(value: unknown): string {
   return JSON.stringify(value);
 }
 
+const TRUE_TOKENS = new Set([
+  "true",
+  "yes",
+  "y",
+  "1",
+  "checked",
+  "signed",
+  "done",
+  "x",
+  "☑",
+  "✓",
+  "✅",
+]);
+const FALSE_TOKENS = new Set([
+  "false",
+  "no",
+  "n",
+  "0",
+  "unchecked",
+  "unsigned",
+  "pending",
+  "☐",
+  "□",
+]);
+
 export function asBoolean(value: unknown): boolean | undefined {
   if (isBlank(value)) return undefined;
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   const text = asString(value).trim().toLowerCase();
-  if (["true", "yes", "y", "1"].includes(text)) return true;
-  if (["false", "no", "n", "0"].includes(text)) return false;
+  if (TRUE_TOKENS.has(text)) return true;
+  if (FALSE_TOKENS.has(text)) return false;
   return undefined;
-}
-
-export function asNumber(value: unknown): number | undefined {
-  if (isBlank(value)) return undefined;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number(asString(value).trim());
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-export function asJson<T>(value: unknown): T | undefined {
-  if (isBlank(value)) return undefined;
-  if (typeof value === "object") return value as T;
-  try {
-    return JSON.parse(asString(value)) as T;
-  } catch {
-    return undefined;
-  }
-}
-
-export function encodeCell(value: unknown): string | number | boolean {
-  if (isBlank(value)) return "";
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
 }
 
 export function hexArgb(hex: string, alpha = "FF"): string {
   const digits = hex.replace("#", "").replace(/^0x/i, "");
-  const rgb = (digits.length === 3
-    ? digits
-        .split("")
-        .map((part) => part + part)
-        .join("")
-    : digits
+  const rgb = (
+    digits.length === 3
+      ? digits
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : digits
   )
     .padEnd(6, "0")
     .slice(0, 6)
@@ -224,7 +117,7 @@ export function hexArgb(hex: string, alpha = "FF"): string {
   return `${alpha}${rgb}`;
 }
 
-export function mixWhite(hex: string, amount = 0.84): string {
+export function mixWhite(hex: string, amount = 0.88): string {
   const argb = hexArgb(hex);
   const r = Number.parseInt(argb.slice(2, 4), 16);
   const g = Number.parseInt(argb.slice(4, 6), 16);
@@ -237,81 +130,41 @@ export function mixWhite(hex: string, amount = 0.84): string {
     .toUpperCase()}`;
 }
 
-export const thinBorder = (hex = "#94a3b8") => {
-  const color = { argb: hexArgb(hex) };
-  return {
-    top: { style: "thin" as const, color },
-    left: { style: "thin" as const, color },
-    bottom: { style: "thin" as const, color },
-    right: { style: "thin" as const, color },
+export function applyListValidation(cell: Cell, formulae: string) {
+  cell.dataValidation = {
+    type: "list",
+    allowBlank: true,
+    formulae: [formulae],
+    showErrorMessage: false,
+    showInputMessage: true,
+    promptTitle: "Editable",
+    prompt: "This value is imported back into the workflow.",
   };
-};
-
-export const headerFill = {
-  type: "pattern" as const,
-  pattern: "solid" as const,
-  fgColor: { argb: "FF1E3A5F" },
-};
-
-export const headerFont = {
-  name: "Calibri",
-  size: 10,
-  bold: true,
-  color: { argb: "FFFFFFFF" },
-};
-
-export function styleHeaderRow(sheet: Worksheet, columns: number) {
-  const row = sheet.getRow(1);
-  row.height = 22;
-  for (let column = 1; column <= columns; column += 1) {
-    const cell = row.getCell(column);
-    cell.fill = headerFill;
-    cell.font = headerFont;
-    cell.alignment = { vertical: "middle", wrapText: true };
-    cell.border = thinBorder("#1e3a5f");
-  }
 }
 
-export function writeTable(
-  sheet: Worksheet,
-  headers: readonly string[],
-  rows: TableRow[],
-  widths?: number[],
-) {
-  sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: true }];
-  sheet.addRow([...headers]);
-  styleHeaderRow(sheet, headers.length);
-  for (const row of rows) {
-    sheet.addRow(headers.map((header) => encodeCell(row[header])));
-  }
-  headers.forEach((header, index) => {
-    sheet.getColumn(index + 1).width =
-      widths?.[index] ?? Math.min(42, Math.max(14, header.length + 4));
-  });
+export function parseKey(value: unknown): { kind: string; id: string; extra: string } {
+  const text = asString(value).trim();
+  const [kind, id = "", extra = ""] = text.split(":");
+  return { kind, id, extra };
 }
 
-export function readTable(sheet: Worksheet | undefined): TableRow[] {
-  if (!sheet) return [];
-  const headerRow = sheet.getRow(1);
-  const headers: string[] = [];
-  const lastColumn = Math.max(sheet.columnCount, headerRow.cellCount);
-  for (let column = 1; column <= lastColumn; column += 1) {
-    headers[column] = asString(rawCell(headerRow.getCell(column))).trim();
+export function excelSheetName(title: string, used: Set<string>) {
+  const phaseMatch = title.match(/^(PHASE\s*\d+)/i);
+  let base = (phaseMatch?.[1] || title)
+    .replace(/[\\/?*[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 31);
+  if (!base) base = "Phase";
+  let name = base;
+  let index = 2;
+  while (used.has(name.toLowerCase())) {
+    const suffix = ` (${index})`;
+    name = `${base.slice(0, Math.max(1, 31 - suffix.length))}${suffix}`;
+    index += 1;
   }
-  const rows: TableRow[] = [];
-  for (let index = 2; index <= sheet.rowCount; index += 1) {
-    const excelRow = sheet.getRow(index);
-    const row: TableRow = {};
-    let empty = true;
-    headers.forEach((header, column) => {
-      if (!header) return;
-      const value = rawCell(excelRow.getCell(column));
-      row[header] = value;
-      if (!isBlank(value)) empty = false;
-    });
-    if (!empty) rows.push(row);
-  }
-  return rows;
+  used.add(name.toLowerCase());
+  return name;
 }
 
 export function splitPayload(json: string): string[] {
@@ -323,9 +176,7 @@ export function splitPayload(json: string): string[] {
 }
 
 export function writePayload(workbook: Workbook, json: string) {
-  const sheet = workbook.addWorksheet(SHEETS.payload, {
-    state: "hidden",
-  });
+  const sheet = workbook.addWorksheet(PAYLOAD_SHEET, { state: "veryHidden" });
   sheet.getCell(1, 1).value = "format";
   sheet.getCell(1, 2).value = EXCEL_FORMAT;
   sheet.getCell(2, 1).value = "chunkCount";
@@ -337,11 +188,18 @@ export function writePayload(workbook: Workbook, json: string) {
 }
 
 export function readPayloadJson(workbook: Workbook): string | undefined {
-  const sheet = workbook.getWorksheet(SHEETS.payload);
+  const sheet = workbook.getWorksheet(PAYLOAD_SHEET);
   if (!sheet) return undefined;
   const format = asString(rawCell(sheet.getCell(1, 2)));
-  if (format && format !== EXCEL_FORMAT) return undefined;
-  const count = asNumber(rawCell(sheet.getCell(2, 2))) ?? 0;
+  if (
+    format &&
+    format !== EXCEL_FORMAT &&
+    !EXCEL_FORMAT_LEGACY.includes(
+      format as (typeof EXCEL_FORMAT_LEGACY)[number],
+    )
+  )
+    return undefined;
+  const count = Number(rawCell(sheet.getCell(2, 2))) || 0;
   if (count <= 0) return undefined;
   let json = "";
   for (let index = 0; index < count; index += 1) {
@@ -350,14 +208,12 @@ export function readPayloadJson(workbook: Workbook): string | undefined {
   return json || undefined;
 }
 
-export function joinList(values: string[] | undefined): string {
-  return (values || []).join(" | ");
-}
-
-export function splitList(value: unknown): string[] | undefined {
-  if (isBlank(value)) return undefined;
-  return asString(value)
-    .split("|")
-    .map((item) => item.trim())
-    .filter(Boolean);
+export function visibleWorksheets(workbook: Workbook): Worksheet[] {
+  return workbook.worksheets.filter(
+    (sheet) =>
+      sheet.state !== "hidden" &&
+      sheet.state !== "veryHidden" &&
+      sheet.name !== PAYLOAD_SHEET &&
+      !sheet.name.startsWith("_"),
+  );
 }

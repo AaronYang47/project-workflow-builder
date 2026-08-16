@@ -40,6 +40,6 @@
 ## Save and share
 
 1. Changes autosave locally; the toolbar indicates whether the canvas is saved.
-2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The **Visual Flow** sheet mirrors the canvas left-to-right (Phases as containers, Gates inside their Phase). The other sheets store the full data so round-tripping restores the canvas.
+2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The workbook has one tab per Phase. Each tab lists that Phase’s Gates as large form blocks, with Conditions, Documents, Approvals, and responsibilities editable inside the Gate. There is no flowchart and no extra data sheets. After editing, Import Excel to write the values back to the canvas.
 3. Use **Export image** for PNG or SVG output.
 4. Run **Validate workflow** before sharing. Click a validation item to focus the related node.
