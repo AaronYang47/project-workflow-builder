@@ -38,23 +38,25 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
       className="h-full w-full rounded-2xl border-2 bg-slate-500/[0.035]"
       style={{ borderColor: `${color}66` }}
     >
-      <NodeResizer
-        minWidth={420}
-        minHeight={260}
-        isVisible={selected}
-        onResizeEnd={(_, params) =>
-          useWorkflowStore
-            .getState()
-            .updateLayout(
-              node.id,
-              { width: params.width, height: params.height },
-              true,
-            )
-        }
-      />
+      <div className="pointer-events-auto">
+        <NodeResizer
+          minWidth={420}
+          minHeight={260}
+          isVisible={selected}
+          onResizeEnd={(_, params) =>
+            useWorkflowStore
+              .getState()
+              .updateLayout(
+                node.id,
+                { width: params.width, height: params.height },
+                true,
+              )
+          }
+        />
+      </div>
       <div
         data-phase-header
-        className="relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
       >
         <span
           aria-hidden

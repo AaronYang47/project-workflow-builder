@@ -137,6 +137,10 @@ function CanvasInner() {
                 ? false
                 : selection.nodeIds.includes(domain.id),
             draggable: true,
+            dragHandle:
+              domain.type === "phase" ? ".phase-drag-handle" : undefined,
+            style:
+              domain.type === "phase" ? { pointerEvents: "none" } : undefined,
             data: {
               domain,
               reached: progress.reachedNodeIds.has(domain.id),
