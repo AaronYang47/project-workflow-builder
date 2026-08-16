@@ -28,6 +28,7 @@ import {
 } from "./semantic-edge";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { resolveAbsolutePosition } from "@/lib/flow-helpers";
+import { PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
 import { GATE_SECTION_GAP, getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -141,8 +142,8 @@ function CanvasInner() {
     [nodes],
   );
   const labelObstacles = useMemo<LabelObstacle[]>(
-    () =>
-      nodes
+    () => {
+      const cards = nodes
         .filter((node) => !node.hidden && node.type !== "phase")
         .map((node) => {
           const positioned = node as Node & {
@@ -160,7 +161,24 @@ function CanvasInner() {
             width: node.measured?.width ?? node.width ?? 240,
             height: node.measured?.height ?? node.height ?? 140,
           };
-        }),
+        });
+      const headers = nodes
+        .filter((node) => !node.hidden && node.type === "phase")
+        .map((node) => {
+          const position = resolveAbsolutePosition(node, (id) =>
+            nodeById.get(id),
+          );
+          return {
+            id: `${node.id}__header`,
+            x: position.x,
+            y: position.y,
+            width: node.measured?.width ?? node.width ?? 720,
+            height: PHASE_HEADER_HEIGHT,
+            kind: "phase-header" as const,
+          };
+        });
+      return [...cards, ...headers];
+    },
     [nodeById, nodes],
   );
   const edgeIndexes = useMemo(() => {

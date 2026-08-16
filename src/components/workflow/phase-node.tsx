@@ -55,7 +55,10 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
             )
         }
       />
-      <div className="relative flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing">
+      <div
+        data-phase-header
+        className="relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+      >
         <span
           aria-hidden
           className="absolute inset-y-0 left-0 w-1.5"

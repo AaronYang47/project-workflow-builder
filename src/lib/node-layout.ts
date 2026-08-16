@@ -7,8 +7,9 @@ import {
 } from "@/types/workflow";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-// Phase header is about 96px tall. Keep a generous 72px visual gutter below it
-// so Gate modules read as content inside the swimlane instead of touching its title.
+// Phase header is about 96–112px tall. Keep a generous gutter below it so Gate
+// modules read as content inside the swimlane instead of touching its title.
+export const PHASE_HEADER_HEIGHT = 112;
 export const PHASE_CONTENT_TOP = 168;
 
 export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout, "width" | "height">) {

@@ -9,9 +9,20 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import type { DomainEdge, EdgeRoutePoint } from "@/types/workflow";
+import {
+  cardObstacles,
+  corridorYAboveCards,
+  aboveRouteCardTop,
+  phaseHeaderObstacles,
+} from "@/lib/edge-routing";
 
 type Point = { x: number; y: number };
-export type LabelObstacle = Point & { id: string; width: number; height: number };
+export type LabelObstacle = Point & {
+  id: string;
+  width: number;
+  height: number;
+  kind?: "phase-header";
+};
 
 export type SemanticFlowEdge = Edge<
   {
@@ -404,14 +415,24 @@ export function SemanticEdge({
         );
         const left = Math.min(targetX, escapeX);
         const right = Math.max(targetX, escapeX);
-        const crossedObstacles = obstacles.filter(
+        const cards = cardObstacles(obstacles);
+        const crossedObstacles = cards.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
-        const highestCardTop = crossedObstacles.length
-          ? Math.min(...crossedObstacles.map((item) => item.y))
-          : Math.min(sourceY, targetY);
+        const highestCardTop = aboveRouteCardTop(
+          sourceObstacle,
+          obstacles.find((item) => item.id === domain.target),
+          Math.min(sourceY, targetY),
+          crossedObstacles,
+        );
         const lane = Math.abs(data?.labelLane ?? 0) % 3;
-        const corridorY = highestCardTop - 56 - lane * 30;
+        const corridorY = corridorYAboveCards(
+          highestCardTop,
+          lane,
+          left,
+          right,
+          phaseHeaderObstacles(obstacles),
+        );
         return compact([
           { x: sourceX, y: sourceY },
           { x: escapeX, y: sourceY },
@@ -452,7 +473,8 @@ export function SemanticEdge({
         };
         const left = Math.min(sourceRight, targetLeft);
         const right = Math.max(sourceRight, targetLeft);
-        const crossedObstacles = obstacles.filter(
+        const cards = cardObstacles(obstacles);
+        const crossedObstacles = cards.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
         // Pick the corridor closer to where the edge needs to go: route above
@@ -460,17 +482,20 @@ export function SemanticEdge({
         // when the target sits lower.
         const routeAbove = targetY < sourceY;
         if (routeAbove) {
-          const highestCardTop = crossedObstacles.length
-            ? Math.min(
-                ...crossedObstacles
-                  .filter((item) => !containsEndpoint(item))
-                  .map((item) => item.y),
-                sourceY,
-                targetY,
-              )
-            : Math.min(sourceY, targetY);
+          const highestCardTop = aboveRouteCardTop(
+            sourceObstacle,
+            targetObstacle,
+            Math.min(sourceY, targetY),
+            crossedObstacles.filter((item) => !containsEndpoint(item)),
+          );
           const lane = Math.abs(data?.labelLane ?? 0) % 3;
-          const corridorY = highestCardTop - 56 - lane * 30;
+          const corridorY = corridorYAboveCards(
+            highestCardTop,
+            lane,
+            left,
+            right,
+            phaseHeaderObstacles(obstacles),
+          );
           return compact([
             { x: sourceX, y: sourceY },
             { x: escapeX, y: sourceY },
