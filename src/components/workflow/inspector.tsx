@@ -68,6 +68,18 @@ const writePath = (
   cursor[keys.at(-1)!] = value;
   return result as unknown as DomainNode;
 };
+// When the user types a Project ID while Service Type is "Paid Service",
+// rewrite the prefix so the stored id stays consistent with the service type
+// (e.g. "L-26-001" → "P-26-001"). Empty input is left alone so the field can be
+// cleared; partial inputs keep whatever prefix the user is mid-typing.
+const normalizeProjectIdInput = (value: string, serviceType: string): string => {
+  if (!value) return value;
+  const desiredPrefix = serviceType === "Paid Service" ? "P" : "L";
+  const match = value.match(/^([LP])-(\d{2})-(\d{3})$/);
+  if (!match) return value;
+  if (match[1] === desiredPrefix) return value;
+  return `${desiredPrefix}-${match[2]}-${match[3]}`;
+};
 
 function Field({
   field,
@@ -212,21 +224,23 @@ function Field({
           }
           inputMode={field.mask === "digits" ? "numeric" : undefined}
           readOnly={field.readOnly}
-          onChange={(e) =>
-            set(
+          onChange={(e) => {
+            const raw = e.target.value;
+            const value =
               field.type === "tags"
-                ? e.target.value
+                ? raw
                     .split(",")
                     .map((x) => x.trim())
                     .filter(Boolean)
                 : field.mask === "digits"
-                  ? e.target.value.replace(/\D/g, "").slice(0, field.maxLength || undefined)
+                  ? raw.replace(/\D/g, "").slice(0, field.maxLength || undefined)
                   : field.readOnly
                     ? textValue
-                    : e.target.value,
-              true,
-            )
-          }
+                    : field.key === "customFields.projectId"
+                      ? normalizeProjectIdInput(raw, String(node.config?.serviceType || ""))
+                      : raw;
+            set(value, true);
+          }}
           {...textProps}
         />
       )}
