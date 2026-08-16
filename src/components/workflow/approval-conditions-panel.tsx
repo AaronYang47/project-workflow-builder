@@ -543,7 +543,7 @@ function ConditionRow({
             signaturesReady ? "complete" : "pending"
           }
           className={cn(
-            "rail ml-2 mt-2 space-y-2 border-l-2 pl-3",
+            "rail ml-2 mt-2 space-y-2 rounded-l-lg border-l-2 pl-3",
             signaturesReady
               ? "border-emerald-300 dark:border-emerald-700"
               : "border-amber-300 dark:border-amber-700",
