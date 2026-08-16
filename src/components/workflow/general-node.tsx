@@ -173,6 +173,7 @@ export function GeneralNode({
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
       <div
+        data-node-header
         className="nowheel flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
         style={{ backgroundColor: `${color}0d` }}
       >

@@ -533,11 +533,31 @@ function CanvasInner() {
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout || !domain || domain.type === "gate") return;
           const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
-          if (requiredHeight > layout.height) {
-            patches[id] = {
-              ...patches[id],
-              height: requiredHeight,
-            };
+          const header = flowNode?.querySelector<HTMLElement>(
+            "[data-node-header]",
+          );
+          const requiredWidth = header
+            ? Math.ceil(header.scrollWidth + 2)
+            : 0;
+          const patch: Partial<NodeLayout> = {};
+          if (requiredHeight > layout.height) patch.height = requiredHeight;
+          if (requiredWidth && requiredWidth > layout.width)
+            patch.width = requiredWidth;
+          if (Object.keys(patch).length) patches[id] = { ...patches[id], ...patch };
+        });
+      root
+        .querySelectorAll<HTMLElement>("[data-gate-header]")
+        .forEach((header) => {
+          const card = header.closest<HTMLElement>(
+            '[aria-label="Decision Module card"]',
+          );
+          const flowNode = card?.closest<HTMLElement>(".react-flow__node");
+          const id = flowNode?.dataset.id;
+          const layout = id ? current.layout.nodes[id] : undefined;
+          if (!id || !layout) return;
+          const requiredWidth = Math.ceil(header.scrollWidth + 2);
+          if (requiredWidth > layout.width) {
+            patches[id] = { ...patches[id], width: requiredWidth };
           }
         });
       for (const phase of current.graph.nodes.filter(

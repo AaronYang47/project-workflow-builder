@@ -293,6 +293,7 @@ export function GateRules({ node }: { node: DomainNode }) {
       >
         <div
           data-inspector-target="config.gateHeaderColor"
+          data-gate-header
           className="relative flex min-h-[72px] items-center px-4 py-1.5 text-white"
           style={{
             background: `linear-gradient(135deg, ${gateHeaderColor}, color-mix(in srgb, ${gateHeaderColor} 72%, #0f172a))`,
