@@ -1,4 +1,4 @@
-import { GATE_SERVICE_TYPES } from "@/lib/gate-service-types";
+import { GATE_SERVICE_TYPES, parseGateServiceTypeId } from "@/lib/gate-service-types";
 import { asString } from "@/lib/excel-format";
 import type {
   DomainNode,
@@ -69,12 +69,7 @@ export function serviceLabel(id?: string) {
 }
 
 export function parseServiceTypeId(value: unknown) {
-  const text = asString(value).trim();
-  if (!text) return undefined;
-  return GATE_SERVICE_TYPES.find(
-    (item) =>
-      item.id === text || item.label.toLowerCase() === text.toLowerCase(),
-  )?.id;
+  return parseGateServiceTypeId(value);
 }
 
 export function parseRequirement(value: unknown, fallback?: RequirementType) {

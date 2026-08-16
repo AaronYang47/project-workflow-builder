@@ -35,6 +35,7 @@ import {
   syncPaidConditions,
 } from "@/lib/project-id";
 import { workflowHasPaidService } from "@/lib/workflow-progress";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export function GateRules({ node }: { node: DomainNode }) {
   const {
@@ -95,15 +96,11 @@ export function GateRules({ node }: { node: DomainNode }) {
         signatureRequirements: undefined,
       },
     };
-    // Setting any condition's service-type tag to "Paid Service" is the user's
+    // Setting any document's service-type tag to "Paid Service" is the user's
     // way of declaring this engagement is paid work; clearing the last one
-    // back to "Standard" is the user's way of undoing that. Mirror both
-    // transitions onto the project-start node so the gate badge stays in
-    // lockstep with the conditions instead of asking the user to also edit
-    // the project-start inspector.
-    const hasPaidCondition = nextRules.some(
-      (rule) => rule.serviceTypeId === "paid",
-    );
+    // is the user's way of undoing that. Mirror both transitions onto the
+    // project-start node so the gate badge stays in lockstep.
+    const hasPaidCondition = nextRules.some((rule) => ruleHasPaidService(rule));
     const projectStartServiceType = String(
       projectStartNode?.config?.serviceType || "",
     );

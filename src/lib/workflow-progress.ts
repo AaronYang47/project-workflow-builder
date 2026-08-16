@@ -12,6 +12,7 @@ import {
   MODULE_PATTERN,
   PROJECT_ID_PATTERN,
 } from "@/lib/project-id";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
@@ -174,7 +175,7 @@ export function nodeHasPaidService(
   node: DomainNode,
   rules = node.config.gateRules,
 ) {
-  return (rules || []).some((rule) => rule.serviceTypeId === "paid");
+  return (rules || []).some((rule) => ruleHasPaidService(rule));
 }
 
 export function workflowHasPaidService(

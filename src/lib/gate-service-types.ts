@@ -40,3 +40,37 @@ export const GATE_SERVICE_TYPES: readonly GateServiceType[] = [
 
 export const getGateServiceType = (id: string | undefined) =>
   GATE_SERVICE_TYPES.find((type) => type.id === id);
+
+export function parseGateServiceTypeId(
+  value: unknown,
+): GateServiceType["id"] | undefined {
+  const text = String(value ?? "").trim();
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  const match = GATE_SERVICE_TYPES.find(
+    (item) => item.id === text || item.label.toLowerCase() === lower,
+  );
+  if (match) return match.id;
+  if (lower === "included / tbd") return "tbd";
+  return undefined;
+}
+
+export function documentServiceTypeId(
+  signature: { serviceType?: string },
+  fallback?: string,
+) {
+  return (
+    parseGateServiceTypeId(signature.serviceType) ||
+    parseGateServiceTypeId(fallback)
+  );
+}
+
+export function ruleHasPaidService(rule: {
+  serviceTypeId?: string;
+  signatures?: { serviceType?: string }[];
+}) {
+  if (rule.serviceTypeId === "paid") return true;
+  return (rule.signatures || []).some(
+    (signature) => documentServiceTypeId(signature, rule.serviceTypeId) === "paid",
+  );
+}

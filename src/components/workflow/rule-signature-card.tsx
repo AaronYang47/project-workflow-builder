@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
+import {
+  GATE_SERVICE_TYPES,
+  documentServiceTypeId,
+  getGateServiceType,
+} from "@/lib/gate-service-types";
 import { signatureFieldsComplete as signatureIsComplete } from "@/lib/workflow-progress";
 import { stopBubble, textareaRows } from "./node-utils";
 import type {
@@ -203,6 +208,40 @@ export function RuleSignatureCard({
               />
             </label>
           </div>
+          <label
+            className="mt-2 flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 shadow-sm"
+            title={
+              getGateServiceType(documentServiceTypeId(signature))?.description ||
+              "Select a service type"
+            }
+          >
+            <span
+              className="size-3 shrink-0 rounded-full border border-background shadow-sm"
+              style={{
+                backgroundColor:
+                  getGateServiceType(documentServiceTypeId(signature))?.color ||
+                  "#cbd5e1",
+              }}
+            />
+            <span className="shrink-0 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+              Service type
+            </span>
+            <select
+              aria-label={`${prefix} service type`}
+              value={documentServiceTypeId(signature) || ""}
+              onChange={(event) =>
+                update({ serviceType: event.target.value || undefined })
+              }
+              className="h-full min-w-0 flex-1 bg-transparent text-[8px] font-bold outline-none"
+            >
+              <option value="">Select a service type</option>
+              {GATE_SERVICE_TYPES.map((serviceType) => (
+                <option key={serviceType.id} value={serviceType.id}>
+                  {serviceType.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <label className="block">
               <span className="mb-1 flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">

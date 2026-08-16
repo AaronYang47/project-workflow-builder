@@ -17,6 +17,7 @@ import {
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { statusStyles } from "./node-utils";
 
 interface GateProjectStartInfo {
@@ -49,8 +50,8 @@ export function useGateContext(node: DomainNode) {
     // The building/module codes live on the gate rules (one pair per paid
     // condition); once both are entered, append them to the badge so the gate
     // shows the full paid-service identifier rather than just the project ID.
-    const paidRule = (node.config.gateRules || []).find(
-      (rule) => rule.serviceTypeId === "paid",
+    const paidRule = (node.config.gateRules || []).find((rule) =>
+      ruleHasPaidService(rule),
     );
     const conditionBuildingCode = String(paidRule?.buildingCode ?? "");
     const conditionModuleCode = String(paidRule?.moduleCode ?? "");

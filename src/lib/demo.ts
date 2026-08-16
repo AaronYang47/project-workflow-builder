@@ -28,7 +28,7 @@ const signature = (
   receivedDate: "",
   revision: "",
   status: "Draft",
-  serviceType: "Included / TBD",
+  serviceType: "tbd",
   revisionControlled: true,
   revisions: [],
 });

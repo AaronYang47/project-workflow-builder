@@ -1,3 +1,4 @@
+import { parseGateServiceTypeId } from "@/lib/gate-service-types";
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { absoluteLayoutPosition } from "@/lib/layout-geometry";
@@ -245,6 +246,10 @@ function migrateGateNode(node: DomainNode): DomainNode {
         revisions,
         checked: Boolean(signature.checked && revisionReady),
         requirementType: signature.requirementType || "Required",
+        serviceType:
+          parseGateServiceTypeId(signature.serviceType) ||
+          rule.serviceTypeId ||
+          signature.serviceType,
       };
     });
     const requiredDocumentsReady = signatures

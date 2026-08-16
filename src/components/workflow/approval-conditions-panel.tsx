@@ -8,8 +8,8 @@ import {
   GATE_PANEL_WIDTH,
   type GateLayoutMetrics,
 } from "@/lib/gate-layout";
-import { GATE_SERVICE_TYPES, getGateServiceType } from "@/lib/gate-service-types";
 import { projectNodeUuid } from "@/lib/project-id";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 import {
   requirementApplies,
   signatureFieldsComplete as signatureIsComplete,
@@ -245,18 +245,6 @@ export function ApprovalConditionsPanel({
                 onDelete={() =>
                   saveRules(rules.filter((item) => item.id !== rule.id))
                 }
-                onChangeServiceType={(value) =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? {
-                            ...item,
-                            serviceTypeId: value || undefined,
-                          }
-                        : item,
-                    ),
-                  )
-                }
                 onChangeBuildingCode={(value) =>
                   saveRules(
                     rules.map((item) =>
@@ -339,7 +327,6 @@ interface ConditionRowProps {
   onChangeRequirementType: (value: string) => void;
   onLabelBlur: (value: string) => void;
   onDelete: () => void;
-  onChangeServiceType: (value: string) => void;
   onChangeBuildingCode: (value: string) => void;
   onChangeModuleCode: (value: string) => void;
   onAddDocument: () => void;
@@ -362,7 +349,6 @@ function ConditionRow({
   onChangeRequirementType,
   onLabelBlur,
   onDelete,
-  onChangeServiceType,
   onChangeBuildingCode,
   onChangeModuleCode,
   onAddDocument,
@@ -446,34 +432,6 @@ function ConditionRow({
         >
           {interfaceText.documentsLabel}
         </span>
-        <label
-          className="group relative mr-1 flex h-7 max-w-[160px] items-center gap-1.5 rounded-md border bg-background px-2 shadow-sm"
-          title={
-            getGateServiceType(rule.serviceTypeId)?.description ||
-            "Select a service type"
-          }
-        >
-          <span
-            className="size-3 shrink-0 rounded-full border border-background shadow-sm"
-            style={{
-              backgroundColor:
-                getGateServiceType(rule.serviceTypeId)?.color || "#cbd5e1",
-            }}
-          />
-          <select
-            aria-label={`Condition ${index + 1} service type`}
-            value={rule.serviceTypeId || ""}
-            onChange={(event) => onChangeServiceType(event.target.value)}
-            className="h-full min-w-0 flex-1 bg-transparent text-[7px] font-bold outline-none"
-          >
-            <option value="">Service type</option>
-            {GATE_SERVICE_TYPES.map((serviceType) => (
-              <option key={serviceType.id} value={serviceType.id}>
-                {serviceType.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <button
           aria-label={`Add signed document to Condition ${index + 1}`}
           data-inspector-target="config.addDocumentLabel"
@@ -485,7 +443,7 @@ function ConditionRow({
           {interfaceText.addDocumentLabel}
         </button>
       </div>
-      {rule.serviceTypeId === "paid" ? (
+      {ruleHasPaidService(rule) ? (
         <div className="nodrag mt-2 grid grid-cols-2 gap-2">
           <label className="block rounded-md border bg-background px-2 py-1.5">
             <span className="block text-[7px] font-bold uppercase tracking-[0.12em] text-muted-foreground">

@@ -21,6 +21,7 @@ import { readPath } from "@/lib/object-path";
 import {
   extraNodeDocuments,
   interfaceText,
+  parseServiceTypeId,
   serviceLabel,
   usesGateForm,
 } from "@/lib/excel/shared";
@@ -251,6 +252,13 @@ function writeDocumentRow(
   );
   writeEditable(sheet, row, 8, document.signedBy || "", lists.people);
   writeEditable(sheet, row, 9, document.owner || "", lists.people);
+  writeEditable(
+    sheet,
+    row,
+    10,
+    serviceLabel(parseServiceTypeId(document.serviceType)),
+    serviceList(),
+  );
   sheet.getRow(row).height = document.fullName && document.fullName.length > 40 ? 32 : 22;
   return row + 1;
 }
@@ -481,6 +489,7 @@ function writeGateBlock(
       row += 1;
     }
     for (const rule of rules) {
+      const documents = rule.signatures || [];
       writeKey(sheet, row, `${KEY.condition}:${rule.id}:rule`);
       writeEditable(sheet, row, 2, Boolean(rule.checked), LISTS.boolean, true);
       merge(sheet, row, 3, 4);
@@ -496,11 +505,10 @@ function writeGateBlock(
         sheet,
         row,
         6,
-        serviceLabel(rule.serviceTypeId),
+        documents.length ? "" : serviceLabel(rule.serviceTypeId),
         serviceList(),
       );
       row += 1;
-      const documents = rule.signatures || [];
       if (documents.length) {
         row = writeSection(sheet, row, labels.documentsLabel);
         row = writeHeaders(sheet, row, [
@@ -512,6 +520,7 @@ function writeGateBlock(
           "Department",
           "Responsible Person",
           "Owner",
+          "Service",
         ]);
         for (const document of documents) {
           row = writeDocumentRow(sheet, row, document, rule.id, lists);
@@ -593,6 +602,7 @@ export function writePhaseSheet(
   sheet.getColumn(7).width = 22;
   sheet.getColumn(8).width = 22;
   sheet.getColumn(9).width = 18;
+  sheet.getColumn(10).width = 28;
 
   writeKey(sheet, 1, phase ? `${KEY.phase}:${phase.id}` : "#independent");
   merge(sheet, 1, 2, LAST_COL);

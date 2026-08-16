@@ -198,6 +198,9 @@ export function applyPhaseSheet(
       const department = asString(rawCell(sheet.getCell(row, 7)));
       const signedBy = asString(rawCell(sheet.getCell(row, 8)));
       const owner = asString(rawCell(sheet.getCell(row, 9)));
+      const parsedDocumentService = parseServiceTypeId(
+        rawCell(sheet.getCell(row, 10)),
+      );
       next = updateGraphNode(next, node.id, (item) => {
         const extras = extraNodeDocuments(item);
         const gateRules = (item.config.gateRules || []).map((rule) => {
@@ -219,6 +222,8 @@ export function applyPhaseSheet(
                       : department,
                     signedBy,
                     owner,
+                    serviceType:
+                      parsedDocumentService || signature.serviceType,
                   },
             ),
           };
