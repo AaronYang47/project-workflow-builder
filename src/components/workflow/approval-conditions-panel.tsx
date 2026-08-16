@@ -347,24 +347,9 @@ function ConditionRow({
   return (
     <div
       data-rule-card
-      data-rule-type={requirementType}
-      data-rule-state={
-        signaturesReady
-          ? rule.checked
-            ? "complete"
-            : "ready"
-          : "pending"
-      }
       className={cn(
-        "rounded-xl border bg-muted/15 p-2 shadow-sm",
+        "rounded-xl border-0 bg-muted/15 p-2 shadow-sm",
         !requirementApplies(rule) && "opacity-65",
-        signaturesReady
-          ? rule.checked
-            ? "border-emerald-300"
-            : "border-sky-300"
-          : requirementType === "Optional"
-              ? "border-blue-300"
-              : "border-rose-300",
       )}
     >
       <div className="grid min-w-0 grid-cols-[22px_78px_94px_minmax(0,1fr)_24px_22px] items-stretch gap-2">
