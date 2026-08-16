@@ -220,10 +220,6 @@ export function GateRules({ node }: { node: DomainNode }) {
         style={{ width: GATE_CARD_WIDTH, height: metrics.gateCardHeight }}
       >
         <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-[#d6b46c] via-[#f0d68d] to-[#9b722e]"
-        />
-        <div
           data-inspector-target="config.gateHeaderColor"
           className="relative flex h-[62px] items-center px-4 pt-1 text-white"
           style={{
