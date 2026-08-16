@@ -52,7 +52,12 @@ export function GateRules({ node }: { node: DomainNode }) {
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
   );
-  const nodeUuid = String(node.customFields.nodeUuid || "");
+  // The UUID badge identifies the project, not this gate node. Resolve the
+  // project-start node's UUID so the gate card shows the same identifier as
+  // every other node in the same project.
+  const nodeUuid = String(
+    projectStartNode?.customFields.nodeUuid || node.customFields.nodeUuid || "",
+  );
   const conditionState = conditionProgress.state;
   const decisionState: GateCompletionState =
     conditionProgress.completed === 0
@@ -335,7 +340,7 @@ export function GateRules({ node }: { node: DomainNode }) {
             <GripVertical className="size-4" />
           </span>
         </div>
-        <div className="nodrag px-4 py-3">
+        <div className="nodrag px-4 pt-3 pb-7">
           <label className="block">
             <span className="sr-only">Decision name</span>
             <textarea
@@ -366,7 +371,7 @@ export function GateRules({ node }: { node: DomainNode }) {
           </label>
         </div>
         {nodeUuid ? (
-          <div className="nodrag pointer-events-none absolute bottom-1 right-2 z-10">
+          <div className="nodrag pointer-events-none absolute bottom-2 right-3 z-10">
             <span
               title={nodeUuid}
               className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"

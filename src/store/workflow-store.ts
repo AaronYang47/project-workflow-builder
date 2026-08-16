@@ -107,7 +107,7 @@ function createDomainNode(type: WorkflowNodeType, id: string): DomainNode {
           legacyJobNumber: "",
           nodeUuid: crypto.randomUUID(),
         }
-      : { nodeUuid: crypto.randomUUID() },
+      : {},
     config: projectStart
       ? { serviceType: "Standard", buildingCode: "", moduleCode: "" }
       : gate

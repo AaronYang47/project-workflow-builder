@@ -448,6 +448,16 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         ...node,
         conditions,
       };
+    })
+    .map((node) => {
+      // The UUID is a project-level identifier and lives on the project-start
+      // node. Earlier revisions of the code stamped a UUID on every node, which
+      // made badges across nodes drift apart. Strip the redundant per-node
+      // UUIDs so the badge always resolves to the project-start UUID.
+      if (node.type === "projectStart") return node;
+      if (!("nodeUuid" in (node.customFields || {}))) return node;
+      const { nodeUuid: _drop, ...restCustomFields } = node.customFields;
+      return { ...node, customFields: restCustomFields };
     });
   if (!nodes.some((node) => node.type === "projectStart")) {
     nodes = [

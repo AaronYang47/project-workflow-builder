@@ -60,6 +60,17 @@ export function GeneralNode({
     projectStartNode?.customFields.projectId || "",
   );
   const isProjectStart = node.type === "projectStart";
+  // The UUID badge identifies the project, not the individual node. Look it
+  // up on project-start so every node in the same project shares the same
+  // identifier (projectStart looks up itself, which trivially falls back to
+  // its own customFields.nodeUuid).
+  const nodeUuid = isProjectStart
+    ? String(node.customFields.nodeUuid || "")
+    : String(
+        projectStartNode?.customFields.nodeUuid ||
+          node.customFields.nodeUuid ||
+          "",
+      );
   const serviceType = String(
     (projectStartNode?.config as Record<string, unknown> | undefined)
       ?.serviceType || "Standard",
@@ -115,7 +126,6 @@ export function GeneralNode({
   const paidRequiresModule = serviceType === "Paid Service";
   const buildingValid = !paidRequiresBuilding || BUILDING_PATTERN.test(buildingCode);
   const moduleValid = !paidRequiresModule || MODULE_PATTERN.test(moduleCode);
-  const nodeUuid = String(node.customFields.nodeUuid || "");
   const legacyJobNumber = isProjectStart
     ? legacyJobNumberFromProjectId(projectId)
     : legacyJobNumberFromProjectId(projectStartProjectId);
