@@ -348,7 +348,7 @@ function ConditionRow({
     <div
       data-rule-card
       className={cn(
-        "rounded-xl border-0 bg-muted/15 p-2 shadow-sm",
+        "rounded-2xl border-0 bg-muted/15 p-2 shadow-sm",
         !requirementApplies(rule) && "opacity-65",
       )}
     >
