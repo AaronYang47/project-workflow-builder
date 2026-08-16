@@ -199,10 +199,13 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* Approval condition signature rail — vertical left border breathes
-   amber while any applicable document is still unchecked, then green
-   once everything is complete. The animation pulses the border via a
-   layered box-shadow so the border color stays intact. */
-@keyframes signature-rail-breath-pending {
+   with a color that depends on the condition's requirement type:
+     Required    → red while pending, green once complete
+     Conditional → amber while pending, green once complete
+     Optional    → blue while pending, green once complete
+   The animation pulses the border via a layered box-shadow so the
+   border color stays intact. */
+@keyframes signature-rail-breath-required-pending {
   0%, 100% {
     border-left-color: rgb(251 113 133);
     box-shadow: -2px 0 0 0 rgb(251 113 133),
@@ -212,6 +215,30 @@ button:disabled { cursor: not-allowed; }
     border-left-color: rgb(225 29 72);
     box-shadow: -2px 0 0 2px rgb(225 29 72),
                 -6px 0 30px 8px rgba(225, 29, 72, 0.40);
+  }
+}
+@keyframes signature-rail-breath-conditional-pending {
+  0%, 100% {
+    border-left-color: rgb(252 211 77);
+    box-shadow: -2px 0 0 0 rgb(252 211 77),
+                -4px 0 18px 2px rgba(245, 158, 11, 0.55);
+  }
+  50% {
+    border-left-color: rgb(245 158 11);
+    box-shadow: -2px 0 0 2px rgb(245 158 11),
+                -6px 0 30px 8px rgba(245, 158, 11, 0.40);
+  }
+}
+@keyframes signature-rail-breath-optional-pending {
+  0%, 100% {
+    border-left-color: rgb(147 197 253);
+    box-shadow: -2px 0 0 0 rgb(147 197 253),
+                -4px 0 18px 2px rgba(37, 99, 235, 0.55);
+  }
+  50% {
+    border-left-color: rgb(37 99 235);
+    box-shadow: -2px 0 0 2px rgb(37 99 235),
+                -6px 0 30px 8px rgba(37, 99, 235, 0.40);
   }
 }
 @keyframes signature-rail-breath-complete {
@@ -226,10 +253,20 @@ button:disabled { cursor: not-allowed; }
                 -6px 0 28px 6px rgba(16, 185, 129, 0.35);
   }
 }
-[data-signature-rail][data-rail-state="pending"] {
+[data-signature-rail][data-rail-type="Required"][data-rail-state="pending"] {
   border-left-width: 2px;
   border-left-style: solid;
-  animation: signature-rail-breath-pending 3.6s ease-in-out infinite;
+  animation: signature-rail-breath-required-pending 3.6s ease-in-out infinite;
+}
+[data-signature-rail][data-rail-type="Conditional"][data-rail-state="pending"] {
+  border-left-width: 2px;
+  border-left-style: solid;
+  animation: signature-rail-breath-conditional-pending 3.6s ease-in-out infinite;
+}
+[data-signature-rail][data-rail-type="Optional"][data-rail-state="pending"] {
+  border-left-width: 2px;
+  border-left-style: solid;
+  animation: signature-rail-breath-optional-pending 3.6s ease-in-out infinite;
 }
 [data-signature-rail][data-rail-state="complete"] {
   border-left-width: 2px;
