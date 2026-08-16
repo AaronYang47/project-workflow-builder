@@ -49,9 +49,9 @@ function writePhaseWorkbook(workbook: Workbook, file: WorkflowFile) {
   const used = new Set<string>();
   const tabs = buildPhaseTabs(file);
   for (const tab of tabs) {
-    const name = excelSheetName(tab.phase?.title || "Workflow", used);
+    const name = excelSheetName(tab.title || tab.phase?.title || "Workflow", used);
     const sheet = workbook.addWorksheet(name);
-    writePhaseSheet(sheet, tab.phase, tab.nodes, file);
+    writePhaseSheet(sheet, tab.phase, tab.nodes, file, tab.title);
   }
 }
 

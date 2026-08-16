@@ -17,6 +17,7 @@ import {
 import type {
   DomainNode,
   GateSignatureRequirement,
+  OutcomeHandle,
   ReferenceConfig,
   RequirementType,
   WorkflowFile,
@@ -28,10 +29,15 @@ const EDIT_FILL = {
   pattern: "solid" as const,
   fgColor: { argb: "FFFFF7D6" },
 };
-const CHECK_FILL = {
+const YES_FILL = {
   type: "pattern" as const,
   pattern: "solid" as const,
   fgColor: { argb: "FFECFDF3" },
+};
+const NO_FILL = {
+  type: "pattern" as const,
+  pattern: "solid" as const,
+  fgColor: { argb: "FFFEE2E2" },
 };
 
 function thin(hex = "#d6d3d1"): Partial<Borders> {
@@ -90,61 +96,39 @@ export function phasesInCanvasOrder(file: WorkflowFile) {
     .sort((a, b) => compareCanvas(file, a.id, b.id));
 }
 
-function assignedPhaseId(
-  file: WorkflowFile,
-  node: DomainNode,
-  phases: DomainNode[],
-  phaseBottom: number,
-) {
-  const parentId = file.layout.nodes[node.id]?.parentId;
-  if (parentId && phases.some((phase) => phase.id === parentId)) return parentId;
+function childrenOfPhase(file: WorkflowFile, phaseId: string) {
+  return file.graph.nodes
+    .filter((node) => file.layout.nodes[node.id]?.parentId === phaseId)
+    .sort((a, b) => compareCanvas(file, a.id, b.id));
+}
 
-  const box = nodeBox(file, node.id);
-  const lastPhase = phases[phases.length - 1];
-  if (box.y >= phaseBottom) return lastPhase.id;
-
-  const overlapping = phases.filter((phase) => {
-    const phaseBox = nodeBox(file, phase.id);
-    return (
-      box.x < phaseBox.x + phaseBox.width &&
-      box.x + Math.max(box.width, 1) > phaseBox.x
-    );
+function independentNodes(file: WorkflowFile, phases: DomainNode[]) {
+  const phaseIds = new Set(phases.map((phase) => phase.id));
+  return file.graph.nodes.filter((node) => {
+    if (node.type === "phase") return false;
+    const parentId = file.layout.nodes[node.id]?.parentId;
+    return !parentId || !phaseIds.has(parentId);
   });
-  if (overlapping.length === 1) return overlapping[0].id;
-  if (overlapping.length > 1) {
-    const center = box.x + box.width / 2;
-    return [...overlapping].sort((left, right) => {
-      const leftBox = nodeBox(file, left.id);
-      const rightBox = nodeBox(file, right.id);
-      return (
-        Math.abs(leftBox.x + leftBox.width / 2 - center) -
-        Math.abs(rightBox.x + rightBox.width / 2 - center)
-      );
-    })[0].id;
-  }
+}
 
-  const firstBox = nodeBox(file, phases[0].id);
-  if (box.x + Math.max(box.width, 1) <= firstBox.x || box.x < firstBox.x) {
-    return phases[0].id;
-  }
-  for (let index = 0; index < phases.length - 1; index += 1) {
-    const left = nodeBox(file, phases[index].id);
-    const right = nodeBox(file, phases[index + 1].id);
-    if (box.x >= left.x + left.width && box.x < right.x) {
-      return phases[index + 1].id;
-    }
-  }
-  return lastPhase.id;
+function independentTabTitle(nodes: DomainNode[]) {
+  if (!nodes.length) return "Independent";
+  const projectStart = nodes.find((node) => node.type === "projectStart");
+  if (projectStart) return projectStart.title || "Project Start";
+  if (nodes.length === 1) return nodes[0].title || "Independent";
+  return nodes[0].title || "Independent";
 }
 
 export function buildPhaseTabs(file: WorkflowFile) {
   const phases = phasesInCanvasOrder(file);
-  const content = file.graph.nodes.filter((node) => node.type !== "phase");
+  const loose = independentNodes(file, phases);
   if (!phases.length) {
+    const nodes = [...loose].sort((a, b) => compareCanvas(file, a.id, b.id));
     return [
       {
         phase: undefined as DomainNode | undefined,
-        nodes: [...content].sort((a, b) => compareCanvas(file, a.id, b.id)),
+        title: independentTabTitle(nodes),
+        nodes,
       },
     ];
   }
@@ -155,14 +139,40 @@ export function buildPhaseTabs(file: WorkflowFile) {
     }),
   );
   const bandOf = (id: string) => (nodeBox(file, id).y >= phaseBottom ? 1 : 0);
-  return phases.map((phase) => ({
-    phase,
-    nodes: content
-      .filter(
-        (node) => assignedPhaseId(file, node, phases, phaseBottom) === phase.id,
-      )
-      .sort((a, b) => compareCanvas(file, a.id, b.id, bandOf)),
-  }));
+  const sequence = [
+    ...phases.map((phase) => ({ kind: "phase" as const, id: phase.id, phase })),
+    ...loose.map((node) => ({ kind: "node" as const, id: node.id, node })),
+  ].sort((a, b) => compareCanvas(file, a.id, b.id, bandOf));
+
+  const tabs: {
+    phase: DomainNode | undefined;
+    title: string;
+    nodes: DomainNode[];
+  }[] = [];
+  let pending: DomainNode[] = [];
+  const flushPending = () => {
+    if (!pending.length) return;
+    tabs.push({
+      phase: undefined,
+      title: independentTabTitle(pending),
+      nodes: pending,
+    });
+    pending = [];
+  };
+  for (const item of sequence) {
+    if (item.kind === "phase") {
+      flushPending();
+      tabs.push({
+        phase: item.phase,
+        title: item.phase.title,
+        nodes: childrenOfPhase(file, item.phase.id),
+      });
+    } else {
+      pending.push(item.node);
+    }
+  }
+  flushPending();
+  return tabs;
 }
 
 function nodeStatus(node: DomainNode) {
@@ -240,13 +250,27 @@ const SKIP_INSPECTOR_KEYS = new Set([
   "customFields.nodeUuid",
 ]);
 
+function usesGateForm(node: DomainNode) {
+  return (
+    node.type === "gate" ||
+    node.type === "decision" ||
+    Boolean(node.config.gateRules?.length)
+  );
+}
+
 function interfaceText(node: DomainNode) {
+  const gate = usesGateForm(node);
   return {
-    conditionsTitle: node.config.conditionsTitle || "Approval conditions",
+    conditionsTitle:
+      node.config.conditionsTitle ||
+      (gate ? "Approval conditions" : "Release conditions"),
     documentsLabel:
       node.config.documentsLabel || "All applicable required documents",
     departmentLabel: node.config.departmentLabel || "Department",
     approverLabel: node.config.approverLabel || "Approved by",
+    decisionTitle: node.config.decisionTitle || "Decision",
+    titleLabel: gate ? "Title" : "Node name",
+    descriptionLabel: gate ? "Description" : "Node content",
   };
 }
 
@@ -273,13 +297,14 @@ function writeEditable(
   checkbox = false,
 ) {
   const cell = sheet.getCell(row, col);
-  cell.value = value;
-  cell.fill = checkbox ? CHECK_FILL : EDIT_FILL;
+  const checked = checkbox ? Boolean(asBoolean(value) ?? value === true) : false;
+  cell.value = checkbox ? (checked ? "Yes" : "No") : value;
+  cell.fill = checkbox ? (checked ? YES_FILL : NO_FILL) : EDIT_FILL;
   cell.font = {
     name: "Calibri",
     size: checkbox ? 11 : 10,
     bold: checkbox,
-    color: { argb: checkbox ? "FF166534" : "FF1C1917" },
+    color: { argb: checkbox ? (checked ? "FF166534" : "FF9F1239") : "FF1C1917" },
   };
   cell.alignment = {
     vertical: "middle",
@@ -287,7 +312,7 @@ function writeEditable(
     wrapText: !checkbox,
     indent: checkbox ? 0 : 1,
   };
-  cell.border = thin(checkbox ? "#86efac" : "#e7d27a");
+  cell.border = thin(checkbox ? (checked ? "#86efac" : "#fecaca") : "#e7d27a");
   if (list) applyListValidation(cell, list);
   sheet.getRow(row).height = Math.max(sheet.getRow(row).height || 0, 22);
 }
@@ -545,12 +570,36 @@ function writeReference(sheet: Worksheet, row: number, node: DomainNode) {
   return row;
 }
 
-function usesGateForm(node: DomainNode) {
-  return (
-    node.type === "gate" ||
-    node.type === "decision" ||
-    Boolean(node.config.gateRules?.length)
-  );
+function isPositiveOutcome(outcome: OutcomeHandle) {
+  return outcome.id === "yes" || outcome.edgeType === "success";
+}
+
+function writeOutcomes(sheet: Worksheet, row: number, node: DomainNode) {
+  const outcomes = (node.config.outcomes || []) as OutcomeHandle[];
+  if (!outcomes.length) return row;
+  for (const outcome of outcomes) {
+    const positive = isPositiveOutcome(outcome);
+    const label = outcome.label || (positive ? "Approved" : "Denied");
+    writeKey(sheet, row, `#outcome:${outcome.id}`);
+    const name = sheet.getCell(row, 2);
+    name.value = positive ? "Yes" : "No";
+    styleLabel(name);
+    merge(sheet, row, 3, LAST_COL);
+    const cell = sheet.getCell(row, 3);
+    cell.value = label;
+    cell.fill = positive ? YES_FILL : NO_FILL;
+    cell.font = {
+      name: "Calibri",
+      size: 11,
+      bold: true,
+      color: { argb: positive ? "FF166534" : "FF9F1239" },
+    };
+    cell.alignment = { vertical: "middle", indent: 1 };
+    cell.border = thin(positive ? "#86efac" : "#fecaca");
+    sheet.getRow(row).height = 24;
+    row += 1;
+  }
+  return row;
 }
 
 function writeGateBlock(
@@ -586,9 +635,9 @@ function writeGateBlock(
     "UUID",
     projectNodeUuid(node, projectStart) || String(node.customFields.nodeUuid || ""),
   );
-  row = writeField(sheet, row, KEY.gateTitle, "Title", node.title);
+  row = writeField(sheet, row, KEY.gateTitle, labels.titleLabel, node.title);
   sheet.getRow(row - 1).height = 24;
-  row = writeField(sheet, row, KEY.gateDescription, "Description", node.description);
+  row = writeField(sheet, row, KEY.gateDescription, labels.descriptionLabel, node.description);
   sheet.getRow(row - 1).height = 36;
   row = writeInspectorFields(sheet, row, node);
   row += 1;
@@ -599,7 +648,7 @@ function writeGateBlock(
     row = writeSection(sheet, row, labels.conditionsTitle);
     writeKey(sheet, row, "");
     const conditionHeaders = [
-      [2, "Done"],
+      [2, "Yes/No"],
       [3, "Condition"],
       [5, "Requirement"],
       [6, "Service"],
@@ -654,7 +703,7 @@ function writeGateBlock(
       if (documents.length) {
         row = writeSection(sheet, row, labels.documentsLabel);
         row = writeHeaders(sheet, row, [
-          "Signed",
+          "Yes/No",
           "Code",
           "Document",
           "Status",
@@ -691,6 +740,7 @@ function writeGateBlock(
 
   if (gateForm) {
     row += 1;
+    row = writeSection(sheet, row, labels.decisionTitle);
     row = writeField(
       sheet,
       row,
@@ -707,31 +757,7 @@ function writeGateBlock(
       node.config.approvedBy || "",
       lists.people,
     );
-    row = writeField(sheet, row, KEY.gateStatus, "Status", status, LISTS.gateStatus);
-    row = writeField(
-      sheet,
-      row,
-      KEY.gateOwner,
-      "Owner",
-      String(node.customFields.owner || ""),
-      lists.people,
-    );
-    row = writeField(
-      sheet,
-      row,
-      KEY.gateResult,
-      "Approval Result",
-      String(node.customFields.approvalResult || ""),
-      LISTS.approvalResult,
-    );
-    row = writeField(
-      sheet,
-      row,
-      KEY.gateNotes,
-      "Notes",
-      String(node.customFields.notes || ""),
-    );
-    sheet.getRow(row - 1).height = 32;
+    row = writeOutcomes(sheet, row, node);
   } else if (node.customFields.notes) {
     row = writeField(
       sheet,
@@ -752,13 +778,15 @@ export function writePhaseSheet(
   phase: DomainNode | undefined,
   nodes: DomainNode[],
   file: WorkflowFile,
+  tabTitle?: string,
 ) {
   const lists = {
     departments: departmentList(file),
     people: peopleList(file),
   };
   const projectStart = file.graph.nodes.find((node) => node.type === "projectStart");
-  const color = phase?.color || "#57534e";
+  const independent = !phase;
+  const color = phase?.color || nodes[0]?.color || "#2563a9";
   sheet.views = [{ state: "frozen", ySplit: 2, showGridLines: true, zoomScale: 100 }];
   sheet.properties.tabColor = { argb: hexArgb(color) };
   sheet.getColumn(1).hidden = true;
@@ -772,33 +800,47 @@ export function writePhaseSheet(
   sheet.getColumn(8).width = 22;
   sheet.getColumn(9).width = 18;
 
-  writeKey(sheet, 1, phase ? `${KEY.phase}:${phase.id}` : `${KEY.phase}:`);
+  writeKey(sheet, 1, phase ? `${KEY.phase}:${phase.id}` : "#independent");
   merge(sheet, 1, 2, LAST_COL);
   fillRange(sheet, 1, 2, LAST_COL, hexArgb(color));
   const title = sheet.getCell(1, 2);
-  title.value = phase?.title || "Workflow";
+  title.value = tabTitle || phase?.title || independentTabTitle(nodes);
   title.font = { name: "Calibri", size: 20, bold: true, color: { argb: "FFFFFFFF" } };
   title.alignment = { vertical: "middle", indent: 1 };
   sheet.getRow(1).height = 32;
 
-  writeKey(sheet, 2, KEY.phaseDesc);
-  const hint = sheet.getCell(2, 2);
-  hint.value = "Description";
-  styleLabel(hint);
-  merge(sheet, 2, 3, LAST_COL);
-  writeEditable(sheet, 2, 3, phase?.description || "");
+  if (phase) {
+    writeKey(sheet, 2, KEY.phaseDesc);
+    const hint = sheet.getCell(2, 2);
+    hint.value = "Description";
+    styleLabel(hint);
+    merge(sheet, 2, 3, LAST_COL);
+    writeEditable(sheet, 2, 3, phase.description || "");
+  } else {
+    const hint = sheet.getCell(2, 2);
+    hint.value = "Not inside a Phase";
+    styleLabel(hint);
+    merge(sheet, 2, 3, LAST_COL);
+    const detail = sheet.getCell(2, 3);
+    detail.value =
+      "This tab is a canvas node that sits outside every Phase container. It is not a member of Phase 1 or any other Phase.";
+    styleRead(detail);
+  }
   sheet.getRow(2).height = 28;
 
   const note = sheet.getCell(3, 2);
-  note.value =
-    "Blocks follow the canvas left-to-right / top-to-bottom. Independent nodes that are not inside a Phase are inserted here by their canvas position. Green TRUE/FALSE cells are checkboxes. Yellow cells import back into the web app.";
+  note.value = independent
+    ? "Fields, labels, Yes/No, and Approved/Denied values match the web app canvas. Yellow cells import back into the web app."
+    : "This tab contains only nodes that live inside this Phase on the canvas. Yes is green, No is red. Yellow cells import back into the web app.";
   note.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF78716C" } };
   merge(sheet, 3, 2, LAST_COL);
   sheet.getRow(3).height = 28;
 
   let row = 5;
   if (!nodes.length) {
-    sheet.getCell(row, 2).value = "No nodes in this phase.";
+    sheet.getCell(row, 2).value = independent
+      ? "No independent nodes."
+      : "No nodes in this phase.";
     styleLabel(sheet.getCell(row, 2));
     return;
   }
@@ -1065,6 +1107,19 @@ export function applyPhaseSheet(
           config: { ...item.config, gateRules },
         };
       });
+    } else if (kind === "#outcome") {
+      const label = asString(rawCell(sheet.getCell(row, 3)));
+      next = updateNode(next, node.id, (item) => ({
+        ...item,
+        config: {
+          ...item.config,
+          outcomes: (item.config.outcomes || []).map((outcome) =>
+            outcome.id === key.id
+              ? { ...outcome, label: label || outcome.label }
+              : outcome,
+          ),
+        },
+      }));
     } else if (kind === "#node.doc") {
       const index = Number(key.extra);
       if (Number.isFinite(index)) {

@@ -33,10 +33,10 @@ export const KEY = {
 } as const;
 
 export const LISTS = {
-  boolean: '"TRUE,FALSE"',
+  boolean: '"Yes,No"',
   requirement: '"Required,Optional"',
   docStatus: '"Draft,In Review,Current,Approved,Superseded"',
-  approvalResult: '"Pending,Approved,Denied,Hold"',
+  approvalResult: '"Approved,Denied"',
   gateStatus: '"Blocked,In Progress,Ready,Open,Approved"',
 } as const;
 
@@ -90,6 +90,7 @@ const FALSE_TOKENS = new Set([
   "unchecked",
   "unsigned",
   "pending",
+  "denied",
   "☐",
   "□",
 ]);
