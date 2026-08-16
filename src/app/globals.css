@@ -200,21 +200,21 @@ button:disabled { cursor: not-allowed; }
 
 /* Approval condition signature rail — vertical left border breathes
    with a color that depends on the condition's requirement type:
-     Required    → red while pending, green once complete
+     Required    → orange-yellow while pending, green once complete
      Conditional → amber while pending, green once complete
      Optional    → blue while pending, green once complete
    The animation pulses the border via a layered box-shadow so the
    border color stays intact. */
 @keyframes signature-rail-breath-required-pending {
   0%, 100% {
-    border-left-color: rgb(251 113 133);
-    box-shadow: -2px 0 0 0 rgb(251 113 133),
-                -4px 0 18px 2px rgba(225, 29, 72, 0.55);
+    border-left-color: rgb(253 186 116);
+    box-shadow: -2px 0 0 0 rgb(251 146 60),
+                -4px 0 18px 2px rgba(249, 115, 22, 0.55);
   }
   50% {
-    border-left-color: rgb(225 29 72);
-    box-shadow: -2px 0 0 2px rgb(225 29 72),
-                -6px 0 30px 8px rgba(225, 29, 72, 0.40);
+    border-left-color: rgb(249 115 22);
+    box-shadow: -2px 0 0 2px rgb(249 115 22),
+                -6px 0 30px 8px rgba(234, 88, 12, 0.40);
   }
 }
 @keyframes signature-rail-breath-optional-pending {
