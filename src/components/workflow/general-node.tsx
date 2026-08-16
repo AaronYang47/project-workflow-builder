@@ -24,6 +24,7 @@ import {
   legacyJobNumberFromProjectId,
   normalizeProjectId,
   projectIdForDisplay,
+  projectNodeUuid,
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
@@ -64,13 +65,7 @@ export function GeneralNode({
   // up on project-start so every node in the same project shares the same
   // identifier (projectStart looks up itself, which trivially falls back to
   // its own customFields.nodeUuid).
-  const nodeUuid = isProjectStart
-    ? String(node.customFields.nodeUuid || "")
-    : String(
-        projectStartNode?.customFields.nodeUuid ||
-          node.customFields.nodeUuid ||
-          "",
-      );
+  const nodeUuid = projectNodeUuid(node, projectStartNode);
   const serviceType = String(
     (projectStartNode?.config as Record<string, unknown> | undefined)
       ?.serviceType || "Standard",

@@ -31,6 +31,7 @@ import { ApprovalConditionsPanel } from "./approval-conditions-panel";
 import {
   demoteToStandardService,
   promoteToPaidService,
+  projectNodeUuid,
   syncPaidConditions,
 } from "@/lib/project-id";
 
@@ -55,9 +56,7 @@ export function GateRules({ node }: { node: DomainNode }) {
   // The UUID badge identifies the project, not this gate node. Resolve the
   // project-start node's UUID so the gate card shows the same identifier as
   // every other node in the same project.
-  const nodeUuid = String(
-    projectStartNode?.customFields.nodeUuid || node.customFields.nodeUuid || "",
-  );
+  const nodeUuid = projectNodeUuid(node, projectStartNode);
   const conditionState = conditionProgress.state;
   const decisionState: GateCompletionState =
     conditionProgress.completed === 0

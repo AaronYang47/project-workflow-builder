@@ -12,6 +12,8 @@ import { Handle, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
 import { GATE_PANEL_WIDTH, type GateLayoutMetrics } from "@/lib/gate-layout";
+import { projectNodeUuid } from "@/lib/project-id";
+import { useWorkflowStore } from "@/store/workflow-store";
 import { textareaRows } from "./node-utils";
 import type { DomainNode, OutcomeHandle } from "@/types/workflow";
 
@@ -78,6 +80,10 @@ export function DecisionCard({
     value: string,
   ) => void;
 }) {
+  const projectStartNode = useWorkflowStore((state) =>
+    state.file.graph.nodes.find((item) => item.type === "projectStart"),
+  );
+  const nodeUuid = projectNodeUuid(node, projectStartNode);
   const yes = outcomes.find((outcome) => outcome.id === "yes");
   return (
     <section
@@ -299,6 +305,16 @@ export function DecisionCard({
             </div>
           ))}
       </div>
+      {nodeUuid ? (
+        <div className="nodrag pointer-events-none absolute bottom-2 right-3 z-10">
+          <span
+            title={nodeUuid}
+            className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          >
+            UUID {nodeUuid.slice(0, 8)}
+          </span>
+        </div>
+      ) : null}
     </section>
   );
 }

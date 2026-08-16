@@ -190,3 +190,21 @@ export const demoteToStandardService = (node: DomainNode): DomainNode => {
         : { ...node.customFields, projectId: desiredProjectId },
   };
 };
+
+// Resolve the project-level UUID that is displayed on every node in the
+// project. The identifier lives on the project-start node so all cards share
+// the same UUID; the requested node's own customFields.nodeUuid is only used
+// as a fallback when no project-start node is present.
+export function projectNodeUuid(
+  node: DomainNode,
+  projectStartNode: DomainNode | undefined,
+): string {
+  const isProjectStart = node.type === "projectStart";
+  return String(
+    isProjectStart
+      ? node.customFields?.nodeUuid || ""
+      : projectStartNode?.customFields?.nodeUuid ||
+        node.customFields?.nodeUuid ||
+        "",
+  );
+}

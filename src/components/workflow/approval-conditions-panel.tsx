@@ -8,6 +8,8 @@ import {
   type GateLayoutMetrics,
 } from "@/lib/gate-layout";
 import { GATE_SERVICE_TYPES, getGateServiceType } from "@/lib/gate-service-types";
+import { projectNodeUuid } from "@/lib/project-id";
+import { useWorkflowStore } from "@/store/workflow-store";
 import {
   requirementApplies,
   signatureIsComplete,
@@ -71,6 +73,10 @@ export function ApprovalConditionsPanel({
   saveRules,
   updateSignature,
 }: ApprovalConditionsPanelProps) {
+  const projectStartNode = useWorkflowStore((state) =>
+    state.file.graph.nodes.find((item) => item.type === "projectStart"),
+  );
+  const nodeUuid = projectNodeUuid(node, projectStartNode);
   return (
     <section
       data-completion-state={conditionState}
@@ -298,6 +304,16 @@ export function ApprovalConditionsPanel({
           })}
         </div>
       </div>
+      {nodeUuid ? (
+        <div className="nodrag pointer-events-none absolute bottom-2 right-3 z-10">
+          <span
+            title={nodeUuid}
+            className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          >
+            UUID {nodeUuid.slice(0, 8)}
+          </span>
+        </div>
+      ) : null}
     </section>
   );
 }

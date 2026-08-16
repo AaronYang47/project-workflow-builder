@@ -8,10 +8,7 @@ import {
   legacyJobNumberFromProjectId,
   projectIdForDisplay,
 } from "@/lib/project-id";
-import {
-  GATE_SECTION_GAP,
-  getGateLayoutMetrics,
-} from "@/lib/gate-layout";
+import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import {
   gateApprovalReady,
   gateChecklistSatisfied,
@@ -40,9 +37,6 @@ interface GateProjectStartInfo {
 export function useGateContext(node: DomainNode) {
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
-  );
-  const storedHeight = useWorkflowStore(
-    (state) => state.file.layout.nodes[node.id]?.height,
   );
 
   const projectStart = useMemo<GateProjectStartInfo>(() => {
@@ -120,25 +114,8 @@ export function useGateContext(node: DomainNode) {
 
   const metrics = useMemo(() => {
     const estimated = getGateLayoutMetrics(node);
-    const decisionHeight = estimated.height - estimated.decisionTop;
-    const conditionsHeight = storedHeight
-      ? Math.max(
-          1,
-          storedHeight -
-            estimated.conditionsTop -
-            GATE_SECTION_GAP -
-            decisionHeight,
-        )
-      : estimated.conditionsHeight;
-    const decisionTop =
-      estimated.conditionsTop + conditionsHeight + GATE_SECTION_GAP;
-    return {
-      ...estimated,
-      conditionsHeight,
-      decisionTop,
-      height: decisionTop + decisionHeight,
-    };
-  }, [node, storedHeight]);
+    return estimated;
+  }, [node]);
 
   return {
     rules: node.config.gateRules || [],
