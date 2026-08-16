@@ -262,6 +262,8 @@ function CanvasInner() {
               ? undefined
               : {
                   type: MarkerType.ArrowClosed,
+                  width: 18,
+                  height: 18,
                   color: getSemanticEdgeColor(domain),
                 },
           data: {
@@ -533,17 +535,46 @@ function CanvasInner() {
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout || !domain || domain.type === "gate") return;
           const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
-          const header = flowNode?.querySelector<HTMLElement>(
-            "[data-node-header]",
-          );
-          const requiredWidth = header
-            ? Math.ceil(header.scrollWidth + 2)
-            : 0;
           const patch: Partial<NodeLayout> = {};
           if (requiredHeight > layout.height) patch.height = requiredHeight;
-          if (requiredWidth && requiredWidth > layout.width)
-            patch.width = requiredWidth;
           if (Object.keys(patch).length) patches[id] = { ...patches[id], ...patch };
+        });
+      root
+        .querySelectorAll<HTMLElement>("[data-node-header]")
+        .forEach((header) => {
+          const flowNode = header.closest<HTMLElement>(".react-flow__node");
+          const id = flowNode?.dataset.id;
+          const domain = id
+            ? current.graph.nodes.find((node) => node.id === id)
+            : undefined;
+          const layout = id ? current.layout.nodes[id] : undefined;
+          if (!id || !layout || !domain || domain.type === "gate") return;
+          const stageInput = header.querySelector<HTMLElement>(
+            'input[aria-label="Stage"]',
+          );
+          const stageMinWidth = stageInput
+            ? parseFloat(getComputedStyle(stageInput).minWidth) || 0
+            : 0;
+          // Sum children at their natural width. icon + Stage label + divider +
+          // stage input + suffix controls must all fit in the header, plus the
+          // container's horizontal padding so the controls aren't flush against
+          // the edge.
+          const styles = getComputedStyle(header);
+          const padX =
+            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+          let childrenWidth = 0;
+          let gaps = 0;
+          header.querySelectorAll<HTMLElement>("[data-header-child]").forEach(
+            (child, index) => {
+              if (index > 0) gaps += parseFloat(styles.columnGap || styles.gap || "0");
+              const rect = child.getBoundingClientRect();
+              childrenWidth += rect.width;
+            },
+          );
+          const naturalWidth = childrenWidth + gaps + stageMinWidth + padX + 2;
+          if (naturalWidth > layout.width) {
+            patches[id] = { ...patches[id], width: Math.ceil(naturalWidth) };
+          }
         });
       root
         .querySelectorAll<HTMLElement>("[data-gate-header]")
@@ -555,9 +586,20 @@ function CanvasInner() {
           const id = flowNode?.dataset.id;
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout) return;
-          const requiredWidth = Math.ceil(header.scrollWidth + 2);
-          if (requiredWidth > layout.width) {
-            patches[id] = { ...patches[id], width: requiredWidth };
+          const styles = getComputedStyle(header);
+          const padX =
+            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+          let childrenWidth = 0;
+          let gaps = 0;
+          header.querySelectorAll<HTMLElement>("[data-header-child]").forEach(
+            (child, index) => {
+              if (index > 0) gaps += parseFloat(styles.columnGap || styles.gap || "0");
+              childrenWidth += child.getBoundingClientRect().width;
+            },
+          );
+          const naturalWidth = childrenWidth + gaps + padX + 2;
+          if (naturalWidth > layout.width) {
+            patches[id] = { ...patches[id], width: Math.ceil(naturalWidth) };
           }
         });
       for (const phase of current.graph.nodes.filter(

@@ -178,6 +178,7 @@ export function GeneralNode({
         style={{ backgroundColor: `${color}0d` }}
       >
         <label
+          data-header-child
           data-inspector-target="config.iconKey"
           className="nodrag relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
           style={{ backgroundColor: color }}
@@ -201,7 +202,7 @@ export function GeneralNode({
             ))}
           </select>
         </label>
-        <label className="flex min-w-0 flex-1 items-center gap-2">
+        <label className="flex min-w-0 flex-1 items-center gap-2" data-header-child>
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
@@ -209,30 +210,38 @@ export function GeneralNode({
           <input
             key={node.config.stage}
             aria-label="Stage"
+            data-header-child
             data-inspector-target="config.stage"
             defaultValue={node.config.stage || "Stage"}
-            onBlur={(event) =>
-              updateNode(node.id, {
-                config: {
-                  ...node.config,
-                  stage: event.target.value.trim() || "Stage",
-                },
-              })
-            }
-            className="nodrag h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
+            onFocus={(event) => {
+              event.target.dataset.prevValue = event.target.value;
+            }}
+            onBlur={(event) => {
+              const next = event.target.value.trim() || "Stage";
+              if (next !== event.target.dataset.prevValue) {
+                updateNode(node.id, {
+                  config: { ...node.config, stage: next },
+                });
+              }
+            }}
+            className="nodrag h-8 min-w-[5.5rem] flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
-        <ProjectIdBadge className="shrink-0" showPlaceholder />
-        <ComponentNoteButton
-          nodeId={node.id}
-          noteKey="node-card"
-          label={`${node.title} node card`}
-          className="shrink-0"
-        />
+        <span data-header-child>
+          <ProjectIdBadge showPlaceholder />
+        </span>
+        <span data-header-child>
+          <ComponentNoteButton
+            nodeId={node.id}
+            noteKey="node-card"
+            label={`${node.title} node card`}
+          />
+        </span>
         <span
           role="button"
           tabIndex={0}
           aria-label="Drag node"
+          data-header-child
           className="shrink-0 cursor-grab text-muted-foreground/50"
         >
           <GripVertical className="size-3.5" />
@@ -514,7 +523,7 @@ export function GeneralNode({
           position={Position.Top}
           id="rework-in"
           aria-label="Denied return entry"
-          className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+          className="!top-[-10px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
         />
       ) : null}
     </div>
