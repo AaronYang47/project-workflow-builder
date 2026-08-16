@@ -11,7 +11,7 @@ import { useWorkflowStore } from "@/store/workflow-store";
 
 /**
  * Shared Project ID chip shown on Phase, Node, and Decision Module headers.
- * Paid-service building/module codes append to the Project ID on the same line.
+ * Sized to the node title bar (h-7). Building/module codes append on the ID line.
  */
 export function ProjectIdBadge({
   tone = "primary",
@@ -44,7 +44,7 @@ export function ProjectIdBadge({
     <span
       title={title}
       className={cn(
-        "flex shrink-0 flex-col items-end gap-1 rounded-md border px-2.5 py-1.5 font-mono font-bold leading-tight tracking-tight",
+        "flex h-7 max-h-full shrink-0 items-center gap-1 rounded-md border px-1.5 font-mono font-bold leading-none tracking-tight",
         onDark
           ? ready
             ? "border-white/30 bg-white/15 text-white"
@@ -55,12 +55,12 @@ export function ProjectIdBadge({
         className,
       )}
     >
-      <span className="whitespace-nowrap text-sm">
+      <span className="whitespace-nowrap text-[10px]">
         {ready ? displayedId : "L-—"}
       </span>
       <span
         className={cn(
-          "rounded px-1 text-xs font-bold tracking-tight",
+          "rounded px-1 py-px text-[8px] font-bold tracking-tight",
           onDark
             ? ready
               ? "bg-white/25 text-white"
