@@ -134,8 +134,8 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
     }
   };
   return (
-    <header data-workflow-toolbar className="relative z-40 flex h-14 shrink-0 items-center overflow-x-auto border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)]">
-      <div className="flex h-full min-w-0 items-center gap-2 px-2">
+    <header data-workflow-toolbar className="relative z-40 flex h-14 shrink-0 items-center border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)]">
+      <div className="scroll-thin flex h-full min-w-0 flex-1 items-center gap-2 overflow-x-auto px-2">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground">
           PW
         </div>
@@ -247,7 +247,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
         <span className="text-xs">Search</span>
         <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
       </Button>
-      <div className="ml-auto flex items-center">
+      <div className="ml-auto flex shrink-0 items-center pl-2">
         <ToolButton
           label="Export JSON"
           onClick={() =>
