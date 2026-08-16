@@ -247,7 +247,7 @@ export function GateRules({ node }: { node: DomainNode }) {
       className="nowheel absolute"
       style={{
         width: GATE_SIDE_WIDTH,
-        height: metrics.contentHeight ?? metrics.height,
+        height: (metrics.contentHeight ?? metrics.height) + 24,
       }}
       onDoubleClick={(event) => event.stopPropagation()}
     >

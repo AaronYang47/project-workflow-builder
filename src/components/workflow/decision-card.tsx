@@ -92,10 +92,10 @@ export function DecisionCard({
     const el = sectionRef.current;
     if (!el) return;
     const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const parentRect = el.parentElement?.getBoundingClientRect();
-      if (!parentRect) return;
-      setActualBottom(rect.bottom - parentRect.top);
+      // offsetTop + offsetHeight gives the section's bottom in CSS pixels
+      // relative to its offsetParent, which is unaffected by the React Flow
+      // viewport's scale transform (so the badge position matches the card).
+      setActualBottom(el.offsetTop + el.offsetHeight);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -329,7 +329,9 @@ export function DecisionCard({
       <div
         className="nodrag pointer-events-none absolute z-10"
         style={{
-          top: actualBottom || metrics.decisionTop + metrics.decisionHeight + 6,
+          top: actualBottom
+            ? actualBottom + 6
+            : metrics.decisionTop + metrics.decisionHeight + 6,
           left: metrics.conditionsLeft + GATE_PANEL_WIDTH,
           transform: "translateX(-100%)",
         }}
