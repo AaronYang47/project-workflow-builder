@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   Boxes,
   Building2,
@@ -86,6 +87,7 @@ export function DecisionCard({
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const yes = outcomes.find((outcome) => outcome.id === "yes");
   return (
+    <Fragment>
     <section
       data-completion-state={decisionState}
       data-decision-content=""
@@ -305,16 +307,24 @@ export function DecisionCard({
             </div>
           ))}
       </div>
-      {nodeUuid ? (
-        <div className="nodrag pointer-events-none absolute bottom-4 right-4 z-10">
-          <span
-            title={nodeUuid}
-            className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
-          >
-            UUID {nodeUuid.slice(0, 8)}
-          </span>
-        </div>
-      ) : null}
     </section>
+    {nodeUuid ? (
+      <div
+        className="nodrag pointer-events-none absolute z-10"
+        style={{
+          top: metrics.decisionTop + metrics.decisionHeight + 6,
+          left: metrics.conditionsLeft + GATE_PANEL_WIDTH,
+          transform: "translateX(-100%)",
+        }}
+      >
+        <span
+          title={nodeUuid}
+          className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+        >
+          UUID {nodeUuid.slice(0, 8)}
+        </span>
+      </div>
+    ) : null}
+    </Fragment>
   );
 }

@@ -369,17 +369,23 @@ export function GateRules({ node }: { node: DomainNode }) {
             />
           </label>
         </div>
-        {nodeUuid ? (
-          <div className="nodrag pointer-events-none absolute bottom-4 right-4 z-10">
-            <span
-              title={nodeUuid}
-              className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
-            >
-              UUID {nodeUuid.slice(0, 8)}
-            </span>
-          </div>
-        ) : null}
       </section>
+      {nodeUuid ? (
+        <div
+          className="nodrag pointer-events-none absolute z-10"
+          style={{
+            top: metrics.gateCardHeight + 6,
+            right: 0,
+          }}
+        >
+          <span
+            title={nodeUuid}
+            className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          >
+            UUID {nodeUuid.slice(0, 8)}
+          </span>
+        </div>
+      ) : null}
       <div
         aria-hidden
         className="absolute w-[3px] -translate-x-1/2 rounded-full bg-slate-300"

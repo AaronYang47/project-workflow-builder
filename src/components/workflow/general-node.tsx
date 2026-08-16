@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Handle,
   NodeResizer,
@@ -166,6 +166,7 @@ export function GeneralNode({
   const saveConditions = (next: DomainNode["conditions"]) =>
     updateNode(node.id, { conditions: next });
   return (
+    <Fragment>
     <div
       data-canvas-node
       data-inspector-target="color"
@@ -255,12 +256,6 @@ export function GeneralNode({
             className="nodrag h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-[10px] font-bold outline-none"
           />
         </label>
-        <ComponentNoteButton
-          nodeId={node.id}
-          noteKey="node-card"
-          label={`${node.title} node card`}
-          className="ml-2"
-        />
         <span
           title={
             displayedProjectId
@@ -286,6 +281,12 @@ export function GeneralNode({
             Legacy {legacyJobNumberFromProjectId(displayedProjectId) || "—"}
           </span>
         </span>
+        <ComponentNoteButton
+          nodeId={node.id}
+          noteKey="node-card"
+          label={`${node.title} node card`}
+          className="ml-2"
+        />
         <span
           role="button"
           tabIndex={0}
@@ -551,16 +552,20 @@ export function GeneralNode({
           </button>
         </section>
       </div>
-      {nodeUuid ? (
-        <div className="nodrag pointer-events-none absolute bottom-1 right-2 z-10">
-          <span
-            title={nodeUuid}
-            className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
-          >
-            UUID {nodeUuid.slice(0, 8)}
-          </span>
-        </div>
-      ) : null}
     </div>
+    {nodeUuid ? (
+      <div
+        className="nodrag pointer-events-none absolute right-0 z-10"
+        style={{ top: "100%", marginTop: 6 }}
+      >
+        <span
+          title={nodeUuid}
+          className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+        >
+          UUID {nodeUuid.slice(0, 8)}
+        </span>
+      </div>
+    ) : null}
+    </Fragment>
   );
 }
