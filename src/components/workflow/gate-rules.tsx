@@ -282,7 +282,7 @@ export function GateRules({ node }: { node: DomainNode }) {
         position={Position.Top}
         id="rework-in"
         aria-label="Denied return entry"
-        className="!top-[-10px] !size-3 !border-2 !border-background !bg-rose-600"
+        className="!top-[-7px] !size-3 !border-2 !border-background !bg-rose-600"
         style={{ left: "78%" }}
       />
       <section
@@ -293,14 +293,12 @@ export function GateRules({ node }: { node: DomainNode }) {
       >
         <div
           data-inspector-target="config.gateHeaderColor"
-          data-gate-header
           className="relative flex min-h-[72px] items-center px-4 py-1.5 text-white"
           style={{
             background: `linear-gradient(135deg, ${gateHeaderColor}, color-mix(in srgb, ${gateHeaderColor} 72%, #0f172a))`,
           }}
         >
           <span
-            data-header-child
             data-inspector-target="config.gateTitleColor config.gateIconKey"
             className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 shadow-inner"
             style={{ color: gateTitleColor }}
@@ -310,7 +308,6 @@ export function GateRules({ node }: { node: DomainNode }) {
           <input
             key={gateLabel}
             aria-label="Decision module label"
-            data-header-child
             data-inspector-target="config.gateLabel config.gateTitleColor"
             defaultValue={gateLabel}
             onBlur={(event) => {
@@ -323,23 +320,18 @@ export function GateRules({ node }: { node: DomainNode }) {
             className="nodrag ml-2 min-w-0 max-w-[160px] flex-1 border-0 bg-transparent p-0 text-xl font-black tracking-[0.1em] outline-none"
             style={{ color: gateTitleColor }}
           />
-          <span data-header-child>
-            <ProjectIdBadge tone="onDark" showPlaceholder />
-          </span>
-          <span data-header-child>
-            <ComponentNoteButton
-              nodeId={node.id}
-              noteKey="gate-card"
-              label={`${node.title} decision module card`}
-              className="border-white/20 bg-white/10 text-slate-200 hover:text-white"
-            />
-          </span>
+          <ProjectIdBadge className="ml-auto" tone="onDark" showPlaceholder />
+          <ComponentNoteButton
+            nodeId={node.id}
+            noteKey="gate-card"
+            label={`${node.title} decision module card`}
+            className="ml-2 border-white/20 bg-white/10 text-slate-200 hover:text-white"
+          />
           <span
             role="button"
             tabIndex={0}
             aria-label="Drag Decision Module"
-            data-header-child
-            className="cursor-grab rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+            className="ml-2 cursor-grab rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
           >
             <GripVertical className="size-4" />
           </span>

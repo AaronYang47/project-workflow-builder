@@ -526,7 +526,7 @@ function ReferenceNodeComponent({
         position={Position.Top}
         id="rework-in"
         aria-label="Denied return entry"
-        className="!top-[-10px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+        className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
       />
     </div>
   );

@@ -458,10 +458,64 @@ export function SemanticEdge({
         const targetLeft = targetObstacle?.x ?? targetX;
         const escapeX = sourceRight + 28;
         const approachX = targetLeft - 28;
-        // Always route along a horizontal corridor so the arrow lands flush
-        // against the target's left edge with a clear, unobstructed view.
-        // The label sits in the corridor between the two nodes.
-        const corridorY = (sourceY + targetY) / 2;
+        // Exclude obstacles that *contain* the source or target node — the
+        // edge ends inside them, so they can't be in the way between the two
+        // endpoints.
+        const containsEndpoint = (obstacle: { id: string; x: number; y: number; width: number; height: number }) => {
+          if (sourceObstacle && obstacle.id === sourceObstacle.id) return true;
+          if (targetObstacle && obstacle.id === targetObstacle.id) return true;
+          const sourceInside =
+            sourceX >= obstacle.x &&
+            sourceX <= obstacle.x + obstacle.width &&
+            sourceY >= obstacle.y &&
+            sourceY <= obstacle.y + obstacle.height;
+          const targetInside =
+            targetX >= obstacle.x &&
+            targetX <= obstacle.x + obstacle.width &&
+            targetY >= obstacle.y &&
+            targetY <= obstacle.y + obstacle.height;
+          return sourceInside || targetInside;
+        };
+        const left = Math.min(sourceRight, targetLeft);
+        const right = Math.max(sourceRight, targetLeft);
+        const cards = cardObstacles(obstacles);
+        const crossedObstacles = cards.filter(
+          (item) => item.x <= right && item.x + item.width >= left,
+        );
+        // Pick the corridor closer to where the edge needs to go: route above
+        // both endpoints when the target sits higher than the source, below
+        // when the target sits lower.
+        const routeAbove = targetY < sourceY;
+        if (routeAbove) {
+          const highestCardTop = aboveRouteCardTop(
+            sourceObstacle,
+            targetObstacle,
+            Math.min(sourceY, targetY),
+            crossedObstacles.filter((item) => !containsEndpoint(item)),
+          );
+          const lane = Math.abs(data?.labelLane ?? 0) % 3;
+          const corridorY = corridorYAboveCards(
+            highestCardTop,
+            lane,
+            left,
+            right,
+            phaseHeaderObstacles(obstacles),
+          );
+          return compact([
+            { x: sourceX, y: sourceY },
+            { x: escapeX, y: sourceY },
+            { x: escapeX, y: corridorY },
+            { x: approachX, y: corridorY },
+            { x: approachX, y: targetY },
+            { x: targetX, y: targetY },
+          ]);
+        }
+        const filteredCrossed = crossedObstacles.filter((item) => !containsEndpoint(item));
+        const lowestCardBottom = filteredCrossed.length
+          ? Math.max(...filteredCrossed.map((item) => item.y + item.height))
+          : Math.max(sourceY, targetY);
+        const lane = Math.abs(data?.labelLane ?? 0) % 3;
+        const corridorY = lowestCardBottom + 48 + lane * 30;
         return compact([
           { x: sourceX, y: sourceY },
           { x: escapeX, y: sourceY },
@@ -616,13 +670,7 @@ export function SemanticEdge({
                 ? "2 4"
                 : undefined,
         }}
-      />
-      <EdgeArrow
-        points={visibleRoute ?? [
-          { x: sourceX, y: sourceY },
-          { x: targetX, y: targetY },
-        ]}
-        color={color}
+        markerEnd={markerEnd}
       />
       {active ? (
         <path
@@ -652,37 +700,5 @@ export function SemanticEdge({
         ) : null}
       </EdgeLabelRenderer>
     </>
-  );
-}
-
-function EdgeArrow({ points, color }: { points: Point[]; color: string }) {
-  if (points.length < 2) return null;
-  const last = points[points.length - 1];
-  const prev = points[points.length - 2];
-  if (last.x === prev.x && last.y === prev.y) return null;
-  const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
-  const size = 12;
-  const tipX = last.x;
-  const tipY = last.y;
-  // Offset the arrow back along the path so the triangle tip lands at the
-  // node edge rather than overlapping the node body.
-  const offset = 4;
-  const baseX = tipX - Math.cos(angle) * offset;
-  const baseY = tipY - Math.sin(angle) * offset;
-  const leftX = baseX - Math.cos(angle - Math.PI / 2) * (size / 2);
-  const leftY = baseY - Math.sin(angle - Math.PI / 2) * (size / 2);
-  const rightX = baseX - Math.cos(angle + Math.PI / 2) * (size / 2);
-  const rightY = baseY - Math.sin(angle + Math.PI / 2) * (size / 2);
-  const backX = baseX - Math.cos(angle) * size;
-  const backY = baseY - Math.sin(angle) * size;
-  return (
-    <path
-      aria-hidden
-      d={`M ${tipX} ${tipY} L ${leftX} ${leftY} L ${backX} ${backY} L ${rightX} ${rightY} Z`}
-      fill={color}
-      stroke={color}
-      strokeWidth={0.5}
-      strokeLinejoin="round"
-    />
   );
 }

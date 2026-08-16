@@ -173,12 +173,10 @@ export function GeneralNode({
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
       <div
-        data-node-header
         className="nowheel flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
         style={{ backgroundColor: `${color}0d` }}
       >
         <label
-          data-header-child
           data-inspector-target="config.iconKey"
           className="nodrag relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
           style={{ backgroundColor: color }}
@@ -202,57 +200,38 @@ export function GeneralNode({
             ))}
           </select>
         </label>
-        <label
-          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
-          data-header-child
-          data-header-stage
-        >
-          <span
-            className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
-            data-header-child
-          >
+        <label className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
-          <span
-            aria-hidden
-            className="h-5 w-px shrink-0 bg-border"
-            data-header-child
-          />
+          <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
           <input
             key={node.config.stage}
             aria-label="Stage"
-            data-header-child
             data-inspector-target="config.stage"
             defaultValue={node.config.stage || "Stage"}
-            onFocus={(event) => {
-              event.target.dataset.prevValue = event.target.value;
-            }}
-            onBlur={(event) => {
-              const next = event.target.value.trim() || "Stage";
-              if (next !== event.target.dataset.prevValue) {
-                updateNode(node.id, {
-                  config: { ...node.config, stage: next },
-                });
-              }
-            }}
-            className="nodrag h-8 min-w-[6rem] flex-1 truncate border-0 bg-transparent p-0 text-xs font-bold outline-none"
+            onBlur={(event) =>
+              updateNode(node.id, {
+                config: {
+                  ...node.config,
+                  stage: event.target.value.trim() || "Stage",
+                },
+              })
+            }
+            className="nodrag h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
-        <span data-header-child>
-          <ProjectIdBadge showPlaceholder />
-        </span>
-        <span data-header-child>
-          <ComponentNoteButton
-            nodeId={node.id}
-            noteKey="node-card"
-            label={`${node.title} node card`}
-          />
-        </span>
+        <ProjectIdBadge className="shrink-0" showPlaceholder />
+        <ComponentNoteButton
+          nodeId={node.id}
+          noteKey="node-card"
+          label={`${node.title} node card`}
+          className="shrink-0"
+        />
         <span
           role="button"
           tabIndex={0}
           aria-label="Drag node"
-          data-header-child
           className="shrink-0 cursor-grab text-muted-foreground/50"
         >
           <GripVertical className="size-3.5" />

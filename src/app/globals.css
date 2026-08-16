@@ -70,13 +70,6 @@ button:disabled { cursor: not-allowed; }
   filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
   animation: workflow-edge-flow 1.25s linear infinite;
 }
-/* Make every React Flow edge arrow large enough that it stays visible even when
-   the path endpoint sits flush against a node's rounded border. */
-.workflow-flow svg marker,
-.workflow-flow svg defs marker {
-  markerUnits: userSpaceOnUse;
-  overflow: visible;
-}
 .panel-edge-toggle {
   position: absolute;
   top: 50%;

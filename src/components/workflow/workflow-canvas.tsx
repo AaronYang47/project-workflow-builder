@@ -257,7 +257,13 @@ function CanvasInner() {
           targetHandle: domain.targetHandle,
           reconnectable: isDeniedEdge(domain) ? "target" : false,
           selected: selection.edgeId === domain.id,
-          markerEnd: undefined,
+          markerEnd:
+            domain.arrowStyle === "none"
+              ? undefined
+              : {
+                  type: MarkerType.ArrowClosed,
+                  color: getSemanticEdgeColor(domain),
+                },
           data: {
             domain,
             route: file.layout.edges?.[domain.id]?.points,
@@ -527,83 +533,11 @@ function CanvasInner() {
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout || !domain || domain.type === "gate") return;
           const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
-          const patch: Partial<NodeLayout> = {};
-          if (requiredHeight > layout.height) patch.height = requiredHeight;
-          if (Object.keys(patch).length) patches[id] = { ...patches[id], ...patch };
-        });
-      root
-        .querySelectorAll<HTMLElement>("[data-node-header]")
-        .forEach((header) => {
-          const flowNode = header.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const domain = id
-            ? current.graph.nodes.find((node) => node.id === id)
-            : undefined;
-          const layout = id ? current.layout.nodes[id] : undefined;
-          if (!id || !layout || !domain || domain.type === "gate") return;
-          const styles = getComputedStyle(header);
-          const padX =
-            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-          const gap = parseFloat(styles.columnGap || styles.gap || "0");
-          let width = padX;
-          // Sum each top-level child's true width so the Stage label and
-          // input always get their declared minimum even when flex collapses
-          // them. Suffix controls (badge, note, drag) already render at their
-          // natural width.
-          const topChildren = Array.from(
-            header.children,
-          ) as HTMLElement[];
-          topChildren.forEach((child) => {
-            const stageContainer = child.querySelector<HTMLElement>(
-              "[data-header-stage]",
-            );
-            if (stageContainer) {
-              const stageInput = stageContainer.querySelector<HTMLElement>(
-                'input[aria-label="Stage"]',
-              );
-              const stageInputMin = stageInput
-                ? parseFloat(getComputedStyle(stageInput).minWidth) || 0
-                : 0;
-              // Take the wider of the rendered Stage container or its
-              // declared minimum so flex-1 collapse doesn't shrink the label
-              // group below what's needed to show "Stage" + a few characters.
-              const labelWidth = stageContainer.getBoundingClientRect().width;
-              const stageMin = Math.max(labelWidth, 180);
-              width += stageMin;
-            } else {
-              width += child.getBoundingClientRect().width;
-            }
-            width += gap;
-          });
-          const naturalWidth = Math.ceil(width) + 2;
-          if (naturalWidth > layout.width) {
-            patches[id] = { ...patches[id], width: naturalWidth };
-          }
-        });
-      root
-        .querySelectorAll<HTMLElement>("[data-gate-header]")
-        .forEach((header) => {
-          const card = header.closest<HTMLElement>(
-            '[aria-label="Decision Module card"]',
-          );
-          const flowNode = card?.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const layout = id ? current.layout.nodes[id] : undefined;
-          if (!id || !layout) return;
-          const styles = getComputedStyle(header);
-          const padX =
-            parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-          let childrenWidth = 0;
-          let gaps = 0;
-          header.querySelectorAll<HTMLElement>("[data-header-child]").forEach(
-            (child, index) => {
-              if (index > 0) gaps += parseFloat(styles.columnGap || styles.gap || "0");
-              childrenWidth += child.getBoundingClientRect().width;
-            },
-          );
-          const naturalWidth = childrenWidth + gaps + padX + 2;
-          if (naturalWidth > layout.width) {
-            patches[id] = { ...patches[id], width: Math.ceil(naturalWidth) };
+          if (requiredHeight > layout.height) {
+            patches[id] = {
+              ...patches[id],
+              height: requiredHeight,
+            };
           }
         });
       for (const phase of current.graph.nodes.filter(

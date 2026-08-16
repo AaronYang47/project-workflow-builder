@@ -407,24 +407,17 @@ export function expandGapsForLabeledEdges(
   nodes: Record<string, NodeLayout>,
   phases: DomainNode[],
 ) {
-  const DENIED_MIN_VERTICAL_GAP = 140;
-  for (let pass = 0; pass < 12; pass++) {
+  for (let pass = 0; pass < 8; pass++) {
     let moved = false;
     for (const edge of file.graph.edges) {
+      if (!isCorridorEdge(edge)) continue;
       const source = nodes[edge.source];
       const target = nodes[edge.target];
       if (!source || !target) continue;
       const label = layoutDisplayLabel(file, edge);
-      const denied = label === "DENIED";
-      if (!denied && !isCorridorEdge(edge)) continue;
-      const labelText = denied ? "DENIED" : label;
-      if (!labelText.trim()) continue;
-      const neededH = denied
-        ? 0
-        : requiredEdgeLabelGap(labelText, "horizontal");
-      const neededV = denied
-        ? DENIED_MIN_VERTICAL_GAP
-        : requiredEdgeLabelGap(labelText, "vertical");
+      if (!label.trim()) continue;
+      const neededH = requiredEdgeLabelGap(label, "horizontal");
+      const neededV = requiredEdgeLabelGap(label, "vertical");
       if (overlapsY(source, target)) {
         const left = source.x <= target.x ? source : target;
         const right = left === source ? target : source;
