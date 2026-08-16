@@ -236,28 +236,64 @@ function Field({
 
 function OutcomeEditor({
   node,
+  update,
 }: {
   node: DomainNode;
   update: (node: DomainNode) => void;
 }) {
-  const yes =
-    node.config.outcomes?.find((item) => item.id === "yes")?.label || "YES";
-  const no =
-    node.config.outcomes?.find((item) => item.id === "no")?.label || "NO";
+  const outcomes = node.config.outcomes || [];
+  const yes = outcomes.find((item) => item.id === "yes")?.label || "YES";
+  const no = outcomes.find((item) => item.id === "no")?.label || "NO";
+  const setLabel = (outcomeId: "yes" | "no", value: string) => {
+    const fallback = outcomeId === "yes" ? "YES" : "NO";
+    const trimmed = value.trim() || fallback;
+    const nextOutcomes = outcomes.some((item) => item.id === outcomeId)
+      ? outcomes.map((item) =>
+          item.id === outcomeId ? { ...item, label: trimmed } : item,
+        )
+      : [
+          ...outcomes,
+          {
+            id: outcomeId,
+            label: trimmed,
+            edgeType:
+              outcomeId === "yes"
+                ? ("dependency" as WorkflowEdgeType)
+                : ("supporting" as WorkflowEdgeType),
+          },
+        ];
+    update({ ...node, config: { ...node.config, outcomes: nextOutcomes } });
+  };
   return (
     <section className="border-t pt-4">
       <Label>Outcome handles</Label>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Every Decision Module has exactly two routes: one green {yes} output and
-        one red {no} output.
+        Every Decision Module has exactly two routes. Edit the labels used on
+        the green and red outputs.
       </p>
-      <div className="mt-3 space-y-2">
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          {yes} · yes
-        </div>
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300">
-          {no} · no
-        </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <label className="space-y-1">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+            Yes route
+          </span>
+          <Input
+            aria-label="Yes outcome label"
+            value={yes}
+            onChange={(e) => setLabel("yes", e.target.value)}
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 focus-visible:ring-emerald-500 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+            No route
+          </span>
+          <Input
+            aria-label="No outcome label"
+            value={no}
+            onChange={(e) => setLabel("no", e.target.value)}
+            className="border-rose-200 bg-rose-50 text-rose-700 focus-visible:ring-rose-500 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
+          />
+        </label>
       </div>
     </section>
   );
