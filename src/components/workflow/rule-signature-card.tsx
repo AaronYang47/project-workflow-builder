@@ -100,12 +100,12 @@ export function RuleSignatureCard({
     <div
       data-signature-card
       className={cn(
-        "min-w-0 overflow-hidden rounded-xl border bg-card p-2 shadow-sm transition",
+        "min-w-0 overflow-hidden rounded-xl border-0 bg-card p-2 shadow-sm transition",
         signature.checked
-          ? "border-emerald-300 ring-1 ring-emerald-500/10"
+          ? "ring-1 ring-emerald-500/10"
           : requirementType === "Optional"
-            ? "border-slate-200 opacity-70"
-            : "border-amber-200/80",
+            ? "opacity-70"
+            : "",
       )}
     >
       <div className="mb-2 flex h-6 items-center gap-1.5">
