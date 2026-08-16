@@ -63,10 +63,10 @@ export function ProjectIdBadge({
           "rounded px-1 py-px text-[8px] font-bold tracking-tight",
           onDark
             ? ready
-              ? "bg-white/25 text-white"
+              ? "bg-emerald-500/30 text-emerald-50"
               : "bg-white/15 text-white/70"
             : ready
-              ? "bg-primary/20 text-primary"
+              ? "bg-emerald-500/15 text-emerald-700"
               : "bg-background text-muted-foreground",
         )}
       >
