@@ -465,7 +465,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       ...file.layout,
       nodes: renderedNodes,
       edges,
-      viewport: { x: 0, y: 0, zoom: 0.8 },
+      viewport: file.layout.viewport,
     },
   };
 }

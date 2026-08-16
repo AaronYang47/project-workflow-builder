@@ -27,7 +27,7 @@ import {
   type LabelObstacle,
 } from "./semantic-edge";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import { resolveAbsolutePosition } from "@/lib/flow-helpers";
+import { resolveAbsolutePosition, fitCanvasToWorkflow, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
 import { PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
 import { GATE_SECTION_GAP, getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
@@ -468,8 +468,7 @@ function CanvasInner() {
     return () => window.removeEventListener("workflow:focus-node", focus);
   }, [flow]);
   useEffect(() => {
-    const fit = () =>
-      flow.fitView({ duration: 500, padding: 0.2, maxZoom: 1 });
+    const fit = () => fitCanvasToWorkflow(flow);
     window.addEventListener("workflow:fit", fit);
     return () => window.removeEventListener("workflow:fit", fit);
   }, [flow]);
@@ -580,9 +579,9 @@ function CanvasInner() {
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
         defaultViewport={file.layout.viewport}
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-        minZoom={0.4}
-        maxZoom={2.5}
+        fitViewOptions={{ padding: FIT_VIEW_PADDING, minZoom: CANVAS_MIN_ZOOM, maxZoom: 1 }}
+        minZoom={CANVAS_MIN_ZOOM}
+        maxZoom={CANVAS_MAX_ZOOM}
         snapToGrid={file.layout.snapToGrid}
         snapGrid={[file.layout.gridSize, file.layout.gridSize]}
         selectionOnDrag

@@ -117,7 +117,11 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
       );
       window.setTimeout(
         () => window.dispatchEvent(new Event("workflow:fit")),
-        420,
+        480,
+      );
+      window.setTimeout(
+        () => window.dispatchEvent(new Event("workflow:fit")),
+        960,
       );
     } catch (error) {
       window.alert(
