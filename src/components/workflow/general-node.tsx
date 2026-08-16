@@ -173,6 +173,7 @@ export function GeneralNode({
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
       <div
+        data-node-header
         className="nowheel flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
         style={{ backgroundColor: `${color}0d` }}
       >
@@ -200,7 +201,7 @@ export function GeneralNode({
             ))}
           </select>
         </label>
-        <label className="flex min-w-0 flex-1 items-center gap-2">
+        <label className="flex shrink-0 items-center gap-2">
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
@@ -210,6 +211,7 @@ export function GeneralNode({
             aria-label="Stage"
             data-inspector-target="config.stage"
             defaultValue={node.config.stage || "Stage"}
+            size={Math.max(4, (node.config.stage || "Stage").length)}
             onBlur={(event) =>
               updateNode(node.id, {
                 config: {
@@ -218,10 +220,10 @@ export function GeneralNode({
                 },
               })
             }
-            className="nodrag h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-bold outline-none"
+            className="nodrag h-8 w-auto min-w-[4.5rem] shrink-0 border-0 bg-transparent p-0 text-xs font-bold outline-none"
           />
         </label>
-        <ProjectIdBadge className="shrink-0" showPlaceholder />
+        <ProjectIdBadge className="ml-auto shrink-0" showPlaceholder />
         <ComponentNoteButton
           nodeId={node.id}
           noteKey="node-card"

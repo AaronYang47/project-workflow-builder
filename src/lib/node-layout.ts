@@ -13,13 +13,23 @@ export const PHASE_HEADER_HEIGHT = 112;
 export const PHASE_CONTENT_TOP = 168;
 export const NODE_HEADER_HEIGHT = 56;
 
+/** Width needed so Stage text is not clipped by the Project ID badge. */
+export function estimateNodeHeaderWidth(node: DomainNode) {
+  const stage = String(node.config.stage || "Stage");
+  const stagePx = Math.max(56, Math.ceil(stage.length * 7.6) + 12);
+  const badgePx = 132;
+  const chrome = 24 + 32 + 57 + 24 + 14 + 32;
+  return chrome + stagePx + badgePx;
+}
+
 export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout, "width" | "height">) {
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "phase") return { width: current?.width || 720, height: current?.height || 420 };
   if (node.type === "projectStart") {
     const fallback = getNodeDefinition(node.type).defaultSize;
+    const headerWidth = estimateNodeHeaderWidth(node);
     return {
-      width: Math.max(current?.width || 0, fallback.width),
+      width: Math.max(current?.width || 0, fallback.width, headerWidth),
       height: Math.max(
         current?.height || 0,
         fallback.height,
@@ -48,7 +58,17 @@ export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout,
   const terminal = node.type === "start" || node.type === "end";
   const longestWord = `${node.title} ${node.description}`.split(/\s+/).reduce((longest, word) => Math.max(longest, word.length), 0);
   const generalCard = node.type === "general";
-  const width = clamp(Math.max(generalCard ? 300 : terminal ? 210 : 230, 142 + node.title.length * 5, 80 + longestWord * 7), generalCard ? 300 : terminal ? 210 : 230, generalCard ? 480 : 380);
+  const headerWidth = estimateNodeHeaderWidth(node);
+  const minWidth = Math.max(
+    generalCard ? 300 : terminal ? 210 : 230,
+    headerWidth,
+  );
+  const maxWidth = Math.max(generalCard ? 480 : 380, headerWidth);
+  const width = clamp(
+    Math.max(minWidth, 142 + node.title.length * 5, 80 + longestWord * 7),
+    minWidth,
+    maxWidth,
+  );
   const titleLines = clamp(Math.ceil(node.title.length / Math.max(16, Math.floor((width - 76) / 6.5))), 1, 3);
   const descriptionLines = terminal || !node.description ? 0 : Math.max(1, Math.ceil(node.description.length / Math.max(24, Math.floor((width - 24) / 5.5))));
   const releaseConditionsHeight = generalCard

@@ -540,6 +540,24 @@ function CanvasInner() {
             };
           }
         });
+      root
+        .querySelectorAll<HTMLElement>("[data-node-header]")
+        .forEach((header) => {
+          const flowNode = header.closest<HTMLElement>(".react-flow__node");
+          const id = flowNode?.dataset.id;
+          const domain = id
+            ? current.graph.nodes.find((node) => node.id === id)
+            : undefined;
+          const layout = id ? current.layout.nodes[id] : undefined;
+          if (!id || !layout || !domain || domain.type === "gate") return;
+          const overflow = Math.ceil(header.scrollWidth - header.clientWidth);
+          if (overflow > 1) {
+            patches[id] = {
+              ...patches[id],
+              width: layout.width + overflow + 12,
+            };
+          }
+        });
       for (const phase of current.graph.nodes.filter(
         (node) => node.type === "phase",
       )) {
