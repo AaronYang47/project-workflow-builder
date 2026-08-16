@@ -546,7 +546,7 @@ function ConditionRow({
             "rail ml-2 mt-2 space-y-2 rounded-l-lg border-l-2 pl-3",
             signaturesReady
               ? "border-emerald-300 dark:border-emerald-700"
-              : "border-amber-300 dark:border-amber-700",
+              : "border-rose-300 dark:border-rose-700",
           )}
         >
           {signatures.map((signature, signatureIndex) => (
