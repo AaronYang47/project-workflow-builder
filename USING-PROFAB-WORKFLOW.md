@@ -40,6 +40,6 @@
 ## Save and share
 
 1. Changes autosave locally; the toolbar indicates whether the canvas is saved.
-2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The workbook keeps one tab per Phase, containing only the nodes that live inside that Phase on the canvas. Independent nodes such as **Project Start** get their own tab, in canvas order, because they are not inside any Phase. Condition and signature cells use **Yes/No** (Yes green, No red). Gate Decision rows use the canvas labels (**Yes/No** or **Approved/Denied**). After editing, Import Excel to write the values back.
+2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. Tabs follow the left-side node types: **Project Start** and **Project Complete** always get their own tabs. Each independent **Node** or **Decision Module** (not dropped into a Phase) also gets its own tab. Each **Phase** tab groups only the items placed inside that Phase. Condition cells use **Yes/No**; Decision rows use **Yes/No** or **Approved/Denied**. After editing, Import Excel to write the values back.
 3. Use **Export image** for PNG or SVG output.
 4. Run **Validate workflow** before sharing. Click a validation item to focus the related node.

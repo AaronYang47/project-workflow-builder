@@ -98,81 +98,79 @@ export function phasesInCanvasOrder(file: WorkflowFile) {
 
 function childrenOfPhase(file: WorkflowFile, phaseId: string) {
   return file.graph.nodes
-    .filter((node) => file.layout.nodes[node.id]?.parentId === phaseId)
+    .filter((node) => {
+      if (alwaysStandalone(node)) return false;
+      return file.layout.nodes[node.id]?.parentId === phaseId;
+    })
     .sort((a, b) => compareCanvas(file, a.id, b.id));
+}
+
+function alwaysStandalone(node: DomainNode) {
+  return node.type === "projectStart" || node.type === "terminal";
 }
 
 function independentNodes(file: WorkflowFile, phases: DomainNode[]) {
   const phaseIds = new Set(phases.map((phase) => phase.id));
   return file.graph.nodes.filter((node) => {
     if (node.type === "phase") return false;
+    if (alwaysStandalone(node)) return true;
     const parentId = file.layout.nodes[node.id]?.parentId;
     return !parentId || !phaseIds.has(parentId);
   });
 }
 
-function independentTabTitle(nodes: DomainNode[]) {
-  if (!nodes.length) return "Independent";
-  const projectStart = nodes.find((node) => node.type === "projectStart");
-  if (projectStart) return projectStart.title || "Project Start";
-  if (nodes.length === 1) return nodes[0].title || "Independent";
-  return nodes[0].title || "Independent";
+function standaloneTabTitle(node: DomainNode) {
+  return node.title || getNodeDefinition(node.type).label;
 }
 
 export function buildPhaseTabs(file: WorkflowFile) {
   const phases = phasesInCanvasOrder(file);
   const loose = independentNodes(file, phases);
-  if (!phases.length) {
-    const nodes = [...loose].sort((a, b) => compareCanvas(file, a.id, b.id));
-    return [
-      {
-        phase: undefined as DomainNode | undefined,
-        title: independentTabTitle(nodes),
-        nodes,
-      },
-    ];
-  }
-  const phaseBottom = Math.max(
-    ...phases.map((phase) => {
-      const box = nodeBox(file, phase.id);
-      return box.y + box.height;
-    }),
-  );
+  const phaseBottom = phases.length
+    ? Math.max(
+        ...phases.map((phase) => {
+          const box = nodeBox(file, phase.id);
+          return box.y + box.height;
+        }),
+      )
+    : Number.POSITIVE_INFINITY;
   const bandOf = (id: string) => (nodeBox(file, id).y >= phaseBottom ? 1 : 0);
   const sequence = [
     ...phases.map((phase) => ({ kind: "phase" as const, id: phase.id, phase })),
     ...loose.map((node) => ({ kind: "node" as const, id: node.id, node })),
-  ].sort((a, b) => compareCanvas(file, a.id, b.id, bandOf));
+  ].sort((a, b) =>
+    compareCanvas(file, a.id, b.id, phases.length ? bandOf : undefined),
+  );
 
   const tabs: {
     phase: DomainNode | undefined;
     title: string;
     nodes: DomainNode[];
   }[] = [];
-  let pending: DomainNode[] = [];
-  const flushPending = () => {
-    if (!pending.length) return;
-    tabs.push({
-      phase: undefined,
-      title: independentTabTitle(pending),
-      nodes: pending,
-    });
-    pending = [];
-  };
   for (const item of sequence) {
     if (item.kind === "phase") {
-      flushPending();
       tabs.push({
         phase: item.phase,
         title: item.phase.title,
         nodes: childrenOfPhase(file, item.phase.id),
       });
     } else {
-      pending.push(item.node);
+      tabs.push({
+        phase: undefined,
+        title: standaloneTabTitle(item.node),
+        nodes: [item.node],
+      });
     }
   }
-  flushPending();
-  return tabs;
+  return tabs.length
+    ? tabs
+    : [
+        {
+          phase: undefined as DomainNode | undefined,
+          title: "Workflow",
+          nodes: [] as DomainNode[],
+        },
+      ];
 }
 
 function nodeStatus(node: DomainNode) {
@@ -804,7 +802,7 @@ export function writePhaseSheet(
   merge(sheet, 1, 2, LAST_COL);
   fillRange(sheet, 1, 2, LAST_COL, hexArgb(color));
   const title = sheet.getCell(1, 2);
-  title.value = tabTitle || phase?.title || independentTabTitle(nodes);
+  title.value = tabTitle || phase?.title || (nodes[0] ? standaloneTabTitle(nodes[0]) : "Workflow");
   title.font = { name: "Calibri", size: 20, bold: true, color: { argb: "FFFFFFFF" } };
   title.alignment = { vertical: "middle", indent: 1 };
   sheet.getRow(1).height = 32;
@@ -817,13 +815,19 @@ export function writePhaseSheet(
     merge(sheet, 2, 3, LAST_COL);
     writeEditable(sheet, 2, 3, phase.description || "");
   } else {
+    const standalone = nodes[0];
+    const kindLabel = standalone
+      ? getNodeDefinition(standalone.type).label
+      : "Standalone";
     const hint = sheet.getCell(2, 2);
-    hint.value = "Not inside a Phase";
+    hint.value = kindLabel;
     styleLabel(hint);
     merge(sheet, 2, 3, LAST_COL);
     const detail = sheet.getCell(2, 3);
     detail.value =
-      "This tab is a canvas node that sits outside every Phase container. It is not a member of Phase 1 or any other Phase.";
+      standalone?.type === "projectStart" || standalone?.type === "terminal"
+        ? `${kindLabel} always has its own tab.`
+        : `${kindLabel} is independent on the canvas, so it has its own tab. Phase tabs only group items placed inside a Phase.`;
     styleRead(detail);
   }
   sheet.getRow(2).height = 28;
