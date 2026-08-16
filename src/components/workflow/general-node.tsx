@@ -28,6 +28,7 @@ import {
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { conditionIsSatisfied } from "@/lib/workflow-progress";
 import { ComponentNoteButton } from "./component-note-button";
 import {
   iconOptions,
@@ -150,18 +151,12 @@ export function GeneralNode({
   const Icon = iconOptions[iconKey];
   const color = node.color || getNodeDefinition("general").color;
   const conditions = node.conditions || [];
-  const conditionReady = (condition: DomainNode["conditions"][number]) => {
-    if (condition.id === "project-id-required") {
-      return isProjectStart ? projectIdValid : Boolean(projectStartProjectId);
-    }
-    if (condition.id === "paid-building-required") return buildingValid;
-    if (condition.id === "paid-module-required") return moduleValid;
-    return condition.required === false || condition.checked === true;
-  };
   const requiredConditions = conditions.filter(
     (condition) => condition.required !== false,
   );
-  const releaseReady = requiredConditions.every(conditionReady);
+  const releaseReady = requiredConditions.every((condition) =>
+    conditionIsSatisfied(condition, node, projectStartNode),
+  );
   const statusReady = reached && releaseReady;
   const saveConditions = (next: DomainNode["conditions"]) =>
     updateNode(node.id, { conditions: next });
@@ -514,7 +509,7 @@ export function GeneralNode({
           </div>
           <div className="space-y-1.5">
             {conditions.map((condition, index) => {
-              const checked = conditionReady(condition);
+              const checked = conditionIsSatisfied(condition, node, projectStartNode);
               return (
                 <div key={condition.id || index} className="flex min-h-10 items-center gap-2 rounded-md border bg-card px-2 py-2">
                   <button

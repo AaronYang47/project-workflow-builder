@@ -19,6 +19,11 @@ import type {
   WorkflowNodeType,
 } from "@/types/workflow";
 import type { GateCompletionState } from "@/lib/workflow-progress";
+import {
+  currentRevisionComplete,
+  requirementApplies,
+  signatureFieldsComplete as signatureIsComplete,
+} from "@/lib/workflow-progress";
 
 export type WorkflowFlowNode = Node<
   {
@@ -70,28 +75,6 @@ const iconOptions = {
   box: Boxes,
 };
 
-const currentRevisionComplete = (signature: GateSignatureRequirement) => {
-  if (!signature.revisionControlled) return true;
-  const current = signature.revisions?.find(
-    (revision) => revision.status === "Current",
-  );
-  return Boolean(
-    current?.revision.trim() &&
-    current.receivedDate &&
-    current.department.trim() &&
-    current.modifiedBy.trim(),
-  );
-};
-const signatureIsComplete = (signature: GateSignatureRequirement) =>
-  Boolean(
-    signature.abbreviation.trim() &&
-    signature.fullName.trim() &&
-    signature.department.trim() &&
-    signature.signedBy.trim() &&
-    currentRevisionComplete(signature),
-  );
-const requirementApplies = (item: { requirementType?: RequirementType }) =>
-  item.requirementType !== "Optional";
 const statusStyles: Record<
   GateCompletionState,
   { card: string; header: string; accent: string; label: string }

@@ -34,6 +34,7 @@ import {
   projectNodeUuid,
   syncPaidConditions,
 } from "@/lib/project-id";
+import { workflowHasPaidService } from "@/lib/workflow-progress";
 
 export function GateRules({ node }: { node: DomainNode }) {
   const {
@@ -58,12 +59,11 @@ export function GateRules({ node }: { node: DomainNode }) {
   // every other node in the same project.
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const conditionState = conditionProgress.state;
-  const decisionState: GateCompletionState =
-    conditionProgress.completed === 0
-      ? "none"
-      : approvalReady
-        ? "complete"
-        : "partial";
+  const decisionState: GateCompletionState = approvalReady
+    ? "complete"
+    : checklistSatisfied
+      ? "partial"
+      : conditionState;
   const GateHeaderIcon =
     iconOptions[node.config.gateIconKey as keyof typeof iconOptions] ||
     Landmark;
@@ -112,7 +112,7 @@ export function GateRules({ node }: { node: DomainNode }) {
       Boolean(projectStartNode) &&
       projectStartServiceType !== "Paid Service";
     const shouldDemoteProjectStart =
-      !hasPaidCondition &&
+      !workflowHasPaidService(store.file.graph.nodes, node.id, nextRules) &&
       Boolean(projectStartNode) &&
       projectStartServiceType === "Paid Service";
     const nextMetrics = getGateLayoutMetrics(nextNode);

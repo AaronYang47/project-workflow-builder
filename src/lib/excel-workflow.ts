@@ -19,32 +19,6 @@ async function exceljs() {
   return (mod.default ?? mod) as typeof import("exceljs");
 }
 
-function emptyWorkflow(): WorkflowFile {
-  const now = new Date().toISOString();
-  return {
-    graph: {
-      schemaVersion: 1,
-      metadata: {
-        name: "Untitled Project",
-        version: "v1.0-draft",
-        status: "Draft",
-        createdAt: now,
-        updatedAt: now,
-        notes: "",
-      },
-      nodes: [],
-      edges: [],
-      rules: [],
-    },
-    layout: {
-      nodes: {},
-      viewport: { x: 0, y: 0, zoom: 1 },
-      snapToGrid: true,
-      gridSize: 16,
-    },
-  };
-}
-
 function writePhaseWorkbook(workbook: Workbook, file: WorkflowFile) {
   const used = new Set<string>();
   const tabs = buildPhaseTabs(file);
@@ -69,6 +43,11 @@ export async function workflowToExcelBuffer(
   return buffer as ArrayBuffer;
 }
 
+export const MISSING_WORKFLOW_PAYLOAD =
+  "This Excel file is missing the hidden workflow payload. Export from Project Workflow Builder, then import that file.";
+export const DAMAGED_WORKFLOW_PAYLOAD =
+  "This Excel file's workflow payload is damaged and cannot be imported. Export a fresh copy from Project Workflow Builder.";
+
 export async function parseWorkflowExcel(
   data: ArrayBuffer | Uint8Array | Buffer,
 ): Promise<WorkflowFile> {
@@ -76,13 +55,14 @@ export async function parseWorkflowExcel(
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(data as ArrayBuffer);
   const payloadJson = readPayloadJson(workbook);
-  let file = emptyWorkflow();
-  if (payloadJson) {
-    try {
-      file = parseWorkflowValue(JSON.parse(payloadJson));
-    } catch {
-      file = emptyWorkflow();
-    }
+  if (!payloadJson) {
+    throw new Error(MISSING_WORKFLOW_PAYLOAD);
+  }
+  let file: WorkflowFile;
+  try {
+    file = parseWorkflowValue(JSON.parse(payloadJson));
+  } catch {
+    throw new Error(DAMAGED_WORKFLOW_PAYLOAD);
   }
   for (const sheet of visibleWorksheets(workbook)) {
     file = applyPhaseSheet(sheet, file);

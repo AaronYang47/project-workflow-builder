@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "tsx --test src/lib/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "latest",
@@ -39,6 +40,7 @@
     "eslint": "latest",
     "eslint-config-next": "latest",
     "tailwindcss": "latest",
+    "tsx": "^4.20.5",
     "typescript": "latest",
     "wrangler": "^4.123.0"
   }

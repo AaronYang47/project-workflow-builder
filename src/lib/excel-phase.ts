@@ -14,8 +14,14 @@ import {
   parseKey,
   rawCell,
 } from "@/lib/excel-format";
+import {
+  COMPUTED_CONDITION_IDS,
+  conditionDisplaySatisfied,
+  nodeStatusLabel,
+} from "@/lib/workflow-progress";
 import type {
   DomainNode,
+  GateRule,
   GateSignatureRequirement,
   OutcomeHandle,
   ReferenceConfig,
@@ -173,28 +179,61 @@ export function buildPhaseTabs(file: WorkflowFile) {
       ];
 }
 
-function nodeStatus(node: DomainNode) {
-  const rules = node.config.gateRules || [];
-  if (rules.length) {
-    const required = rules.filter((rule) => rule.requirementType !== "Optional");
-    const ready = required.filter((rule) => {
-      const signatures = (rule.signatures || []).filter(
-        (item) => item.requirementType !== "Optional",
-      );
-      return rule.checked && signatures.every((item) => item.checked);
-    });
-    if (required.length && ready.length === required.length) return "Ready";
-    if (ready.length) return "In Progress";
-    return "Blocked";
-  }
-  if (node.conditions.length) {
-    const required = node.conditions.filter((item) => item.required !== false);
-    const ready = required.filter((item) => item.checked);
-    if (required.length && ready.length === required.length) return "Ready";
-    if (ready.length) return "In Progress";
-    return "Blocked";
-  }
-  return "Open";
+function signatureDocumentNames(rules: GateRule[] | undefined) {
+  return (rules || []).flatMap((rule) =>
+    (rule.signatures || []).map((item) => item.abbreviation).filter(Boolean),
+  );
+}
+
+export function extraNodeDocuments(
+  node: DomainNode,
+  rules = node.config.gateRules,
+) {
+  const names = new Set(signatureDocumentNames(rules));
+  return (node.documents || []).filter((name) => Boolean(name) && !names.has(name));
+}
+
+function withSignatureDocuments(
+  node: DomainNode,
+  rules: GateRule[],
+  extras = extraNodeDocuments(node, node.config.gateRules),
+): DomainNode {
+  return {
+    ...node,
+    documents: [
+      ...signatureDocumentNames(rules),
+      ...extras.filter((name) => Boolean(name)),
+    ],
+    config: { ...node.config, gateRules: rules },
+  };
+}
+
+export function resolveSheetNode(file: WorkflowFile, nodeId: string) {
+  return file.graph.nodes.find((node) => node.id === nodeId);
+}
+
+export function resolveSheetPhase(
+  file: WorkflowFile,
+  sheetName: string,
+  phaseId: string,
+) {
+  const byId = file.graph.nodes.find(
+    (node) => node.id === phaseId && node.type === "phase",
+  );
+  if (byId) return byId;
+  const sheetKey = phaseSheetKey(sheetName);
+  return file.graph.nodes.find((node) => {
+    if (node.type !== "phase") return false;
+    return (
+      node.title.toLowerCase() === sheetName.toLowerCase() ||
+      phaseSheetKey(node.title) === sheetKey
+    );
+  });
+}
+
+function phaseSheetKey(text: string) {
+  const match = text.trim().match(/^phase\s*(\d+)\b/i);
+  return match ? `phase-${match[1]}` : text.trim().toLowerCase();
 }
 
 function serviceLabel(id?: string) {
@@ -611,7 +650,7 @@ function writeGateBlock(
   const labels = interfaceText(node);
   const parentId = file.layout.nodes[node.id]?.parentId || "";
   const color = node.color || getNodeDefinition(node.type).color;
-  const status = String(node.customFields.status || nodeStatus(node));
+  const status = nodeStatusLabel(node, projectStart);
   const gateForm = usesGateForm(node);
   let row = startRow;
   writeKey(sheet, row, `${KEY.node}:${node.id}`);
@@ -665,7 +704,14 @@ function writeGateBlock(
         row,
         `${KEY.condition}:${condition.id || condition.label || ""}:node`,
       );
-      writeEditable(sheet, row, 2, Boolean(condition.checked), LISTS.boolean, true);
+      writeEditable(
+        sheet,
+        row,
+        2,
+        conditionDisplaySatisfied(condition, node, projectStart),
+        LISTS.boolean,
+        true,
+      );
       merge(sheet, row, 3, 4);
       writeEditable(sheet, row, 3, condition.label || "");
       writeEditable(
@@ -718,14 +764,7 @@ function writeGateBlock(
     }
   }
 
-  const signatureNames = new Set(
-    (node.config.gateRules || []).flatMap((rule) =>
-      (rule.signatures || []).map((item) => item.abbreviation),
-    ),
-  );
-  const extraDocuments = (node.documents || []).filter(
-    (name) => !signatureNames.has(name),
-  );
+  const extraDocuments = extraNodeDocuments(node);
   if (extraDocuments.length) {
     row = writeSection(sheet, row, labels.documentsLabel);
     extraDocuments.forEach((name, index) => {
@@ -869,41 +908,6 @@ function updateNode(
   };
 }
 
-function findNode(
-  file: WorkflowFile,
-  gateId: string,
-  uuid: string,
-): DomainNode | undefined {
-  const projectStart = file.graph.nodes.find((node) => node.type === "projectStart");
-  return (
-    file.graph.nodes.find((node) => node.id === gateId) ||
-    file.graph.nodes.find((node) => {
-      if (!uuid) return false;
-      return (
-        String(node.customFields.nodeUuid || "") === uuid ||
-        projectNodeUuid(node, projectStart) === uuid
-      );
-    })
-  );
-}
-
-function findPhase(
-  file: WorkflowFile,
-  sheetName: string,
-  phaseId: string,
-) {
-  return (
-    file.graph.nodes.find((node) => node.id === phaseId && node.type === "phase") ||
-    file.graph.nodes.find(
-      (node) =>
-        node.type === "phase" &&
-        (node.title === sheetName ||
-          node.title.toLowerCase() === sheetName.toLowerCase() ||
-          node.title.toLowerCase().startsWith(sheetName.toLowerCase())),
-    )
-  );
-}
-
 export function applyPhaseSheet(
   sheet: Worksheet,
   file: WorkflowFile,
@@ -911,14 +915,13 @@ export function applyPhaseSheet(
   let next = file;
   let phaseId = "";
   let gateId = "";
-  let uuid = "";
   const lastRow = Math.max(sheet.rowCount, 1);
   for (let row = 1; row <= lastRow; row += 1) {
     const key = parseKey(rawCell(sheet.getCell(row, 1)));
     const kind = key.kind;
     if (kind === KEY.phase) {
       phaseId = key.id;
-      const phase = findPhase(next, sheet.name, phaseId);
+      const phase = resolveSheetPhase(next, sheet.name, phaseId);
       if (phase) {
         phaseId = phase.id;
         const title = asString(rawCell(sheet.getCell(row, 2)));
@@ -935,14 +938,12 @@ export function applyPhaseSheet(
     }
     if (kind === KEY.gate || kind === KEY.node) {
       gateId = key.id;
-      uuid = "";
       continue;
     }
     if (kind === KEY.gateUuid) {
-      uuid = asString(rawCell(sheet.getCell(row, 3)));
       continue;
     }
-    const node = findNode(next, gateId, uuid);
+    const node = resolveSheetNode(next, gateId);
     if (!node) continue;
     gateId = node.id;
     const value = rawCell(sheet.getCell(row, 3));
@@ -1025,8 +1026,11 @@ export function applyPhaseSheet(
       const checked = asBoolean(rawCell(sheet.getCell(row, 2)));
       const label = asString(rawCell(sheet.getCell(row, 3)));
       const requirement = parseRequirement(rawCell(sheet.getCell(row, 5)));
-      const serviceTypeId = parseServiceTypeId(rawCell(sheet.getCell(row, 6)));
+      const serviceCell = rawCell(sheet.getCell(row, 6));
+      const serviceText = asString(serviceCell).trim();
+      const parsedService = parseServiceTypeId(serviceCell);
       const source = key.extra || "rule";
+      const computed = COMPUTED_CONDITION_IDS.has(key.id);
       next = updateNode(next, node.id, (item) => {
         if (source === "node") {
           return {
@@ -1035,8 +1039,10 @@ export function applyPhaseSheet(
               (condition.id || condition.label) === key.id
                 ? {
                     ...condition,
-                    checked: checked ?? condition.checked,
-                    label: label || condition.label,
+                    checked: computed
+                      ? condition.checked
+                      : (checked ?? condition.checked),
+                    label,
                     required:
                       requirement === "Optional"
                         ? false
@@ -1057,9 +1063,11 @@ export function applyPhaseSheet(
                 ? {
                     ...rule,
                     checked: checked ?? rule.checked,
-                    label: label || rule.label,
+                    label,
                     requirementType: requirement || rule.requirementType,
-                    serviceTypeId: serviceTypeId || rule.serviceTypeId,
+                    serviceTypeId: serviceText
+                      ? parsedService || rule.serviceTypeId
+                      : undefined,
                   }
                 : rule,
             ),
@@ -1078,6 +1086,7 @@ export function applyPhaseSheet(
       const signedBy = asString(rawCell(sheet.getCell(row, 8)));
       const owner = asString(rawCell(sheet.getCell(row, 9)));
       next = updateNode(next, node.id, (item) => {
+        const extras = extraNodeDocuments(item);
         const gateRules = (item.config.gateRules || []).map((rule) => {
           if (ruleId && rule.id !== ruleId) return rule;
           return {
@@ -1088,8 +1097,8 @@ export function applyPhaseSheet(
                 : {
                     ...signature,
                     checked: checked ?? signature.checked,
-                    abbreviation: abbreviation || signature.abbreviation,
-                    fullName: fullName || signature.fullName,
+                    abbreviation,
+                    fullName,
                     status: isBlank(status) ? signature.status : status,
                     revision,
                     department: isBlank(department)
@@ -1101,15 +1110,7 @@ export function applyPhaseSheet(
             ),
           };
         });
-        return {
-          ...item,
-          documents: gateRules.flatMap((rule) =>
-            (rule.signatures || [])
-              .map((signature) => signature.abbreviation)
-              .filter(Boolean),
-          ),
-          config: { ...item.config, gateRules },
-        };
+        return withSignatureDocuments(item, gateRules, extras);
       });
     } else if (kind === "#outcome") {
       const label = asString(rawCell(sheet.getCell(row, 3)));
@@ -1129,9 +1130,9 @@ export function applyPhaseSheet(
       if (Number.isFinite(index)) {
         const name = asString(rawCell(sheet.getCell(row, 2)));
         next = updateNode(next, node.id, (item) => {
-          const documents = [...item.documents];
-          documents[index] = name;
-          return { ...item, documents };
+          const extras = extraNodeDocuments(item);
+          extras[index] = name;
+          return withSignatureDocuments(item, item.config.gateRules || [], extras);
         });
       }
     } else if (kind === "#ref.item") {

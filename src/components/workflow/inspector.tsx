@@ -52,10 +52,10 @@ const writePath = (
 // stored ID always matches the chosen service type. Returns the updated
 // node so callers can apply it once. Conditions are synced here so the
 // paid-service requirements appear alongside the auto-promoted fields.
-const applyPromoteToPaid = (node: DomainNode): DomainNode => ({
-  ...promoteToPaidService(node),
-  conditions: syncPaidConditions(node, true),
-});
+const applyPromoteToPaid = (node: DomainNode): DomainNode => {
+  const promoted = promoteToPaidService(node);
+  return { ...promoted, conditions: syncPaidConditions(promoted, true) };
+};
 
 function Field({
   field,

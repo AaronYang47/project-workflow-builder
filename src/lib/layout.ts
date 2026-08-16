@@ -10,6 +10,7 @@ import type {
   WorkflowFile,
   WorkflowNodeType,
 } from "@/types/workflow";
+import { isReferenceNodeType } from "@/types/workflow";
 import { getAdaptiveNodeSize, PHASE_CONTENT_TOP } from "@/lib/node-layout";
 import { PRE_GATE_SALES_NODES } from "@/lib/pre-gate-sales-flow";
 
@@ -36,7 +37,8 @@ const legacyAuxiliaryTypes = new Set<WorkflowNodeType>([
   "documentGroup",
   "note",
 ]);
-const referenceTypes = new Set<WorkflowNodeType>();
+const isDecorativeReference = (type: WorkflowNodeType) =>
+  isReferenceNodeType(type) && type !== "terminal";
 const secondaryEdges = new Set([
   "supporting",
   "dependency",
@@ -99,14 +101,23 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }),
   );
 
-  const preGateSalesIds = new Set(PRE_GATE_SALES_NODES.map((node) => node.id));
-  const mainNodes = file.graph.nodes.filter(
-    (node) =>
-      node.type !== "phase" &&
-      !referenceTypes.has(node.type) &&
-      !legacyAuxiliaryTypes.has(node.type) &&
-      !preGateSalesIds.has(node.id),
+  const phaseIds = new Set(
+    file.graph.nodes
+      .filter((node) => node.type === "phase")
+      .map((node) => node.id),
   );
+  const isPhaseChild = (id: string) => {
+    const parentId = original[id]?.parentId;
+    return Boolean(parentId && phaseIds.has(parentId));
+  };
+  const preGateSalesIds = new Set(PRE_GATE_SALES_NODES.map((node) => node.id));
+  const mainNodes = file.graph.nodes.filter((node) => {
+    if (node.type === "phase") return false;
+    if (legacyAuxiliaryTypes.has(node.type)) return false;
+    if (preGateSalesIds.has(node.id)) return false;
+    if (isDecorativeReference(node.type) && !isPhaseChild(node.id)) return false;
+    return true;
+  });
   const mainIds = new Set(mainNodes.map((node) => node.id));
   const mainEdges = file.graph.edges.filter((edge) => {
     const source = file.graph.nodes.find((node) => node.id === edge.source);
@@ -146,11 +157,6 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   // Treat every Phase as one rigid visual group. ELK lays out individual Gates,
   // which can otherwise leave a restored/locked Phase overlapping its neighbour.
   // Repack the groups left-to-right using their measured child bounds.
-  const phaseIds = new Set(
-    file.graph.nodes
-      .filter((node) => node.type === "phase")
-      .map((node) => node.id),
-  );
   const phases = file.graph.nodes.filter((node) => node.type === "phase");
   const phaseTop = 64;
   const childTop = phaseTop + PHASE_CONTENT_TOP;
@@ -158,7 +164,23 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   // enough horizontal room for the full label at normal canvas zoom.
   const phaseGap = 240;
   const gateConnectorGap = 240;
-  let phaseCursorX = 64;
+  const salesGap = 96;
+  const hasSalesPath = Boolean(nodes["lead-inquiry"]);
+  const projectStartNode =
+    file.graph.nodes.find(
+      (node) =>
+        node.type === "projectStart" &&
+        file.graph.edges.some(
+          (edge) => edge.source === node.id && edge.target === "lead-inquiry",
+        ),
+    ) ?? file.graph.nodes.find((node) => node.type === "projectStart");
+  const projectStartLayout = projectStartNode
+    ? nodes[projectStartNode.id]
+    : undefined;
+  let phaseCursorX =
+    !hasSalesPath && projectStartLayout
+      ? 64 + projectStartLayout.width + 144
+      : 64;
   let groupBottom = childTop;
   for (const phase of phases) {
     const children = file.graph.nodes
@@ -198,7 +220,9 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   let referenceY = groupBottom + 140;
   for (const node of file.graph.nodes.filter(
     (item) =>
-      referenceTypes.has(item.type) || legacyAuxiliaryTypes.has(item.type),
+      !isPhaseChild(item.id) &&
+      (isDecorativeReference(item.type) ||
+        legacyAuxiliaryTypes.has(item.type)),
   )) {
     const current = nodes[node.id];
     nodes[node.id] = { ...current, x: 72, y: referenceY };
@@ -220,21 +244,10 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     "select-engagement-path",
     "engagement-approval",
   ].filter((id) => nodes[id]);
-  const salesGap = 96;
   const salesWidth = salesMainline.reduce(
     (sum, id, index) => sum + nodes[id].width + (index ? salesGap : 0),
     0,
   );
-  const projectStartNode = file.graph.nodes.find(
-    (node) =>
-      node.type === "projectStart" &&
-      file.graph.edges.some(
-        (edge) => edge.source === node.id && edge.target === "lead-inquiry",
-      ),
-  ) ?? file.graph.nodes.find((node) => node.type === "projectStart");
-  const projectStartLayout = projectStartNode
-    ? nodes[projectStartNode.id]
-    : undefined;
   const standaloneSalesStart = projectStartLayout
     ? 64 + projectStartLayout.width + salesGap
     : 64;
@@ -253,28 +266,29 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       parentId: undefined,
     };
   } else if (projectStartNode && projectStartLayout) {
-    // A blank/new project has no edges yet. ELK is free to order disconnected
-    // nodes arbitrarily, so explicitly keep the mandatory Project Start first.
-    const disconnectedMainline = mainNodes
-      .filter((node) => node.id !== projectStartNode.id)
-      .map((node) => nodes[node.id])
-      .filter(Boolean)
-      .sort((a, b) => a.x - b.x || a.y - b.y);
+    const firstPhase = phases[0] ? nodes[phases[0].id] : undefined;
     nodes[projectStartNode.id] = {
       ...projectStartLayout,
       x: 64,
-      y: mainTop,
+      y: firstPhase?.y ?? mainTop,
       parentId: undefined,
     };
-    let disconnectedX = 64 + projectStartLayout.width + 144;
-    for (const layout of disconnectedMainline) {
-      nodes[layout.nodeId] = {
-        ...layout,
-        x: disconnectedX,
-        y: mainTop,
-        parentId: undefined,
-      };
-      disconnectedX += layout.width + 144;
+    if (!phases.length) {
+      const disconnectedMainline = mainNodes
+        .filter((node) => node.id !== projectStartNode.id)
+        .map((node) => nodes[node.id])
+        .filter(Boolean)
+        .sort((a, b) => a.x - b.x || a.y - b.y);
+      let disconnectedX = 64 + projectStartLayout.width + 144;
+      for (const layout of disconnectedMainline) {
+        nodes[layout.nodeId] = {
+          ...layout,
+          x: disconnectedX,
+          y: mainTop,
+          parentId: undefined,
+        };
+        disconnectedX += layout.width + 144;
+      }
     }
   }
 
