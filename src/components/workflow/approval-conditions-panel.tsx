@@ -537,7 +537,18 @@ function ConditionRow({
         </div>
       ) : null}
       {signatures.length ? (
-        <div className="ml-2 mt-2 space-y-2 border-l-2 border-emerald-200 pl-3 dark:border-emerald-900">
+        <div
+          data-signature-rail
+          data-rail-state={
+            signaturesReady ? "complete" : "pending"
+          }
+          className={cn(
+            "rail ml-2 mt-2 space-y-2 border-l-2 pl-3",
+            signaturesReady
+              ? "border-emerald-300 dark:border-emerald-700"
+              : "border-amber-300 dark:border-amber-700",
+          )}
+        >
           {signatures.map((signature, signatureIndex) => (
             <RuleSignatureCard
               key={signature.id}
