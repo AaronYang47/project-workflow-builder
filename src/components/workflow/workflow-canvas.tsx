@@ -455,6 +455,76 @@ function CanvasInner() {
     window.addEventListener("workflow:fit", fit);
     return () => window.removeEventListener("workflow:fit", fit);
   }, [flow]);
+  // Export helper: temporarily reshape the React Flow viewport so html-to-image
+  // captures the entire workflow at 1:1 scale (instead of the currently
+  // visible portion which may be zoomed-out). The previous viewport size and
+  // transform are restored after the export completes.
+  useEffect(() => {
+    const capture = async (
+      event: Event & { detail?: { format: "png" | "svg" } },
+    ) => {
+      const detail = event.detail ?? { format: "png" };
+      const wrapperEl = wrapper.current;
+      const flowElement = wrapperEl?.querySelector<HTMLElement>(".react-flow");
+      const viewport = flowElement?.querySelector<HTMLElement>(
+        ".react-flow__viewport",
+      );
+      if (!flowElement || !viewport) return;
+      const bounds = flow.getNodesBounds(flow.getNodes());
+      const padding = 48;
+      const targetWidth = Math.max(1, Math.round(bounds.width + padding * 2));
+      const targetHeight = Math.max(
+        1,
+        Math.round(bounds.height + padding * 2),
+      );
+      const original = {
+        flowWidth: flowElement.style.width,
+        flowHeight: flowElement.style.height,
+        viewportTransform: viewport.style.transform,
+      };
+      flowElement.style.width = `${targetWidth}px`;
+      flowElement.style.height = `${targetHeight}px`;
+      // Shift the workflow so its top-left corner sits at (padding, padding).
+      viewport.style.transform = `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`;
+      try {
+        const { toPng, toSvg } = await import("html-to-image");
+        const backgroundColor =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--canvas-export")
+            .trim() || "#f6f7f9";
+        const data =
+          detail.format === "png"
+            ? await toPng(flowElement, {
+                backgroundColor,
+                pixelRatio: 2,
+                width: targetWidth,
+                height: targetHeight,
+                filter: (node: HTMLElement) =>
+                  !node.classList?.contains("react-flow__controls") &&
+                  !node.classList?.contains("react-flow__minimap"),
+              })
+            : await toSvg(flowElement, {
+                backgroundColor,
+                width: targetWidth,
+                height: targetHeight,
+                filter: (node: HTMLElement) =>
+                  !node.classList?.contains("react-flow__controls") &&
+                  !node.classList?.contains("react-flow__minimap"),
+              });
+        const anchor = document.createElement("a");
+        anchor.download = `workflow.${detail.format}`;
+        anchor.href = data;
+        anchor.click();
+      } finally {
+        flowElement.style.width = original.flowWidth;
+        flowElement.style.height = original.flowHeight;
+        viewport.style.transform = original.viewportTransform;
+      }
+    };
+    window.addEventListener("workflow:export", capture as EventListener);
+    return () =>
+      window.removeEventListener("workflow:export", capture as EventListener);
+  }, [flow]);
   return (
     <div
       ref={wrapper}

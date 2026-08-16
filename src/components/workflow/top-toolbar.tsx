@@ -55,31 +55,10 @@ function ToolButton({
     </Button>
   );
 }
-const saveImage = async (format: "png" | "svg") => {
-  window.dispatchEvent(new Event("workflow:fit"));
-  await new Promise((resolve) => window.setTimeout(resolve, 600));
-  const element = document.querySelector<HTMLElement>(".react-flow");
-  if (!element) return;
-  const { toPng, toSvg } = await import("html-to-image");
-  const backgroundColor =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--canvas-export")
-      .trim() || "#f6f7f9";
-  const options = {
-    backgroundColor,
-    pixelRatio: 2,
-    filter: (node: HTMLElement) =>
-      !node.classList?.contains("react-flow__controls") &&
-      !node.classList?.contains("react-flow__minimap"),
-  };
-  const data =
-    format === "png"
-      ? await toPng(element, options)
-      : await toSvg(element, options);
-  const anchor = document.createElement("a");
-  anchor.download = `workflow.${format}`;
-  anchor.href = data;
-  anchor.click();
+const saveImage = (format: "png" | "svg") => {
+  window.dispatchEvent(
+    new CustomEvent("workflow:export", { detail: { format } }),
+  );
 };
 
 export function TopToolbar({ openPalette }: { openPalette: () => void }) {
@@ -155,7 +134,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
     }
   };
   return (
-    <header data-workflow-toolbar className="relative z-40 flex h-14 shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)]">
+    <header data-workflow-toolbar className="relative z-40 flex h-14 shrink-0 items-center overflow-x-auto border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)]">
       <div className="flex h-full min-w-0 items-center gap-2 px-2">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground">
           PW
