@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import {
   Boxes,
   Building2,
@@ -86,9 +86,26 @@ export function DecisionCard({
   );
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const yes = outcomes.find((outcome) => outcome.id === "yes");
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [actualBottom, setActualBottom] = useState(0);
+  useLayoutEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      const parentRect = el.parentElement?.getBoundingClientRect();
+      if (!parentRect) return;
+      setActualBottom(rect.bottom - parentRect.top);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [outcomes, approvedDepartment, approvedBy]);
   return (
     <Fragment>
     <section
+      ref={sectionRef}
       data-completion-state={decisionState}
       data-decision-content=""
       aria-label="Approval decision card"
@@ -312,7 +329,7 @@ export function DecisionCard({
       <div
         className="nodrag pointer-events-none absolute z-10"
         style={{
-          top: metrics.decisionTop + metrics.decisionHeight + 6,
+          top: actualBottom || metrics.decisionTop + metrics.decisionHeight + 6,
           left: metrics.conditionsLeft + GATE_PANEL_WIDTH,
           transform: "translateX(-100%)",
         }}
