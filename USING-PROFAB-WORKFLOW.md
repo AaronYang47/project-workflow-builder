@@ -40,6 +40,6 @@
 ## Save and share
 
 1. Changes autosave locally; the toolbar indicates whether the canvas is saved.
-2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The workbook has one tab per Phase. Each tab lists that Phase’s Gates as large form blocks, with Conditions, Documents, Approvals, and responsibilities editable inside the Gate. There is no flowchart and no extra data sheets. After editing, Import Excel to write the values back to the canvas.
+2. Use **Export Excel** for a portable editable workflow and **Import Excel** to restore it. The workbook has one tab per Phase, in canvas order. Each tab lists that Phase’s nodes as form blocks in the same left-to-right / top-to-bottom order as the canvas. Independent nodes that are not inside any Phase are inserted into those tabs by canvas position: before a Phase at the front of that tab, between two Phases at the front of the next tab, and after the last Phase at the end of the last tab. Conditions, Documents, Approvals, and other node fields stay inside the block with the same labels, values, checkboxes, and dropdowns as the web app. After editing, Import Excel to write the values back so Phase membership, ungrouped nodes, and field order round-trip 1:1.
 3. Use **Export image** for PNG or SVG output.
 4. Run **Validate workflow** before sharing. Click a validation item to focus the related node.

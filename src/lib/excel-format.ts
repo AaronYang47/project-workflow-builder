@@ -14,6 +14,9 @@ export const KEY = {
   phase: "#phase",
   phaseDesc: "#phase.desc",
   gate: "#gate",
+  node: "#node",
+  nodeParent: "#node.parent",
+  field: "#field",
   gateId: "#gate.id",
   gateUuid: "#gate.uuid",
   gateTitle: "#gate.title",
@@ -144,8 +147,8 @@ export function applyListValidation(cell: Cell, formulae: string) {
 
 export function parseKey(value: unknown): { kind: string; id: string; extra: string } {
   const text = asString(value).trim();
-  const [kind, id = "", extra = ""] = text.split(":");
-  return { kind, id, extra };
+  const [kind, id = "", ...rest] = text.split(":");
+  return { kind, id, extra: rest.join(":") };
 }
 
 export function excelSheetName(title: string, used: Set<string>) {

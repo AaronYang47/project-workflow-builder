@@ -8,7 +8,7 @@ import {
 } from "@/lib/excel-format";
 import {
   applyPhaseSheet,
-  phasesInCanvasOrder,
+  buildPhaseTabs,
   writePhaseSheet,
 } from "@/lib/excel-phase";
 import { downloadBlob, parseWorkflowValue, serializeWorkflow } from "@/lib/serialization";
@@ -47,15 +47,11 @@ function emptyWorkflow(): WorkflowFile {
 
 function writePhaseWorkbook(workbook: Workbook, file: WorkflowFile) {
   const used = new Set<string>();
-  const phases = phasesInCanvasOrder(file);
-  if (!phases.length) {
-    const sheet = workbook.addWorksheet(excelSheetName("Phase", used));
-    sheet.getCell(1, 1).value = "No phases in this workflow.";
-    return;
-  }
-  for (const phase of phases) {
-    const sheet = workbook.addWorksheet(excelSheetName(phase.title, used));
-    writePhaseSheet(sheet, phase, file);
+  const tabs = buildPhaseTabs(file);
+  for (const tab of tabs) {
+    const name = excelSheetName(tab.phase?.title || "Workflow", used);
+    const sheet = workbook.addWorksheet(name);
+    writePhaseSheet(sheet, tab.phase, tab.nodes, file);
   }
 }
 

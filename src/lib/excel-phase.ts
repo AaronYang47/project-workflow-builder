@@ -1,5 +1,6 @@
 import type { Borders, Cell, Worksheet } from "exceljs";
 import { GATE_SERVICE_TYPES } from "@/lib/gate-service-types";
+import { getInspectorSchema } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { projectNodeUuid } from "@/lib/project-id";
 import {
@@ -16,6 +17,7 @@ import {
 import type {
   DomainNode,
   GateSignatureRequirement,
+  ReferenceConfig,
   RequirementType,
   WorkflowFile,
 } from "@/types/workflow";
@@ -42,34 +44,125 @@ function thin(hex = "#d6d3d1"): Partial<Borders> {
   };
 }
 
-function absoluteX(file: WorkflowFile, nodeId: string) {
+function absolutePosition(file: WorkflowFile, nodeId: string) {
   const seen = new Set<string>();
   let x = 0;
+  let y = 0;
   let current = nodeId;
   while (current && !seen.has(current)) {
     seen.add(current);
     const layout = file.layout.nodes[current];
     if (!layout) break;
     x += layout.x;
+    y += layout.y;
     current = layout.parentId || "";
   }
-  return x;
+  return { x, y };
 }
 
-function childrenOfPhase(file: WorkflowFile, phaseId: string) {
-  return file.graph.nodes
-    .filter((node) => file.layout.nodes[node.id]?.parentId === phaseId)
-    .sort((a, b) => {
-      const left = file.layout.nodes[a.id];
-      const right = file.layout.nodes[b.id];
-      return (left?.x || 0) - (right?.x || 0) || (left?.y || 0) - (right?.y || 0);
-    });
+function nodeBox(file: WorkflowFile, nodeId: string) {
+  const position = absolutePosition(file, nodeId);
+  const layout = file.layout.nodes[nodeId];
+  return {
+    x: position.x,
+    y: position.y,
+    width: layout?.width ?? 0,
+    height: layout?.height ?? 0,
+  };
+}
+
+function compareCanvas(
+  file: WorkflowFile,
+  leftId: string,
+  rightId: string,
+  band?: (id: string) => number,
+) {
+  const left = nodeBox(file, leftId);
+  const right = nodeBox(file, rightId);
+  const leftBand = band ? band(leftId) : 0;
+  const rightBand = band ? band(rightId) : 0;
+  return leftBand - rightBand || left.x - right.x || left.y - right.y;
 }
 
 export function phasesInCanvasOrder(file: WorkflowFile) {
   return file.graph.nodes
     .filter((node) => node.type === "phase")
-    .sort((a, b) => absoluteX(file, a.id) - absoluteX(file, b.id));
+    .sort((a, b) => compareCanvas(file, a.id, b.id));
+}
+
+function assignedPhaseId(
+  file: WorkflowFile,
+  node: DomainNode,
+  phases: DomainNode[],
+  phaseBottom: number,
+) {
+  const parentId = file.layout.nodes[node.id]?.parentId;
+  if (parentId && phases.some((phase) => phase.id === parentId)) return parentId;
+
+  const box = nodeBox(file, node.id);
+  const lastPhase = phases[phases.length - 1];
+  if (box.y >= phaseBottom) return lastPhase.id;
+
+  const overlapping = phases.filter((phase) => {
+    const phaseBox = nodeBox(file, phase.id);
+    return (
+      box.x < phaseBox.x + phaseBox.width &&
+      box.x + Math.max(box.width, 1) > phaseBox.x
+    );
+  });
+  if (overlapping.length === 1) return overlapping[0].id;
+  if (overlapping.length > 1) {
+    const center = box.x + box.width / 2;
+    return [...overlapping].sort((left, right) => {
+      const leftBox = nodeBox(file, left.id);
+      const rightBox = nodeBox(file, right.id);
+      return (
+        Math.abs(leftBox.x + leftBox.width / 2 - center) -
+        Math.abs(rightBox.x + rightBox.width / 2 - center)
+      );
+    })[0].id;
+  }
+
+  const firstBox = nodeBox(file, phases[0].id);
+  if (box.x + Math.max(box.width, 1) <= firstBox.x || box.x < firstBox.x) {
+    return phases[0].id;
+  }
+  for (let index = 0; index < phases.length - 1; index += 1) {
+    const left = nodeBox(file, phases[index].id);
+    const right = nodeBox(file, phases[index + 1].id);
+    if (box.x >= left.x + left.width && box.x < right.x) {
+      return phases[index + 1].id;
+    }
+  }
+  return lastPhase.id;
+}
+
+export function buildPhaseTabs(file: WorkflowFile) {
+  const phases = phasesInCanvasOrder(file);
+  const content = file.graph.nodes.filter((node) => node.type !== "phase");
+  if (!phases.length) {
+    return [
+      {
+        phase: undefined as DomainNode | undefined,
+        nodes: [...content].sort((a, b) => compareCanvas(file, a.id, b.id)),
+      },
+    ];
+  }
+  const phaseBottom = Math.max(
+    ...phases.map((phase) => {
+      const box = nodeBox(file, phase.id);
+      return box.y + box.height;
+    }),
+  );
+  const bandOf = (id: string) => (nodeBox(file, id).y >= phaseBottom ? 1 : 0);
+  return phases.map((phase) => ({
+    phase,
+    nodes: content
+      .filter(
+        (node) => assignedPhaseId(file, node, phases, phaseBottom) === phase.id,
+      )
+      .sort((a, b) => compareCanvas(file, a.id, b.id, bandOf)),
+  }));
 }
 
 function nodeStatus(node: DomainNode) {
@@ -115,6 +208,46 @@ function parseRequirement(value: unknown, fallback?: RequirementType) {
   if (text === "optional" || text === "false") return "Optional" as const;
   if (text === "required" || text === "true") return "Required" as const;
   return fallback;
+}
+
+function readPath(node: DomainNode, path: string): unknown {
+  return path.split(".").reduce((value: unknown, key) => {
+    if (!value || typeof value !== "object") return undefined;
+    return (value as Record<string, unknown>)[key];
+  }, node as unknown);
+}
+
+function writePath(node: DomainNode, path: string, value: unknown): DomainNode {
+  const result = structuredClone(node) as unknown as Record<string, unknown>;
+  const keys = path.split(".");
+  let cursor = result;
+  keys.slice(0, -1).forEach((key) => {
+    cursor[key] = (cursor[key] as Record<string, unknown>) || {};
+    cursor = cursor[key] as Record<string, unknown>;
+  });
+  cursor[keys.at(-1)!] = value;
+  return result as unknown as DomainNode;
+}
+
+const SKIP_INSPECTOR_KEYS = new Set([
+  "title",
+  "description",
+  "color",
+  "config.iconKey",
+  "config.gateIconKey",
+  "config.gateHeaderColor",
+  "config.gateTitleColor",
+  "customFields.nodeUuid",
+]);
+
+function interfaceText(node: DomainNode) {
+  return {
+    conditionsTitle: node.config.conditionsTitle || "Approval conditions",
+    documentsLabel:
+      node.config.documentsLabel || "All applicable required documents",
+    departmentLabel: node.config.departmentLabel || "Department",
+    approverLabel: node.config.approverLabel || "Approved by",
+  };
 }
 
 function styleLabel(cell: Cell) {
@@ -300,6 +433,126 @@ function writeDocumentRow(
   return row + 1;
 }
 
+function writeInspectorFields(sheet: Worksheet, row: number, node: DomainNode) {
+  const fields = getInspectorSchema(node.type).filter(
+    (field) =>
+      !SKIP_INSPECTOR_KEYS.has(field.key) &&
+      !field.key.startsWith("config.conditions") &&
+      !field.key.startsWith("config.checklist") &&
+      !field.key.startsWith("config.condition") &&
+      !field.key.startsWith("config.add") &&
+      !field.key.startsWith("config.documents") &&
+      !field.key.startsWith("config.decision") &&
+      !field.key.startsWith("config.department") &&
+      !field.key.startsWith("config.approver") &&
+      !field.key.startsWith("config.details"),
+  );
+  if (!fields.length) return row;
+  for (const field of fields) {
+    if (field.visibleWhen) {
+      const current = String(readPath(node, field.visibleWhen.key) || "");
+      if (current !== field.visibleWhen.equals) continue;
+    }
+    const raw = readPath(node, field.key);
+    writeKey(sheet, row, `${KEY.field}:${field.key}`);
+    const labelCell = sheet.getCell(row, 2);
+    labelCell.value = field.label;
+    styleLabel(labelCell);
+    merge(sheet, row, 3, LAST_COL);
+    if (field.type === "boolean") {
+      writeEditable(sheet, row, 3, Boolean(raw), LISTS.boolean, true);
+    } else if (field.type === "select" && field.options?.length) {
+      writeEditable(
+        sheet,
+        row,
+        3,
+        String(raw ?? ""),
+        `"${field.options.join(",")}"`,
+      );
+    } else if (field.readOnly) {
+      const cell = sheet.getCell(row, 3);
+      cell.value = String(raw ?? "");
+      styleRead(cell);
+    } else {
+      writeEditable(sheet, row, 3, String(raw ?? ""));
+    }
+    row += 1;
+  }
+  return row;
+}
+
+function writeReference(sheet: Worksheet, row: number, node: DomainNode) {
+  const reference = node.config.reference as ReferenceConfig | undefined;
+  if (!reference) return row;
+  if (reference.items?.length) {
+    row = writeSection(sheet, row, "Legend items");
+    row = writeHeaders(sheet, row, ["Label", "Color", "Description"]);
+    for (const item of reference.items) {
+      writeKey(sheet, row, `#ref.item:${item.id}`);
+      writeEditable(sheet, row, 2, item.label || "");
+      writeEditable(sheet, row, 3, item.color || "");
+      merge(sheet, row, 4, LAST_COL);
+      writeEditable(sheet, row, 4, item.description || "");
+      row += 1;
+    }
+  }
+  if (reference.columns?.length || reference.rows?.length) {
+    row = writeSection(sheet, row, "Approval matrix");
+    const columns = reference.columns || [];
+    writeKey(sheet, row, `#ref.columns`);
+    columns.forEach((column, index) => {
+      writeEditable(sheet, row, 3 + index, column);
+    });
+    const header = sheet.getCell(row, 2);
+    header.value = "Action";
+    styleLabel(header);
+    row += 1;
+    for (const tableRow of reference.rows || []) {
+      writeKey(sheet, row, `#ref.row:${tableRow.id}`);
+      writeEditable(sheet, row, 2, tableRow.label || "");
+      (tableRow.approvals || []).forEach((checked, index) => {
+        writeEditable(sheet, row, 3 + index, Boolean(checked), LISTS.boolean, true);
+      });
+      row += 1;
+    }
+  }
+  const writeLines = (title: string, kind: string, lines: string[] | undefined) => {
+    if (!lines?.length) return row;
+    row = writeSection(sheet, row, title);
+    lines.forEach((line, index) => {
+      writeKey(sheet, row, `#ref.${kind}:${index}`);
+      merge(sheet, row, 2, LAST_COL);
+      writeEditable(sheet, row, 2, line);
+      row += 1;
+    });
+    return row;
+  };
+  row = writeLines("Current", "current", reference.current);
+  row = writeLines("Proposed", "proposed", reference.proposed);
+  row = writeLines("Rules", "rules", reference.rules);
+  if (reference.sections?.length) {
+    for (const section of reference.sections) {
+      row = writeSection(sheet, row, section.title || "Section");
+      writeKey(sheet, row - 1, `#ref.section:${section.id}`);
+      (section.items || []).forEach((item, index) => {
+        writeKey(sheet, row, `#ref.section:${section.id}:item:${index}`);
+        merge(sheet, row, 2, LAST_COL);
+        writeEditable(sheet, row, 2, item);
+        row += 1;
+      });
+    }
+  }
+  return row;
+}
+
+function usesGateForm(node: DomainNode) {
+  return (
+    node.type === "gate" ||
+    node.type === "decision" ||
+    Boolean(node.config.gateRules?.length)
+  );
+}
+
 function writeGateBlock(
   sheet: Worksheet,
   startRow: number,
@@ -308,10 +561,13 @@ function writeGateBlock(
   projectStart?: DomainNode,
   lists: { departments?: string; people?: string } = {},
 ) {
+  const labels = interfaceText(node);
+  const parentId = file.layout.nodes[node.id]?.parentId || "";
   const color = node.color || getNodeDefinition(node.type).color;
   const status = String(node.customFields.status || nodeStatus(node));
+  const gateForm = usesGateForm(node);
   let row = startRow;
-  writeKey(sheet, row, `${KEY.gate}:${node.id}`);
+  writeKey(sheet, row, `${KEY.node}:${node.id}`);
   merge(sheet, row, 2, LAST_COL);
   fillRange(sheet, row, 2, LAST_COL, hexArgb(color));
   const header = sheet.getCell(row, 2);
@@ -321,7 +577,8 @@ function writeGateBlock(
   sheet.getRow(row).height = 28;
   row += 1;
 
-  row = writeReadonly(sheet, row, KEY.gateId, "Gate ID", node.id);
+  row = writeReadonly(sheet, row, KEY.gateId, "Node ID", node.id);
+  row = writeReadonly(sheet, row, KEY.nodeParent, "Phase membership", parentId || "(none)");
   row = writeReadonly(
     sheet,
     row,
@@ -329,64 +586,17 @@ function writeGateBlock(
     "UUID",
     projectNodeUuid(node, projectStart) || String(node.customFields.nodeUuid || ""),
   );
-  row = writeField(sheet, row, KEY.gateTitle, "Gate Name", node.title);
+  row = writeField(sheet, row, KEY.gateTitle, "Title", node.title);
   sheet.getRow(row - 1).height = 24;
   row = writeField(sheet, row, KEY.gateDescription, "Description", node.description);
   sheet.getRow(row - 1).height = 36;
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateStatus,
-    "Status",
-    status,
-    LISTS.gateStatus,
-  );
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateOwner,
-    "Owner",
-    String(node.customFields.owner || ""),
-    lists.people,
-  );
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateDepartment,
-    "Responsible Department",
-    node.config.approvedDepartment || node.metadata.responsibleDepartment || "",
-    lists.departments,
-  );
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateApprover,
-    "Approver",
-    node.config.approvedBy || "",
-    lists.people,
-  );
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateResult,
-    "Approval Result",
-    String(node.customFields.approvalResult || "Pending"),
-    LISTS.approvalResult,
-  );
-  row = writeField(
-    sheet,
-    row,
-    KEY.gateNotes,
-    "Notes",
-    String(node.customFields.notes || ""),
-  );
-  sheet.getRow(row - 1).height = 32;
+  row = writeInspectorFields(sheet, row, node);
   row += 1;
 
   const nodeConditions = node.conditions || [];
   const rules = node.config.gateRules || [];
   if (nodeConditions.length || rules.length) {
-    row = writeSection(sheet, row, "CONDITIONS");
+    row = writeSection(sheet, row, labels.conditionsTitle);
     writeKey(sheet, row, "");
     const conditionHeaders = [
       [2, "Done"],
@@ -442,7 +652,7 @@ function writeGateBlock(
       row += 1;
       const documents = rule.signatures || [];
       if (documents.length) {
-        row = writeSection(sheet, row, "REQUIRED DOCUMENTS");
+        row = writeSection(sheet, row, labels.documentsLabel);
         row = writeHeaders(sheet, row, [
           "Signed",
           "Code",
@@ -461,13 +671,86 @@ function writeGateBlock(
     }
   }
 
+  const signatureNames = new Set(
+    (node.config.gateRules || []).flatMap((rule) =>
+      (rule.signatures || []).map((item) => item.abbreviation),
+    ),
+  );
+  const extraDocuments = (node.documents || []).filter(
+    (name) => !signatureNames.has(name),
+  );
+  if (extraDocuments.length) {
+    row = writeSection(sheet, row, labels.documentsLabel);
+    extraDocuments.forEach((name, index) => {
+      writeKey(sheet, row, `#node.doc:${node.id}:${index}`);
+      merge(sheet, row, 2, LAST_COL);
+      writeEditable(sheet, row, 2, name);
+      row += 1;
+    });
+  }
+
+  if (gateForm) {
+    row += 1;
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateDepartment,
+      labels.departmentLabel,
+      node.config.approvedDepartment || node.metadata.responsibleDepartment || "",
+      lists.departments,
+    );
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateApprover,
+      labels.approverLabel,
+      node.config.approvedBy || "",
+      lists.people,
+    );
+    row = writeField(sheet, row, KEY.gateStatus, "Status", status, LISTS.gateStatus);
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateOwner,
+      "Owner",
+      String(node.customFields.owner || ""),
+      lists.people,
+    );
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateResult,
+      "Approval Result",
+      String(node.customFields.approvalResult || ""),
+      LISTS.approvalResult,
+    );
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateNotes,
+      "Notes",
+      String(node.customFields.notes || ""),
+    );
+    sheet.getRow(row - 1).height = 32;
+  } else if (node.customFields.notes) {
+    row = writeField(
+      sheet,
+      row,
+      KEY.gateNotes,
+      "Notes",
+      String(node.customFields.notes || ""),
+    );
+  }
+
+  row = writeReference(sheet, row, node);
   row += 2;
   return row;
 }
 
 export function writePhaseSheet(
   sheet: Worksheet,
-  phase: DomainNode,
+  phase: DomainNode | undefined,
+  nodes: DomainNode[],
   file: WorkflowFile,
 ) {
   const lists = {
@@ -475,8 +758,7 @@ export function writePhaseSheet(
     people: peopleList(file),
   };
   const projectStart = file.graph.nodes.find((node) => node.type === "projectStart");
-  const children = childrenOfPhase(file, phase.id);
-  const color = phase.color || "#57534e";
+  const color = phase?.color || "#57534e";
   sheet.views = [{ state: "frozen", ySplit: 2, showGridLines: true, zoomScale: 100 }];
   sheet.properties.tabColor = { argb: hexArgb(color) };
   sheet.getColumn(1).hidden = true;
@@ -490,11 +772,11 @@ export function writePhaseSheet(
   sheet.getColumn(8).width = 22;
   sheet.getColumn(9).width = 18;
 
-  writeKey(sheet, 1, `${KEY.phase}:${phase.id}`);
+  writeKey(sheet, 1, phase ? `${KEY.phase}:${phase.id}` : `${KEY.phase}:`);
   merge(sheet, 1, 2, LAST_COL);
   fillRange(sheet, 1, 2, LAST_COL, hexArgb(color));
   const title = sheet.getCell(1, 2);
-  title.value = phase.title;
+  title.value = phase?.title || "Workflow";
   title.font = { name: "Calibri", size: 20, bold: true, color: { argb: "FFFFFFFF" } };
   title.alignment = { vertical: "middle", indent: 1 };
   sheet.getRow(1).height = 32;
@@ -504,23 +786,23 @@ export function writePhaseSheet(
   hint.value = "Description";
   styleLabel(hint);
   merge(sheet, 2, 3, LAST_COL);
-  writeEditable(sheet, 2, 3, phase.description);
+  writeEditable(sheet, 2, 3, phase?.description || "");
   sheet.getRow(2).height = 28;
 
   const note = sheet.getCell(3, 2);
   note.value =
-    "Each block is one Gate. Green TRUE/FALSE cells are checkboxes. Yellow cells and dropdowns import back into the web app. This sheet is a form — not a flowchart.";
+    "Blocks follow the canvas left-to-right / top-to-bottom. Independent nodes that are not inside a Phase are inserted here by their canvas position. Green TRUE/FALSE cells are checkboxes. Yellow cells import back into the web app.";
   note.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF78716C" } };
   merge(sheet, 3, 2, LAST_COL);
-  sheet.getRow(3).height = 20;
+  sheet.getRow(3).height = 28;
 
   let row = 5;
-  if (!children.length) {
-    sheet.getCell(row, 2).value = "No gates in this phase.";
+  if (!nodes.length) {
+    sheet.getCell(row, 2).value = "No nodes in this phase.";
     styleLabel(sheet.getCell(row, 2));
     return;
   }
-  for (const child of children) {
+  for (const child of nodes) {
     row = writeGateBlock(sheet, row, child, file, projectStart, lists);
   }
 }
@@ -605,7 +887,7 @@ export function applyPhaseSheet(
       next = updateNode(next, phaseId, (node) => ({ ...node, description }));
       continue;
     }
-    if (kind === KEY.gate) {
+    if (kind === KEY.gate || kind === KEY.node) {
       gateId = key.id;
       uuid = "";
       continue;
@@ -617,22 +899,38 @@ export function applyPhaseSheet(
     const node = findNode(next, gateId, uuid);
     if (!node) continue;
     gateId = node.id;
-    if (phaseId) {
+    const value = rawCell(sheet.getCell(row, 3));
+    if (kind === KEY.nodeParent) {
+      const parentValue = asString(value).trim();
+      const parentId =
+        !parentValue || parentValue === "(none)" ? undefined : parentValue;
       const layout = next.layout.nodes[node.id];
-      if (layout && layout.parentId !== phaseId) {
+      if (layout) {
+        const nextLayout = { ...layout };
+        if (parentId) nextLayout.parentId = parentId;
+        else delete nextLayout.parentId;
         next = {
           ...next,
           layout: {
             ...next.layout,
             nodes: {
               ...next.layout.nodes,
-              [node.id]: { ...layout, parentId: phaseId },
+              [node.id]: nextLayout,
             },
           },
         };
       }
+      continue;
     }
-    const value = rawCell(sheet.getCell(row, 3));
+    if (kind === KEY.field && key.id) {
+      const field = getInspectorSchema(node.type).find((item) => item.key === key.id);
+      const nextValue =
+        field?.type === "boolean" ? Boolean(asBoolean(value) ?? false) : asString(value);
+      if (!field?.readOnly) {
+        next = updateNode(next, node.id, (item) => writePath(item, key.id, nextValue));
+      }
+      continue;
+    }
     if (kind === KEY.gateTitle && !isBlank(value)) {
       next = updateNode(next, node.id, (item) => ({
         ...item,
@@ -767,6 +1065,92 @@ export function applyPhaseSheet(
           config: { ...item.config, gateRules },
         };
       });
+    } else if (kind === "#node.doc") {
+      const index = Number(key.extra);
+      if (Number.isFinite(index)) {
+        const name = asString(rawCell(sheet.getCell(row, 2)));
+        next = updateNode(next, node.id, (item) => {
+          const documents = [...item.documents];
+          documents[index] = name;
+          return { ...item, documents };
+        });
+      }
+    } else if (kind === "#ref.item") {
+      const label = asString(rawCell(sheet.getCell(row, 2)));
+      const color = asString(rawCell(sheet.getCell(row, 3)));
+      const description = asString(rawCell(sheet.getCell(row, 4)));
+      next = updateNode(next, node.id, (item) => ({
+        ...item,
+        config: {
+          ...item.config,
+          reference: {
+            ...item.config.reference,
+            items: (item.config.reference?.items || []).map((entry) =>
+              entry.id === key.id
+                ? { ...entry, label, color, description }
+                : entry,
+            ),
+          },
+        },
+      }));
+    } else if (kind === "#ref.row") {
+      const label = asString(rawCell(sheet.getCell(row, 2)));
+      next = updateNode(next, node.id, (item) => ({
+        ...item,
+        config: {
+          ...item.config,
+          reference: {
+            ...item.config.reference,
+            rows: (item.config.reference?.rows || []).map((entry) => {
+              if (entry.id !== key.id) return entry;
+              const approvals = [...(entry.approvals || [])];
+              for (let column = 0; column < approvals.length; column += 1) {
+                const checked = asBoolean(rawCell(sheet.getCell(row, 3 + column)));
+                if (checked !== undefined) approvals[column] = checked;
+              }
+              return { ...entry, label: label || entry.label, approvals };
+            }),
+          },
+        },
+      }));
+    } else if (kind === "#ref.current" || kind === "#ref.proposed" || kind === "#ref.rules") {
+      const index = Number(key.id);
+      const field = kind.slice(5) as "current" | "proposed" | "rules";
+      const line = asString(rawCell(sheet.getCell(row, 2)));
+      if (Number.isFinite(index)) {
+        next = updateNode(next, node.id, (item) => {
+          const list = [...(item.config.reference?.[field] || [])];
+          list[index] = line;
+          return {
+            ...item,
+            config: {
+              ...item.config,
+              reference: { ...item.config.reference, [field]: list },
+            },
+          };
+        });
+      }
+    } else if (kind === "#ref.section") {
+      const line = asString(rawCell(sheet.getCell(row, 2)));
+      const [itemMarker, itemIndex] = key.extra.split(":");
+      next = updateNode(next, node.id, (item) => ({
+        ...item,
+        config: {
+          ...item.config,
+          reference: {
+            ...item.config.reference,
+            sections: (item.config.reference?.sections || []).map((section) => {
+              if (section.id !== key.id) return section;
+              if (itemMarker === "item") {
+                const items = [...(section.items || [])];
+                items[Number(itemIndex)] = line;
+                return { ...section, items };
+              }
+              return { ...section, title: line || section.title };
+            }),
+          },
+        },
+      }));
     }
   }
   return next;
