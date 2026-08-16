@@ -286,12 +286,6 @@ export function GateRules({ node }: { node: DomainNode }) {
           >
             <GateHeaderIcon className="size-4.5" />
           </span>
-          <ComponentNoteButton
-            nodeId={node.id}
-            noteKey="gate-card"
-            label={`${node.title} decision module card`}
-            className="ml-2 border-white/20 bg-white/10 text-slate-200 hover:text-white"
-          />
           <input
             key={gateLabel}
             aria-label="Decision module label"
@@ -330,6 +324,12 @@ export function GateRules({ node }: { node: DomainNode }) {
               Legacy {projectStart.legacyJobNumber || "—"}
             </span>
           </span>
+          <ComponentNoteButton
+            nodeId={node.id}
+            noteKey="gate-card"
+            label={`${node.title} decision module card`}
+            className="ml-2 border-white/20 bg-white/10 text-slate-200 hover:text-white"
+          />
           <span
             role="button"
             tabIndex={0}
