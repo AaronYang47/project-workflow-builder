@@ -91,7 +91,7 @@ export function DecisionCard({
       data-decision-content=""
       aria-label="Approval decision card"
       className={cn(
-        "absolute min-h-[272px] overflow-visible rounded-2xl border px-3 pb-5 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
+        "absolute min-h-[272px] overflow-visible rounded-2xl border px-3 pb-7 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
         decisionStyle.card,
       )}
       style={{
@@ -306,7 +306,7 @@ export function DecisionCard({
           ))}
       </div>
       {nodeUuid ? (
-        <div className="nodrag pointer-events-none absolute bottom-2 right-3 z-10">
+        <div className="nodrag pointer-events-none absolute bottom-4 right-4 z-10">
           <span
             title={nodeUuid}
             className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"

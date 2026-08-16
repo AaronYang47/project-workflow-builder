@@ -370,7 +370,7 @@ export function GateRules({ node }: { node: DomainNode }) {
           </label>
         </div>
         {nodeUuid ? (
-          <div className="nodrag pointer-events-none absolute bottom-2 right-3 z-10">
+          <div className="nodrag pointer-events-none absolute bottom-4 right-4 z-10">
             <span
               title={nodeUuid}
               className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
