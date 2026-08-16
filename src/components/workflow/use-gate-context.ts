@@ -8,7 +8,7 @@ import {
   legacyJobNumberFromProjectId,
   projectIdForDisplay,
 } from "@/lib/project-id";
-import { getGateLayoutMetrics } from "@/lib/gate-layout";
+import { getGateLayoutMetrics, withMeasuredGateHeight } from "@/lib/gate-layout";
 import {
   gateApprovalReady,
   gateChecklistSatisfied,
@@ -113,10 +113,12 @@ export function useGateContext(node: DomainNode) {
         ? "complete"
         : "partial";
 
+  const layoutHeight = useWorkflowStore(
+    (state) => state.file.layout.nodes[node.id]?.height,
+  );
   const metrics = useMemo(() => {
-    const estimated = getGateLayoutMetrics(node);
-    return estimated;
-  }, [node]);
+    return withMeasuredGateHeight(getGateLayoutMetrics(node), layoutHeight);
+  }, [node, layoutHeight]);
 
   return {
     rules: node.config.gateRules || [],

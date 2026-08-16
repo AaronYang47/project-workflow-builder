@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeResizer } from "@xyflow/react";
-import { getGateLayoutMetrics } from "@/lib/gate-layout";
+import { getGateLayoutMetrics, withMeasuredGateHeight } from "@/lib/gate-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { GateRules } from "./gate-rules";
@@ -13,7 +13,13 @@ export function GateNode({
   node: DomainNode;
   selected: boolean;
 }) {
-  const metrics = getGateLayoutMetrics(node);
+  const layoutHeight = useWorkflowStore(
+    (state) => state.file.layout.nodes[node.id]?.height,
+  );
+  const metrics = withMeasuredGateHeight(
+    getGateLayoutMetrics(node),
+    layoutHeight,
+  );
   return (
     <div data-canvas-node className="relative h-full w-full overflow-visible rounded-2xl">
       <NodeResizer

@@ -1,4 +1,5 @@
 import type { DomainNode } from "@/types/workflow";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export const GATE_PANEL_WIDTH = 620;
 export const GATE_CARD_WIDTH = GATE_PANEL_WIDTH;
@@ -25,6 +26,8 @@ const GATE_RULE_BASE_HEIGHT = 126;
 const GATE_RULE_GAP = 10;
 const GATE_SIGNATURE_COLLAPSED_HEIGHT = 72;
 const GATE_SIGNATURE_EXPANDED_HEIGHT = 226;
+const GATE_SIGNATURE_SERVICE_TYPE_HEIGHT = 40;
+const GATE_PAID_CODES_HEIGHT = 64;
 const GATE_EMPTY_REVISION_HISTORY_HEIGHT = 98;
 const GATE_REVISION_HISTORY_HEADER_HEIGHT = 56;
 const GATE_REVISION_ROW_HEIGHT = 108;
@@ -47,6 +50,7 @@ export function getGateLayoutMetrics(
         (sum, rule) =>
           sum +
           GATE_RULE_BASE_HEIGHT +
+          (ruleHasPaidService(rule) ? GATE_PAID_CODES_HEIGHT : 0) +
           Math.max(0, wrappedLines(rule.label, 64) - 2) * 14,
         0,
       ) +
@@ -77,6 +81,7 @@ export function getGateLayoutMetrics(
         return (
           documentHeight +
           GATE_SIGNATURE_EXPANDED_HEIGHT +
+          GATE_SIGNATURE_SERVICE_TYPE_HEIGHT +
           revisionHistoryHeight +
           (topLines - 1) * 16 +
           (peopleLines - 1) * 16
@@ -115,5 +120,26 @@ export function getGateLayoutMetrics(
     decisionTop,
     decisionHeight,
     contentHeight,
+  };
+}
+
+export function withMeasuredGateHeight(
+  metrics: GateLayoutMetrics,
+  layoutHeight?: number,
+): GateLayoutMetrics {
+  if (!layoutHeight) return metrics;
+  const measuredConditions =
+    layoutHeight -
+    metrics.conditionsTop -
+    GATE_SECTION_GAP -
+    metrics.decisionHeight;
+  if (measuredConditions <= metrics.conditionsHeight) return metrics;
+  const extra = measuredConditions - metrics.conditionsHeight;
+  return {
+    ...metrics,
+    conditionsHeight: metrics.conditionsHeight + extra,
+    decisionTop: metrics.decisionTop + extra,
+    contentHeight: metrics.contentHeight + extra,
+    height: Math.max(metrics.height, layoutHeight),
   };
 }
