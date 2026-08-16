@@ -21,13 +21,13 @@ import {
   currentYearSuffix,
   legacyJobNumberFromProjectId,
   normalizeProjectId,
-  projectIdForDisplay,
   projectNodeUuid,
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { conditionIsSatisfied } from "@/lib/workflow-progress";
 import { ComponentNoteButton } from "./component-note-button";
+import { ProjectIdBadge } from "./project-id-badge";
 import {
   iconOptions,
   saveText,
@@ -65,9 +65,6 @@ export function GeneralNode({
   // identifier (projectStart looks up itself, which trivially falls back to
   // its own customFields.nodeUuid).
   const nodeUuid = projectNodeUuid(node, projectStartNode);
-  const serviceType = String(projectStartNode?.config.serviceType || "Standard");
-  const displayedProjectId = projectIdForDisplay(projectStartProjectId, serviceType);
-  const showProjectIdBadge = PROJECT_ID_PATTERN.test(displayedProjectId);
   const initialProjectId = isProjectStart
     ? String(
         node.customFields.projectId || node.customFields.projectNumber || "",
@@ -224,31 +221,7 @@ export function GeneralNode({
             className="nodrag h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-[10px] font-bold outline-none"
           />
         </label>
-        <span
-          title={
-            displayedProjectId
-              ? `${displayedProjectId} · Legacy ${legacyJobNumberFromProjectId(displayedProjectId) || "—"}`
-              : "Set a Project ID to display here"
-          }
-          className={cn(
-            "ml-2 flex shrink-0 flex-col items-end gap-1 rounded-md border px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight",
-            displayedProjectId
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-border bg-muted/40 text-muted-foreground"
-          )}
-        >
-          <span>{displayedProjectId || "L-—"}</span>
-          <span
-            className={cn(
-              "rounded px-1 text-[10px] font-bold tracking-tight",
-              displayedProjectId
-                ? "bg-primary/20 text-primary"
-                : "bg-background text-muted-foreground"
-            )}
-          >
-            Legacy {legacyJobNumberFromProjectId(displayedProjectId) || "—"}
-          </span>
-        </span>
+        <ProjectIdBadge className="ml-2" showPlaceholder />
         <ComponentNoteButton
           nodeId={node.id}
           noteKey="node-card"

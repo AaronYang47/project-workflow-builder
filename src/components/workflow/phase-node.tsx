@@ -5,12 +5,8 @@ import { NodeResizer, type Node, type NodeProps } from "@xyflow/react";
 import { ChevronDown, GripVertical, Layers3 } from "lucide-react";
 import type { DomainNode } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
-import {
-  PROJECT_ID_PATTERN,
-  legacyJobNumberFromProjectId,
-  projectIdForDisplay,
-} from "@/lib/project-id";
 import { ComponentNoteButton } from "./component-note-button";
+import { ProjectIdBadge } from "./project-id-badge";
 
 export type PhaseFlowNode = Node<{ domain: DomainNode }, "phase">;
 const rowsFor = (value: string, characters: number) =>
@@ -22,15 +18,6 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
     state.selection.nodeIds.includes(node.id),
   );
   const updateNode = useWorkflowStore((state) => state.updateNode);
-  const projectStartNode = useWorkflowStore((state) =>
-    state.file.graph.nodes.find((item) => item.type === "projectStart"),
-  );
-  const serviceType = String(projectStartNode?.config.serviceType || "Standard");
-  const rawProjectId = String(
-    projectStartNode?.customFields.projectId || "",
-  );
-  const displayedProjectId = projectIdForDisplay(rawProjectId, serviceType);
-  const showBadge = PROJECT_ID_PATTERN.test(displayedProjectId);
   const color = node.color || "#64748b";
   return (
     <div
@@ -95,17 +82,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {showBadge ? (
-            <span
-              title={`${displayedProjectId} · Legacy ${legacyJobNumberFromProjectId(displayedProjectId) || "—"}`}
-              className="flex flex-col items-end gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight text-primary"
-            >
-              <span>{displayedProjectId}</span>
-              <span className="rounded bg-primary/20 px-1 text-[10px] font-bold tracking-tight text-primary">
-                Legacy {legacyJobNumberFromProjectId(displayedProjectId) || "—"}
-              </span>
-            </span>
-          ) : null}
+          <ProjectIdBadge />
           <ComponentNoteButton
             nodeId={node.id}
             noteKey="phase-card"

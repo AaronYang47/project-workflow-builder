@@ -3,7 +3,7 @@ import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export const GATE_PANEL_WIDTH = 620;
 export const GATE_CARD_WIDTH = GATE_PANEL_WIDTH;
-export const GATE_CARD_HEIGHT = 224;
+export const GATE_CARD_HEIGHT = 244;
 export const GATE_INTERNAL_GAP = 36;
 export const GATE_SIDE_WIDTH = GATE_PANEL_WIDTH;
 export const GATE_SECTION_GAP = 42;
@@ -42,7 +42,7 @@ export function getGateLayoutMetrics(
   const gateDescriptionLines = wrappedLines(node.description, 84);
   const gateCardHeight = Math.max(
     GATE_CARD_HEIGHT,
-    106 + gateTitleLines * 20 + gateDescriptionLines * 16,
+    116 + gateTitleLines * 20 + gateDescriptionLines * 16,
   );
   const rules = node.config.gateRules || [];
   const ruleHeight = rules.length

@@ -13,6 +13,7 @@
 // Both are required once a Paid Service Type shows up.
 
 import type { DomainNode } from "@/types/workflow";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export type ProjectIdPrefix = "L" | "P";
 
@@ -204,6 +205,26 @@ export const demoteToStandardService = (node: DomainNode): DomainNode => {
         : { ...node.customFields, projectId: desiredProjectId },
   };
 };
+
+// Building / module codes are project-wide. Prefer Project Start, then fall
+// back to the first paid condition so badges stay in sync with the Decision
+// card even if one of the two stores is briefly empty.
+export function projectWideLocationCodes(nodes: DomainNode[]) {
+  const start = nodes.find((item) => item.type === "projectStart");
+  let buildingCode = String(start?.config.buildingCode || "");
+  let moduleCode = String(start?.config.moduleCode || "");
+  if (buildingCode && moduleCode) return { buildingCode, moduleCode };
+  for (const node of nodes) {
+    if (node.type !== "gate") continue;
+    for (const rule of node.config.gateRules || []) {
+      if (!ruleHasPaidService(rule)) continue;
+      if (!buildingCode) buildingCode = String(rule.buildingCode || "");
+      if (!moduleCode) moduleCode = String(rule.moduleCode || "");
+      if (buildingCode && moduleCode) return { buildingCode, moduleCode };
+    }
+  }
+  return { buildingCode, moduleCode };
+}
 
 // Resolve the project-level UUID that is displayed on every node in the
 // project. The identifier lives on the project-start node so all cards share

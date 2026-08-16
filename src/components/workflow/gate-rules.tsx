@@ -28,6 +28,7 @@ import {
 import { useGateContext } from "./use-gate-context";
 import { DecisionCard } from "./decision-card";
 import { ApprovalConditionsPanel } from "./approval-conditions-panel";
+import { ProjectIdBadge } from "./project-id-badge";
 import {
   demoteToStandardService,
   promoteToPaidService,
@@ -292,7 +293,7 @@ export function GateRules({ node }: { node: DomainNode }) {
       >
         <div
           data-inspector-target="config.gateHeaderColor"
-          className="relative flex h-[62px] items-center px-4 pt-1 text-white"
+          className="relative flex min-h-[72px] items-center px-4 py-1.5 text-white"
           style={{
             background: `linear-gradient(135deg, ${gateHeaderColor}, color-mix(in srgb, ${gateHeaderColor} 72%, #0f172a))`,
           }}
@@ -319,29 +320,7 @@ export function GateRules({ node }: { node: DomainNode }) {
             className="nodrag ml-2 min-w-0 max-w-[160px] flex-1 border-0 bg-transparent p-0 text-xl font-black tracking-[0.1em] outline-none"
             style={{ color: gateTitleColor }}
           />
-          <span
-            title={
-              projectStart.showBadge
-                ? `${projectStart.displayedProjectId} · Legacy ${projectStart.legacyJobNumber || "—"}`
-                : "Set a Project ID on Project Start to display here"
-            }
-            className={`ml-auto flex shrink-0 flex-col items-end gap-1 rounded-md border px-2 py-1 font-mono text-xs font-bold leading-tight tracking-tight ${
-              projectStart.showBadge
-                ? "border-white/30 bg-white/15 text-white"
-                : "border-white/20 bg-white/10 text-white/70"
-            }`}
-          >
-            <span>{projectStart.displayedProjectId || "L-——"}</span>
-            <span
-              className={`rounded px-1 text-[10px] font-bold tracking-tight ${
-                projectStart.showBadge
-                  ? "bg-white/25 text-white"
-                  : "bg-white/15 text-white/70"
-              }`}
-            >
-              Legacy {projectStart.legacyJobNumber || "—"}
-            </span>
-          </span>
+          <ProjectIdBadge className="ml-auto" tone="onDark" showPlaceholder />
           <ComponentNoteButton
             nodeId={node.id}
             noteKey="gate-card"

@@ -57,12 +57,7 @@ export function useGateContext(node: DomainNode) {
     const moduleCode = String(
       paidRule?.moduleCode || config.moduleCode || "",
     );
-    const suffixParts: string[] = [];
-    if (buildingCode) suffixParts.push(buildingCode);
-    if (moduleCode) suffixParts.push(moduleCode);
-    const displayedProjectId = suffixParts.length
-      ? `${baseProjectId}-${suffixParts.join("-")}`
-      : baseProjectId;
+    const displayedProjectId = baseProjectId;
     const isPaid = serviceType === "Paid Service";
     return {
       serviceType,
