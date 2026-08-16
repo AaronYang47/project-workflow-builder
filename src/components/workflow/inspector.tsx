@@ -6,6 +6,12 @@ import {
   type InspectorField,
 } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
+import {
+  normalizeProjectIdInput,
+  promoteToPaidService,
+  shouldAutoPromoteToPaid,
+  syncPaidConditions,
+} from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode, WorkflowEdgeType } from "@/types/workflow";
 import { Input } from "@/components/ui/input";
@@ -26,33 +32,6 @@ const isFieldVisible = (field: InspectorField, node: DomainNode): boolean => {
   if (!field.visibleWhen) return true;
   return String(readPath(node, field.visibleWhen.key) || "") === field.visibleWhen.equals;
 };
-const syncPaidConditions = (
-  node: DomainNode,
-  paid: boolean,
-): DomainNode["conditions"] => {
-  const conditions = node.conditions || [];
-  const withoutPaid = conditions.filter(
-    (condition) =>
-      condition.id !== "paid-building-required" &&
-      condition.id !== "paid-module-required",
-  );
-  if (!paid) return withoutPaid;
-  return [
-    ...withoutPaid,
-    {
-      id: "paid-building-required",
-      label: "Building code (B-XX)",
-      required: true,
-      checked: false,
-    },
-    {
-      id: "paid-module-required",
-      label: "Module code (M-XXX)",
-      required: true,
-      checked: false,
-    },
-  ];
-};
 const writePath = (
   object: DomainNode,
   path: string,
@@ -68,54 +47,15 @@ const writePath = (
   cursor[keys.at(-1)!] = value;
   return result as unknown as DomainNode;
 };
-// When the user types a Project ID while Service Type is "Paid Service",
-// rewrite the prefix so the stored id stays consistent with the service type
-// (e.g. "L-26-001" → "P-26-001"). Empty input is left alone so the field can be
-// cleared; partial inputs keep whatever prefix the user is mid-typing.
-const normalizeProjectIdInput = (value: string, serviceType: string): string => {
-  if (!value) return value;
-  const desiredPrefix = serviceType === "Paid Service" ? "P" : "L";
-  const match = value.match(/^([LP])-(\d{2})-(\d{3})$/);
-  if (!match) return value;
-  if (match[1] === desiredPrefix) return value;
-  return `${desiredPrefix}-${match[2]}-${match[3]}`;
-};
-// Typing a complete Building or Module code is only meaningful for Paid
-// Service projects, so flip serviceType → Paid Service and rewrite the
-// Project ID prefix in one step. The pattern check uses the same regex
-// the schema enforces, so half-typed values like "B-0" don't trigger it.
-const shouldAutoPromoteToPaid = (fieldKey: string, value: string): boolean => {
-  if (!value) return false;
-  if (fieldKey === "config.buildingCode") return /^B-\d{2}$/.test(value);
-  if (fieldKey === "config.moduleCode") return /^M-\d{3}$/.test(value);
-  return false;
-};
 // When a complete B-XX / M-XXX value lands on a project-start node, switch
 // serviceType → "Paid Service" and rewrite the Project ID prefix so the
 // stored ID always matches the chosen service type. Returns the updated
-// node so callers can apply it once.
-const promoteToPaidService = (node: DomainNode): DomainNode => {
-  const currentService = String(node.config?.serviceType || "");
-  const currentProjectId = String(node.customFields?.projectId || "");
-  const desiredProjectId = normalizeProjectIdInput(currentProjectId, "Paid Service");
-  const nextConfig = { ...node.config, serviceType: "Paid Service" };
-  const nextCustomFields =
-    desiredProjectId === currentProjectId
-      ? node.customFields
-      : { ...node.customFields, projectId: desiredProjectId };
-  if (
-    currentService === "Paid Service" &&
-    desiredProjectId === currentProjectId
-  ) {
-    return node;
-  }
-  return {
-    ...node,
-    config: nextConfig,
-    customFields: nextCustomFields,
-    conditions: syncPaidConditions(node, true),
-  };
-};
+// node so callers can apply it once. Conditions are synced here so the
+// paid-service requirements appear alongside the auto-promoted fields.
+const applyPromoteToPaid = (node: DomainNode): DomainNode => ({
+  ...promoteToPaidService(node),
+  conditions: syncPaidConditions(node, true),
+});
 
 function Field({
   field,
@@ -283,7 +223,7 @@ function Field({
               shouldAutoPromoteToPaid(field.key, String(value)) &&
               String(node.config?.serviceType || "") !== "Paid Service"
             ) {
-              const promoted = promoteToPaidService({
+              const promoted = applyPromoteToPaid({
                 ...node,
                 config: { ...node.config, [field.key.replace(/^config\./, "")]: value },
               });

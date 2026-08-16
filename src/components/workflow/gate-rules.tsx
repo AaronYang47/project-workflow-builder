@@ -28,6 +28,7 @@ import {
 import { useGateContext } from "./use-gate-context";
 import { DecisionCard } from "./decision-card";
 import { ApprovalConditionsPanel } from "./approval-conditions-panel";
+import { promoteToPaidService, syncPaidConditions } from "@/lib/project-id";
 
 export function GateRules({ node }: { node: DomainNode }) {
   const {
@@ -85,14 +86,34 @@ export function GateRules({ node }: { node: DomainNode }) {
         signatureRequirements: undefined,
       },
     };
+    // Setting any condition's service-type tag to "Paid Service" is the user's
+    // way of declaring this engagement is paid work. Mirror that onto the
+    // project-start node so the gate badge flips from L-YY-XXX to P-YY-XXX in
+    // one shot instead of asking the user to edit two fields in lockstep.
+    const shouldPromoteProjectStart =
+      nextRules.some((rule) => rule.serviceTypeId === "paid") &&
+      Boolean(projectStartNode) &&
+      String(projectStartNode?.config?.serviceType || "") !== "Paid Service";
     const nextMetrics = getGateLayoutMetrics(nextNode);
     store.commit((file) => ({
       ...file,
       graph: {
         ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.id === node.id ? nextNode : item,
-        ),
+        nodes: file.graph.nodes.map((item) => {
+          if (item.id === node.id) return nextNode;
+          if (
+            shouldPromoteProjectStart &&
+            projectStartNode &&
+            item.id === projectStartNode.id
+          ) {
+            const promoted = promoteToPaidService(item);
+            return {
+              ...promoted,
+              conditions: syncPaidConditions(promoted, true),
+            };
+          }
+          return item;
+        }),
         edges: file.graph.edges.map((edge) =>
           edge.source !== node.id
             ? edge

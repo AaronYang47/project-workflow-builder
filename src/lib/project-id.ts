@@ -12,6 +12,8 @@
 // Module code    = M-XXX
 // Both are required once a Paid Service Type shows up.
 
+import type { DomainNode } from "@/types/workflow";
+
 export type ProjectIdPrefix = "L" | "P";
 
 export const PROJECT_ID_PATTERN = /^[LP]-\d{2}-\d{3}$/;
@@ -82,3 +84,89 @@ export function normalizeProjectId(input: string): string {
   }
   return `L-${currentYearSuffix()}-001`;
 }
+
+// Keep the project-id prefix in sync with the current service type so the
+// gate badge shows P-YY-XXX for paid work and L-YY-XXX for legacy work.
+// Inputs that don't yet match the canonical pattern pass through untouched
+// so partial edits (e.g. just "L-26") don't get clobbered mid-typing.
+export const normalizeProjectIdInput = (
+  value: string,
+  serviceType: string,
+): string => {
+  if (!value) return value;
+  const match = value.match(/^([LP])-(\d{2})-(\d{3})$/);
+  if (!match) return value;
+  const desiredPrefix = serviceType === "Paid Service" ? "P" : "L";
+  if (match[1] === desiredPrefix) return value;
+  return `${desiredPrefix}-${match[2]}-${match[3]}`;
+};
+
+// A complete building (B-XX) or module (M-XXX) code implicitly means this is
+// a Paid Service engagement, so we auto-promote the project. Anything shorter
+// is treated as a partial edit and left alone.
+export const shouldAutoPromoteToPaid = (
+  fieldKey: string,
+  value: string,
+): boolean => {
+  if (!value) return false;
+  if (fieldKey === "config.buildingCode") return BUILDING_PATTERN.test(value);
+  if (fieldKey === "config.moduleCode") return MODULE_PATTERN.test(value);
+  return false;
+};
+
+// The two requirement IDs we attach to a project-start node when the project
+// is classified as Paid Service. Centralising them keeps the inspector and
+// gate rule paths from drifting apart.
+export const PAID_CONDITION_BUILDING_ID = "paid-building-required";
+export const PAID_CONDITION_MODULE_ID = "paid-module-required";
+
+// Toggle the paid-service "Building code (B-XX)" and "Module code (M-XXX)"
+// requirements on a project-start node's `conditions` list. Used in lockstep
+// with `promoteToPaidService` so flipping serviceType also updates the gate's
+// required conditions.
+export const syncPaidConditions = (
+  node: DomainNode,
+  paid: boolean,
+): DomainNode["conditions"] => {
+  const conditions = node.conditions || [];
+  const withoutPaid = conditions.filter(
+    (condition) =>
+      condition.id !== PAID_CONDITION_BUILDING_ID &&
+      condition.id !== PAID_CONDITION_MODULE_ID,
+  );
+  if (!paid) return withoutPaid;
+  return [
+    ...withoutPaid,
+    {
+      id: PAID_CONDITION_BUILDING_ID,
+      label: "Building code (B-XX)",
+      required: true,
+      checked: false,
+    },
+    {
+      id: PAID_CONDITION_MODULE_ID,
+      label: "Module code (M-XXX)",
+      required: true,
+      checked: false,
+    },
+  ];
+};
+
+// Return a copy of the node with `serviceType` set to "Paid Service" and the
+// project-id prefix flipped if it was a canonical L/P pattern. Callers apply
+// the patch through the store.
+export const promoteToPaidService = (node: DomainNode): DomainNode => {
+  const currentProjectId = String(node.customFields?.projectId || "");
+  const desiredProjectId = normalizeProjectIdInput(
+    currentProjectId,
+    "Paid Service",
+  );
+  return {
+    ...node,
+    config: { ...node.config, serviceType: "Paid Service" },
+    customFields:
+      desiredProjectId === currentProjectId
+        ? node.customFields
+        : { ...node.customFields, projectId: desiredProjectId },
+  };
+};
