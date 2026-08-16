@@ -19,6 +19,7 @@ import {
   updateGraphNode,
   withSignatureDocuments,
 } from "@/lib/excel/shared";
+import { ruleHasPaidService } from "@/lib/gate-service-types";
 import type { WorkflowFile } from "@/types/workflow";
 
 export function applyPhaseSheet(
@@ -88,6 +89,37 @@ export function applyPhaseSheet(
         field?.type === "boolean" ? Boolean(asBoolean(value) ?? false) : asString(value);
       if (!field?.readOnly) {
         next = updateGraphNode(next, node.id, (item) => writePath(item, key.id, nextValue));
+        const locationField =
+          key.id === "config.buildingCode"
+            ? "buildingCode"
+            : key.id === "config.moduleCode"
+              ? "moduleCode"
+              : null;
+        if (node.type === "projectStart" && locationField) {
+          const code = String(nextValue);
+          next = {
+            ...next,
+            graph: {
+              ...next.graph,
+              nodes: next.graph.nodes.map((item) => {
+                if (item.type !== "gate") return item;
+                const rules = item.config.gateRules || [];
+                if (!rules.some((rule) => ruleHasPaidService(rule))) return item;
+                return {
+                  ...item,
+                  config: {
+                    ...item.config,
+                    gateRules: rules.map((rule) =>
+                      ruleHasPaidService(rule)
+                        ? { ...rule, [locationField]: code }
+                        : rule,
+                    ),
+                  },
+                };
+              }),
+            },
+          };
+        }
       }
       continue;
     }
@@ -180,7 +212,7 @@ export function applyPhaseSheet(
                     requirementType: requirement || rule.requirementType,
                     serviceTypeId: serviceText
                       ? parsedService || rule.serviceTypeId
-                      : undefined,
+                      : rule.serviceTypeId,
                   }
                 : rule,
             ),

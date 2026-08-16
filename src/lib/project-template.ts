@@ -1,4 +1,5 @@
 import type { WorkflowFile } from "@/types/workflow";
+import { clone } from "@/lib/clone";
 import { buildProjectId, currentYearSuffix, legacyJobNumberFromProjectId } from "@/lib/project-id";
 
 export const createProjectWorkflow = (
@@ -64,4 +65,30 @@ export const createProjectWorkflow = (
       gridSize: 16,
     },
   };
+};
+
+export const duplicateWorkflowFile = (
+  file: WorkflowFile,
+  name: string,
+): WorkflowFile => {
+  const copy = clone(file);
+  const now = new Date().toISOString();
+  copy.graph.metadata = {
+    ...copy.graph.metadata,
+    name,
+    createdAt: now,
+    updatedAt: now,
+  };
+  copy.graph.nodes = copy.graph.nodes.map((node) =>
+    node.type === "projectStart"
+      ? {
+          ...node,
+          customFields: {
+            ...node.customFields,
+            nodeUuid: crypto.randomUUID(),
+          },
+        }
+      : node,
+  );
+  return copy;
 };

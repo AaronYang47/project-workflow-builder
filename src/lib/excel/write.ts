@@ -5,7 +5,7 @@ import {
   isInspectorFieldVisible,
 } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import { projectNodeUuid } from "@/lib/project-id";
+import { projectNodeUuid, projectWideLocationCodes } from "@/lib/project-id";
 import {
   applyListValidation,
   asBoolean,
@@ -34,7 +34,7 @@ import type {
   WorkflowFile,
 } from "@/types/workflow";
 
-const LAST_COL = 9;
+const LAST_COL = 10;
 const EDIT_FILL = {
   type: "pattern" as const,
   pattern: "solid" as const,
@@ -263,7 +263,12 @@ function writeDocumentRow(
   return row + 1;
 }
 
-function writeInspectorFields(sheet: Worksheet, row: number, node: DomainNode) {
+function writeInspectorFields(
+  sheet: Worksheet,
+  row: number,
+  node: DomainNode,
+  file: WorkflowFile,
+) {
   const fields = getInspectorSchema(node.type).filter(
     (field) =>
       !SKIP_INSPECTOR_KEYS.has(field.key) &&
@@ -278,9 +283,18 @@ function writeInspectorFields(sheet: Worksheet, row: number, node: DomainNode) {
       !field.key.startsWith("config.details"),
   );
   if (!fields.length) return row;
+  const locationCodes =
+    node.type === "projectStart"
+      ? projectWideLocationCodes(file.graph.nodes)
+      : null;
   for (const field of fields) {
     if (!isInspectorFieldVisible(field, node)) continue;
-    const raw = readPath(node, field.key);
+    let raw = readPath(node, field.key);
+    if (locationCodes && field.key === "config.buildingCode") {
+      raw = locationCodes.buildingCode;
+    } else if (locationCodes && field.key === "config.moduleCode") {
+      raw = locationCodes.moduleCode;
+    }
     writeKey(sheet, row, `${KEY.field}:${field.key}`);
     const labelCell = sheet.getCell(row, 2);
     labelCell.value = field.label;
@@ -441,7 +455,7 @@ function writeGateBlock(
   sheet.getRow(row - 1).height = 24;
   row = writeField(sheet, row, KEY.gateDescription, labels.descriptionLabel, node.description);
   sheet.getRow(row - 1).height = 36;
-  row = writeInspectorFields(sheet, row, node);
+  row = writeInspectorFields(sheet, row, node, file);
   row += 1;
 
   const nodeConditions = node.conditions || [];

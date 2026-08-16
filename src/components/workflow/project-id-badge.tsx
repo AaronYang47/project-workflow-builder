@@ -11,7 +11,7 @@ import { useWorkflowStore } from "@/store/workflow-store";
 
 /**
  * Shared Project ID chip shown on Phase, Node, and Decision Module headers.
- * When paid-service building/module codes exist, they appear on their own row.
+ * Paid-service building/module codes append to the Project ID on the same line.
  */
 export function ProjectIdBadge({
   tone = "primary",
@@ -30,14 +30,13 @@ export function ProjectIdBadge({
   const ready = PROJECT_ID_PATTERN.test(projectId);
   const { buildingCode, moduleCode } = projectWideLocationCodes(nodes);
   const legacy = legacyJobNumberFromProjectId(projectId);
-  const location = [buildingCode, moduleCode].filter(Boolean).join(" · ");
+  const suffix = [buildingCode, moduleCode].filter(Boolean).join("-");
+  const displayedId = ready && suffix ? `${projectId}-${suffix}` : projectId;
 
   if (!ready && !showPlaceholder) return null;
 
   const title = ready
-    ? [projectId, `Legacy ${legacy || "—"}`, buildingCode, moduleCode]
-        .filter(Boolean)
-        .join(" · ")
+    ? [displayedId, `Legacy ${legacy || "—"}`].join(" · ")
     : "Set a Project ID on Project Start to display here";
   const onDark = tone === "onDark";
 
@@ -56,7 +55,9 @@ export function ProjectIdBadge({
         className,
       )}
     >
-      <span className="text-sm">{ready ? projectId : "L-—"}</span>
+      <span className="whitespace-nowrap text-sm">
+        {ready ? displayedId : "L-—"}
+      </span>
       <span
         className={cn(
           "rounded px-1 text-xs font-bold tracking-tight",
@@ -71,16 +72,6 @@ export function ProjectIdBadge({
       >
         Legacy {ready ? legacy || "—" : "—"}
       </span>
-      {ready && location ? (
-        <span
-          className={cn(
-            "rounded px-1 text-xs font-bold tracking-tight",
-            onDark ? "bg-white/25 text-white" : "bg-primary/20 text-primary",
-          )}
-        >
-          {location}
-        </span>
-      ) : null}
     </span>
   );
 }

@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { CheckCircle2, Cloud, FolderOpen, LogOut, Plus, Save, Trash2, X } from "lucide-react";
+import { CheckCircle2, Cloud, Copy, FolderOpen, LogOut, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createProjectWorkflow } from "@/lib/project-template";
+import { createProjectWorkflow, duplicateWorkflowFile } from "@/lib/project-template";
 import { parseWorkflow } from "@/lib/serialization";
 import { useWorkflowStore } from "@/store/workflow-store";
 
@@ -161,6 +161,39 @@ export function CloudProjectControls() {
       setBusy(false);
     }
   };
+  const duplicateProject = async () => {
+    if (!user) {
+      setView("login");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const source = useWorkflowStore.getState().file;
+      const name = `Copy of ${source.graph.metadata.name.trim() || "Untitled Project"}`;
+      const workflow = duplicateWorkflowFile(source, name);
+      const result = await api<{ project: Project }>("/api/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          projectNumber: String(
+            workflow.graph.nodes.find((node) => node.type === "projectStart")
+              ?.customFields.projectId || "",
+          ),
+          workflow,
+        }),
+      });
+      store.loadProject(workflow, result.project.id, user.id);
+      window.setTimeout(() => window.dispatchEvent(new Event("workflow:fit")), 100);
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Could not duplicate project.";
+      setError(message);
+      window.alert(message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const saveCloud = async () => {
     if (!user) return setView("login");
     if (!activeProjectId) {
@@ -266,6 +299,9 @@ export function CloudProjectControls() {
         </Button>
         <Button title="Save project to cloud" aria-label="Save project to cloud" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={saveCloud}>
           <Save className="size-4" />
+        </Button>
+        <Button title="Duplicate project" aria-label="Duplicate project" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={() => void duplicateProject()}>
+          <Copy className="size-4" />
         </Button>
         <Button title="Open project" aria-label="Open project" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={openProjects}>
           <FolderOpen className="size-4" />
