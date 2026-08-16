@@ -3,27 +3,15 @@ import {
   Activity,
   Boxes,
   Building2,
-  Check,
   CheckCircle2,
   FileText,
   Flag,
   Settings2,
-  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type {
-  DomainNode,
-  GateSignatureRequirement,
-  RequirementType,
-  WorkflowNodeType,
-} from "@/types/workflow";
+import type { DomainNode, WorkflowNodeType } from "@/types/workflow";
 import type { GateCompletionState } from "@/lib/workflow-progress";
-import {
-  currentRevisionComplete,
-  requirementApplies,
-  signatureFieldsComplete as signatureIsComplete,
-} from "@/lib/workflow-progress";
 
 export type WorkflowFlowNode = Node<
   {
@@ -42,14 +30,14 @@ export type WorkflowFlowNode = Node<
 // runs. Stopping propagation at the button keeps the click from also being
 // claimed by xyflow's NodeWrapper selection handler and lets our onClick fire
 // reliably. Returns the original event for use as `onClick`.
-function stopBubble<E extends React.SyntheticEvent>(handler: (event: E) => void) {
+export function stopBubble<E extends React.SyntheticEvent>(handler: (event: E) => void) {
   return (event: E) => {
     event.stopPropagation();
     handler(event);
   };
 }
 
-function saveText(
+export function saveText(
   node: DomainNode,
   field: "title" | "description",
   value: string,
@@ -58,13 +46,14 @@ function saveText(
   if (trimmed !== node[field])
     useWorkflowStore.getState().updateNode(node.id, { [field]: trimmed });
 }
-const textareaRows = (
+
+export const textareaRows = (
   value: string | undefined,
   charactersPerLine: number,
   minimum = 2,
 ) => Math.max(minimum, Math.ceil((value?.length || 0) / charactersPerLine));
 
-const iconOptions = {
+export const iconOptions = {
   activity: Activity,
   document: FileText,
   person: UserRound,
@@ -75,7 +64,7 @@ const iconOptions = {
   box: Boxes,
 };
 
-const statusStyles: Record<
+export const statusStyles: Record<
   GateCompletionState,
   { card: string; header: string; accent: string; label: string }
 > = {
@@ -101,22 +90,6 @@ const statusStyles: Record<
     label: "Complete",
   },
 };
-
-// Re-exported helper kept available for callers that previously consumed
-// stopBubble from the monolithic file.
-export {
-  stopBubble,
-  saveText,
-  textareaRows,
-  iconOptions,
-  currentRevisionComplete,
-  signatureIsComplete,
-  requirementApplies,
-  statusStyles,
-};
-
-// Re-export common types so downstream files don't need to re-import them.
-export type { GateSignatureRequirement, RequirementType };
 
 export const SECTION_BASED_REFERENCE_TYPES = [
   "controlBackbone",

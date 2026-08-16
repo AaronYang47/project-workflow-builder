@@ -12,11 +12,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
-import {
-  signatureIsComplete,
-  stopBubble,
-  textareaRows,
-} from "./node-utils";
+import { signatureFieldsComplete as signatureIsComplete } from "@/lib/workflow-progress";
+import { stopBubble, textareaRows } from "./node-utils";
 import type {
   GateSignatureRequirement,
   RequirementType,

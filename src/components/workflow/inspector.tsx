@@ -3,6 +3,7 @@ import { Fragment, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Settings2, Trash2 } from "lucide-react";
 import {
   getInspectorSchema,
+  isInspectorFieldVisible,
   type InspectorField,
 } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
@@ -14,44 +15,11 @@ import {
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode, WorkflowEdgeType } from "@/types/workflow";
+import { readPath, writePath } from "@/lib/object-path";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
-const readPath = (object: unknown, path: string): unknown =>
-  path
-    .split(".")
-    .reduce(
-      (value: unknown, key) =>
-        value && typeof value === "object"
-          ? (value as Record<string, unknown>)[key]
-          : undefined,
-      object,
-    );
-const isFieldVisible = (field: InspectorField, node: DomainNode): boolean => {
-  if (!field.visibleWhen) return true;
-  return String(readPath(node, field.visibleWhen.key) || "") === field.visibleWhen.equals;
-};
-const writePath = (
-  object: DomainNode,
-  path: string,
-  value: unknown,
-): DomainNode => {
-  const result = structuredClone(object) as unknown as Record<string, unknown>;
-  const keys = path.split(".");
-  let cursor = result;
-  keys.slice(0, -1).forEach((key) => {
-    cursor[key] = (cursor[key] as Record<string, unknown>) || {};
-    cursor = cursor[key] as Record<string, unknown>;
-  });
-  cursor[keys.at(-1)!] = value;
-  return result as unknown as DomainNode;
-};
-// When a complete B-XX / M-XXX value lands on a project-start node, switch
-// serviceType → "Paid Service" and rewrite the Project ID prefix so the
-// stored ID always matches the chosen service type. Returns the updated
-// node so callers can apply it once. Conditions are synced here so the
-// paid-service requirements appear alongside the auto-promoted fields.
 const applyPromoteToPaid = (node: DomainNode): DomainNode => {
   const promoted = promoteToPaidService(node);
   return { ...promoted, conditions: syncPaidConditions(promoted, true) };
@@ -391,7 +359,7 @@ export function Inspector() {
                           .filter(
                             (field) =>
                               field.section === section &&
-                              isFieldVisible(field, node),
+                              isInspectorFieldVisible(field, node),
                           )
                           .map((field) => (
                             <Field

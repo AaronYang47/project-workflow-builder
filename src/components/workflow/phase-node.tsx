@@ -25,10 +25,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
   );
-  const serviceType = String(
-    (projectStartNode?.config as Record<string, unknown> | undefined)
-      ?.serviceType || "Standard",
-  );
+  const serviceType = String(projectStartNode?.config.serviceType || "Standard");
   const rawProjectId = String(
     projectStartNode?.customFields.projectId || "",
   );

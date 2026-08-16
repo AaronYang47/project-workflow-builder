@@ -1,4 +1,5 @@
-import type { WorkflowNodeType } from "@/types/workflow";
+import { readPath } from "@/lib/object-path";
+import type { DomainNode, WorkflowNodeType } from "@/types/workflow";
 export type InspectorField = {
   key: string;
   label: string;
@@ -159,3 +160,11 @@ export const getInspectorSchema = (type: WorkflowNodeType) =>
     (field, index, all) =>
       all.findIndex((candidate) => candidate.key === field.key) === index,
   );
+
+export function isInspectorFieldVisible(field: InspectorField, node: DomainNode) {
+  if (!field.visibleWhen) return true;
+  return (
+    String(readPath(node, field.visibleWhen.key) || "") ===
+    field.visibleWhen.equals
+  );
+}

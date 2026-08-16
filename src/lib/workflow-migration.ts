@@ -1,5 +1,6 @@
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { absoluteLayoutPosition } from "@/lib/layout-geometry";
 import {
   PRE_GATE_SALES_EDGES,
   PRE_GATE_SALES_NODES,
@@ -99,16 +100,10 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
       ? node.customFields.nodeUuid
       : crypto.randomUUID();
   const serviceType =
-    String((node.config as Record<string, unknown>).serviceType || "") ||
-    (Boolean((node.config as Record<string, unknown>).paidServiceType)
-      ? "Paid Service"
-      : "Standard");
-  const buildingCode = String(
-    (node.config as Record<string, unknown>).buildingCode || "",
-  );
-  const moduleCode = String(
-    (node.config as Record<string, unknown>).moduleCode || "",
-  );
+    String(node.config.serviceType || "") ||
+    (Boolean(node.config.paidServiceType) ? "Paid Service" : "Standard");
+  const buildingCode = String(node.config.buildingCode || "");
+  const moduleCode = String(node.config.moduleCode || "");
   const { projectNumber: _legacy, ...restCustomFields } = node.customFields;
   void _legacy;
   const config: DomainNode["config"] = {
@@ -118,7 +113,7 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
     serviceType,
     buildingCode,
     moduleCode,
-  } as DomainNode["config"];
+  };
   const baseConditions = node.conditions?.length
     ? node.conditions
     : [
@@ -388,17 +383,7 @@ function migrateNode(node: DomainNode): DomainNode {
 export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   const file: WorkflowFile = JSON.parse(JSON.stringify(input));
   let originalNodes = file.layout.nodes;
-  const absolute = (
-    id: string,
-    seen = new Set<string>(),
-  ): { x: number; y: number } => {
-    const layout = originalNodes[id];
-    if (!layout || !layout.parentId || seen.has(id))
-      return { x: layout?.x || 0, y: layout?.y || 0 };
-    seen.add(id);
-    const parent = absolute(layout.parentId, seen);
-    return { x: parent.x + layout.x, y: parent.y + layout.y };
-  };
+  const absolute = (id: string) => absoluteLayoutPosition(originalNodes, id);
   const isLegacyGateWorkflow = file.graph.nodes.some(
     (node) => node.id === "g1-opportunity",
   );

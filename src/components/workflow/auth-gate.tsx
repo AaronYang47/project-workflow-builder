@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { useWorkflowStore } from "@/store/workflow-store";
 
 const AUTH_BYPASS = process.env.NEXT_PUBLIC_AUTH_BYPASS === "1";
+const DEV_USER = {
+  id: "dev-bypass",
+  email: "[email protected]",
+  name: "Local Dev",
+} as const;
 
 type User = { id: string; email: string; name: string };
 
@@ -21,8 +26,8 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [user, setUser] = useState<User | null>(AUTH_BYPASS ? DEV_USER : null);
+  const [checking, setChecking] = useState(!AUTH_BYPASS);
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -41,11 +46,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (AUTH_BYPASS) {
       const workflow = useWorkflowStore.getState();
-      if (workflow.workspaceOwnerId !== "dev-bypass") {
-        workflow.resetWorkspace("dev-bypass");
+      if (workflow.workspaceOwnerId !== DEV_USER.id) {
+        workflow.resetWorkspace(DEV_USER.id);
       }
-      setUser({ id: "dev-bypass", email: "[email protected]", name: "Local Dev" });
-      setChecking(false);
       return;
     }
     void request<{ user: User | null }>("/api/auth/me")

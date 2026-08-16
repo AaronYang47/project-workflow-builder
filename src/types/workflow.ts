@@ -206,6 +206,10 @@ export interface DomainNode {
     componentNotes?: Record<string, string>;
     collapsed?: boolean;
     locked?: boolean;
+    serviceType?: string;
+    buildingCode?: string;
+    moduleCode?: string;
+    paidServiceType?: unknown;
   };
 }
 

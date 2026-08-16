@@ -40,7 +40,7 @@ export function useGateContext(node: DomainNode) {
   );
 
   const projectStart = useMemo<GateProjectStartInfo>(() => {
-    const config = (projectStartNode?.config ?? {}) as Record<string, unknown>;
+    const config = projectStartNode?.config ?? {};
     const serviceType = String(config.serviceType ?? "Standard");
     const buildingCode = String(config.buildingCode ?? "");
     const moduleCode = String(config.moduleCode ?? "");

@@ -10,13 +10,12 @@ import {
 } from "@/lib/gate-layout";
 import { GATE_SERVICE_TYPES, getGateServiceType } from "@/lib/gate-service-types";
 import { projectNodeUuid } from "@/lib/project-id";
-import { useWorkflowStore } from "@/store/workflow-store";
 import {
   requirementApplies,
-  signatureIsComplete,
-  stopBubble,
-  textareaRows,
-} from "./node-utils";
+  signatureFieldsComplete as signatureIsComplete,
+} from "@/lib/workflow-progress";
+import { useWorkflowStore } from "@/store/workflow-store";
+import { stopBubble, textareaRows } from "./node-utils";
 import { RuleSignatureCard } from "./rule-signature-card";
 import type {
   DomainNode,

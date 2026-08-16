@@ -5,6 +5,7 @@ import {
   type WorkflowFile,
   type WorkflowNodeType,
 } from "@/types/workflow";
+import { readPath } from "@/lib/object-path";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   document: ["title"],
@@ -13,17 +14,6 @@ const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   approval: ["title"],
   activity: ["title"],
 };
-
-const valueAt = (input: unknown, path: string) =>
-  path
-    .split(".")
-    .reduce<unknown>(
-      (value, key) =>
-        value && typeof value === "object"
-          ? (value as Record<string, unknown>)[key]
-          : undefined,
-      input,
-    );
 
 export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -176,7 +166,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
     );
   for (const node of nodes)
     for (const field of requiredFields[node.type] || [])
-      if (!valueAt(node, field))
+      if (!readPath(node, field))
         issues.push({
           id: `required-${node.id}-${field}`,
           severity: "error",
@@ -190,7 +180,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
     for (const node of nodes.filter(
       (item) => !rule.nodeType || item.type === rule.nodeType,
     ))
-      if (!valueAt(node, rule.field!))
+      if (!readPath(node, rule.field!))
         issues.push({
           id: `rule-${rule.id}-${node.id}`,
           severity: rule.severity,

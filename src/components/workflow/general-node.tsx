@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import {
   Handle,
   NodeResizer,
@@ -17,8 +17,6 @@ import { getNodeDefinition } from "@/lib/node-catalog";
 import { cn } from "@/lib/utils";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import {
-  BUILDING_PATTERN,
-  MODULE_PATTERN,
   PROJECT_ID_PATTERN,
   currentYearSuffix,
   legacyJobNumberFromProjectId,
@@ -67,10 +65,7 @@ export function GeneralNode({
   // identifier (projectStart looks up itself, which trivially falls back to
   // its own customFields.nodeUuid).
   const nodeUuid = projectNodeUuid(node, projectStartNode);
-  const serviceType = String(
-    (projectStartNode?.config as Record<string, unknown> | undefined)
-      ?.serviceType || "Standard",
-  );
+  const serviceType = String(projectStartNode?.config.serviceType || "Standard");
   const displayedProjectId = projectIdForDisplay(projectStartProjectId, serviceType);
   const showProjectIdBadge = PROJECT_ID_PATTERN.test(displayedProjectId);
   const initialProjectId = isProjectStart
@@ -79,10 +74,12 @@ export function GeneralNode({
       )
     : "";
   const [projectIdDraft, setProjectIdDraft] = useState(initialProjectId);
-  const projectIdSnapshot = useRef<typeof node | null>(null);
-  useEffect(() => {
+  const [syncedProjectId, setSyncedProjectId] = useState(initialProjectId);
+  if (initialProjectId !== syncedProjectId) {
+    setSyncedProjectId(initialProjectId);
     setProjectIdDraft(initialProjectId);
-  }, [initialProjectId]);
+  }
+  const projectIdSnapshot = useRef<typeof node | null>(null);
   const projectId = useMemo(
     () => normalizeProjectId(projectIdDraft.trim()),
     [projectIdDraft],
@@ -110,18 +107,6 @@ export function GeneralNode({
     ? PROJECT_ID_PATTERN.test(projectIdDraft.trim())
     : Boolean(projectStartProjectId);
   const projectIdError = isProjectStart && projectIdDraft.trim().length > 0 && !projectIdValid;
-  const buildingCode = String(
-    (projectStartNode?.config as Record<string, unknown> | undefined)
-      ?.buildingCode || "",
-  );
-  const moduleCode = String(
-    (projectStartNode?.config as Record<string, unknown> | undefined)
-      ?.moduleCode || "",
-  );
-  const paidRequiresBuilding = serviceType === "Paid Service";
-  const paidRequiresModule = serviceType === "Paid Service";
-  const buildingValid = !paidRequiresBuilding || BUILDING_PATTERN.test(buildingCode);
-  const moduleValid = !paidRequiresModule || MODULE_PATTERN.test(moduleCode);
   const legacyJobNumber = isProjectStart
     ? legacyJobNumberFromProjectId(projectId)
     : legacyJobNumberFromProjectId(projectStartProjectId);
