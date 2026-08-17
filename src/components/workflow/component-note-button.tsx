@@ -168,7 +168,7 @@ export function ComponentNoteButton({
                             <button
                               type="button"
                               onClick={() => startReply(post)}
-                              className="inline-flex items-center gap-1 font-semibold text-muted-foreground hover:text-primary"
+                              className="inline-flex items-center gap-1 font-semibold text-purple-600 hover:text-purple-700"
                             >
                               <CornerUpLeft className="size-3" />
                               Reply
