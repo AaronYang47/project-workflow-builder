@@ -15,6 +15,8 @@ import {
 } from "@/lib/excel-format";
 import {
   conditionDisplaySatisfied,
+  gateApprovalReady,
+  gateChecklistSatisfied,
   nodeStatusLabel,
 } from "@/lib/workflow-progress";
 import { readPath } from "@/lib/object-path";
@@ -96,21 +98,46 @@ function writeEditable(
 ) {
   const cell = sheet.getCell(row, col);
   const checked = checkbox ? Boolean(asBoolean(value) ?? value === true) : false;
+  const strVal = String(value ?? "").trim();
+  const isBlocked = !checkbox && strVal.toLowerCase() === "blocked";
+  const isReady = !checkbox && strVal.toLowerCase() === "ready";
+  const isInProgress = !checkbox && strVal.toLowerCase() === "in progress";
+
   cell.value = checkbox ? (checked ? "Yes" : "No") : value;
-  cell.fill = checkbox ? (checked ? YES_FILL : NO_FILL) : EDIT_FILL;
-  cell.font = {
-    name: "Calibri",
-    size: checkbox ? 11 : 10,
-    bold: checkbox,
-    color: { argb: checkbox ? (checked ? "FF166534" : "FF9F1239") : "FF1C1917" },
-  };
+
+  if (isBlocked) {
+    cell.fill = NO_FILL;
+    cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF9F1239" } };
+    cell.border = thin("#fca5a5");
+  } else if (isReady) {
+    cell.fill = YES_FILL;
+    cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF166534" } };
+    cell.border = thin("#86efac");
+  } else if (isInProgress) {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFEFF6FF" },
+    };
+    cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF1E40AF" } };
+    cell.border = thin("#93c5fd");
+  } else {
+    cell.fill = checkbox ? (checked ? YES_FILL : NO_FILL) : EDIT_FILL;
+    cell.font = {
+      name: "Calibri",
+      size: checkbox ? 11 : 10,
+      bold: checkbox,
+      color: { argb: checkbox ? (checked ? "FF166534" : "FF9F1239") : "FF1C1917" },
+    };
+    cell.border = thin(checkbox ? (checked ? "#86efac" : "#fecaca") : "#e7d27a");
+  }
+
   cell.alignment = {
     vertical: "middle",
     horizontal: checkbox ? "center" : "left",
     wrapText: !checkbox,
     indent: checkbox ? 0 : 1,
   };
-  cell.border = thin(checkbox ? (checked ? "#86efac" : "#fecaca") : "#e7d27a");
   if (list) applyListValidation(cell, list);
   sheet.getRow(row).height = Math.max(sheet.getRow(row).height || 0, 22);
 }
@@ -390,28 +417,37 @@ function isPositiveOutcome(outcome: OutcomeHandle) {
   return outcome.id === "yes" || outcome.edgeType === "success";
 }
 
-function writeOutcomes(sheet: Worksheet, row: number, node: DomainNode) {
+function writeOutcomes(
+  sheet: Worksheet,
+  row: number,
+  node: DomainNode,
+  approvalReady = false,
+  checklistSatisfied = false,
+) {
   const outcomes = (node.config.outcomes || []) as OutcomeHandle[];
   if (!outcomes.length) return row;
   for (const outcome of outcomes) {
-    const positive = isPositiveOutcome(outcome);
-    const label = outcome.label || (positive ? "Approved" : "Denied");
+    const isYes = isPositiveOutcome(outcome);
+    const active = isYes ? approvalReady : !checklistSatisfied;
+    const label = outcome.label || (isYes ? "Approved" : "Denied");
     writeKey(sheet, row, `#outcome:${outcome.id}`);
     const name = sheet.getCell(row, 2);
-    name.value = positive ? "Yes" : "No";
+    name.value = isYes ? "Yes" : "No";
     styleLabel(name);
     merge(sheet, row, 3, LAST_COL);
     const cell = sheet.getCell(row, 3);
-    cell.value = label;
-    cell.fill = positive ? YES_FILL : NO_FILL;
+    cell.value = `${label}${active ? " (Active)" : " (Inactive / Blocked)"}`;
+    cell.fill = active ? (isYes ? YES_FILL : NO_FILL) : EDIT_FILL;
     cell.font = {
       name: "Calibri",
       size: 11,
       bold: true,
-      color: { argb: positive ? "FF166534" : "FF9F1239" },
+      color: {
+        argb: active ? (isYes ? "FF166534" : "FF9F1239") : "FF78716C",
+      },
     };
     cell.alignment = { vertical: "middle", indent: 1 };
-    cell.border = thin(positive ? "#86efac" : "#fecaca");
+    cell.border = thin(active ? (isYes ? "#86efac" : "#fecaca") : "#d6d3d1");
     sheet.getRow(row).height = 24;
     row += 1;
   }
@@ -434,10 +470,18 @@ function writeGateBlock(
   let row = startRow;
   writeKey(sheet, row, `${KEY.node}:${node.id}`);
   merge(sheet, row, 2, LAST_COL);
-  fillRange(sheet, row, 2, LAST_COL, hexArgb(color));
+
+  // If node status is Blocked, use a dark rose/crimson header to avoid misleading green backgrounds
+  const headerFillColor =
+    status === "Blocked"
+      ? "FF881337"
+      : status === "In Progress"
+        ? "FF1E3A8A"
+        : hexArgb(color);
+  fillRange(sheet, row, 2, LAST_COL, headerFillColor);
   const header = sheet.getCell(row, 2);
-  header.value = `${node.title}    ·    ${getNodeDefinition(node.type).label}    ·    ${status}`;
-  header.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+  header.value = `${node.title}    ·    ${getNodeDefinition(node.type).label}    ·    [${status.toUpperCase()}]`;
+  header.font = { name: "Calibri", size: 13, bold: true, color: { argb: "FFFFFFFF" } };
   header.alignment = { vertical: "middle", indent: 1 };
   sheet.getRow(row).height = 28;
   row += 1;
@@ -574,7 +618,13 @@ function writeGateBlock(
       node.config.approvedBy || "",
       lists.people,
     );
-    row = writeOutcomes(sheet, row, node);
+    row = writeOutcomes(
+      sheet,
+      row,
+      node,
+      gateApprovalReady(node),
+      gateChecklistSatisfied(node),
+    );
   } else if (node.customFields.notes) {
     row = writeField(
       sheet,

@@ -155,7 +155,7 @@ export function GeneralNode({
           </select>
         </label>
         <label className="flex shrink-0 items-center gap-2">
-          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Stage
           </span>
           <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
@@ -209,15 +209,15 @@ export function GeneralNode({
         {node.type === "projectStart" ? (
           <div className="my-3 space-y-2">
             <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-3">
-              <span className="mb-1 flex items-center justify-between text-[8px] font-bold uppercase tracking-[0.14em] text-primary">
+              <span className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
                 <span>
                   Project ID <span className="text-destructive">*</span>
                 </span>
                 <span
                   className={cn(
-                    "font-mono font-semibold tracking-normal",
+                    "font-mono font-semibold tracking-normal text-xs",
                     projectIdValid
-                      ? "text-emerald-600"
+                      ? "text-emerald-600 dark:text-emerald-400"
                       : projectIdError
                         ? "text-destructive"
                         : "text-muted-foreground",
@@ -241,8 +241,6 @@ export function GeneralNode({
                   maxLength={2}
                   onFocus={(event) => {
                     event.stopPropagation();
-                    // Snapshot a *normalized* version of projectId, so partial edits
-                    // can't read corrupt legacy state.
                     const normalizedAtFocus = normalizeProjectId(
                       String(node.customFields.projectId || ""),
                     );
@@ -264,7 +262,6 @@ export function GeneralNode({
                     const prefix = (source.match(/^[LP]-/) || ["L-"])[0];
                     const seqMatch = source.match(/-\d{3}$/);
                     const tail = seqMatch ? seqMatch[0].slice(1) : "001";
-                    // Preserve current year segment while editing; only restore on blur
                     const composed = `${prefix}${digits}-${tail}`;
                     setProjectIdDraft(composed);
                     writeCustomFields({ projectId: composed });
@@ -397,14 +394,14 @@ export function GeneralNode({
               saveText(node, "description", event.target.value)
             }
             placeholder="Add content"
-            className="min-h-14 w-full resize-none overflow-hidden rounded-md border border-transparent bg-muted/35 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground outline-none focus:border-primary/40 focus:bg-background"
+            className="min-h-14 w-full resize-none overflow-hidden rounded-md border border-transparent bg-muted/35 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground outline-none focus:border-primary/40 focus:bg-background"
           />
         </label>
         <section className="rounded-lg border bg-background/70 p-2.5">
           <div className="mb-2 flex items-center gap-2">
             <ShieldCheck className={cn("size-4", statusReady ? "text-emerald-600" : "text-amber-600")} />
             <span className="text-xs font-bold uppercase tracking-wide">Release conditions</span>
-            <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", statusReady ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
+            <span className={cn("ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold uppercase", statusReady ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300")}>
               {!reached ? "Waiting" : releaseReady ? "Ready" : "Blocked"}
             </span>
           </div>
@@ -442,7 +439,7 @@ export function GeneralNode({
           <button
             type="button"
             onClick={stopBubble(() => saveConditions([...conditions, { id: `condition-${crypto.randomUUID().slice(0, 8)}`, label: "New release condition", required: true, checked: false }]))}
-            className="mt-2 flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/5"
+            className="mt-2 flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/5"
           >
             <Plus className="size-3.5" /> Add condition
           </button>
@@ -479,7 +476,7 @@ export function GeneralNode({
       >
         <span
           title={nodeUuid}
-          className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
         >
           UUID {nodeUuid.slice(0, 8)}
         </span>

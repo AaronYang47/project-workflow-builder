@@ -111,18 +111,18 @@ export function DecisionCard({
     >
       <div data-decision-header className="mb-2 flex min-h-7 items-center gap-1">
         <span className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900">
-          <ShieldCheck className="size-3.5" />
+          <ShieldCheck className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
           <span
             data-inspector-target="config.decisionTitle"
-            className="block text-[9px] font-black uppercase tracking-[0.14em] text-foreground"
+            className="block text-xs font-black uppercase tracking-[0.14em] text-foreground"
           >
             {interfaceText.decisionTitle}
           </span>
           <span
             data-inspector-target="config.decisionSubtitle"
-            className="mt-0.5 block text-[7px] font-medium text-muted-foreground"
+            className="mt-0.5 block text-[11px] font-medium text-muted-foreground"
           >
             {interfaceText.decisionSubtitle}
           </span>
@@ -136,7 +136,7 @@ export function DecisionCard({
         <span
           data-inspector-target="config.detailsNeededLabel"
           className={cn(
-            "ml-1 shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[7px] font-black uppercase tracking-wider",
+            "ml-1 shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
             approvalReady
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
               : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -149,12 +149,12 @@ export function DecisionCard({
         <label
           data-inspector-target="config.departmentLabel"
           className={cn(
-            "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+            "block rounded-lg border bg-background/80 px-2.5 py-1.5 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
             checklistSatisfied && !approvedDepartment && "border-amber-400",
           )}
         >
-          <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-            <Building2 className="size-2.5" />
+          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Building2 className="size-3" />
             {interfaceText.departmentLabel} *
           </span>
           <textarea
@@ -165,18 +165,18 @@ export function DecisionCard({
               saveApprovalField("approvedDepartment", event.target.value)
             }
             placeholder="e.g. Finance"
-            className="min-h-6 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
+            className="min-h-6 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-xs font-semibold leading-5 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
           />
         </label>
         <label
           data-inspector-target="config.approverLabel"
           className={cn(
-            "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+            "block rounded-lg border bg-background/80 px-2.5 py-1.5 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
             checklistSatisfied && !approvedBy && "border-amber-400",
           )}
         >
-          <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-            <UserRound className="size-2.5" />
+          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <UserRound className="size-3" />
             {interfaceText.approverLabel} *
           </span>
           <textarea
@@ -187,7 +187,7 @@ export function DecisionCard({
               saveApprovalField("approvedBy", event.target.value)
             }
             placeholder="Name"
-            className="min-h-6 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
+            className="min-h-6 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-xs font-semibold leading-5 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
           />
         </label>
       </div>
@@ -198,12 +198,12 @@ export function DecisionCard({
         >
           <label
             className={cn(
-              "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+              "block rounded-lg border bg-background/80 px-2.5 py-1.5 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
               projectStart.paidMissingBuilding && "border-amber-400",
             )}
           >
-            <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-              <Building2 className="size-2.5" />
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <Building2 className="size-3" />
               Building (B-XX) *
             </span>
             <input
@@ -216,17 +216,17 @@ export function DecisionCard({
                 )
               }
               placeholder="B-01"
-              className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
+              className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-xs font-semibold leading-5 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
             />
           </label>
           <label
             className={cn(
-              "block rounded-lg border bg-background/80 px-2 py-1 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+              "block rounded-lg border bg-background/80 px-2.5 py-1.5 transition focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
               projectStart.paidMissingModule && "border-amber-400",
             )}
           >
-            <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-              <Boxes className="size-2.5" />
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <Boxes className="size-3" />
               Module (M-XXX) *
             </span>
             <input
@@ -239,7 +239,7 @@ export function DecisionCard({
                 )
               }
               placeholder="M-001"
-              className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-semibold leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
+              className="min-h-6 w-full border-0 bg-transparent p-0 font-mono text-xs font-semibold leading-5 outline-none placeholder:font-normal placeholder:text-muted-foreground/60"
             />
           </label>
         </div>
@@ -247,13 +247,13 @@ export function DecisionCard({
       <div data-decision-outcomes className="nodrag space-y-1.5">
         <div
           className={cn(
-            "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
+            "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-3 py-2 text-xs font-bold leading-5 transition",
             approvalReady
               ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
               : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
           )}
         >
-          <CheckCircle2 className="mr-1.5 size-3.5 shrink-0" />
+          <CheckCircle2 className="mr-2 size-4 shrink-0" />
           <span className="min-w-0 truncate">{yes?.label || "APPROVED"}</span>
           <span
             title={
@@ -261,7 +261,7 @@ export function DecisionCard({
                 ? `${approvedDepartment} · ${approvedBy}`
                 : "Department and approver required"
             }
-            className="ml-auto max-w-[170px] shrink truncate text-[7px] font-semibold"
+            className="ml-auto max-w-[170px] shrink truncate text-[10px] font-semibold"
           >
             {approvalReady
               ? `${approvedDepartment} · ${approvedBy}`
@@ -291,17 +291,17 @@ export function DecisionCard({
             <div
               key={outcome.id}
               className={cn(
-                "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
+                "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-3 py-2 text-xs font-bold leading-5 transition",
                 !checklistSatisfied
                   ? "border-rose-300 bg-rose-50 text-rose-800 shadow-sm dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                   : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
               )}
             >
-              <XCircle className="mr-1.5 size-3.5 shrink-0" />
+              <XCircle className="mr-2 size-4 shrink-0" />
               <span className="min-w-0 truncate">
                 {outcome.label || "DENIED"}
               </span>
-              <span className="ml-auto max-w-[230px] shrink truncate text-[7px] font-semibold">
+              <span className="ml-auto max-w-[230px] shrink truncate text-[10px] font-semibold">
                 {outcome.rule || "CONDITIONS NOT MET"}
               </span>
               <ComponentNoteButton
@@ -328,7 +328,7 @@ export function DecisionCard({
       >
         <span
           title={nodeUuid}
-          className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
         >
           UUID {nodeUuid.slice(0, 8)}
         </span>

@@ -121,18 +121,18 @@ export function ApprovalConditionsPanel({
             conditionStyle.accent,
           )}
         >
-          <ShieldCheck className="size-3.5" />
+          <ShieldCheck className="size-4" />
         </span>
         <span className="ml-2">
           <span
             data-inspector-target="config.conditionsTitle"
-            className="block text-[9px] font-black uppercase tracking-[0.13em] text-foreground"
+            className="block text-xs font-black uppercase tracking-[0.13em] text-foreground"
           >
             {interfaceText.conditionsTitle}
           </span>
           <span
             data-inspector-target="config.conditionsSubtitle"
-            className="mt-0.5 block text-[7px] font-medium text-muted-foreground"
+            className="mt-0.5 block text-[11px] font-medium text-muted-foreground"
           >
             {conditionProgress.completed} of {conditionProgress.total}{" "}
             {interfaceText.conditionsSubtitle}
@@ -144,7 +144,7 @@ export function ApprovalConditionsPanel({
           label={`${node.title} approval conditions`}
           className="ml-auto"
         />
-        <span className="ml-2 rounded-full border bg-background/75 px-2 py-1 text-[7px] font-black uppercase text-foreground">
+        <span className="ml-2 rounded-full border bg-background/75 px-2.5 py-1 text-[10px] font-bold uppercase text-foreground">
           {conditionStyle.label}
         </span>
       </div>
@@ -152,13 +152,13 @@ export function ApprovalConditionsPanel({
         <div className="mb-2 flex h-7 items-center">
           <span
             data-inspector-target="config.checklistTitle"
-            className="text-[8px] font-black uppercase tracking-[0.11em] text-muted-foreground"
+            className="text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground"
           >
             {interfaceText.checklistTitle}
           </span>
           <span
             data-inspector-target="config.checklistHint"
-            className="ml-2 text-[7px] text-muted-foreground"
+            className="ml-2 text-[11px] text-muted-foreground"
           >
             {interfaceText.checklistHint}
           </span>
@@ -177,7 +177,7 @@ export function ApprovalConditionsPanel({
                 },
               ])
             )}
-            className="ml-auto flex h-6 items-center gap-1 rounded-md border bg-background px-2 text-[8px] font-bold text-primary shadow-sm hover:bg-primary/5"
+            className="ml-auto flex h-6 items-center gap-1 rounded-md border bg-background px-2.5 text-[11px] font-bold text-primary shadow-sm hover:bg-primary/5"
           >
             <Plus className="size-3" />
             {interfaceText.addConditionLabel}
@@ -307,7 +307,7 @@ export function ApprovalConditionsPanel({
       >
         <span
           title={nodeUuid}
-          className="whitespace-nowrap rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
         >
           UUID {nodeUuid.slice(0, 8)}
         </span>
@@ -366,11 +366,11 @@ function ConditionRow({
     <div
       data-rule-card
       className={cn(
-        "rounded-2xl border-0 bg-muted/15 p-2 shadow-sm",
+        "rounded-2xl border-0 bg-muted/15 p-2.5 shadow-sm",
         !requirementApplies(rule) && "opacity-65",
       )}
     >
-      <div className="grid min-w-0 grid-cols-[22px_78px_94px_minmax(0,1fr)_24px_22px] items-stretch gap-2">
+      <div className="grid min-w-0 grid-cols-[24px_84px_100px_minmax(0,1fr)_24px_22px] items-stretch gap-2">
         <button
           aria-label={`Condition ${index + 1} satisfied`}
           aria-pressed={rule.checked}
@@ -396,7 +396,7 @@ function ConditionRow({
         </button>
         <span
           data-inspector-target="config.conditionLabel"
-          className="flex min-h-14 items-center justify-center self-stretch whitespace-normal rounded bg-slate-900 px-2 py-1.5 text-center text-[7px] font-black uppercase leading-4 text-white dark:bg-slate-100 dark:text-slate-900"
+          className="flex min-h-14 items-center justify-center self-stretch whitespace-normal rounded bg-slate-900 px-2 py-1.5 text-center text-[10px] font-black uppercase leading-tight text-white dark:bg-slate-100 dark:text-slate-900"
         >
           {interfaceText.conditionLabel} {index + 1}
         </span>
@@ -405,7 +405,7 @@ function ConditionRow({
             aria-label={`Condition ${index + 1} requirement type`}
             value={requirementType}
             onChange={(event) => onChangeRequirementType(event.target.value)}
-            className="h-full min-h-14 w-full min-w-0 rounded border bg-background px-1.5 py-1 text-[7px] font-bold leading-4"
+            className="h-full min-h-14 w-full min-w-0 rounded border bg-background px-2 py-1 text-xs font-bold leading-tight"
           >
             <option>Required</option>
             <option>Optional</option>
@@ -416,7 +416,7 @@ function ConditionRow({
           defaultValue={rule.label}
           rows={textareaRows(rule.label, 58, 2)}
           onBlur={(event) => onLabelBlur(event.target.value.trim())}
-          className="min-h-14 w-full min-w-0 resize-none overflow-hidden rounded-md border bg-card px-2.5 py-2 text-[9px] font-semibold leading-4 outline-none focus:border-primary"
+          className="min-h-14 w-full min-w-0 resize-none overflow-hidden rounded-md border bg-card px-3 py-2 text-xs font-semibold leading-relaxed outline-none focus:border-primary"
         />
         <ComponentNoteButton
           nodeId={nodeId}
@@ -429,13 +429,13 @@ function ConditionRow({
           onClick={stopBubble(onDelete)}
           className="mt-4 self-start rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         >
-          <Trash2 className="size-3" />
+          <Trash2 className="size-3.5" />
         </button>
       </div>
       <div className="mt-2 flex items-center justify-end gap-1">
         <span
           data-inspector-target="config.documentsLabel"
-          className="mr-auto self-center text-[7px] font-bold uppercase tracking-wide text-muted-foreground"
+          className="mr-auto self-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
         >
           {interfaceText.documentsLabel}
         </span>
@@ -444,7 +444,7 @@ function ConditionRow({
           data-inspector-target="config.addDocumentLabel"
           title="Add signed document"
           onClick={stopBubble(onAddDocument)}
-          className="flex h-7 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 text-[8px] font-bold text-primary hover:bg-primary/10"
+          className="flex h-7 items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2.5 text-[11px] font-bold text-primary hover:bg-primary/10"
         >
           <FilePenLine className="size-3" />
           {interfaceText.addDocumentLabel}

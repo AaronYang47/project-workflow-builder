@@ -133,9 +133,9 @@ export function RuleSignatureCard({
           <Check className={cn("size-3", !signature.checked && "opacity-0")} />
         </button>
         <span className="flex size-5 items-center justify-center rounded bg-primary/10 text-primary">
-          <FilePenLine className="size-3" />
+          <FilePenLine className="size-3.5" />
         </span>
-        <span className="min-w-0 truncate text-[8px] font-black uppercase tracking-[0.1em] text-foreground">
+        <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-[0.1em] text-foreground">
           {signature.abbreviation || "Signed document"}
         </span>
         <select
@@ -146,7 +146,7 @@ export function RuleSignatureCard({
               requirementType: event.target.value as RequirementType,
             })
           }
-          className="ml-auto h-5 shrink-0 rounded border bg-background px-1 text-[7px] font-bold"
+          className="ml-auto h-6 shrink-0 rounded border bg-background px-2 text-xs font-bold"
         >
           <option>Required</option>
           <option>Optional</option>
@@ -155,32 +155,32 @@ export function RuleSignatureCard({
           nodeId={nodeId}
           noteKey={`signature:${signature.id}`}
           label={`${prefix} document`}
-          className="size-5"
+          className="size-6"
         />
         <button
           aria-label={`${signature.collapsed ? "Expand" : "Collapse"} ${prefix}`}
           onClick={stopBubble(() => update({ collapsed: !signature.collapsed }))}
-          className="rounded p-0.5 text-muted-foreground"
+          className="rounded p-1 text-muted-foreground"
         >
           {signature.collapsed ? (
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-4" />
           ) : (
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className="size-4" />
           )}
         </button>
         <button
           aria-label={`Delete ${prefix}`}
           onClick={stopBubble(remove)}
-          className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         >
-          <Trash2 className="size-3" />
+          <Trash2 className="size-3.5" />
         </button>
       </div>
       {!signature.collapsed ? (
         <>
           <div className="grid grid-cols-[130px_1fr] gap-2">
             <label className="block">
-              <span className="mb-1 block text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Code
               </span>
               <textarea
@@ -191,11 +191,11 @@ export function RuleSignatureCard({
                 onBlur={(event) =>
                   updateText("abbreviation", event.target.value)
                 }
-                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2 py-1 text-[9px] font-black uppercase leading-4 outline-none focus:border-primary"
+                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs font-black uppercase leading-5 outline-none focus:border-primary"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Document name
               </span>
               <textarea
@@ -204,26 +204,26 @@ export function RuleSignatureCard({
                 rows={textareaRows(signature.fullName, 52, 1)}
                 placeholder="Non-disclosure agreement"
                 onBlur={(event) => updateText("fullName", event.target.value)}
-                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2 py-1 text-[9px] font-semibold leading-4 outline-none focus:border-primary"
+                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs font-semibold leading-5 outline-none focus:border-primary"
               />
             </label>
           </div>
           <label
-            className="mt-2 flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 shadow-sm"
+            className="mt-2 flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 shadow-sm"
             title={
               getGateServiceType(documentServiceTypeId(signature))?.description ||
               "Select a service type"
             }
           >
             <span
-              className="size-3 shrink-0 rounded-full border border-background shadow-sm"
+              className="size-3.5 shrink-0 rounded-full border border-background shadow-sm"
               style={{
                 backgroundColor:
                   getGateServiceType(documentServiceTypeId(signature))?.color ||
                   "#cbd5e1",
               }}
             />
-            <span className="shrink-0 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Service type
             </span>
             <select
@@ -232,7 +232,7 @@ export function RuleSignatureCard({
               onChange={(event) =>
                 update({ serviceType: event.target.value || undefined })
               }
-              className="h-full min-w-0 flex-1 bg-transparent text-[8px] font-bold outline-none"
+              className="h-full min-w-0 flex-1 bg-transparent text-xs font-bold outline-none"
             >
               <option value="">Select a service type</option>
               {GATE_SERVICE_TYPES.map((serviceType) => (
@@ -244,8 +244,8 @@ export function RuleSignatureCard({
           </label>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <label className="block">
-              <span className="mb-1 flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-                <Building2 className="size-2.5" />
+              <span className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <Building2 className="size-3" />
                 Department
               </span>
               <textarea
@@ -254,12 +254,12 @@ export function RuleSignatureCard({
                 rows={textareaRows(signature.department, 28, 1)}
                 placeholder="e.g. Legal"
                 onBlur={(event) => updateText("department", event.target.value)}
-                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2 py-1 text-[9px] leading-4 outline-none focus:border-primary"
+                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs leading-5 outline-none focus:border-primary"
               />
             </label>
             <label className="block">
-              <span className="mb-1 flex items-center gap-1 text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
-                <UserRound className="size-2.5" />
+              <span className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <UserRound className="size-3" />
                 Signed by
               </span>
               <textarea
@@ -268,11 +268,11 @@ export function RuleSignatureCard({
                 rows={textareaRows(signature.signedBy, 28, 1)}
                 placeholder="Signer name"
                 onBlur={(event) => updateText("signedBy", event.target.value)}
-                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2 py-1 text-[9px] leading-4 outline-none focus:border-primary"
+                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs leading-5 outline-none focus:border-primary"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Owner
               </span>
               <textarea
@@ -281,13 +281,13 @@ export function RuleSignatureCard({
                 rows={textareaRows(signature.owner, 28, 1)}
                 placeholder="Document owner"
                 onBlur={(event) => update({ owner: event.target.value.trim() })}
-                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2 py-1 text-[9px] leading-4 outline-none"
+                className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs leading-5 outline-none"
               />
             </label>
           </div>
           <div className="mt-2 grid grid-cols-[1fr_1fr] gap-2">
             <label>
-              <span className="mb-1 block text-[7px] font-bold uppercase text-muted-foreground">
+              <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">
                 Document status
               </span>
               <input
@@ -297,7 +297,7 @@ export function RuleSignatureCard({
                 onBlur={(event) =>
                   update({ status: event.target.value.trim() })
                 }
-                className="h-8 w-full rounded border bg-background px-2 text-[8px]"
+                className="h-8 w-full rounded border bg-background px-2.5 text-xs font-semibold"
               />
             </label>
             <button
@@ -310,7 +310,7 @@ export function RuleSignatureCard({
                 })
               )}
               className={cn(
-                "mt-[14px] min-h-8 rounded border px-1 text-[7px] font-bold",
+                "mt-[18px] min-h-8 rounded border px-2 text-[10px] font-bold",
                 signature.revisionControlled &&
                   "border-primary bg-primary/10 text-primary",
               )}
@@ -319,18 +319,18 @@ export function RuleSignatureCard({
             </button>
           </div>
           {signature.revisionControlled ? (
-            <div className="mt-3 rounded-lg border border-primary/20 bg-primary/[.03] p-2">
+            <div className="mt-3 rounded-lg border border-primary/20 bg-primary/[.03] p-2.5">
               <div className="mb-2 flex min-w-0 items-center gap-1.5">
-                <span className="shrink-0 text-[8px] font-black uppercase tracking-wider text-foreground">
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-foreground">
                   Revision history
                 </span>
-                <span className="min-w-0 truncate text-[7px] text-muted-foreground">
+                <span className="min-w-0 truncate text-[10px] text-muted-foreground">
                   Current revision is required
                 </span>
                 <button
                   aria-label={`Add revision to ${prefix}`}
                   onClick={stopBubble(addRevision)}
-                  className="ml-auto flex h-6 shrink-0 items-center gap-1 rounded border border-primary/30 bg-background px-2 text-[7px] font-bold text-primary"
+                  className="ml-auto flex h-6 shrink-0 items-center gap-1 rounded border border-primary/30 bg-background px-2.5 text-[10px] font-bold text-primary hover:bg-primary/5"
                 >
                   <Plus className="size-3" />
                   Add revision
@@ -344,15 +344,15 @@ export function RuleSignatureCard({
                         key={revision.id}
                         data-revision-row
                         className={cn(
-                          "rounded-md border p-2",
+                          "rounded-md border p-2.5",
                           revision.status === "Current"
                             ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
                             : "bg-muted/30",
                         )}
                       >
-                        <div className="grid min-w-0 grid-cols-[72px_132px_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                        <div className="grid min-w-0 grid-cols-[80px_136px_minmax(0,1fr)_minmax(0,1fr)] gap-2">
                           <label className="min-w-0">
-                            <span className="mb-1 block text-[7px] font-bold uppercase text-muted-foreground">
+                            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">
                               Revision *
                             </span>
                             <input
@@ -360,15 +360,15 @@ export function RuleSignatureCard({
                               value={revision.revision}
                               onChange={(event) =>
                                 updateRevision(revision.id, {
-                                  revision: event.target.value,
+                                 revision: event.target.value,
                                 })
                               }
                               placeholder="Rev 1"
-                              className="h-7 w-full min-w-0 rounded border bg-background px-2 text-[8px]"
+                              className="h-8 w-full min-w-0 rounded border bg-background px-2 text-xs font-semibold"
                             />
                           </label>
                           <label className="min-w-0">
-                            <span className="mb-1 block text-[7px] font-bold uppercase text-muted-foreground">
+                            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">
                               Date *
                             </span>
                             <input
@@ -380,11 +380,11 @@ export function RuleSignatureCard({
                                   receivedDate: event.target.value,
                                 })
                               }
-                              className="h-7 w-full min-w-0 rounded border bg-background px-1.5 text-[8px]"
+                              className="h-8 w-full min-w-0 rounded border bg-background px-2 text-xs font-semibold"
                             />
                           </label>
                           <label className="min-w-0">
-                            <span className="mb-1 block text-[7px] font-bold uppercase text-muted-foreground">
+                            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">
                               Department *
                             </span>
                             <input
@@ -396,11 +396,11 @@ export function RuleSignatureCard({
                                 })
                               }
                               placeholder="Department"
-                              className="h-7 w-full min-w-0 rounded border bg-background px-2 text-[8px]"
+                              className="h-8 w-full min-w-0 rounded border bg-background px-2 text-xs font-semibold"
                             />
                           </label>
                           <label className="min-w-0">
-                            <span className="mb-1 block text-[7px] font-bold uppercase text-muted-foreground">
+                            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">
                               Modified by *
                             </span>
                             <input
@@ -412,14 +412,14 @@ export function RuleSignatureCard({
                                 })
                               }
                               placeholder="Name"
-                              className="h-7 w-full min-w-0 rounded border bg-background px-2 text-[8px]"
+                              className="h-8 w-full min-w-0 rounded border bg-background px-2 text-xs font-semibold"
                             />
                           </label>
                         </div>
                         <div className="mt-2 flex min-w-0 items-center justify-end gap-1.5 border-t border-border/60 pt-2">
                           <span
                             className={cn(
-                              "mr-auto flex h-7 min-w-[72px] items-center justify-center rounded-md border px-2 text-[7px] font-black uppercase",
+                              "mr-auto flex h-7 min-w-[72px] items-center justify-center rounded-md border px-2 text-[10px] font-black uppercase",
                               revision.status === "Current"
                                 ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                 : "border-slate-300 bg-muted text-muted-foreground",
@@ -440,7 +440,7 @@ export function RuleSignatureCard({
                               onClick={stopBubble(() => removeRevision(revision.id))}
                               className="flex size-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
                             >
-                              <Trash2 className="size-3" />
+                              <Trash2 className="size-3.5" />
                             </button>
                           </div>
                         </div>
@@ -449,7 +449,7 @@ export function RuleSignatureCard({
                   })}
                 </div>
               ) : (
-                <div className="rounded-md border border-dashed p-3 text-center text-[8px] text-amber-700 dark:text-amber-300">
+                <div className="rounded-md border border-dashed p-3 text-center text-xs text-amber-700 dark:text-amber-300">
                   Add the current revision before completing this document.
                 </div>
               )}
