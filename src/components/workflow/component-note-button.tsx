@@ -148,45 +148,67 @@ export function ComponentNoteButton({
                 <EmptyState />
               ) : (
                 <ul className="divide-y divide-border">
-                  {note?.posts.map((post) => (
-                    <li key={post.id} className="py-3 first:pt-0 last:pb-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                            {post.topic}
-                          </p>
-                          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
-                            {post.body}
-                          </p>
-                          <div className="mt-1.5 flex items-center gap-4 text-[11px]">
-                            <span
-                              className="text-muted-foreground"
-                              title={formatTimestamp(post.createdAt)}
+                  {note?.posts.map((post) => {
+                    const parent = post.parentId
+                      ? note?.posts.find((item) => item.id === post.parentId)
+                      : undefined;
+                    const isReply = Boolean(parent);
+                    return (
+                      <li
+                        key={post.id}
+                        className={cn(
+                          "py-3 first:pt-0 last:pb-0",
+                          isReply && "pl-4 border-l-2 border-purple-300/70",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            {parent ? (
+                              <p className="text-[11px] font-semibold text-purple-600">
+                                ↳ Re: {parent.topic}
+                              </p>
+                            ) : null}
+                            <p
+                              className={cn(
+                                "mt-1 text-xs font-semibold uppercase tracking-wide",
+                                isReply ? "text-muted-foreground" : "text-primary",
+                              )}
                             >
-                              {formatRelative(post.createdAt)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => startReply(post)}
-                              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700"
-                            >
-                              <CornerUpLeft className="size-3" />
-                              Reply
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deletePost(post.id)}
-                              aria-label={`Delete note about ${post.topic}`}
-                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-rose-600"
-                            >
-                              <X className="size-3" />
-                              Delete
-                            </button>
+                              {post.topic}
+                            </p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+                              {post.body}
+                            </p>
+                            <div className="mt-1.5 flex items-center gap-4 text-[11px]">
+                              <span
+                                className="text-muted-foreground"
+                                title={formatTimestamp(post.createdAt)}
+                              >
+                                {formatRelative(post.createdAt)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => startReply(post)}
+                                className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700"
+                              >
+                                <CornerUpLeft className="size-3" />
+                                Reply
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deletePost(post.id)}
+                                aria-label={`Delete note about ${post.topic}`}
+                                className="inline-flex items-center gap-1 text-muted-foreground hover:text-rose-600"
+                              >
+                                <X className="size-3" />
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
