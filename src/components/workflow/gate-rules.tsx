@@ -344,25 +344,25 @@ export function GateRules({ node }: { node: DomainNode }) {
               aria-label="Decision name"
               data-inspector-target="title"
               defaultValue={node.title}
-              rows={textareaRows(node.title, 62, 1)}
+              rows={textareaRows(node.title, 48, 1)}
               onBlur={(event) => saveText(node, "title", event.target.value)}
               placeholder="Decision name"
-              className="min-h-8 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[14px] font-bold leading-5 text-foreground outline-none"
+              className="min-h-9 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-lg font-bold leading-7 text-foreground outline-none"
             />
           </label>
-          <label className="mt-2 block">
+          <label className="mt-2.5 block">
             <span className="sr-only">Decision content</span>
             <textarea
               key={node.description}
               aria-label="Decision content"
               data-inspector-target="description"
               defaultValue={node.description}
-              rows={textareaRows(node.description, 82, 3)}
+              rows={textareaRows(node.description, 58, 3)}
               onBlur={(event) =>
                 saveText(node, "description", event.target.value)
               }
               placeholder="Commercial decision scope"
-              className="min-h-[86px] w-full resize-none overflow-hidden rounded-lg border bg-muted/25 px-2.5 py-2 text-[10px] leading-4 text-muted-foreground outline-none focus:border-[#b78b3e] focus:bg-background"
+              className="min-h-[108px] w-full resize-none overflow-hidden rounded-lg border bg-muted/25 px-3 py-2.5 text-sm leading-5 text-muted-foreground outline-none focus:border-[#b78b3e] focus:bg-background"
             />
           </label>
         </div>

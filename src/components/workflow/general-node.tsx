@@ -110,6 +110,15 @@ export function GeneralNode({
   const writeCustomFields = (
     patch: Record<string, string | number | boolean>,
   ) => {
+    const nextPatch =
+      isProjectStart && "projectId" in patch
+        ? {
+            ...patch,
+            legacyJobNumber: legacyJobNumberFromProjectId(
+              String(patch.projectId || ""),
+            ),
+          }
+        : patch;
     commitTransient((file) => ({
       ...file,
       graph: {
@@ -118,7 +127,7 @@ export function GeneralNode({
           item.id === node.id
             ? {
                 ...item,
-                customFields: { ...item.customFields, ...patch },
+                customFields: { ...item.customFields, ...nextPatch },
               }
             : item,
         ),

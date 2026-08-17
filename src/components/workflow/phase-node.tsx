@@ -43,7 +43,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
       </div>
       <div
         data-phase-header
-        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-28 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3.5 shadow-sm backdrop-blur active:cursor-grabbing"
       >
         <span
           aria-hidden
@@ -51,13 +51,13 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
           style={{ backgroundColor: color }}
         />
         <span
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
           style={{ backgroundColor: color }}
         >
-          <Layers3 className="size-5" />
+          <Layers3 className="size-6" />
         </span>
         <label className="min-w-0 flex-1">
-          <span className="block text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+          <span className="block text-sm font-black uppercase tracking-[0.15em] text-muted-foreground">
             Phase / Swimlane
           </span>
           <textarea
@@ -69,7 +69,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
                 title: event.target.value.trim() || node.title,
               })
             }
-            className="nodrag mt-0.5 min-h-7 w-full resize-none overflow-hidden bg-transparent text-lg font-black uppercase leading-6 tracking-[0.06em] outline-none"
+            className="nodrag mt-0.5 min-h-8 w-full resize-none overflow-hidden bg-transparent text-2xl font-black uppercase leading-7 tracking-[0.06em] outline-none"
           />
           <textarea
             aria-label="Phase description"
@@ -78,7 +78,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
             onBlur={(event) =>
               updateNode(node.id, { description: event.target.value.trim() })
             }
-            className="nodrag mt-0.5 min-h-5 w-full resize-none overflow-hidden bg-transparent text-xs font-medium leading-5 text-muted-foreground outline-none"
+            className="nodrag mt-0.5 min-h-6 w-full resize-none overflow-hidden bg-transparent text-sm font-medium leading-6 text-muted-foreground outline-none"
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-2">

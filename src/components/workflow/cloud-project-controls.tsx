@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { CheckCircle2, Cloud, Copy, FolderOpen, LogOut, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createProjectWorkflow, duplicateWorkflowFile } from "@/lib/project-template";
 import { parseWorkflow } from "@/lib/serialization";
+import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 
 type User = { id: string; email: string; name: string };
@@ -24,6 +25,8 @@ class ApiError extends Error {
     super(message);
   }
 }
+
+const AUTOSAVE_MS = 2500;
 
 const api = async <T,>(url: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(url, {
@@ -48,8 +51,15 @@ export function CloudProjectControls() {
   const [password, setPassword] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectNumber, setProjectNumber] = useState("");
+  const [autosaving, setAutosaving] = useState(false);
+  const [autosaveError, setAutosaveError] = useState("");
   const store = useWorkflowStore();
   const activeProjectId = store.activeProjectId;
+  const dirty = store.dirty;
+  const file = store.file;
+  const inFlight = useRef(false);
+  const userRef = useRef(user);
+  userRef.current = user;
   const confirmReplaceWorkspace = () =>
     !useWorkflowStore.getState().dirty ||
     window.confirm(
@@ -176,10 +186,7 @@ export function CloudProjectControls() {
         method: "POST",
         body: JSON.stringify({
           name,
-          projectNumber: String(
-            workflow.graph.nodes.find((node) => node.type === "projectStart")
-              ?.customFields.projectId || "",
-          ),
+          projectNumber: workflowLegacyJobNumber(workflow),
           workflow,
         }),
       });
@@ -194,43 +201,88 @@ export function CloudProjectControls() {
       setBusy(false);
     }
   };
-  const saveCloud = async () => {
-    if (!user) return setView("login");
-    if (!activeProjectId) {
-      setProjectName(store.file.graph.metadata.name);
+  const persistCloud = async (silent: boolean) => {
+    if (inFlight.current) return;
+    const currentUser = userRef.current;
+    if (!currentUser) {
+      if (!silent) setView("login");
+      return;
+    }
+    const workflow = useWorkflowStore.getState();
+    if (!workflow.activeProjectId) {
+      if (silent) return;
+      setProjectName(workflow.file.graph.metadata.name);
       setProjectNumber(
         String(
-          store.file.graph.nodes.find((node) => node.type === "projectStart")
+          workflow.file.graph.nodes.find((node) => node.type === "projectStart")
             ?.customFields.projectId || "",
         ),
       );
-      return setView("new");
+      setView("new");
+      return;
     }
-    setBusy(true);
-    setError("");
-    const savedFile = store.file;
+    if (silent && !workflow.dirty) return;
+    inFlight.current = true;
+    if (silent) setAutosaving(true);
+    else {
+      setBusy(true);
+      setError("");
+    }
+    const savedFile = workflow.file;
+    const projectId = workflow.activeProjectId;
+    let wrote = false;
     try {
-      await api(`/api/projects/${activeProjectId}`, {
+      await api(`/api/projects/${projectId}`, {
         method: "PUT",
         body: JSON.stringify({
           name: savedFile.graph.metadata.name,
-          projectNumber: String(
-            savedFile.graph.nodes.find((node) => node.type === "projectStart")
-              ?.customFields.projectId || "",
-          ),
+          projectNumber: workflowLegacyJobNumber(savedFile),
           workflow: savedFile,
         }),
       });
-      if (useWorkflowStore.getState().file === savedFile) store.markSaved();
+      wrote = true;
+      if (useWorkflowStore.getState().file === savedFile) {
+        useWorkflowStore.getState().markSaved();
+      }
+      setAutosaveError("");
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : "Could not save project.";
-      setError(message);
-      window.alert(message);
+      if (silent) setAutosaveError(message);
+      else {
+        setError(message);
+        window.alert(message);
+      }
     } finally {
+      inFlight.current = false;
       setBusy(false);
+      setAutosaving(false);
+      if (silent && wrote && useWorkflowStore.getState().dirty) {
+        window.setTimeout(() => void persistCloud(true), 800);
+      }
     }
   };
+  const saveCloud = () => {
+    void persistCloud(false);
+  };
+
+  useEffect(() => {
+    if (!user || !activeProjectId || !dirty || view) return;
+    const timer = window.setTimeout(() => void persistCloud(true), AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [user, activeProjectId, dirty, file, view]);
+
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === "hidden") void persistCloud(true);
+    };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [user, activeProjectId]);
   const openProject = async (id: string) => {
     if (!confirmReplaceWorkspace()) return;
     setBusy(true);
@@ -297,9 +349,17 @@ export function CloudProjectControls() {
         <Button title="New project" aria-label="New project" variant="ghost" size="icon" className="size-8" onClick={() => { setProjectName(""); setProjectNumber(""); requireAccount("new"); }}>
           <Plus className="size-4" />
         </Button>
-        <Button title="Save project to cloud" aria-label="Save project to cloud" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={saveCloud}>
+        <Button title={autosaveError || "Save project to cloud (autosaves while signed in)"} aria-label="Save project to cloud" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={saveCloud}>
           <Save className="size-4" />
         </Button>
+        {user && activeProjectId ? (
+          <span
+            className="hidden max-w-[4.75rem] truncate px-0.5 text-[10px] font-medium text-muted-foreground sm:inline"
+            title={autosaveError || undefined}
+          >
+            {autosaving ? "Saving…" : autosaveError ? "Save failed" : dirty ? "Autosave" : "Saved"}
+          </span>
+        ) : null}
         <Button title="Duplicate project" aria-label="Duplicate project" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={() => void duplicateProject()}>
           <Copy className="size-4" />
         </Button>
@@ -354,9 +414,9 @@ export function CloudProjectControls() {
               </form>
             ) : view === "new" ? (
               <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void createProject(); }}>
-                <p className="text-xs leading-5 text-muted-foreground">A new project starts with one Project Start card and no other nodes.</p>
+                <p className="text-xs leading-5 text-muted-foreground">A new project starts with one Project Start card. The 5-digit number is the Legacy Job Number (YY + sequence) and stays in sync if you later change the Project ID.</p>
                 <input autoFocus aria-label="New project name" value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="Project name" className="h-10 w-full rounded-lg border px-3 text-sm" />
-                <input aria-label="New project number" value={projectNumber} inputMode="numeric" maxLength={5} onChange={(event) => setProjectNumber(event.target.value.replace(/\D/g, "").slice(0, 5))} placeholder="5-digit Project number" className="h-10 w-full rounded-lg border px-3 text-sm" />
+                <input aria-label="Legacy job number" value={projectNumber} inputMode="numeric" maxLength={5} onChange={(event) => setProjectNumber(event.target.value.replace(/\D/g, "").slice(0, 5))} placeholder="Legacy number (5 digits)" className="h-10 w-full rounded-lg border px-3 text-sm" />
                 <Button type="submit" className="w-full" disabled={busy}>{busy ? "Creating…" : "Create project"}</Button>
               </form>
             ) : (

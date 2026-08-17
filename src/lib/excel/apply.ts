@@ -20,6 +20,7 @@ import {
   withSignatureDocuments,
 } from "@/lib/excel/shared";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
+import { withSyncedLegacyJobNumber } from "@/lib/project-id";
 import type { WorkflowFile } from "@/types/workflow";
 
 export function applyPhaseSheet(
@@ -88,7 +89,12 @@ export function applyPhaseSheet(
       const nextValue =
         field?.type === "boolean" ? Boolean(asBoolean(value) ?? false) : asString(value);
       if (!field?.readOnly) {
-        next = updateGraphNode(next, node.id, (item) => writePath(item, key.id, nextValue));
+        next = updateGraphNode(next, node.id, (item) => {
+          const written = writePath(item, key.id, nextValue);
+          return key.id === "customFields.projectId"
+            ? withSyncedLegacyJobNumber(written)
+            : written;
+        });
         const locationField =
           key.id === "config.buildingCode"
             ? "buildingCode"

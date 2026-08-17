@@ -12,7 +12,7 @@
 // Module code    = M-XXX
 // Both are required once a Paid Service Type shows up.
 
-import type { DomainNode } from "@/types/workflow";
+import type { DomainNode, WorkflowFile } from "@/types/workflow";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export type ProjectIdPrefix = "L" | "P";
@@ -53,6 +53,30 @@ export function legacyJobNumberFromProjectId(projectId: string): string {
   const match = projectId.match(/^[LP]-(\d{2})-(\d{3})$/);
   if (!match) return "";
   return `${match[1]}${match[2]}`;
+}
+
+/** Five-digit Legacy number stored as the cloud `project_number`. Follows Project ID. */
+export function workflowLegacyJobNumber(file: WorkflowFile): string {
+  const start = file.graph.nodes.find((node) => node.type === "projectStart");
+  const projectId = String(start?.customFields.projectId || "");
+  return (
+    legacyJobNumberFromProjectId(projectId) ||
+    String(start?.customFields.legacyJobNumber || "")
+  );
+}
+
+export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
+  if (node.type !== "projectStart") return node;
+  const legacyJobNumber = legacyJobNumberFromProjectId(
+    String(node.customFields.projectId || ""),
+  );
+  if (String(node.customFields.legacyJobNumber || "") === legacyJobNumber) {
+    return node;
+  }
+  return {
+    ...node,
+    customFields: { ...node.customFields, legacyJobNumber },
+  };
 }
 
 export function projectIdPrefix(projectId: string): ProjectIdPrefix | null {

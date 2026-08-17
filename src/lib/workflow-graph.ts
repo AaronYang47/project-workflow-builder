@@ -1,5 +1,6 @@
 import { clone } from "@/lib/clone";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { withSyncedLegacyJobNumber } from "@/lib/project-id";
 import type {
   DomainEdge,
   DomainNode,
@@ -87,7 +88,7 @@ export function patchNode(
 ): WorkflowFile {
   const current = file.graph.nodes.find((node) => node.id === id);
   if (!current) return file;
-  const next = { ...current, ...patch };
+  const next = withSyncedLegacyJobNumber({ ...current, ...patch });
   const layout = file.layout.nodes[id];
   const preferred = getAdaptiveNodeSize(next, layout);
   const nextSize =

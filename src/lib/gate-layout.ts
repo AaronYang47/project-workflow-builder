@@ -3,7 +3,7 @@ import { ruleHasPaidService } from "@/lib/gate-service-types";
 
 export const GATE_PANEL_WIDTH = 620;
 export const GATE_CARD_WIDTH = GATE_PANEL_WIDTH;
-export const GATE_CARD_HEIGHT = 244;
+export const GATE_CARD_HEIGHT = 268;
 export const GATE_INTERNAL_GAP = 36;
 export const GATE_SIDE_WIDTH = GATE_PANEL_WIDTH;
 export const GATE_SECTION_GAP = 42;
@@ -38,11 +38,11 @@ const wrappedLines = (value: string | undefined, charactersPerLine: number) =>
 export function getGateLayoutMetrics(
   node: Pick<DomainNode, "config" | "title" | "description">,
 ) {
-  const gateTitleLines = wrappedLines(node.title, 64);
-  const gateDescriptionLines = wrappedLines(node.description, 84);
+  const gateTitleLines = wrappedLines(node.title, 48);
+  const gateDescriptionLines = wrappedLines(node.description, 58);
   const gateCardHeight = Math.max(
     GATE_CARD_HEIGHT,
-    116 + gateTitleLines * 20 + gateDescriptionLines * 16,
+    128 + gateTitleLines * 28 + gateDescriptionLines * 20,
   );
   const rules = node.config.gateRules || [];
   const ruleHeight = rules.length
