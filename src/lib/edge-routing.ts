@@ -44,7 +44,7 @@ export function corridorYAboveCards(
   spanRight: number,
   headers: RouteObstacle[],
 ) {
-  const preferred = cardTop - 28 - (Math.abs(lane) % 3) * 18;
+  const preferred = cardTop - 48 - (Math.abs(lane) % 3) * 18;
   const crossed = headers.filter((header) =>
     spansOverlap(spanLeft, spanRight, header),
   );

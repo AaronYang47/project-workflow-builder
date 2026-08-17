@@ -76,6 +76,44 @@ const stub = (point: Point, position: Position, length: number): Point =>
       : position === Position.Top
         ? { x: point.x, y: point.y - length }
         : { x: point.x, y: point.y + length };
+
+const MIN_END_STUB = 36;
+
+/** Keep a straight run after the last 90° turn so the arrow is not glued to the corner. */
+const withMinEndStub = (
+  points: Point[],
+  position: Position,
+  minLength = MIN_END_STUB,
+): Point[] => {
+  if (points.length < 2) return points;
+  const result = points.map((point) => ({ ...point }));
+  const target = result[result.length - 1];
+  const vertical = position === Position.Top || position === Position.Bottom;
+  const aligned = (point: Point) =>
+    vertical
+      ? Math.abs(point.x - target.x) < 0.5
+      : Math.abs(point.y - target.y) < 0.5;
+  let penIndex = result.length - 2;
+  if (!aligned(result[penIndex])) {
+    result.splice(result.length - 1, 0, vertical
+      ? { x: target.x, y: result[penIndex].y }
+      : { x: result[penIndex].x, y: target.y });
+    penIndex = result.length - 2;
+  }
+  const corner = result[penIndex];
+  if (distance(corner, target) >= minLength) return compact(result);
+  const moved = stub(target, position, minLength);
+  result[penIndex] = moved;
+  if (penIndex > 0) {
+    const previous = result[penIndex - 1];
+    if (vertical && Math.abs(previous.y - corner.y) < 0.5) {
+      result[penIndex - 1] = { ...previous, y: moved.y };
+    } else if (!vertical && Math.abs(previous.x - corner.x) < 0.5) {
+      result[penIndex - 1] = { ...previous, x: moved.x };
+    }
+  }
+  return compact(result);
+};
 const compact = (points: Point[]) =>
   points
     .filter(
@@ -117,8 +155,8 @@ const routedPoints = (
   targetPosition: Position,
   route: EdgeRoutePoint[],
 ) => {
-  const sourceStub = stub(source, sourcePosition, 12);
-  const targetStub = stub(target, targetPosition, 12);
+  const sourceStub = stub(source, sourcePosition, 16);
+  const targetStub = stub(target, targetPosition, MIN_END_STUB);
   const middle = collapseRedundantBends(route.slice(1, -1));
   const points: Point[] = [source, sourceStub];
   for (const point of middle) {
@@ -532,7 +570,7 @@ export function SemanticEdge({
     const sourceObstacle = obstacles.find((item) => item.id === domain.source);
     const targetObstacle = obstacles.find((item) => item.id === domain.target);
     const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 16);
-    const targetStub = stub({ x: targetX, y: targetY }, targetPosition, 16);
+    const targetStub = stub({ x: targetX, y: targetY }, targetPosition, MIN_END_STUB);
     const horizontalHandles =
       [sourcePosition, targetPosition].every(
         (position) => position === Position.Left || position === Position.Right,
@@ -607,14 +645,17 @@ export function SemanticEdge({
   const storedDetour =
     Boolean(routed && automaticRoute) &&
     pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40;
-  const visibleRoute =
+  const visibleRoute = withMinEndStub(
     preGateSalesRoute ??
-    deniedRoute ??
-    approvedRoute ??
-    (storedDetour ? automaticRoute : routed) ??
-    automaticRoute;
-  const path = visibleRoute ? roundedPath(visibleRoute) : bezierPath;
-  const labelGuide = visibleRoute ?? [
+      deniedRoute ??
+      approvedRoute ??
+      (storedDetour ? automaticRoute : routed) ??
+      automaticRoute ??
+      [],
+    targetPosition,
+  );
+  const path = visibleRoute.length >= 2 ? roundedPath(visibleRoute) : bezierPath;
+  const labelGuide = visibleRoute.length >= 2 ? visibleRoute : [
     { x: sourceX, y: sourceY },
     { x: bezierLabelX, y: bezierLabelY },
     { x: targetX, y: targetY },
@@ -628,7 +669,7 @@ export function SemanticEdge({
     domain.target,
     data?.labelLane,
     data?.labelHugsPath,
-    visibleRoute ? undefined : { x: bezierLabelX, y: bezierLabelY },
+    visibleRoute.length >= 2 ? undefined : { x: bezierLabelX, y: bezierLabelY },
     approved,
   );
   const sourceObstacle = data?.obstacles?.find(
