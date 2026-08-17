@@ -41,6 +41,7 @@ import { useNodeDragHandlers } from "./use-node-drag-handlers";
 import {
   canReceiveDeniedReturn,
   deniedTargetHandle,
+  isApprovedEdge,
   isDeniedEdge,
   isDeniedSourceHandle,
 } from "@/lib/workflow-graph";
@@ -255,7 +256,9 @@ function CanvasInner() {
           target: domain.target,
           sourceHandle: domain.sourceHandle,
           targetHandle: domain.targetHandle,
-          reconnectable: isDeniedEdge(domain) ? "target" : false,
+          reconnectable: isDeniedEdge(domain) || isApprovedEdge(domain)
+            ? "target"
+            : false,
           selected: selection.edgeId === domain.id,
           markerEnd:
             domain.arrowStyle === "none"
@@ -393,19 +396,35 @@ function CanvasInner() {
     ) => {
       if (state.isValid || handleType !== "target") return;
       const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
-      if (!isDeniedSourceHandle(domain?.sourceHandle ?? edge.sourceHandle)) return;
+      const sourceHandle = domain?.sourceHandle ?? edge.sourceHandle;
+      if (
+        !isDeniedSourceHandle(sourceHandle) &&
+        !isApprovedEdge({ sourceHandle, type: domain?.type })
+      ) {
+        return;
+      }
       const targetId = nodeIdFromPointer(event);
       if (!targetId) return;
       const target = file.graph.nodes.find((node) => node.id === targetId);
-      if (!target || !canReceiveDeniedReturn(target.type)) return;
+      if (
+        !target ||
+        target.type === "phase" ||
+        target.type === "projectStart"
+      ) {
+        return;
+      }
       const source = file.graph.nodes.find((node) => node.id === edge.source);
       updateEdge(edge.id, {
         target: targetId,
-        targetHandle: deniedTargetHandle({
-          sourceHandle: domain?.sourceHandle ?? edge.sourceHandle,
-          preGateSales: source?.metadata.workflowSection === "Pre-Gate Sales",
-          droppedHandle: "rework-in",
-        }),
+        targetHandle:
+          sourceHandle && isDeniedSourceHandle(sourceHandle)
+            ? deniedTargetHandle({
+                sourceHandle,
+                preGateSales:
+                  source?.metadata.workflowSection === "Pre-Gate Sales",
+                droppedHandle: "rework-in",
+              })
+            : "in",
       });
     },
     [file.graph.nodes, updateEdge],

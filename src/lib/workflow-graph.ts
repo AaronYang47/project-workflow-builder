@@ -25,6 +25,16 @@ export function isDeniedEdge(edge: {
   );
 }
 
+export function isApprovedEdge(edge: {
+  sourceHandle?: string | null;
+  type?: string;
+}) {
+  return (
+    edge.sourceHandle === "yes" ||
+    ["success", "approval"].includes(String(edge.type || ""))
+  );
+}
+
 export function canReceiveDeniedReturn(type?: WorkflowNodeType) {
   return Boolean(type) && type !== "projectStart" && type !== "phase";
 }
