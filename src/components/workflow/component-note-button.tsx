@@ -147,12 +147,9 @@ export function ComponentNoteButton({
               {postCount === 0 ? (
                 <EmptyState />
               ) : (
-                <ul className="space-y-3">
+                <ul className="divide-y divide-border">
                   {note?.posts.map((post) => (
-                    <li
-                      key={post.id}
-                      className="rounded-xl border bg-muted/20 px-4 py-3"
-                    >
+                    <li key={post.id} className="py-3 first:pt-0 last:pb-0">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -161,29 +158,32 @@ export function ComponentNoteButton({
                           <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                             {post.body}
                           </p>
-                          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
-                            <span title={formatTimestamp(post.createdAt)}>
+                          <div className="mt-1.5 flex items-center gap-4 text-[11px]">
+                            <span
+                              className="text-muted-foreground"
+                              title={formatTimestamp(post.createdAt)}
+                            >
                               {formatRelative(post.createdAt)}
                             </span>
                             <button
                               type="button"
                               onClick={() => startReply(post)}
-                              className="inline-flex items-center gap-1 font-semibold text-purple-600 hover:text-purple-700"
+                              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700"
                             >
                               <CornerUpLeft className="size-3" />
                               Reply
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => deletePost(post.id)}
+                              aria-label={`Delete note about ${post.topic}`}
+                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-rose-600"
+                            >
+                              <X className="size-3" />
+                              Delete
+                            </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => deletePost(post.id)}
-                          aria-label={`Delete note about ${post.topic}`}
-                          title="Delete this post"
-                          className="rounded-md p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <X className="size-3.5" />
-                        </button>
                       </div>
                     </li>
                   ))}
