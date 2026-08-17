@@ -1,9 +1,6 @@
 import type { ComponentNote, ComponentNoteRevision } from "@/types/workflow";
 
-export const EMPTY_REVISION: Pick<ComponentNoteRevision, "topic" | "body"> = {
-  topic: "",
-  body: "",
-};
+export const MAX_COMPONENT_NOTE_HISTORY = 20;
 
 const DEFAULT_TOPIC = "Untitled note";
 
@@ -40,24 +37,11 @@ export function normalizeComponentNote(value: unknown): ComponentNote | undefine
               typeof (item as ComponentNoteRevision).body === "string" &&
               typeof (item as ComponentNoteRevision).savedAt === "string",
           )
-          .slice(-20)
+          .slice(-MAX_COMPONENT_NOTE_HISTORY)
       : [];
     return { topic, body, updatedAt, history };
   }
   return undefined;
-}
-
-export function emptyComponentNote(): ComponentNote {
-  return {
-    topic: DEFAULT_TOPIC,
-    body: "",
-    updatedAt: new Date().toISOString(),
-    history: [],
-  };
-}
-
-export function noteSummary(note: ComponentNote): string {
-  return note.body.trim();
 }
 
 export function revisionLabel(revision: ComponentNoteRevision): string {
