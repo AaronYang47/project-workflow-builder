@@ -249,7 +249,7 @@ export function DecisionCard({
           className={cn(
             "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
             approvalReady
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm ring-1 ring-emerald-500/15 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
               : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
           )}
         >
@@ -282,7 +282,7 @@ export function DecisionCard({
                 ? "Connect approved route"
                 : "Connect route now; it becomes active after approval details are complete"
             }
-            className="!right-[-10px] !z-50 !size-5 !cursor-crosshair !border-[3px] !border-background !bg-emerald-600 !opacity-100 shadow-md"
+            className="!right-[-10px] !z-50 !size-5 !border-[3px] !border-background !bg-emerald-600 !opacity-100"
           />
         </div>
         {outcomes
@@ -293,7 +293,7 @@ export function DecisionCard({
               className={cn(
                 "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
                 !checklistSatisfied
-                  ? "border-rose-300 bg-rose-50 text-rose-800 shadow-sm ring-1 ring-rose-500/15 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                  ? "border-rose-300 bg-rose-50 text-rose-800 shadow-sm dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                   : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
               )}
             >
@@ -315,7 +315,7 @@ export function DecisionCard({
                 position={Position.Right}
                 id={outcome.id}
                 title={`Connect ${outcome.label || "denied"} route`}
-                className="!right-[-10px] !z-50 !size-5 !cursor-crosshair !border-[3px] !border-background !bg-rose-600 !opacity-100 shadow-md"
+                className="!right-[-10px] !z-50 !size-5 !border-[3px] !border-background !bg-rose-600 !opacity-100"
               />
             </div>
           ))}
