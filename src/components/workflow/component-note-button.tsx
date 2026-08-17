@@ -206,11 +206,6 @@ export function ComponentNoteButton({
                   Comment
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Press <kbd className="rounded border bg-background px-1 py-0.5 font-mono">⌘</kbd>/
-                <kbd className="rounded border bg-background px-1 py-0.5 font-mono">Ctrl</kbd>+
-                <kbd className="rounded border bg-background px-1 py-0.5 font-mono">Enter</kbd> to post.
-              </p>
             </form>
           </Dialog.Content>
         </Dialog.Portal>
