@@ -36,6 +36,10 @@ export function normalizeComponentNote(value: unknown): ComponentNote | undefine
             topic: post.topic.trim() || DEFAULT_POST_TOPIC,
             body: post.body.trim(),
             createdAt: post.createdAt,
+            parentId:
+              typeof (post as ComponentNotePost).parentId === "string"
+                ? (post as ComponentNotePost).parentId
+                : undefined,
           }))
           .filter((post) => post.body.length > 0)
       : [];
