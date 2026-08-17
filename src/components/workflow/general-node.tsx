@@ -287,7 +287,7 @@ export function GeneralNode({
                 </span>
               </span>
               <div className="flex items-center gap-0">
-                <span className="font-mono text-sm font-bold leading-6 text-muted-foreground">
+                <span className="w-7 text-center font-mono text-sm font-bold leading-6 text-muted-foreground">
                   {(projectId.match(/^[LP]-/) || ["L-"])[0]}
                 </span>
                 <input
