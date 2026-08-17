@@ -79,6 +79,10 @@ export interface OutcomeHandle {
   color?: string;
   enabled?: boolean;
   rule?: string;
+  /** Where this outcome's source handle sits on the Decision card. */
+  anchor?: "right" | "left" | "top" | "bottom";
+  /** 0..1 along the anchor side. Default 0.5. */
+  anchorOffset?: number;
 }
 export type RequirementType = "Required" | "Optional";
 export interface RevisionRecord {

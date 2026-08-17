@@ -95,6 +95,11 @@ interface WorkflowState {
     patches: Record<string, Partial<NodeLayout>>,
     before: Record<string, NodeLayout>,
   ) => void;
+  setOutcomeAnchor: (
+    nodeId: string,
+    outcomeId: string,
+    anchor: { anchor: "right" | "left" | "top" | "bottom"; anchorOffset: number },
+  ) => void;
   setViewport: (viewport: WorkflowFile["layout"]["viewport"]) => void;
   validate: () => void;
   togglePanel: (panel: "left" | "right" | "validation") => void;
@@ -421,6 +426,22 @@ export const useWorkflowStore = create<WorkflowState>()(
       setViewport: (viewport) =>
         set((state) => ({
           file: { ...state.file, layout: { ...state.file.layout, viewport } },
+        })),
+      setOutcomeAnchor: (nodeId, outcomeId, anchor) =>
+        get().commit((file) => ({
+          ...file,
+          graph: {
+            ...file.graph,
+            nodes: file.graph.nodes.map((item) => {
+              if (item.id !== nodeId) return item;
+              const outcomes = (item.config.outcomes || []).map((outcome) =>
+                outcome.id === outcomeId
+                  ? { ...outcome, ...anchor }
+                  : outcome,
+              );
+              return { ...item, config: { ...item.config, outcomes } };
+            }),
+          },
         })),
       validate: () => {
         const issues = validateWorkflow(get().file);

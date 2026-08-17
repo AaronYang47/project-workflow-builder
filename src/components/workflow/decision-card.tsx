@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   Boxes,
   Building2,
@@ -90,6 +90,27 @@ export function DecisionCard({
   );
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const yes = outcomes.find((outcome) => outcome.id === "yes");
+  const anchorFor = useCallback(
+    (outcome: OutcomeHandle): { side: Position; offsetPercent: number } => {
+      const anchor = outcome.anchor ?? "right";
+      const offsetPercent = Math.max(
+        0,
+        Math.min(1, outcome.anchorOffset ?? 0.5),
+      );
+      return {
+        side:
+          anchor === "left"
+            ? Position.Left
+            : anchor === "top"
+              ? Position.Top
+              : anchor === "bottom"
+                ? Position.Bottom
+                : Position.Right,
+        offsetPercent,
+      };
+    },
+    [],
+  );
   return (
     <Fragment>
     <div
@@ -244,80 +265,45 @@ export function DecisionCard({
           </label>
         </div>
       ) : null}
-      <div data-decision-outcomes className="nodrag space-y-1.5">
-        <div
-          className={cn(
-            "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
-            approvalReady
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm ring-1 ring-emerald-500/15 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-              : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
-          )}
-        >
-          <CheckCircle2 className="mr-1.5 size-3.5 shrink-0" />
-          <span className="min-w-0 truncate">{yes?.label || "APPROVED"}</span>
-          <span
-            title={
-              approvalReady
-                ? `${approvedDepartment} · ${approvedBy}`
-                : "Department and approver required"
-            }
-            className="ml-auto max-w-[170px] shrink truncate text-[7px] font-semibold"
-          >
-            {approvalReady
-              ? `${approvedDepartment} · ${approvedBy}`
-              : "DETAILS REQUIRED"}
-          </span>
-          <ComponentNoteButton
-            nodeId={node.id}
-            noteKey="outcome:yes"
-            label={`${node.title} approved outcome`}
-            className="ml-2 size-5"
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="yes"
-            title={
-              approvalReady
-                ? "Connect approved route"
-                : "Connect route now; it becomes active after approval details are complete"
-            }
-            className="!right-[-10px] !z-50 !size-5 !cursor-crosshair !border-[3px] !border-background !bg-emerald-600 !opacity-100 shadow-md"
-          />
-        </div>
+<div data-decision-outcomes className="nodrag space-y-1.5">
+        <OutcomeRow
+          outcome={outcomes.find((outcome) => outcome.id === "yes") || {
+            id: "yes",
+            label: "APPROVED",
+            edgeType: "success",
+          }}
+          defaultLabel="APPROVED"
+          icon={<CheckCircle2 className="mr-1.5 size-3.5 shrink-0" />}
+          active={approvalReady}
+          activeClassName="border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm ring-1 ring-emerald-500/15 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+          inactiveClassName="border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500"
+          activeMeta={approvalReady ? `${approvedDepartment} · ${approvedBy}` : ""}
+          inactiveMeta="DETAILS REQUIRED"
+          activeMetaTitle={
+            approvalReady ? `${approvedDepartment} · ${approvedBy}` : "Department and approver required"
+          }
+          node={node}
+          accent="emerald"
+          anchorFor={anchorFor}
+        />
         {outcomes
           .filter((outcome) => outcome.id !== "yes")
           .map((outcome) => (
-            <div
+            <OutcomeRow
               key={outcome.id}
-              className={cn(
-                "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
-                !checklistSatisfied
-                  ? "border-rose-300 bg-rose-50 text-rose-800 shadow-sm ring-1 ring-rose-500/15 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
-                  : "border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500",
-              )}
-            >
-              <XCircle className="mr-1.5 size-3.5 shrink-0" />
-              <span className="min-w-0 truncate">
-                {outcome.label || "DENIED"}
-              </span>
-              <span className="ml-auto max-w-[230px] shrink truncate text-[7px] font-semibold">
-                {outcome.rule || "CONDITIONS NOT MET"}
-              </span>
-              <ComponentNoteButton
-                nodeId={node.id}
-                noteKey={`outcome:${outcome.id}`}
-                label={`${node.title} ${outcome.label || "denied"} outcome`}
-                className="ml-2 size-5"
-              />
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={outcome.id}
-                title={`Connect ${outcome.label || "denied"} route`}
-                className="!right-[-10px] !z-50 !size-5 !cursor-crosshair !border-[3px] !border-background !bg-rose-600 !opacity-100 shadow-md"
-              />
-            </div>
+              outcome={outcome}
+              defaultLabel="DENIED"
+              icon={<XCircle className="mr-1.5 size-3.5 shrink-0" />}
+              active={checklistSatisfied}
+              activeClassName="border-rose-300 bg-rose-50 text-rose-800 shadow-sm ring-1 ring-rose-500/15 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+              inactiveClassName="border-slate-200 bg-slate-50/70 text-slate-400 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-500"
+              activeMeta={outcome.rule || "CONDITIONS NOT MET"}
+              inactiveMeta="CONDITIONS NOT MET"
+              activeMetaTitle={outcome.label || "denied"}
+              node={node}
+              accent="rose"
+              anchorFor={anchorFor}
+            />
           ))}
       </div>
     </section>
@@ -336,5 +322,184 @@ export function DecisionCard({
     ) : null}
     </div>
     </Fragment>
+  );
+}
+
+interface OutcomeRowProps {
+  outcome: OutcomeHandle;
+  defaultLabel: string;
+  icon: React.ReactNode;
+  active: boolean;
+  activeClassName: string;
+  inactiveClassName: string;
+  activeMeta: string;
+  inactiveMeta: string;
+  activeMetaTitle: string;
+  node: DomainNode;
+  accent: "emerald" | "rose";
+  anchorFor: (outcome: OutcomeHandle) => {
+    side: Position;
+    offsetPercent: number;
+  };
+}
+
+function OutcomeRow({
+  outcome,
+  defaultLabel,
+  icon,
+  active,
+  activeClassName,
+  inactiveClassName,
+  activeMeta,
+  inactiveMeta,
+  activeMetaTitle,
+  node,
+  accent,
+  anchorFor,
+}: OutcomeRowProps) {
+  const setOutcomeAnchor = useWorkflowStore((state) => state.setOutcomeAnchor);
+  const anchor = anchorFor(outcome);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [hovering, setHovering] = useState(false);
+  const anchors: Array<"right" | "left" | "top" | "bottom"> = [
+    "right",
+    "left",
+    "top",
+    "bottom",
+  ];
+
+  useEffect(() => {
+    if (!hovering) return;
+    const card = cardRef.current;
+    if (!card) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-outcome-anchor]")) return;
+      const button = target.closest("[data-outcome-handle]");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const moveHandler = (moveEvent: PointerEvent) => {
+        const rect = card.getBoundingClientRect();
+        const x = moveEvent.clientX - rect.left;
+        const y = moveEvent.clientY - rect.top;
+        const ratios: Record<"right" | "left" | "top" | "bottom", number> = {
+          right: 1 - x / rect.width,
+          left: x / rect.width,
+          top: y / rect.height,
+          bottom: 1 - y / rect.height,
+        };
+        const side = (Object.keys(ratios) as Array<keyof typeof ratios>).reduce(
+          (best, key) => (ratios[key] > ratios[best] ? key : best),
+          "right" as keyof typeof ratios,
+        );
+        let offsetPercent = 0.5;
+        if (side === "right" || side === "left") {
+          offsetPercent = Math.max(
+            0,
+            Math.min(1, (y / rect.height) || 0.5),
+          );
+        } else {
+          offsetPercent = Math.max(
+            0,
+            Math.min(1, (x / rect.width) || 0.5),
+          );
+        }
+        setOutcomeAnchor(node.id, outcome.id, {
+          anchor: side,
+          anchorOffset: offsetPercent,
+        });
+      };
+      const upHandler = () => {
+        window.removeEventListener("pointermove", moveHandler);
+        window.removeEventListener("pointerup", upHandler);
+      };
+      window.addEventListener("pointermove", moveHandler);
+      window.addEventListener("pointerup", upHandler);
+    };
+    card.addEventListener("pointerdown", onPointerDown);
+    return () => card.removeEventListener("pointerdown", onPointerDown);
+  }, [hovering, node.id, outcome.id, setOutcomeAnchor]);
+
+  const handlePositionStyle = (() => {
+    if (anchor.side === Position.Right) {
+      return { right: -10, top: `${anchor.offsetPercent * 100}%` };
+    }
+    if (anchor.side === Position.Left) {
+      return { left: -10, top: `${anchor.offsetPercent * 100}%` };
+    }
+    if (anchor.side === Position.Top) {
+      return { top: -10, left: `${anchor.offsetPercent * 100}%` };
+    }
+    return { bottom: -10, left: `${anchor.offsetPercent * 100}%` };
+  })();
+
+  const accentBg = accent === "emerald" ? "bg-emerald-600" : "bg-rose-600";
+
+  return (
+      <div
+        ref={cardRef}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        className={cn(
+          "relative flex min-h-10 min-w-0 items-center overflow-visible rounded-lg border px-2.5 py-2 text-[9px] font-black leading-4 transition",
+          active ? activeClassName : inactiveClassName,
+        )}
+      >
+        {icon}
+        <span className="min-w-0 truncate">{outcome.label || defaultLabel}</span>
+        <span
+          title={activeMetaTitle}
+          className="ml-auto max-w-[170px] shrink truncate text-[7px] font-semibold"
+        >
+          {active ? activeMeta : inactiveMeta}
+        </span>
+        <ComponentNoteButton
+          nodeId={node.id}
+          noteKey={`outcome:${outcome.id}`}
+          label={`${node.title} ${outcome.label || defaultLabel.toLowerCase()} outcome`}
+          className="ml-2 size-5"
+        />
+        <Handle
+          type="source"
+          position={anchor.side}
+          id={outcome.id}
+          title={`Connect ${outcome.label || defaultLabel.toLowerCase()} route (drag the chip to choose where it exits)`}
+          className={cn(
+            "!z-50 !size-5 !cursor-crosshair !border-[3px] !border-background !opacity-100 shadow-md",
+            accentBg,
+          )}
+          style={handlePositionStyle}
+        />
+        {hovering
+          ? anchors.map((side) => (
+              <span
+                key={side}
+                data-outcome-anchor={side}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOutcomeAnchor(node.id, outcome.id, {
+                    anchor: side,
+                    anchorOffset: 0.5,
+                  });
+                }}
+                className={cn(
+                  "nodrag nopan absolute flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border bg-background/95 text-[8px] font-bold uppercase tracking-wide text-muted-foreground shadow-sm hover:border-primary/60 hover:text-primary",
+                  accent === "emerald"
+                    ? "border-emerald-300"
+                    : "border-rose-300",
+                  side === "right" && "-right-7 top-1/2 -translate-y-1/2",
+                  side === "left" && "-left-7 top-1/2 -translate-y-1/2",
+                  side === "top" && "left-1/2 -top-7 -translate-x-1/2",
+                  side === "bottom" && "bottom-[-1.75rem] left-1/2 -translate-x-1/2",
+                )}
+                title={`Anchor to ${side}`}
+              >
+                {side === "right" ? "R" : side === "left" ? "L" : side === "top" ? "T" : "B"}
+              </span>
+            ))
+          : null}
+      </div>
   );
 }
