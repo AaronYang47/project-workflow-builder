@@ -158,24 +158,37 @@ export function ComponentNoteButton({
                         key={post.id}
                         className={cn(
                           "py-3 first:pt-0 last:pb-0",
-                          isReply && "pl-4 border-l-2 border-purple-300/70",
+                          isReply &&
+                            "ml-4 rounded-md border border-purple-200 bg-purple-50/60 px-3",
                         )}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              {parent ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                  <CornerUpLeft className="size-2.5" />
+                                  Reply
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                                  Post
+                                </span>
+                              )}
+                              <span
+                                className={cn(
+                                  "text-xs font-semibold uppercase tracking-wide",
+                                  isReply ? "text-purple-700" : "text-primary",
+                                )}
+                              >
+                                {post.topic}
+                              </span>
+                            </div>
                             {parent ? (
-                              <p className="text-[11px] font-semibold text-purple-600">
-                                ↳ Re: {parent.topic}
+                              <p className="mt-1 line-clamp-1 text-[11px] italic text-purple-700/80">
+                                ↳ Re: {parent.topic} — “{parent.body}”
                               </p>
                             ) : null}
-                            <p
-                              className={cn(
-                                "mt-1 text-xs font-semibold uppercase tracking-wide",
-                                isReply ? "text-muted-foreground" : "text-primary",
-                              )}
-                            >
-                              {post.topic}
-                            </p>
                             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                               {post.body}
                             </p>
