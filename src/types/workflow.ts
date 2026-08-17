@@ -203,7 +203,7 @@ export interface DomainNode {
     detailsNeededLabel?: string;
     document?: DocumentConfig;
     reference?: ReferenceConfig;
-    componentNotes?: Record<string, string>;
+    componentNotes?: Record<string, ComponentNote>;
     collapsed?: boolean;
     locked?: boolean;
     serviceType?: string;
@@ -211,6 +211,19 @@ export interface DomainNode {
     moduleCode?: string;
     paidServiceType?: unknown;
   };
+}
+
+export interface ComponentNoteRevision {
+  topic: string;
+  body: string;
+  savedAt: string;
+}
+
+export interface ComponentNote {
+  topic: string;
+  body: string;
+  updatedAt: string;
+  history: ComponentNoteRevision[];
 }
 
 export interface DomainEdge {
