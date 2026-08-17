@@ -213,17 +213,15 @@ export interface DomainNode {
   };
 }
 
-export interface ComponentNoteRevision {
+export interface ComponentNotePost {
+  id: string;
   topic: string;
   body: string;
-  savedAt: string;
+  createdAt: string;
 }
 
 export interface ComponentNote {
-  topic: string;
-  body: string;
-  updatedAt: string;
-  history: ComponentNoteRevision[];
+  posts: ComponentNotePost[];
 }
 
 export interface DomainEdge {
