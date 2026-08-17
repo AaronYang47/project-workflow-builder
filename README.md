@@ -48,3 +48,8 @@ See [`USING-PROFAB-WORKFLOW.md`](./USING-PROFAB-WORKFLOW.md) for operating instr
 - `src/lib/inspector-schema.ts` — extensible per-node inspector definitions
 
 The JSON document includes a `schemaVersion`, a `graph` section for domain data, and a separate `layout` section for renderer state. This makes migration to another renderer or a future backend possible without changing workflow meaning.
+
+## Deployment
+
+Continuous deployment is configured with Cloudflare Pages. Pushes to the `main` branch automatically build the static export and deploy to [project-workflow-builder.pages.dev](https://project-workflow-builder.pages.dev).
+
