@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useCallback, useMemo, useRef } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -10,16 +11,12 @@ import {
   ReactFlowProvider,
   SelectionMode,
   useReactFlow,
-  type Connection,
   type Edge,
-  type FinalConnectionState,
-  type HandleType,
-  type IsValidConnection,
   type Node,
-  type OnNodeDrag,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+
 import { WorkflowNode } from "./workflow-node";
 import { PhaseNode } from "./phase-node";
 import { ReferenceNode } from "./reference-node";
@@ -30,37 +27,23 @@ import {
   type LabelObstacle,
 } from "./semantic-edge";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import { resolveAbsolutePosition, fitCanvasToWorkflow, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
-import { NODE_HEADER_HEIGHT, PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
-import { GATE_SECTION_GAP, getGateLayoutMetrics } from "@/lib/gate-layout";
+import {
+  resolveAbsolutePosition,
+  CANVAS_MIN_ZOOM,
+  CANVAS_MAX_ZOOM,
+  FIT_VIEW_PADDING,
+} from "@/lib/flow-helpers";
+import { PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useNodeDragHandlers } from "./use-node-drag-handlers";
-import {
-  canReceiveDeniedReturn,
-  deniedTargetHandle,
-  isApprovedEdge,
-  isDeniedEdge,
-  isDeniedSourceHandle,
-} from "@/lib/workflow-graph";
-import type {
-  DomainEdge,
-  NodeLayout,
-  WorkflowNodeType,
-} from "@/types/workflow";
-
-function nodeIdFromPointer(event: MouseEvent | TouchEvent) {
-  const point =
-    "changedTouches" in event ? event.changedTouches.item(0) : event;
-  if (!point) return undefined;
-  for (const el of document.elementsFromPoint(point.clientX, point.clientY)) {
-    const id = el.closest(".react-flow__node")?.getAttribute("data-id");
-    if (id) return id;
-  }
-  return undefined;
-}
+import { isApprovedEdge, isDeniedEdge } from "@/lib/workflow-graph";
+import type { DomainEdge, WorkflowNodeType } from "@/types/workflow";
+import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
+import { useCanvasExport } from "./use-canvas-export";
+import { useCanvasConnections } from "./use-canvas-connections";
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -73,10 +56,8 @@ const referenceTypes = new Set<WorkflowNodeType>(["terminal"]);
 function CanvasInner() {
   const wrapper = useRef<HTMLDivElement>(null);
   const flow = useReactFlow();
-  // Subscribe to the full state with shallow comparison. Without `useShallow`,
-  // zustand returns a new top-level object whenever any field changes (e.g. the
-  // `dirty` flag flips), which cascades into `useMemo` recomputations and, in
-  // combination with xyflow's StoreUpdater effect, an infinite render loop.
+
+  // Subscribe to the full state with shallow comparison to avoid recomputation loops
   const {
     file,
     selection,
@@ -85,29 +66,31 @@ function CanvasInner() {
     addEdge,
     updateEdge,
     commitLayoutDrag,
-    updateLayouts,
     setViewport,
     selectNodes,
     selectEdge,
     focusedInspectorField,
-  } = useWorkflowStore(useShallow((state) => ({
-    file: state.file,
-    selection: state.selection,
-    search: state.search,
-    addNode: state.addNode,
-    addEdge: state.addEdge,
-    updateEdge: state.updateEdge,
-    commitLayoutDrag: state.commitLayoutDrag,
-    updateLayouts: state.updateLayouts,
-    setViewport: state.setViewport,
-    selectNodes: state.selectNodes,
-    selectEdge: state.selectEdge,
-    focusedInspectorField: state.focusedInspectorField,
-  })));
+  } = useWorkflowStore(
+    useShallow((state) => ({
+      file: state.file,
+      selection: state.selection,
+      search: state.search,
+      addNode: state.addNode,
+      addEdge: state.addEdge,
+      updateEdge: state.updateEdge,
+      commitLayoutDrag: state.commitLayoutDrag,
+      setViewport: state.setViewport,
+      selectNodes: state.selectNodes,
+      selectEdge: state.selectEdge,
+      focusedInspectorField: state.focusedInspectorField,
+    })),
+  );
+
   const progress = useMemo(
     () => getWorkflowProgress(file.graph.nodes, file.graph.edges),
     [file.graph.nodes, file.graph.edges],
   );
+
   const modelNodes = useMemo<Node[]>(
     () => {
       return file.graph.nodes
@@ -160,14 +143,13 @@ function CanvasInner() {
       progress.reachedNodeIds,
     ],
   );
-  // Keep a local RF node list so onNodesChange can apply position/select
-  // updates synchronously. In controlled mode xyflow will not move nodes
-  // unless we feed the applied changes back through the `nodes` prop.
-  const { nodes, setNodes, onNodesChange } = useFlowNodes(modelNodes);
+
+  const { nodes, onNodesChange } = useFlowNodes(modelNodes);
   const nodeById = useMemo(
     () => new Map(nodes.map((node) => [node.id, node])),
     [nodes],
   );
+
   const labelObstacles = useMemo<LabelObstacle[]>(
     () => {
       const cards = nodes
@@ -189,6 +171,7 @@ function CanvasInner() {
             height: node.measured?.height ?? node.height ?? 140,
           };
         });
+
       const headers = nodes
         .filter((node) => !node.hidden && node.type === "phase")
         .map((node) => {
@@ -204,10 +187,12 @@ function CanvasInner() {
             kind: "phase-header" as const,
           };
         });
+
       return [...cards, ...headers];
     },
     [nodeById, nodes],
   );
+
   const edgeIndexes = useMemo(() => {
     const siblings = new Map<string, DomainEdge[]>();
     const returnIndex = new Map<string, number>();
@@ -222,6 +207,7 @@ function CanvasInner() {
     }
     return { siblings, returnIndex };
   }, [file.graph.edges]);
+
   const edges = useMemo<Edge[]>(
     () => {
       const nodesById = new Map(
@@ -256,9 +242,8 @@ function CanvasInner() {
           target: domain.target,
           sourceHandle: domain.sourceHandle,
           targetHandle: domain.targetHandle,
-          reconnectable: isDeniedEdge(domain) || isApprovedEdge(domain)
-            ? "target"
-            : false,
+          reconnectable:
+            isDeniedEdge(domain) || isApprovedEdge(domain) ? "target" : false,
           selected: selection.edgeId === domain.id,
           markerEnd:
             domain.arrowStyle === "none"
@@ -280,155 +265,29 @@ function CanvasInner() {
       });
     },
     [
+      edgeIndexes,
       file.graph.edges,
       file.graph.nodes,
-      edgeIndexes,
       file.layout.edges,
-      selection.edgeId,
       labelObstacles,
-      progress,
+      progress.activeEdgeIds,
+      selection.edgeId,
     ],
   );
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
-      const source = file.graph.nodes.find((n) => n.id === connection.source);
-      const target = file.graph.nodes.find((n) => n.id === connection.target);
-      if (!target || target.type === "phase") return;
-      const outcome = source?.config.outcomes?.find(
-        (o) => o.id === connection.sourceHandle,
-      );
-      const preGateSales =
-        source?.metadata.workflowSection === "Pre-Gate Sales";
-      const edge: DomainEdge = {
-        id: `edge-${crypto.randomUUID().slice(0, 8)}`,
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle || undefined,
-        targetHandle: deniedTargetHandle({
-          sourceHandle: connection.sourceHandle,
-          preGateSales,
-          droppedHandle: connection.targetHandle,
-        }),
-        type: outcome?.edgeType || "normal",
-        label: outcome?.label
-          ? outcome.label[0] + outcome.label.slice(1).toLowerCase()
-          : "",
-        lineStyle: "solid",
-        arrowStyle: "closed",
-        customFields: {},
-      };
-      addEdge(edge);
-    },
-    [addEdge, file.graph.nodes],
-  );
-  const isValidConnection = useCallback<IsValidConnection>(
-    (connection) => {
-      if (!connection.source || !connection.target) return false;
-      const target = file.graph.nodes.find((node) => node.id === connection.target);
-      if (!target || target.type === "phase" || target.type === "projectStart") {
-        return false;
-      }
-      if (
-        isDeniedSourceHandle(connection.sourceHandle) &&
-        !canReceiveDeniedReturn(target.type)
-      ) {
-        return false;
-      }
-      return true;
-    },
-    [file.graph.nodes],
-  );
-  const connectDeniedToNode = useCallback(
-    (sourceId: string, sourceHandle: string | null | undefined, targetId: string) => {
-      const source = file.graph.nodes.find((node) => node.id === sourceId);
-      const target = file.graph.nodes.find((node) => node.id === targetId);
-      if (!source || !target || !canReceiveDeniedReturn(target.type)) return;
-      onConnect({
-        source: sourceId,
-        sourceHandle: sourceHandle ?? null,
-        target: targetId,
-        targetHandle: deniedTargetHandle({
-          sourceHandle,
-          preGateSales: source.metadata.workflowSection === "Pre-Gate Sales",
-          droppedHandle: "rework-in",
-        }) ?? null,
-      });
-    },
-    [file.graph.nodes, onConnect],
-  );
-  const onConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
-      if (state.isValid || !state.fromNode || state.fromHandle?.type !== "source") {
-        return;
-      }
-      if (!isDeniedSourceHandle(state.fromHandle?.id)) return;
-      const targetId = nodeIdFromPointer(event);
-      if (!targetId) return;
-      connectDeniedToNode(state.fromNode.id, state.fromHandle?.id, targetId);
-    },
-    [connectDeniedToNode],
-  );
-  const onReconnect = useCallback(
-    (oldEdge: Edge, connection: Connection) => {
-      if (!connection.source || !connection.target) return;
-      if (!isValidConnection(connection)) return;
-      const source = file.graph.nodes.find((node) => node.id === connection.source);
-      updateEdge(oldEdge.id, {
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle || undefined,
-        targetHandle: deniedTargetHandle({
-          sourceHandle: connection.sourceHandle,
-          preGateSales: source?.metadata.workflowSection === "Pre-Gate Sales",
-          droppedHandle: connection.targetHandle,
-        }),
-      });
-    },
-    [file.graph.nodes, isValidConnection, updateEdge],
-  );
-  const onReconnectEnd = useCallback(
-    (
-      event: MouseEvent | TouchEvent,
-      edge: Edge,
-      handleType: HandleType,
-      state: FinalConnectionState,
-    ) => {
-      if (state.isValid || handleType !== "target") return;
-      const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
-      const sourceHandle = domain?.sourceHandle ?? edge.sourceHandle;
-      if (
-        !isDeniedSourceHandle(sourceHandle) &&
-        !isApprovedEdge({ sourceHandle, type: domain?.type })
-      ) {
-        return;
-      }
-      const targetId = nodeIdFromPointer(event);
-      if (!targetId) return;
-      const target = file.graph.nodes.find((node) => node.id === targetId);
-      if (
-        !target ||
-        target.type === "phase" ||
-        target.type === "projectStart"
-      ) {
-        return;
-      }
-      const source = file.graph.nodes.find((node) => node.id === edge.source);
-      updateEdge(edge.id, {
-        target: targetId,
-        targetHandle:
-          sourceHandle && isDeniedSourceHandle(sourceHandle)
-            ? deniedTargetHandle({
-                sourceHandle,
-                preGateSales:
-                  source?.metadata.workflowSection === "Pre-Gate Sales",
-                droppedHandle: "rework-in",
-              })
-            : "in",
-      });
-    },
-    [file.graph.nodes, updateEdge],
-  );
+
+  // Hook 1: Connection & reconnection handlers
+  const {
+    onConnect,
+    isValidConnection,
+    onConnectEnd,
+    onReconnect,
+    onReconnectEnd,
+  } = useCanvasConnections({
+    nodes: file.graph.nodes,
+    addEdge,
+    updateEdge,
+  });
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -454,6 +313,7 @@ function CanvasInner() {
                   position.y <= layout.y + layout.height,
               )
           : undefined;
+
       addNode(
         type,
         phase
@@ -467,6 +327,7 @@ function CanvasInner() {
     },
     [addNode, file.graph.nodes, file.layout.nodes, flow],
   );
+
   const quickAdd = useCallback(
     (event: React.MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -478,6 +339,7 @@ function CanvasInner() {
     },
     [addNode, flow],
   );
+
   const onSelectionChange = useCallback(
     ({
       nodes: selectedNodes,
@@ -509,215 +371,15 @@ function CanvasInner() {
     },
     [selectEdge, selectNodes],
   );
+
   const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(commitLayoutDrag);
-  useEffect(() => {
-    const root = wrapper.current;
-    if (!root) return;
-    let frame = 0;
-    const measure = () => {
-      const current = useWorkflowStore.getState().file;
-      const patches: Record<string, Partial<NodeLayout>> = {};
-      root
-        .querySelectorAll<HTMLElement>(
-          '[aria-label="Approval conditions card"]',
-        )
-        .forEach((card) => {
-          const flowNode = card.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const content = card.querySelector<HTMLElement>(
-            "[data-conditions-content]",
-          );
-          const decision = flowNode?.querySelector<HTMLElement>(
-            "[data-decision-content]",
-          );
-          const domain = current.graph.nodes.find((node) => node.id === id);
-          if (!id || !content || domain?.type !== "gate") return;
-          const metrics = getGateLayoutMetrics(domain);
-          const conditionsHeight = Math.ceil(48 + content.scrollHeight + 16);
-          // Measure the decision section so a short outcome list collapses the
-          // gate instead of leaving empty padding inside the section.
-          const decisionHeight = decision
-            ? Math.ceil(48 + decision.scrollHeight + 16)
-            : metrics.decisionHeight;
-          patches[id] = {
-            height: metrics.conditionsTop + conditionsHeight + GATE_SECTION_GAP + decisionHeight,
-          };
-        });
-      root
-        .querySelectorAll<HTMLElement>("[data-node-content]")
-        .forEach((content) => {
-          const flowNode = content.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const domain = current.graph.nodes.find((node) => node.id === id);
-          const layout = id ? current.layout.nodes[id] : undefined;
-          if (!id || !layout || !domain || domain.type === "gate") return;
-          const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
-          if (requiredHeight > layout.height) {
-            patches[id] = {
-              ...patches[id],
-              height: requiredHeight,
-            };
-          }
-        });
-      root
-        .querySelectorAll<HTMLElement>("[data-node-header]")
-        .forEach((header) => {
-          const flowNode = header.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const domain = id
-            ? current.graph.nodes.find((node) => node.id === id)
-            : undefined;
-          const layout = id ? current.layout.nodes[id] : undefined;
-          if (!id || !layout || !domain || domain.type === "gate") return;
-          const overflow = Math.ceil(header.scrollWidth - header.clientWidth);
-          if (overflow > 1) {
-            patches[id] = {
-              ...patches[id],
-              width: layout.width + overflow + 12,
-            };
-          }
-        });
-      for (const phase of current.graph.nodes.filter(
-        (node) => node.type === "phase",
-      )) {
-        const children = Object.values(current.layout.nodes).filter(
-          (layout) => layout.parentId === phase.id,
-        );
-        if (!children.length) continue;
-        patches[phase.id] = {
-          width: Math.max(
-            420,
-            ...children.map((layout) => layout.x + layout.width + 42),
-          ),
-          height: Math.max(
-            260,
-            ...children.map(
-              (layout) =>
-                layout.y +
-                (patches[layout.nodeId]?.height ?? layout.height) +
-                42,
-            ),
-          ),
-        };
-      }
-      updateLayouts(patches);
-    };
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(measure);
-    };
-    const settleTimers: number[] = [];
-    const observer = new ResizeObserver(schedule);
-    root
-      .querySelectorAll<HTMLElement>(
-        "[data-conditions-content], [data-node-content]",
-      )
-      .forEach((content) => observer.observe(content));
-    const measureAfterArrange = () => {
-      measure();
-      settleTimers.push(window.setTimeout(measure, 120));
-      settleTimers.push(window.setTimeout(measure, 320));
-    };
-    window.addEventListener("workflow:measure-layout", measureAfterArrange);
-    frame = requestAnimationFrame(() => requestAnimationFrame(measure));
-    settleTimers.push(
-      ...[120, 360, 800, 1400].map((delay) =>
-        window.setTimeout(measure, delay),
-      ),
-    );
-    return () => {
-      cancelAnimationFrame(frame);
-      settleTimers.forEach(window.clearTimeout);
-      observer.disconnect();
-      window.removeEventListener(
-        "workflow:measure-layout",
-        measureAfterArrange,
-      );
-    };
-  }, [file.graph.nodes, updateLayouts]);
-  useEffect(() => {
-    const focus = (event: Event) => {
-      const id = (event as CustomEvent<string>).detail;
-      flow.fitView({ nodes: [{ id }], duration: 500, padding: 0.8, maxZoom: 1.25 });
-    };
-    window.addEventListener("workflow:focus-node", focus);
-    return () => window.removeEventListener("workflow:focus-node", focus);
-  }, [flow]);
-  useEffect(() => {
-    const fit = () => fitCanvasToWorkflow(flow);
-    window.addEventListener("workflow:fit", fit);
-    return () => window.removeEventListener("workflow:fit", fit);
-  }, [flow]);
-  // Export helper: temporarily reshape the React Flow viewport so html-to-image
-  // captures the entire workflow at 1:1 scale (instead of the currently
-  // visible portion which may be zoomed-out). The previous viewport size and
-  // transform are restored after the export completes.
-  useEffect(() => {
-    const capture = async (
-      event: Event & { detail?: { format: "png" | "svg" } },
-    ) => {
-      const detail = event.detail ?? { format: "png" };
-      const wrapperEl = wrapper.current;
-      const flowElement = wrapperEl?.querySelector<HTMLElement>(".react-flow");
-      const viewport = flowElement?.querySelector<HTMLElement>(
-        ".react-flow__viewport",
-      );
-      if (!flowElement || !viewport) return;
-      const bounds = flow.getNodesBounds(flow.getNodes());
-      const padding = 48;
-      const targetWidth = Math.max(1, Math.round(bounds.width + padding * 2));
-      const targetHeight = Math.max(
-        1,
-        Math.round(bounds.height + padding * 2),
-      );
-      const original = {
-        flowWidth: flowElement.style.width,
-        flowHeight: flowElement.style.height,
-        viewportTransform: viewport.style.transform,
-      };
-      flowElement.style.width = `${targetWidth}px`;
-      flowElement.style.height = `${targetHeight}px`;
-      // Shift the workflow so its top-left corner sits at (padding, padding).
-      viewport.style.transform = `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`;
-      try {
-        const { toPng, toSvg } = await import("html-to-image");
-        const backgroundColor =
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--canvas-export")
-            .trim() || "#f6f7f9";
-        const data =
-          detail.format === "png"
-            ? await toPng(flowElement, {
-                backgroundColor,
-                pixelRatio: 2,
-                width: targetWidth,
-                height: targetHeight,
-                filter: (node: HTMLElement) =>
-                  !node.classList?.contains("react-flow__controls") &&
-                  !node.classList?.contains("react-flow__minimap"),
-              })
-            : await toSvg(flowElement, {
-                backgroundColor,
-                width: targetWidth,
-                height: targetHeight,
-                filter: (node: HTMLElement) =>
-                  !node.classList?.contains("react-flow__controls") &&
-                  !node.classList?.contains("react-flow__minimap"),
-              });
-        const anchor = document.createElement("a");
-        anchor.download = `workflow.${detail.format}`;
-        anchor.href = data;
-        anchor.click();
-      } finally {
-        flowElement.style.width = original.flowWidth;
-        flowElement.style.height = original.flowHeight;
-        viewport.style.transform = original.viewportTransform;
-      }
-    };
-    window.addEventListener("workflow:export", capture as EventListener);
-    return () =>
-      window.removeEventListener("workflow:export", capture as EventListener);
-  }, [flow]);
+
+  // Hook 2: Dynamic DOM Auto-measure for expanding cards & phase boundaries
+  useCanvasAutoMeasure(wrapper);
+
+  // Hook 3: Global focus, fit, and image export handlers
+  useCanvasExport(flow, wrapper);
+
   return (
     <div
       ref={wrapper}
@@ -760,7 +422,11 @@ function CanvasInner() {
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
         defaultViewport={file.layout.viewport}
-        fitViewOptions={{ padding: FIT_VIEW_PADDING, minZoom: CANVAS_MIN_ZOOM, maxZoom: 1 }}
+        fitViewOptions={{
+          padding: FIT_VIEW_PADDING,
+          minZoom: CANVAS_MIN_ZOOM,
+          maxZoom: 1,
+        }}
         minZoom={CANVAS_MIN_ZOOM}
         maxZoom={CANVAS_MAX_ZOOM}
         snapToGrid={file.layout.snapToGrid}
@@ -797,6 +463,7 @@ function CanvasInner() {
           showInteractive={false}
         />
       </ReactFlow>
+
       <CanvasToolbar />
       <div className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur md:block">
         Double-click canvas to add Node · Drag to pan · Scroll to zoom
@@ -804,6 +471,7 @@ function CanvasInner() {
     </div>
   );
 }
+
 export function WorkflowCanvas() {
   return (
     <ReactFlowProvider>

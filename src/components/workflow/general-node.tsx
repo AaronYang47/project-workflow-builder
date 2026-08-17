@@ -35,6 +35,8 @@ import {
   textareaRows,
 } from "./node-utils";
 
+import { useProjectIdDraft } from "./use-project-id-draft";
+
 export function GeneralNode({
   node,
   selected,
@@ -56,84 +58,26 @@ export function GeneralNode({
     () => fileNodes.find((item) => item.type === "projectStart"),
     [fileNodes],
   );
-  const projectStartProjectId = String(
-    projectStartNode?.customFields.projectId || "",
-  );
-  const isProjectStart = node.type === "projectStart";
-  // The UUID badge identifies the project, not the individual node. Look it
-  // up on project-start so every node in the same project shares the same
-  // identifier (projectStart looks up itself, which trivially falls back to
-  // its own customFields.nodeUuid).
-  const nodeUuid = projectNodeUuid(node, projectStartNode);
-  const initialProjectId = isProjectStart
-    ? String(
-        node.customFields.projectId || node.customFields.projectNumber || "",
-      )
-    : "";
-  const [projectIdDraft, setProjectIdDraft] = useState(initialProjectId);
-  const [syncedProjectId, setSyncedProjectId] = useState(initialProjectId);
-  if (initialProjectId !== syncedProjectId) {
-    setSyncedProjectId(initialProjectId);
-    setProjectIdDraft(initialProjectId);
-  }
-  const projectIdSnapshot = useRef<typeof node | null>(null);
-  const projectId = useMemo(
-    () => normalizeProjectId(projectIdDraft.trim()),
-    [projectIdDraft],
-  );
-  // Display values for the year/sequence inputs. We parse from projectIdDraft
-  // (the live draft, not the normalized store value) so partial edits survive
-  // the round-trip. When the draft is completely empty (never been edited),
-  // fall back to defaults for display; once the user has started editing,
-  // preserve whatever they typed, including empty segments mid-edit.
-  const draftHasContent = projectIdDraft.length > 0;
-  const parsedYear = useMemo(() => {
-    if (!draftHasContent) return currentYearSuffix();
-    const match = projectIdDraft.match(/^[LP]-(\d{0,2})-/);
-    return match ? match[1] : "";
-  }, [projectIdDraft, draftHasContent]);
-  const parsedSeq = useMemo(() => {
-    if (!draftHasContent) return "001";
-    const match = projectIdDraft.match(/^[LP]-\d{0,2}-(\d{0,3})$/);
-    return match ? match[1] : "";
-  }, [projectIdDraft, draftHasContent]);
-  // projectIdValid must reflect the *live draft*, not the normalized store value.
-  // Otherwise an incomplete draft like "L-2-001" gets silently salvaged into a
-  // valid "L-XX-001" by normalizeProjectId, falsely satisfying release conditions.
-  const projectIdValid = isProjectStart
-    ? PROJECT_ID_PATTERN.test(projectIdDraft.trim())
-    : Boolean(projectStartProjectId);
-  const projectIdError = isProjectStart && projectIdDraft.trim().length > 0 && !projectIdValid;
-  const legacyJobNumber = isProjectStart
-    ? legacyJobNumberFromProjectId(projectId)
-    : legacyJobNumberFromProjectId(projectStartProjectId);
-  const writeCustomFields = (
-    patch: Record<string, string | number | boolean>,
-  ) => {
-    const nextPatch =
-      isProjectStart && "projectId" in patch
-        ? {
-            ...patch,
-            legacyJobNumber: legacyJobNumberFromProjectId(
-              String(patch.projectId || ""),
-            ),
-          }
-        : patch;
-    commitTransient((file) => ({
-      ...file,
-      graph: {
-        ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.id === node.id
-            ? {
-                ...item,
-                customFields: { ...item.customFields, ...nextPatch },
-              }
-            : item,
-        ),
-      },
-    }));
-  };
+
+  const {
+    isProjectStart,
+    projectStartProjectId,
+    nodeUuid,
+    projectIdDraft,
+    setProjectIdDraft,
+    projectIdSnapshot,
+    projectId,
+    parsedYear,
+    parsedSeq,
+    projectIdValid,
+    projectIdError,
+    legacyJobNumber,
+    writeCustomFields,
+  } = useProjectIdDraft({
+    node,
+    projectStartNode,
+    commitTransient,
+  });
   const minimumSize = getAdaptiveNodeSize(node);
   const iconKey =
     node.config.iconKey && node.config.iconKey in iconOptions

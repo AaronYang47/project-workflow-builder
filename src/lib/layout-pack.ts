@@ -8,6 +8,7 @@ import type {
 } from "@/types/workflow";
 import { requiredEdgeLabelGap } from "@/lib/layout-geometry";
 import { PHASE_CONTENT_TOP } from "@/lib/node-layout";
+import { SALES_MAINLINE_NODE_IDS } from "@/lib/pre-gate-sales-flow";
 
 const rounded = (value: number | undefined) => Math.round(value || 0);
 const centerY = (layout: NodeLayout) => layout.y + layout.height / 2;
@@ -18,19 +19,8 @@ const routePoints = (edge: ElkExtendedEdge): ElkPoint[] =>
     section.endPoint,
   ]) || [];
 
-const SALES_MAINLINE = [
-  "lead-inquiry",
-  "sales-intake",
-  "basic-client-project-info",
-  "qualified-opportunity",
-  "collect-plans-scope-site",
-  "quick-class-d-benchmark",
-  "budget-fit",
-  "select-engagement-path",
-  "engagement-approval",
-] as const;
-
 const PHASE_TOP = 64;
+
 const PHASE_GAP = 240;
 const GATE_CONNECTOR_GAP = 240;
 const SALES_GAP = 96;
@@ -214,7 +204,7 @@ export function placeSalesIntake(
 ) {
   const mainTop = PHASE_TOP;
   const gateOne = nodes["g1-opportunity"] || original["g1-opportunity"];
-  const salesMainline = SALES_MAINLINE.filter((id) => nodes[id]);
+  const salesMainline = SALES_MAINLINE_NODE_IDS.filter((id) => nodes[id]);
   const salesGap = (fromId: string, toId: string) =>
     gapForLabeledPair(file, fromId, toId, "horizontal", SALES_GAP);
   const salesWidth = salesMainline.reduce(

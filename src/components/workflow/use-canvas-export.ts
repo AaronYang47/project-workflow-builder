@@ -1,0 +1,102 @@
+import { useEffect, type RefObject } from "react";
+import { type useReactFlow } from "@xyflow/react";
+import { fitCanvasToWorkflow } from "@/lib/flow-helpers";
+
+type ReactFlowInstance = ReturnType<typeof useReactFlow>;
+
+/**
+ * Attaches global canvas event listeners for node focusing, zoom-to-fit,
+ * and high-resolution PNG/SVG image export.
+ */
+export function useCanvasExport(
+  flow: ReactFlowInstance,
+  wrapper: RefObject<HTMLDivElement | null>,
+) {
+  // Focus node event
+  useEffect(() => {
+    const focus = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      flow.fitView({ nodes: [{ id }], duration: 500, padding: 0.8, maxZoom: 1.25 });
+    };
+    window.addEventListener("workflow:focus-node", focus);
+    return () => window.removeEventListener("workflow:focus-node", focus);
+  }, [flow]);
+
+  // Fit canvas event
+  useEffect(() => {
+    const fit = () => fitCanvasToWorkflow(flow);
+    window.addEventListener("workflow:fit", fit);
+    return () => window.removeEventListener("workflow:fit", fit);
+  }, [flow]);
+
+  // Full-scale image export helper
+  useEffect(() => {
+    const capture = async (
+      event: Event & { detail?: { format: "png" | "svg" } },
+    ) => {
+      const detail = event.detail ?? { format: "png" };
+      const wrapperEl = wrapper.current;
+      const flowElement = wrapperEl?.querySelector<HTMLElement>(".react-flow");
+      const viewport = flowElement?.querySelector<HTMLElement>(
+        ".react-flow__viewport",
+      );
+      if (!flowElement || !viewport) return;
+
+      const bounds = flow.getNodesBounds(flow.getNodes());
+      const padding = 48;
+      const targetWidth = Math.max(1, Math.round(bounds.width + padding * 2));
+      const targetHeight = Math.max(1, Math.round(bounds.height + padding * 2));
+
+      const original = {
+        flowWidth: flowElement.style.width,
+        flowHeight: flowElement.style.height,
+        viewportTransform: viewport.style.transform,
+      };
+
+      flowElement.style.width = `${targetWidth}px`;
+      flowElement.style.height = `${targetHeight}px`;
+      viewport.style.transform = `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`;
+
+      try {
+        const { toPng, toSvg } = await import("html-to-image");
+        const backgroundColor =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--canvas-export")
+            .trim() || "#f6f7f9";
+
+        const data =
+          detail.format === "png"
+            ? await toPng(flowElement, {
+                backgroundColor,
+                pixelRatio: 2,
+                width: targetWidth,
+                height: targetHeight,
+                filter: (node: HTMLElement) =>
+                  !node.classList?.contains("react-flow__controls") &&
+                  !node.classList?.contains("react-flow__minimap"),
+              })
+            : await toSvg(flowElement, {
+                backgroundColor,
+                width: targetWidth,
+                height: targetHeight,
+                filter: (node: HTMLElement) =>
+                  !node.classList?.contains("react-flow__controls") &&
+                  !node.classList?.contains("react-flow__minimap"),
+              });
+
+        const anchor = document.createElement("a");
+        anchor.download = `workflow.${detail.format}`;
+        anchor.href = data;
+        anchor.click();
+      } finally {
+        flowElement.style.width = original.flowWidth;
+        flowElement.style.height = original.flowHeight;
+        viewport.style.transform = original.viewportTransform;
+      }
+    };
+
+    window.addEventListener("workflow:export", capture as EventListener);
+    return () =>
+      window.removeEventListener("workflow:export", capture as EventListener);
+  }, [flow, wrapper]);
+}

@@ -1,6 +1,18 @@
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import type { DomainEdge, DomainNode, NodeLayout } from "@/types/workflow";
 
+export const SALES_MAINLINE_NODE_IDS = [
+  "lead-inquiry",
+  "sales-intake",
+  "basic-client-project-info",
+  "qualified-opportunity",
+  "collect-plans-scope-site",
+  "quick-class-d-benchmark",
+  "budget-fit",
+  "select-engagement-path",
+  "engagement-approval",
+] as const;
+
 const node = (
   id: string,
   title: string,
