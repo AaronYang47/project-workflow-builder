@@ -11,15 +11,17 @@ import { useWorkflowStore } from "@/store/workflow-store";
 
 /**
  * Shared Project ID chip shown on Phase, Node, and Decision Module headers.
- * Sized large enough to read Project ID + Building + Module on one line.
+ * `size="large"` is used by the Phase header; Node/Decision Module stay default.
  */
 export function ProjectIdBadge({
   tone = "primary",
   showPlaceholder = false,
+  size = "default",
   className,
 }: {
   tone?: "primary" | "onDark";
   showPlaceholder?: boolean;
+  size?: "default" | "large";
   className?: string;
 }) {
   const nodes = useWorkflowStore((state) => state.file.graph.nodes);
@@ -39,12 +41,19 @@ export function ProjectIdBadge({
     ? [displayedId, `Legacy ${legacy || "—"}`].join(" · ")
     : "Set a Project ID on Project Start to display here";
   const onDark = tone === "onDark";
+  const large = size === "large";
+  const containerSize = large ? "max-w-[min(100%,17rem)]" : "max-w-[min(100%,15rem)]";
+  const containerPad = large ? "px-3 py-2 gap-1.5" : "px-2.5 py-1.5 gap-1";
+  const idSize = large ? "text-[14px]" : "text-[12px]";
+  const legacySize = large ? "px-2 py-0.5 text-[11px]" : "px-1.5 py-0.5 text-[10px]";
 
   return (
     <span
       title={title}
       className={cn(
-        "flex w-max max-w-[min(100%,15rem)] shrink-0 flex-col items-end gap-1 rounded-md border px-2.5 py-1.5 font-mono font-bold leading-none tracking-tight",
+        "flex w-max shrink-0 flex-col items-end rounded-md border font-mono font-bold leading-none tracking-tight",
+        containerSize,
+        containerPad,
         onDark
           ? ready
             ? "border-white/30 bg-white/15 text-white"
@@ -55,12 +64,13 @@ export function ProjectIdBadge({
         className,
       )}
     >
-      <span className="whitespace-nowrap text-[12px]">
+      <span className={cn(idSize, "whitespace-nowrap")}>
         {ready ? displayedId : "L-—"}
       </span>
       <span
         className={cn(
-          "rounded px-1.5 py-0.5 text-[10px] font-bold tracking-tight",
+          "rounded font-bold tracking-tight",
+          legacySize,
           onDark
             ? ready
               ? "bg-emerald-500/30 text-emerald-50"

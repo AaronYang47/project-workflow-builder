@@ -82,7 +82,7 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <ProjectIdBadge />
+          <ProjectIdBadge size="large" />
           <ComponentNoteButton
             nodeId={node.id}
             noteKey="phase-card"
