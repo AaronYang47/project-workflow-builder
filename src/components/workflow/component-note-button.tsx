@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { MessageSquareText, Send, X } from "lucide-react";
+import { CornerUpLeft, MessageSquareText, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { ComponentNote, ComponentNotePost } from "@/types/workflow";
@@ -33,6 +33,7 @@ export function ComponentNoteButton({
   const [open, setOpen] = useState(false);
   const [draftTopic, setDraftTopic] = useState("");
   const [draftBody, setDraftBody] = useState("");
+  const [replyTo, setReplyTo] = useState<ComponentNotePost | null>(null);
 
   const note = useMemo(() => normalizeComponentNote(stored), [stored]);
   const postCount = note?.posts.length ?? 0;
@@ -56,11 +57,23 @@ export function ComponentNoteButton({
       topic: topic || "Note",
       body,
       createdAt: new Date().toISOString(),
+      parentId: replyTo?.id,
     };
     const posts = [...(note?.posts ?? []), post];
     commit({ posts });
     setDraftTopic("");
     setDraftBody("");
+    setReplyTo(null);
+  };
+
+  const startReply = (post: ComponentNotePost) => {
+    setReplyTo(post);
+    setDraftTopic("");
+    setDraftBody("");
+  };
+
+  const cancelReply = () => {
+    setReplyTo(null);
   };
 
   const deletePost = (postId: string) => {
@@ -85,6 +98,7 @@ export function ComponentNoteButton({
           event.stopPropagation();
           setDraftTopic("");
           setDraftBody("");
+          setReplyTo(null);
           setOpen(true);
         }}
         onDoubleClick={(event) => event.stopPropagation()}
@@ -147,12 +161,19 @@ export function ComponentNoteButton({
                           <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                             {post.body}
                           </p>
-                          <p
-                            className="mt-2 text-[11px] text-muted-foreground"
-                            title={formatTimestamp(post.createdAt)}
-                          >
-                            {formatRelative(post.createdAt)}
-                          </p>
+                          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+                            <span title={formatTimestamp(post.createdAt)}>
+                              {formatRelative(post.createdAt)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => startReply(post)}
+                              className="inline-flex items-center gap-1 font-semibold text-muted-foreground hover:text-primary"
+                            >
+                              <CornerUpLeft className="size-3" />
+                              Reply
+                            </button>
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -174,6 +195,26 @@ export function ComponentNoteButton({
               onSubmit={handleSubmit}
               className="space-y-2 border-t bg-muted/10 px-5 py-4"
             >
+              {replyTo ? (
+                <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold uppercase tracking-wide text-primary">
+                      Replying to {replyTo.topic}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-muted-foreground">
+                      {replyTo.body}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelReply}
+                    aria-label="Cancel reply"
+                    className="rounded-md p-1 text-muted-foreground hover:bg-background"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : null}
               <input
                 value={draftTopic}
                 onChange={(event) => setDraftTopic(event.target.value)}

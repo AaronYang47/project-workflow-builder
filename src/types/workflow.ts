@@ -218,6 +218,7 @@ export interface ComponentNotePost {
   topic: string;
   body: string;
   createdAt: string;
+  parentId?: string;
 }
 
 export interface ComponentNote {
