@@ -234,33 +234,35 @@ function CanvasInner() {
           sourceNode?.metadata.workflowSection === "Pre-Gate Sales" ||
           targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
           sourceNode?.type === "projectStart";
+        const active = progress.activeEdgeIds.has(domain.id);
+        const activeColor = getSemanticEdgeColor(domain);
         return {
-          id: domain.id,
-          type: "semantic",
-          zIndex: 10,
-          source: domain.source,
-          target: domain.target,
-          sourceHandle: domain.sourceHandle,
-          targetHandle: domain.targetHandle,
-          reconnectable: true,
-          selected: selection.edgeId === domain.id,
-          markerEnd:
-            domain.arrowStyle === "none"
-              ? undefined
-              : {
-                  type: MarkerType.ArrowClosed,
-                  color: getSemanticEdgeColor(domain),
-                },
-          data: {
-            domain,
-            route: file.layout.edges?.[domain.id]?.points,
-            active: progress.activeEdgeIds.has(domain.id),
-            obstacles: labelObstacles,
-            labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
-            labelHugsPath,
-            preGateSales,
-          },
-        };
+            id: domain.id,
+            type: "semantic",
+            zIndex: 10,
+            source: domain.source,
+            target: domain.target,
+            sourceHandle: domain.sourceHandle,
+            targetHandle: domain.targetHandle,
+            reconnectable: true,
+            selected: selection.edgeId === domain.id,
+            markerEnd:
+              domain.arrowStyle === "none"
+                ? undefined
+                : {
+                    type: MarkerType.ArrowClosed,
+                    color: active ? activeColor : "#94a3b8",
+                  },
+            data: {
+              domain,
+              route: file.layout.edges?.[domain.id]?.points,
+              active,
+              obstacles: labelObstacles,
+              labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
+              labelHugsPath,
+              preGateSales,
+            },
+          };
       });
     },
     [

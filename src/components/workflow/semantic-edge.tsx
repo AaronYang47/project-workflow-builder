@@ -51,11 +51,23 @@ const colors: Record<DomainEdge["type"], string> = {
   reopen: "#159a75",
 };
 
+export const OPPORTUNITY_ROUTE_COLORS: Record<string, string> = {
+  "pass-p1-p2": "#10b981", // Emerald Green
+  "csa-pcs": "#2563eb", // Blue
+  "loi-governed": "#9333ea", // Purple
+  "site-feasibility": "#d97706", // Amber
+  "hold-rework": "#ea580c", // Orange
+  "nogo-disqualified": "#dc2626", // Red
+};
+
 export function getSemanticEdgeColor(edge: DomainEdge) {
+  if (edge.sourceHandle && OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle]) {
+    return OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle];
+  }
   if (edge.sourceHandle?.startsWith("no") || edge.label?.trim().toLowerCase() === "denied") {
     return "#dc4c55";
   }
-  return colors[edge.type];
+  return colors[edge.type] || "#159a75";
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);

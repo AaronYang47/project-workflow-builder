@@ -104,12 +104,11 @@ export function conditionIsSatisfied(
   projectStart?: DomainNode,
 ) {
   const source = computedConditionSource(node, projectStart);
-  const rawProjectId = String(
+  const projectId = String(
     source.customFields.projectId || source.customFields.projectNumber || "",
   ).trim();
-  const projectId = rawProjectId.replace(/\s+/g, "");
   if (condition.id === "project-id-required") {
-    return PROJECT_ID_PATTERN.test(projectId) || Boolean(projectId.length >= 3);
+    return PROJECT_ID_PATTERN.test(projectId);
   }
   if (condition.id === "paid-building-required") {
     return BUILDING_PATTERN.test(String(source.config.buildingCode || ""));
@@ -133,8 +132,16 @@ export function conditionDisplaySatisfied(
 
 export function nodeReleaseReady(node: DomainNode, projectStart?: DomainNode) {
   if (node.type === "gate") return gateApprovalReady(node);
-  if (node.type === "opportunityValidation") return true;
-  if (node.type === "projectStart") return true;
+  if (
+    node.type === "projectStart" &&
+    !conditionIsSatisfied(
+      { id: "project-id-required", required: true },
+      node,
+      node,
+    )
+  ) {
+    return false;
+  }
   const required = (node.conditions || []).filter(
     (condition) => condition.required !== false,
   );
@@ -190,16 +197,27 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
       .filter((edge) => !["rework", "reopen", "failure"].includes(edge.type))
       .map((edge) => edge.target),
   );
-  const starts = nodes.filter(
+  const projectStart = nodes.find((node) => node.type === "projectStart");
+  const projectStarts = nodes.filter((node) => node.type === "projectStart");
+  const explicitStarts = nodes.filter(
     (node) =>
-      node.type === "projectStart" ||
-      node.type === "opportunityValidation" ||
-      (!incoming.has(node.id) &&
-        node.type !== "phase" &&
-        !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(
-          node.type,
-        )),
+      node.config.stage?.trim().toLowerCase() === "start" &&
+      !incoming.has(node.id),
   );
+  const starts = projectStarts.length
+    ? projectStarts
+    : explicitStarts.length
+      ? explicitStarts
+      : nodes
+          .filter(
+            (node) =>
+              !incoming.has(node.id) &&
+              node.type !== "phase" &&
+              !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(
+                node.type,
+              ),
+          )
+          .slice(0, 1);
   const reachedNodeIds = new Set(starts.map((node) => node.id));
   const activeEdgeIds = new Set<string>();
   const queue = starts.map((node) => node.id);
@@ -211,7 +229,7 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
     const sourceId = queue.shift()!;
     const source = nodeById.get(sourceId);
     if (!source) continue;
-    if (source.type !== "gate" && !nodeReleaseReady(source))
+    if (source.type !== "gate" && !nodeReleaseReady(source, projectStart))
       continue;
     for (const edge of outgoing.get(sourceId) || []) {
       let allowed = true;
@@ -225,12 +243,12 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
         const handle = edge.sourceHandle || "pass-p1-p2";
         allowed =
           handle === currentOutcome ||
-          (currentOutcome.startsWith("pass") && handle.startsWith("pass")) ||
-          (currentOutcome.startsWith("hold") && handle.startsWith("hold")) ||
-          (currentOutcome.startsWith("nogo") && handle.startsWith("nogo")) ||
-          (currentOutcome === "csa-pcs" && handle === "csa-pcs") ||
-          (currentOutcome === "loi-governed" && handle === "loi-governed") ||
-          (currentOutcome === "site-feasibility" && handle === "site-feasibility");
+          (currentOutcome === "pass" && handle === "pass-p1-p2") ||
+          (currentOutcome === "hold" && handle === "hold-rework") ||
+          (currentOutcome === "nogo" && handle === "nogo-disqualified") ||
+          (currentOutcome === "pass-p1-p2" && (handle === "pass-p1-p2" || handle === "pass")) ||
+          (currentOutcome === "hold-rework" && (handle === "hold-rework" || handle === "hold")) ||
+          (currentOutcome === "nogo-disqualified" && (handle === "nogo-disqualified" || handle === "nogo"));
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);
