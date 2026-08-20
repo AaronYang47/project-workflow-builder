@@ -75,6 +75,7 @@ const iconByType: Record<WorkflowNodeType, string> = {
 };
 const preservedTypes = new Set<WorkflowNodeType>([
   "projectStart",
+  "opportunityValidation",
   "phase",
   ...REFERENCE_NODE_TYPES,
 ]);
@@ -373,6 +374,16 @@ function migrateNode(node: DomainNode): DomainNode {
   if (node.type === "projectStart") return migrateProjectStartNode(node);
   if (node.type === "gate") return migrateGateNode(node);
   if (node.type === "serviceLegend") return migrateServiceLegendNode(node);
+  if (node.type === "opportunityValidation" || node.id === "opportunity-validation") {
+    return {
+      ...node,
+      type: "opportunityValidation",
+      config: {
+        ...node.config,
+        opportunity: node.config?.opportunity || {},
+      },
+    };
+  }
   if (preservedTypes.has(node.type))
     return { ...node, config: { ...node.config } };
   return {
@@ -451,9 +462,20 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     const canonical = canonicalPreGateNodes.get(node.id)!;
     return {
       ...canonical,
+      ...node,
+      type: canonical.type,
       title: node.title || canonical.title,
       description: node.description || canonical.description,
       metadata: { ...canonical.metadata, ...node.metadata },
+      customFields: { ...canonical.customFields, ...node.customFields },
+      config: {
+        ...canonical.config,
+        ...node.config,
+        opportunity: {
+          ...(canonical.config?.opportunity || {}),
+          ...(node.config?.opportunity || {}),
+        },
+      },
     };
   });
   const canonicalPreGateEdges = new Map(
@@ -567,7 +589,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
             ["failure", "rework", "exception", "hold"].includes(edge.type)
             ? "no"
             : "yes"
-          : "out";
+          : edge.sourceHandle || "out";
       const deniedReturn =
         edge.type === "rework" || sourceHandle?.startsWith("no");
       const targetHandle = deniedReturn
