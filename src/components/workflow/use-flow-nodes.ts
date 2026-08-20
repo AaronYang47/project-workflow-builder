@@ -11,17 +11,35 @@ import { applyNodeChanges, type Node, type NodeChange } from "@xyflow/react";
 function mergeFlowNodes(model: Node[], current: Node[]): Node[] {
   if (!current.length) return model;
   const currentById = new Map(current.map((node) => [node.id, node]));
-  return model.map((node) => {
+  let hasChange = model.length !== current.length;
+  const merged = model.map((node) => {
     const local = currentById.get(node.id);
-    if (!local) return node;
+    if (!local) {
+      hasChange = true;
+      return node;
+    }
+    const position = local.dragging ? local.position : node.position;
+    const selected = node.type === "phase" ? false : node.selected;
+    if (
+      position.x !== local.position.x ||
+      position.y !== local.position.y ||
+      local.selected !== selected ||
+      local.dragging !== node.dragging ||
+      local.data !== node.data ||
+      local.width !== node.width ||
+      local.height !== node.height
+    ) {
+      hasChange = true;
+    }
     return {
       ...node,
-      position: local.dragging ? local.position : node.position,
+      position,
       dragging: local.dragging,
       measured: local.measured,
-      selected: node.type === "phase" ? false : node.selected,
+      selected,
     };
   });
+  return hasChange ? merged : current;
 }
 
 /**
@@ -32,13 +50,11 @@ function mergeFlowNodes(model: Node[], current: Node[]): Node[] {
  */
 export function useFlowNodes(modelNodes: Node[]) {
   const [nodes, setNodes] = useState<Node[]>(modelNodes);
-  // Keep the local RF node list in sync with model changes from the store.
-  // Setting state inside an effect is required here: the model is updated
-  // outside of React (by zustand) and we need to preserve local interaction
-  // state (drag position, measured size) across model changes.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNodes((current) => mergeFlowNodes(modelNodes, current));
+    setNodes((current) => {
+      const next = mergeFlowNodes(modelNodes, current);
+      return next === current ? current : next;
+    });
   }, [modelNodes]);
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => {

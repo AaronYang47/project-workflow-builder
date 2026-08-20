@@ -105,7 +105,9 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         };
       }
 
-      updateLayouts(patches);
+      if (Object.keys(patches).length > 0) {
+        updateLayouts(patches);
+      }
     };
 
     const schedule = () => {
