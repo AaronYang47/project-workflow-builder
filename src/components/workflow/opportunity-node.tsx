@@ -132,6 +132,25 @@ function OpportunityNodeComponent({
 
   // Questionnaire structured answers derived or defaulted from config
   const customFields = node.customFields || {};
+
+  // --- Live Class D Calculations ---
+  const area = Number(opp.grossFloorArea) || 0;
+  const costPerSqFt = Number(opp.targetCostPerSqFt) || 0;
+  const benchmarkCost = area * costPerSqFt;
+  const budgetNum = Number(opp.clientBudget?.toString().replace(/\D/g, "")) || 0;
+  const variance =
+    budgetNum > 0 && benchmarkCost > 0
+      ? ((benchmarkCost - budgetNum) / budgetNum) * 100
+      : 0;
+
+  // Automated Budget Reality Level from Real Numbers
+  const autoBudgetLevel: "aligned" | "manageable" | "disconnect" = useMemo(() => {
+    if (budgetNum <= 0 || area <= 0 || costPerSqFt <= 0) return "aligned";
+    if (variance <= 10) return "aligned"; // within 10% or budget is higher than benchmark
+    if (variance <= 25) return "manageable"; // 10% to 25% gap
+    return "disconnect"; // > 25% disconnect
+  }, [budgetNum, area, costPerSqFt, variance]);
+
   const answers: QuestionnaireAnswers = useMemo(
     () => ({
       dmLevel:
@@ -160,7 +179,7 @@ function OpportunityNodeComponent({
                 : "lvl0"),
       budgetLevel:
         (customFields.q_budget as QuestionnaireAnswers["budgetLevel"]) ||
-        "aligned",
+        autoBudgetLevel,
       fundingLevel:
         (customFields.q_funding as QuestionnaireAnswers["fundingLevel"]) ||
         (opp.fundingSecured ? "secured" : "progressing"),
@@ -184,7 +203,7 @@ function OpportunityNodeComponent({
             ? "paid_contract"
             : "verbal_interest"),
     }),
-    [customFields, opp],
+    [customFields, opp, autoBudgetLevel],
   );
 
   const savePatch = (
@@ -214,14 +233,6 @@ function OpportunityNodeComponent({
       },
     });
   };
-
-  // --- Live Class D Calculations ---
-  const area = Number(opp.grossFloorArea) || 0;
-  const costPerSqFt = Number(opp.targetCostPerSqFt) || 350;
-  const benchmarkCost = area * costPerSqFt;
-  const budgetNum = Number(opp.clientBudget?.toString().replace(/\D/g, "")) || 0;
-  const variance =
-    budgetNum > 0 ? ((benchmarkCost - budgetNum) / budgetNum) * 100 : 0;
 
   // --- AUTOMATED SCORING & P1-P5 GRADING ENGINE ---
   const scoreBreakdown = useMemo(() => {
@@ -876,7 +887,7 @@ function OpportunityNodeComponent({
                       <label className="text-[10px] font-semibold text-muted-foreground">Project Typology / Intent</label>
                       <input
                         type="text"
-                        value={opp.projectIntent || ""}
+                        value={opp.projectIntent ?? ""}
                         onChange={(e) => savePatch({ projectIntent: e.target.value })}
                         placeholder="e.g. 4-Storey Multi-Family Rental"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
@@ -886,7 +897,7 @@ function OpportunityNodeComponent({
                       <label className="text-[10px] font-semibold text-muted-foreground">Project Location / City</label>
                       <input
                         type="text"
-                        value={opp.projectLocation || ""}
+                        value={opp.projectLocation ?? ""}
                         onChange={(e) => savePatch({ projectLocation: e.target.value })}
                         placeholder="e.g. Kelowna, BC"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
@@ -898,27 +909,30 @@ function OpportunityNodeComponent({
                     <div>
                       <label className="text-[10px] font-semibold text-muted-foreground">Storeys</label>
                       <input
-                        type="number"
-                        value={opp.storeys || ""}
-                        onChange={(e) => savePatch({ storeys: Number(e.target.value) || 0 })}
+                        type="text"
+                        value={opp.storeys ?? ""}
+                        onChange={(e) => savePatch({ storeys: e.target.value })}
+                        placeholder="e.g. 4"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-muted-foreground">Gross Floor Area (sq.ft.)</label>
                       <input
-                        type="number"
-                        value={opp.grossFloorArea || ""}
-                        onChange={(e) => savePatch({ grossFloorArea: Number(e.target.value) || 0 })}
+                        type="text"
+                        value={opp.grossFloorArea ?? ""}
+                        onChange={(e) => savePatch({ grossFloorArea: e.target.value })}
+                        placeholder="e.g. 28000"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-muted-foreground">Unit / Module Count</label>
                       <input
-                        type="number"
-                        value={opp.unitCount || ""}
-                        onChange={(e) => savePatch({ unitCount: Number(e.target.value) || 0 })}
+                        type="text"
+                        value={opp.unitCount ?? ""}
+                        onChange={(e) => savePatch({ unitCount: e.target.value })}
+                        placeholder="e.g. 36"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       />
                     </div>
@@ -1170,19 +1184,20 @@ function OpportunityNodeComponent({
                       <label className="text-[10px] font-semibold text-muted-foreground">Client Target Budget ($)</label>
                       <input
                         type="text"
-                        value={opp.clientBudget || ""}
+                        value={opp.clientBudget ?? ""}
                         onChange={(e) => savePatch({ clientBudget: e.target.value })}
-                        placeholder="e.g. 9,800,000"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                        placeholder="e.g. 9800000"
+                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-mono"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-muted-foreground">Target Cost Baseline ($/sq.ft.)</label>
                       <input
-                        type="number"
-                        value={opp.targetCostPerSqFt || "350"}
+                        type="text"
+                        value={opp.targetCostPerSqFt ?? ""}
                         onChange={(e) => savePatch({ targetCostPerSqFt: e.target.value })}
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                        placeholder="e.g. 350"
+                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-mono"
                       />
                     </div>
                   </div>
@@ -1206,7 +1221,11 @@ function OpportunityNodeComponent({
                       </div>
                       <div className={cn(
                         "rounded-lg p-2 border",
-                        variance <= 15 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-red-500/10 border-red-500/30 text-red-600"
+                        variance <= 10
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                          : variance <= 25
+                            ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
+                            : "bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-300"
                       )}>
                         <div className="text-[10px] font-bold">Variance</div>
                         <div className="text-sm font-bold mt-0.5">{variance > 0 ? `+${variance.toFixed(1)}%` : `${variance.toFixed(1)}%`}</div>
@@ -1214,51 +1233,104 @@ function OpportunityNodeComponent({
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 pt-1">
-                    {[
-                      {
-                        val: "aligned",
-                        title: "Realistic Budget Fit (Within ±10%)",
-                        desc: "Client budget aligns with Class D cost benchmark; commercial model is sound (+15 pts)",
-                      },
-                      {
-                        val: "manageable",
-                        title: "Manageable Variance (10% to 25% Gap)",
-                        desc: "Client open to value engineering and spec calibration during pre-construction (+8 pts)",
-                      },
-                      {
-                        val: "disconnect",
-                        title: "Severe Budget Disconnect (>25% Gap)",
-                        desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, Hard Blocker)",
-                      },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.val}
-                        onClick={() =>
-                          savePatch(
-                            {},
-                            { budgetLevel: opt.val as QuestionnaireAnswers["budgetLevel"] },
-                          )
-                        }
-                        className={cn(
-                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.budgetLevel === opt.val
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                        )}
-                      >
-                        {answers.budgetLevel === opt.val ? (
-                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-foreground">
+                        Budget Reality Fit Evaluation:
+                      </label>
+                      <span className="text-[10px] font-semibold text-primary">
+                        Auto-Evaluated from Inputs
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {[
+                        {
+                          val: "aligned",
+                          title: "Realistic Budget Fit (Within ±10%)",
+                          desc: "Client budget aligns with Class D cost benchmark; commercial model is sound (+15 pts)",
+                          activeClass:
+                            "border-emerald-500 bg-emerald-500/15 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/40 shadow-xs",
+                          icon: CheckCircle2,
+                          iconColor: "text-emerald-600 dark:text-emerald-400",
+                          badge: "Auto: Aligned",
+                          badgeClass:
+                            "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
+                        },
+                        {
+                          val: "manageable",
+                          title: "Manageable Variance (10% to 25% Gap)",
+                          desc: "Client open to value engineering and spec calibration during pre-construction (+8 pts)",
+                          activeClass:
+                            "border-amber-500 bg-amber-500/15 text-amber-950 dark:text-amber-100 ring-2 ring-amber-500/40 shadow-xs",
+                          icon: AlertTriangle,
+                          iconColor: "text-amber-600 dark:text-amber-400",
+                          badge: "Auto: 10-25% Gap",
+                          badgeClass:
+                            "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40",
+                        },
+                        {
+                          val: "disconnect",
+                          title: "Severe Budget Disconnect (>25% Gap)",
+                          desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, Hard Blocker)",
+                          activeClass:
+                            "border-red-500 bg-red-500/15 text-red-950 dark:text-red-100 ring-2 ring-red-500/40 shadow-xs",
+                          icon: AlertOctagon,
+                          iconColor: "text-red-600 dark:text-red-400",
+                          badge: "Auto: Fatal Blocker",
+                          badgeClass:
+                            "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40",
+                        },
+                      ].map((opt) => {
+                        const isSelected = answers.budgetLevel === opt.val;
+                        const Icon = opt.icon;
+                        return (
+                          <button
+                            type="button"
+                            key={opt.val}
+                            onClick={() =>
+                              savePatch(
+                                {},
+                                { budgetLevel: opt.val as QuestionnaireAnswers["budgetLevel"] },
+                              )
+                            }
+                            className={cn(
+                              "w-full rounded-xl border p-2.5 text-left transition flex items-start justify-between gap-3",
+                              isSelected
+                                ? opt.activeClass
+                                : "border-border bg-card/60 hover:border-primary/40 text-muted-foreground opacity-60",
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-xs flex items-center gap-1.5">
+                                <Icon
+                                  className={cn(
+                                    "size-4 shrink-0",
+                                    isSelected ? opt.iconColor : "text-muted-foreground/50",
+                                  )}
+                                />
+                                <span className={isSelected ? "text-foreground font-bold" : ""}>
+                                  {opt.title}
+                                </span>
+                              </div>
+                              <p className="text-[11px] mt-0.5 pl-5 opacity-90 leading-snug">
+                                {opt.desc}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <span
+                                className={cn(
+                                  "text-[9px] font-bold px-2 py-0.5 rounded-md border shrink-0",
+                                  opt.badgeClass,
+                                )}
+                              >
+                                {opt.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
