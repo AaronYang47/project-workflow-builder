@@ -392,12 +392,38 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   const isLegacyGateWorkflow = file.graph.nodes.some(
     (node) => node.id === "g1-opportunity",
   );
+  const legacyPreGateIds = new Set([
+    "sales-intake",
+    "basic-client-project-info",
+    "qualified-opportunity",
+    "archive-follow-up",
+    "collect-plans-scope-site",
+    "quick-class-d-benchmark",
+    "budget-fit",
+    "hold-archive",
+    "engagement-approval",
+  ]);
+  const hasLegacyPreGate = file.graph.nodes.some((node) =>
+    legacyPreGateIds.has(node.id),
+  );
+  if (hasLegacyPreGate) {
+    file.graph.nodes = file.graph.nodes.filter(
+      (node) => !legacyPreGateIds.has(node.id) && node.id !== "lead-inquiry",
+    );
+    const legacyEdgePrefixes = ["pre-sales-"];
+    file.graph.edges = file.graph.edges.filter(
+      (edge) =>
+        !legacyEdgePrefixes.some((prefix) => edge.id.startsWith(prefix)) &&
+        !legacyPreGateIds.has(edge.source) &&
+        !legacyPreGateIds.has(edge.target),
+    );
+  }
   if (
     isLegacyGateWorkflow &&
     !file.graph.nodes.some((node) => node.id === "lead-inquiry")
   ) {
     const gateOne = absolute("g1-opportunity");
-    const injectedLayouts = getPreGateSalesLayouts(gateOne.x - 3150, gateOne.y);
+    const injectedLayouts = getPreGateSalesLayouts(gateOne.x - 3200, gateOne.y);
     file.graph.nodes.push(...PRE_GATE_SALES_NODES);
     const existingEdgeIds = new Set(file.graph.edges.map((edge) => edge.id));
     file.graph.edges.push(
@@ -410,7 +436,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     PRE_GATE_SALES_NODES.map((node) => [node.id, node]),
   );
   file.graph.nodes = file.graph.nodes.map((node) => {
-    if (!["qualified-opportunity", "budget-fit"].includes(node.id)) return node;
+    if (!canonicalPreGateNodes.has(node.id)) return node;
     const canonical = canonicalPreGateNodes.get(node.id)!;
     return {
       ...canonical,

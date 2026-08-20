@@ -163,14 +163,36 @@ const gateNodes: DomainNode[] = [
     "g1-opportunity",
     "Phase 1 · Sales / Pre-construction / Commitment",
     "G1 · Opportunity Qualification & Client Commitment",
-    "Qualify the opportunity, establish client commitment, and control the start of internal work.",
+    "Validate opportunity, confirm decision makers, assess scale & readiness, and establish commercial commitment.",
     "Sales Team",
     [
-      rule("g1-information", "Basic project information is available"),
-      rule("g1-qualified", "Opportunity is commercially qualified"),
+      rule(
+        "g1-client-decision",
+        "Client profile and true Decision Maker (decide/sign/budget) are confirmed",
+      ),
+      rule(
+        "g1-intent-scale",
+        "Project intent, location, and high-level scale (storeys, area, units) are captured for Class D",
+      ),
+      rule(
+        "g1-site-design",
+        "Site status and design maturity level (Level 0: No Plans to 4: Permit Issued) are documented",
+      ),
+      rule(
+        "g1-budget-financing",
+        "Budget basis, financing structure, and target timeline are recorded",
+      ),
+      rule(
+        "g1-modular-reality",
+        "High-level modular fit and Class D budget reality check are validated",
+      ),
+      rule(
+        "g1-owner-gaps",
+        "Owner type is assigned and all known gaps have clear mitigation strategies (Known & Controlled)",
+      ),
       rule(
         "g1-commitment",
-        "Client commitment received through an approved instrument",
+        "Client commitment instrument (CSA / PCS / LOI / Feasibility) is executed or approved",
         [
           signature(
             "g1-commitment-doc",
@@ -180,7 +202,6 @@ const gateNodes: DomainNode[] = [
           ),
         ],
       ),
-      rule("g1-job-number", "Job number is assigned before work begins"),
     ],
     "#1f5fa7",
   ),

@@ -344,6 +344,8 @@ export function placeNoBranches(nodes: Record<string, NodeLayout>) {
       parentId: undefined,
     };
   };
+  placeNoBranch("class-d-reality-check", "no-go-archive");
+  placeNoBranch("select-engagement-path", "hold-gap-rework");
   placeNoBranch("qualified-opportunity", "archive-follow-up");
   placeNoBranch("budget-fit", "hold-archive");
 }
