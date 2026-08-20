@@ -603,7 +603,7 @@ function OpportunityNodeComponent({
         style={{ borderColor: `${color}65` }}
       >
         <NodeResizer
-          minWidth={880}
+          minWidth={900}
           minHeight={780}
           isVisible={selected}
           onResizeEnd={(_, params) =>
@@ -622,17 +622,17 @@ function OpportunityNodeComponent({
         {/* --- Card Header --- */}
         <div
           data-node-header
-          className="nowheel flex items-center justify-between border-b px-4 py-3 cursor-grab active:cursor-grabbing bg-gradient-to-r from-primary/10 via-primary/5 to-transparent"
+          className="nowheel flex items-center justify-between border-b px-4 py-3 cursor-grab active:cursor-grabbing bg-gradient-to-r from-primary/10 via-primary/5 to-transparent gap-3"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
-              className="flex size-9 items-center justify-center rounded-xl text-white shadow-sm"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
               style={{ backgroundColor: color }}
             >
               <Compass className="size-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Opportunity Validation & Client Scoring Engine
                 </span>
@@ -653,26 +653,26 @@ function OpportunityNodeComponent({
                   )}
                 >
                   {outcome === "pass-p1-p2" || outcome === "pass"
-                    ? "GATE 1 PASSED (P1/P2) ✅"
+                    ? "GATE 1 PASSED (P1/P2)"
                     : outcome === "csa-pcs"
-                      ? "PROCEED TO CSA / PCS 📄"
+                      ? "PROCEED TO CSA / PCS"
                       : outcome === "loi-governed"
-                        ? "STRATEGIC LOI (CAPPED) ⏱️"
+                        ? "STRATEGIC LOI (CAPPED)"
                         : outcome === "site-feasibility"
-                          ? "SITE FEASIBILITY LOOP 📍"
+                          ? "SITE FEASIBILITY LOOP"
                           : outcome === "hold-rework" || outcome === "hold"
-                            ? "HOLD · REWORK LOOP ⚠️"
-                            : "NO-GO DISQUALIFIED ❌"}
+                            ? "HOLD · REWORK LOOP"
+                            : "NO-GO DISQUALIFIED"}
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-foreground">
+              <h3 className="text-sm font-bold text-foreground truncate">
                 {opp.companyName ? `${opp.companyName} · ` : ""}
                 {node.title || "Opportunity Qualification & Commercial Baseline"}
               </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setShowLogicGuide((v) => !v)}
@@ -682,7 +682,7 @@ function OpportunityNodeComponent({
               <Info className="size-3.5 text-primary" />
               <span>Logic Rules</span>
             </button>
-            <div className="flex items-center gap-1.5 rounded-lg bg-background/90 px-3 py-1 text-xs font-bold shadow-xs border">
+            <div className="flex items-center gap-1.5 rounded-lg bg-background/90 px-2.5 py-1 text-xs font-bold shadow-xs border">
               <Sparkles className="size-3.5 text-primary" />
               <span>
                 {scoreBreakdown.grade} · {scoreBreakdown.totalScore}/100
@@ -1567,9 +1567,9 @@ function OpportunityNodeComponent({
           </div>
 
           {/* RIGHT: AI Rating & Recommendation Dashboard */}
-          <div className="w-[330px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
+          <div className="w-[340px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
             {/* Score & P1-P5 Grade Circular Banner */}
-            <div className="rounded-xl border bg-card p-3 shadow-xs space-y-2.5">
+            <div className="rounded-xl border bg-card p-3 shadow-xs space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Opportunity Grade
@@ -1577,16 +1577,16 @@ function OpportunityNodeComponent({
                 <span className="text-[9px] font-mono text-muted-foreground">0–100 Engine</span>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-                  <span className="text-lg font-extrabold">{scoreBreakdown.totalScore}</span>
-                  <span className="absolute -bottom-1 text-[7px] font-bold uppercase">Score</span>
+              <div className="flex items-start gap-2.5">
+                <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                  <span className="text-base font-extrabold leading-none">{scoreBreakdown.totalScore}</span>
+                  <span className="text-[7px] font-bold uppercase leading-none mt-0.5">Score</span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-1 border block text-left leading-tight whitespace-normal break-words", scoreBreakdown.gradeColor)}>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-0.5 border block text-left leading-tight break-words", scoreBreakdown.gradeColor)}>
                     {scoreBreakdown.gradeLabel}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 leading-tight line-clamp-2">
+                  <p className="text-[10px] text-muted-foreground mt-1 leading-snug break-words">
                     {scoreBreakdown.gradeDesc}
                   </p>
                 </div>
@@ -1712,7 +1712,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-emerald-500",
                   )}
                 >
-                  PASS (P1/P2) ✅
+                  PASS (P1/P2)
                 </button>
                 <button
                   type="button"
@@ -1724,7 +1724,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-blue-500",
                   )}
                 >
-                  Paid CSA / PCS 📄
+                  Paid CSA / PCS
                 </button>
                 <button
                   type="button"
@@ -1736,7 +1736,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-purple-500",
                   )}
                 >
-                  Governed LOI ⏱️
+                  Governed LOI
                 </button>
                 <button
                   type="button"
@@ -1748,7 +1748,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-amber-500",
                   )}
                 >
-                  Site Feasibility 📍
+                  Site Feasibility
                 </button>
                 <button
                   type="button"
@@ -1760,7 +1760,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-orange-500",
                   )}
                 >
-                  HOLD · Rework ⚠️
+                  HOLD · Rework
                 </button>
                 <button
                   type="button"
@@ -1772,7 +1772,7 @@ function OpportunityNodeComponent({
                       : "bg-background text-muted-foreground hover:border-red-500",
                   )}
                 >
-                  NO-GO ❌
+                  NO-GO
                 </button>
               </div>
             </div>
@@ -1788,16 +1788,16 @@ function OpportunityNodeComponent({
           </span>
           <span className="font-semibold text-primary">
             {outcome === "pass-p1-p2" || outcome === "pass"
-              ? "✓ Gate 1 Passed — Validated Opportunity"
+              ? "Gate 1 Passed — Validated Opportunity"
               : outcome === "csa-pcs"
-                ? "📄 Route to Paid Consultation (CSA/PCS)"
+                ? "Route to Paid Consultation (CSA/PCS)"
                 : outcome === "loi-governed"
-                  ? "⏱️ Route to Strategic Governed LOI"
+                  ? "Route to Strategic Governed LOI"
                   : outcome === "site-feasibility"
-                    ? "📍 Route to Site Discovery Loop"
+                    ? "Route to Site Discovery Loop"
                     : outcome === "hold-rework" || outcome === "hold"
-                      ? "⚠ Opportunity on HOLD (Rework Loop)"
-                      : "❌ Opportunity Disqualified / Closed"}
+                      ? "Opportunity on HOLD (Rework Loop)"
+                      : "Opportunity Disqualified / Closed"}
           </span>
         </div>
 
