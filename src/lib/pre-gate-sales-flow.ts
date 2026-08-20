@@ -218,7 +218,7 @@ export const PRE_GATE_SALES_EDGES: DomainEdge[] = [
     source: "hold-gap-rework",
     target: "opportunity-validation",
     sourceHandle: "out",
-    targetHandle: "in",
+    targetHandle: "in-rework",
     label: "Re-evaluate Strategy",
     type: "rework",
     lineStyle: "solid",

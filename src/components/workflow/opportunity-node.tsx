@@ -1801,7 +1801,16 @@ function OpportunityNodeComponent({
           </span>
         </div>
 
-        {/* --- Multi-Handle Outputs (One for each distinct route) --- */}
+        {/* Top Input Handle for Rework Loop */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="in-rework"
+          style={{ left: "50%" }}
+          title="HOLD - Rework Return Input"
+          className="!size-3.5 !border-2 !border-background !bg-amber-500 transition hover:!scale-125"
+        />
+
         {/* Left Input Handle */}
         <Handle
           type="target"
