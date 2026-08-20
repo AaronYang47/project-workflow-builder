@@ -17,6 +17,7 @@ import {
   FileCheck2,
   FileText,
   HelpCircle,
+  Info,
   Landmark,
   Layers,
   MapPin,
@@ -65,6 +66,7 @@ function OpportunityNodeComponent({
 }) {
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const [activeSection, setActiveSection] = useState<number>(0);
+  const [showLogicGuide, setShowLogicGuide] = useState<boolean>(false);
 
   const opp: OpportunityValidationConfig = useMemo(
     () => ({
@@ -320,17 +322,17 @@ function OpportunityNodeComponent({
     // Automated Tier Rating
     let tier: "A" | "B" | "C" | "D" = "B";
     let tierLabel = "Tier B · Qualified Opportunity";
-    let tierDesc = "High confidence with clear, manageable gaps.";
+    let tierDesc = "High viability with clear, manageable gaps.";
     let tierColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
 
     if (hasFatalRedFlag || totalScore < 35) {
       tier = "D";
       tierLabel = "Tier D · High Risk / Disqualified";
-      tierDesc = "Severe budget disconnect, fatal site/fit issue, or no decision maker.";
+      tierDesc = "Severe budget disconnect, fatal site/fit blocker, or no decision authority.";
       tierColor = "text-red-500 bg-red-500/10 border-red-500/30";
     } else if (totalScore >= 80) {
       tier = "A";
-      tierLabel = "Tier A · Validated Opportunity (Fast-Track)";
+      tierLabel = "Tier A · Validated (Fast-Track)";
       tierDesc = "All core criteria fully validated. Ready for immediate Phase 1 entry.";
       tierColor = "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
     } else if (totalScore < 55) {
@@ -391,44 +393,44 @@ function OpportunityNodeComponent({
   const questions = [
     {
       id: "dm",
-      title: "1. 决策人与客户资质 (Decision Maker & Client Profile)",
-      subtitle: "确认是否能直接触达真正拥有预算控制权与签字权的决策者",
+      title: "1. Decision Maker & Client Profile",
+      subtitle: "Verify direct access to the budget controller and signing authority",
       icon: Users,
     },
     {
       id: "scale",
-      title: "2. 项目规模与几何参数 (Project Intent & Class D Scale)",
-      subtitle: "确认建筑用途、地点、层数、面积与单元数，满足 Class D 粗估基准",
+      title: "2. Project Intent & Class D Scale",
+      subtitle: "Capture building use, location, storeys, area, and units for rough benchmarking",
       icon: Scale,
     },
     {
       id: "site",
-      title: "3. 土地与场地成熟度 (Site & Land Readiness)",
-      subtitle: "确认地块所有权状态、市政管网与吊装运输可行性",
+      title: "3. Site & Land Readiness",
+      subtitle: "Confirm property ownership status, municipal servicing, and access constraints",
       icon: MapPin,
     },
     {
       id: "design",
-      title: "4. 图纸与设计阶段 (Plans & Design Maturity)",
-      subtitle: "评估当前设计图纸所属的成熟度等级（Level 0 概念 ~ Level 4 许可）",
+      title: "4. Plans & Design Maturity Level",
+      subtitle: "Classify architectural design maturity from Level 0 (idea) to Level 4 (permit issued)",
       icon: FileText,
     },
     {
       id: "budget",
-      title: "5. 预算现实度核算 (Class D Budget Reality Check)",
-      subtitle: "面积 × 单方造价基准 vs 客户目标预算对比",
+      title: "5. Class D Budget Reality Check",
+      subtitle: "Benchmark Cost (Area × $/sq.ft.) vs Client Target Budget comparison",
       icon: Landmark,
     },
     {
       id: "funding",
-      title: "6. 资金与融资状态 (Financing & Timeline)",
-      subtitle: "自有资金、银行开发贷或政策补贴落实情况与目标交付时间",
+      title: "6. Financing & Target Timeline",
+      subtitle: "Funding structure (equity/loan/grant) and target occupancy schedule",
       icon: Clock,
     },
     {
       id: "fit",
-      title: "7. 模块化适配度初判 (Modular Fit & Consultants)",
-      subtitle: "排查是否存在道路运输超宽/超高、网格不可拆分等致命红线",
+      title: "7. Modular Feasibility Fit Check",
+      subtitle: "Screen for transport clearances, grid modularity, and structural red flags",
       icon: Layers,
     },
   ];
@@ -444,8 +446,8 @@ function OpportunityNodeComponent({
         style={{ borderColor: `${color}65` }}
       >
         <NodeResizer
-          minWidth={780}
-          minHeight={780}
+          minWidth={800}
+          minHeight={720}
           isVisible={selected}
           onResizeEnd={(_, params) =>
             useWorkflowStore
@@ -479,7 +481,7 @@ function OpportunityNodeComponent({
                 </span>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                    "rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
                     outcome === "pass"
                       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
                       : outcome === "hold"
@@ -506,6 +508,15 @@ function OpportunityNodeComponent({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowLogicGuide((v) => !v)}
+              className="flex items-center gap-1 rounded-lg border bg-background/80 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition"
+              title="View Scoring & Classification Logic Rules"
+            >
+              <Info className="size-3.5 text-primary" />
+              <span>Logic Rules</span>
+            </button>
             <div className="flex items-center gap-1.5 rounded-lg bg-background/90 px-3 py-1 text-xs font-bold shadow-xs border">
               <Sparkles className="size-3.5 text-primary" />
               <span>Score: {scoreBreakdown.totalScore}/100</span>
@@ -554,16 +565,16 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Users className="size-4 text-primary" />
-                      Q1. 客户基本信息与核心决策人
+                      Q1. Client Profile & Decision Maker Authority
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      录入客户档案并评估商务决策权威度
+                      Verify client background and confirm commercial decision-making authority
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">客户公司名称</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Company / Organization</label>
                       <input
                         type="text"
                         value={opp.companyName || ""}
@@ -573,17 +584,17 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">主要联系人与职位</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Primary Contact & Title</label>
                       <input
                         type="text"
                         value={opp.contactPerson || ""}
                         onChange={(e) => savePatch({ contactPerson: e.target.value })}
-                        placeholder="e.g. Marcus Vance, VP"
+                        placeholder="e.g. Marcus Vance, VP Development"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">渠道来源</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Lead / Referral Source</label>
                       <input
                         type="text"
                         value={opp.leadSource || ""}
@@ -593,7 +604,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">联系方式</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Contact Details (Email / Phone)</label>
                       <input
                         type="text"
                         value={opp.contactEmail || ""}
@@ -607,26 +618,26 @@ function OpportunityNodeComponent({
                   {/* Question Choice Cards */}
                   <div className="space-y-2 pt-1">
                     <label className="text-[11px] font-bold text-foreground">
-                      决策人触达情况评估：
+                      Decision Authority Assessment:
                     </label>
                     <div className="space-y-1.5">
                       {[
                         {
                           val: "direct",
-                          title: "直接触达真正决策人 (Direct Decision Maker)",
-                          desc: "对接人具备完整签字权与预算调配权，能直接拍板商业决策 (+20 pts)",
+                          title: "Direct Decision Maker (Signing & Budget Authority)",
+                          desc: "Direct access to authorized officer who can sign agreements and allocate budget (+20 pts)",
                           badge: "High Confidence",
                         },
                         {
                           val: "influencer",
-                          title: "对接业务经理 / 影响力人 (Representative Known)",
-                          desc: "决策人已知但未直接出席会议，需经由汇报链推进审批 (+10 pts)",
+                          title: "Project Representative / Manager (DM Known)",
+                          desc: "Decision maker is identified but approval goes through an internal chain (+10 pts)",
                           badge: "Follow-up Required",
                         },
                         {
                           val: "unclear",
-                          title: "决策链不明确 / 无法触达拍板人 (Unclear Authority)",
-                          desc: "无真实决策力，拒绝提供高层联系方式或决策流程不透明 (0 pts, Red Flag)",
+                          title: "Unclear Authority / No Access to Decision Maker",
+                          desc: "Contact lacks decision authority, or decision process is opaque (0 pts, Risk Flag)",
                           badge: "Risk Flag",
                         },
                       ].map((opt) => (
@@ -675,16 +686,16 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Scale className="size-4 text-primary" />
-                      Q2. 项目意图与几何规模 (Class D Inputs)
+                      Q2. Project Intent & Class D Scale Parameters
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      核定建筑体量与基本参数，为 Class D 粗估奠定数据基础
+                      Establish building typology, storeys, area, and units for rough benchmarking
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">项目意图 / 建筑用途</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Project Intent / Typology</label>
                       <input
                         type="text"
                         value={opp.projectIntent || ""}
@@ -694,7 +705,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">项目地点 / 城市</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Project Location / City</label>
                       <input
                         type="text"
                         value={opp.projectLocation || ""}
@@ -707,7 +718,7 @@ function OpportunityNodeComponent({
 
                   <div className="grid grid-cols-3 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">层数 (Storeys)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Storeys</label>
                       <input
                         type="number"
                         value={opp.storeys || ""}
@@ -716,7 +727,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">总建筑面积 (sq.ft.)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Gross Floor Area (sq.ft.)</label>
                       <input
                         type="number"
                         value={opp.grossFloorArea || ""}
@@ -725,7 +736,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">单元数 / 房间数</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Units / Modules Count</label>
                       <input
                         type="number"
                         value={opp.unitCount || ""}
@@ -737,24 +748,24 @@ function OpportunityNodeComponent({
 
                   <div className="space-y-2 pt-1">
                     <label className="text-[11px] font-bold text-foreground">
-                      规模参数完整度：
+                      Scale Definition Maturity:
                     </label>
                     <div className="space-y-1.5">
                       {[
                         {
                           val: "defined",
-                          title: "参数清晰完备 (Full Scale Captured)",
-                          desc: "具备确切层数、总建筑面积与单元数，足以支撑 Class D 造价基准测算 (+15 pts)",
+                          title: "Full Scale Defined (Ready for Class D Benchmark)",
+                          desc: "Storeys, gross floor area, and unit count are captured (+15 pts)",
                         },
                         {
                           val: "rough",
-                          title: "仅有粗略概念面积 (Rough Concept Only)",
-                          desc: "仅知道大致总面积或总户数，需在前期咨询中进一步细化 (+8 pts)",
+                          title: "Approximate Concept Scale Only",
+                          desc: "Approximate footprint or rough unit count only; requires refinement (+8 pts)",
                         },
                         {
                           val: "none",
-                          title: "规模完全未知 (No Scale Known)",
-                          desc: "无具体面积与体量，无法进行任何经济性测算 (0 pts)",
+                          title: "Scale Unknown / Undefined",
+                          desc: "No dimensions available; economic benchmarking cannot be run (0 pts)",
                         },
                       ].map((opt) => (
                         <button
@@ -795,16 +806,16 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <MapPin className="size-4 text-primary" />
-                      Q3. 土地状态与场地红线 (Site & Land Status)
+                      Q3. Site & Land Readiness Status
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      确认地块权属、市政接驳与施工通道约束
+                      Confirm property title, municipal servicing, and road access
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">地块地址 / Parcel PIN</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Site Address / Parcel PIN</label>
                       <input
                         type="text"
                         value={opp.siteAddress || ""}
@@ -814,35 +825,35 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">场地市政与进场约束</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Servicing & Access Constraints</label>
                       <input
                         type="text"
                         value={opp.siteConstraints || ""}
                         onChange={(e) => savePatch({ siteConstraints: e.target.value })}
-                        placeholder="e.g. Municipal water at property line"
+                        placeholder="e.g. Municipal water at lot line, crane pad ready"
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2 pt-1">
-                    <label className="text-[11px] font-bold text-foreground">场地落实程度评级：</label>
+                    <label className="text-[11px] font-bold text-foreground">Property Ownership & Readiness:</label>
                     <div className="space-y-1.5">
                       {[
                         {
                           val: "owned",
-                          title: "已落实地块权属 (Owned Land / Project-Ready)",
-                          desc: "土地已购入或完全受控，规划红线与市政接口已知 (+15 pts)",
+                          title: "Owned Land (Project-Ready)",
+                          desc: "Property is owned or fully controlled; servicing & zoning verified (+15 pts)",
                         },
                         {
                           val: "option",
-                          title: "购买意向期 / 锁定协议 (Under Option)",
-                          desc: "已有明确意向地块与排他协议，需验证规划合规性 (+10 pts)",
+                          title: "Under Option / Purchase Contract",
+                          desc: "Under binding purchase agreement with closing contingencies (+10 pts)",
                         },
                         {
                           val: "searching",
-                          title: "尚未拿地 / 寻址阶段 (Searching / Unresolved)",
-                          desc: "场地未定或存在未解市政死结，需匹配场地可行性研究 (Site Feasibility) (+2 pts)",
+                          title: "Searching for Site / Unresolved",
+                          desc: "Site selection in progress; requires Site Feasibility Study (+2 pts)",
                         },
                       ].map((opt) => (
                         <button
@@ -890,10 +901,10 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <FileText className="size-4 text-primary" />
-                      Q4. 图纸与设计成熟度分级 (Design Maturity Level)
+                      Q4. Plans & Architectural Design Maturity Level
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      明确图纸当前处于 0~4 级的哪一阶段，决定后续设计服务策略
+                      Classify drawings across Levels 0 to 4 to establish design coordination scope
                     </p>
                   </div>
 
@@ -901,28 +912,28 @@ function OpportunityNodeComponent({
                     {[
                       {
                         val: "lvl4",
-                        title: "Level 4: Permit Issued (已出施工许可)",
-                        desc: "官方许可已获批，直接进入模块化生产转化评审 (+15 pts)",
+                        title: "Level 4: Permit Issued (Drawings Approved)",
+                        desc: "Official building permit issued; ready for modular fabrication review (+15 pts)",
                       },
                       {
                         val: "lvl3",
-                        title: "Level 3: Permit Set Submitted (申报图已报审)",
-                        desc: "图纸深度满足报建要求，正在审批中 (+13 pts)",
+                        title: "Level 3: Permit Set Submitted",
+                        desc: "Complete architectural & engineering drawings submitted for municipal review (+13 pts)",
                       },
                       {
                         val: "lvl2",
-                        title: "Level 2: Preliminary Architectural (初步建筑方案)",
-                        desc: "有平立剖方案图，需进行模块化构件拆分与结构复核 (+9 pts)",
+                        title: "Level 2: Preliminary Architectural Scheme",
+                        desc: "Floor plans, elevations, and sections available; requires modular grid split (+9 pts)",
                       },
                       {
                         val: "lvl1",
-                        title: "Level 1: Concept / Sketches (仅概念草图)",
-                        desc: "仅有概念构想，匹配 CSA 进行模块化深化设计 (+6 pts, Design-Needed)",
+                        title: "Level 1: Concept / Sketches Only",
+                        desc: "Concept sketches only; requires CSA for architectural modularization (+6 pts, Design-Needed)",
                       },
                       {
                         val: "lvl0",
-                        title: "Level 0: No Plans (无任何图纸)",
-                        desc: "仅有初步想法，需提供全套前期建筑方案协同 (+1 pt, Concept-Stage)",
+                        title: "Level 0: No Plans (Idea Only)",
+                        desc: "No drawings; requires full architectural design & pre-construction package (+1 pt, Concept-Stage)",
                       },
                     ].map((opt) => (
                       <button
@@ -969,16 +980,16 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Landmark className="size-4 text-primary" />
-                      Q5. 预算基准与 Class D 现实度核算 (Reality Check)
+                      Q5. Budget Basis & Class D Reality Check
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      对比客户预算与基准测算成本，判断经济可行性
+                      Benchmark estimated cost against client target budget to verify economic feasibility
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">客户目标预算 ($)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Client Target Budget ($)</label>
                       <input
                         type="text"
                         value={opp.clientBudget || ""}
@@ -988,7 +999,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">基准单方造价 ($/sq.ft.)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Target Cost Baseline ($/sq.ft.)</label>
                       <input
                         type="number"
                         value={opp.targetCostPerSqFt || "350"}
@@ -1001,25 +1012,25 @@ function OpportunityNodeComponent({
                   {/* Live Benchmark Calculator Card */}
                   <div className="rounded-xl border bg-muted/40 p-3 space-y-2">
                     <div className="flex items-center justify-between text-xs font-bold">
-                      <span>Class D 测算模型比对</span>
+                      <span>Class D Reality Benchmark Comparison</span>
                       <span className="text-[11px] text-muted-foreground">
                         {area.toLocaleString()} sq.ft. @ ${costPerSqFt}/sq.ft.
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-lg bg-background p-2 border">
-                        <div className="text-[10px] text-muted-foreground">基准估算总额</div>
+                        <div className="text-[10px] text-muted-foreground">Estimated Benchmark</div>
                         <div className="text-sm font-bold mt-0.5">${benchmarkCost.toLocaleString()}</div>
                       </div>
                       <div className="rounded-lg bg-background p-2 border">
-                        <div className="text-[10px] text-muted-foreground">客户目标预算</div>
+                        <div className="text-[10px] text-muted-foreground">Client Target Budget</div>
                         <div className="text-sm font-bold mt-0.5">${budgetNum.toLocaleString()}</div>
                       </div>
                       <div className={cn(
                         "rounded-lg p-2 border",
                         variance <= 15 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-red-500/10 border-red-500/30 text-red-600"
                       )}>
-                        <div className="text-[10px] font-bold">预算差额比</div>
+                        <div className="text-[10px] font-bold">Variance</div>
                         <div className="text-sm font-bold mt-0.5">{variance > 0 ? `+${variance.toFixed(1)}%` : `${variance.toFixed(1)}%`}</div>
                       </div>
                     </div>
@@ -1029,18 +1040,18 @@ function OpportunityNodeComponent({
                     {[
                       {
                         val: "aligned",
-                        title: "预算基本现实 (Realistic Budget Fit)",
-                        desc: "客户预算与测算基准在 ±10% 吻合范围内，商业模型成立 (+15 pts)",
+                        title: "Realistic Budget Fit (Within ±10%)",
+                        desc: "Client budget aligns with Class D cost benchmark; commercial model is sound (+15 pts)",
                       },
                       {
                         val: "manageable",
-                        title: "存在可控差额 (Manageable Gap 10-25%)",
-                        desc: "客户接受在前期设计中通过工艺优化与标准件调整校准预算 (+8 pts)",
+                        title: "Manageable Variance (10% to 25% Gap)",
+                        desc: "Client open to value engineering and spec calibration during pre-construction (+8 pts)",
                       },
                       {
                         val: "disconnect",
-                        title: "预算严重脱节 (Severe Disconnect >25%)",
-                        desc: "预算脱离市场客观造价且客户拒绝调控，属于致命红线 (-15 pts, NO-GO)",
+                        title: "Severe Budget Disconnect (>25% Gap)",
+                        desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, NO-GO)",
                       },
                     ].map((opt) => (
                       <button
@@ -1080,16 +1091,16 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Clock className="size-4 text-primary" />
-                      Q6. 资金来源与目标时间线 (Financing & Timeline)
+                      Q6. Financing Structure & Target Timeline
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      确认开发资金保障及工厂排产交付周期
+                      Confirm funding commitment and target delivery schedule
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">资金来源类型</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Funding Source</label>
                       <select
                         value={opp.fundingSource || "Commercial Loan"}
                         onChange={(e) =>
@@ -1100,15 +1111,15 @@ function OpportunityNodeComponent({
                         }
                         className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
                       >
-                        <option value="Equity">Equity (自有资金)</option>
-                        <option value="Commercial Loan">Commercial Loan (银行开发贷)</option>
-                        <option value="Government Grant">Government Grant (政策补贴/专项资金)</option>
-                        <option value="Financing Program">Financing Program (融资租赁)</option>
-                        <option value="TBD">TBD (待定)</option>
+                        <option value="Equity">Equity (Private / Developer)</option>
+                        <option value="Commercial Loan">Commercial Development Loan</option>
+                        <option value="Government Grant">Government Grant / Program</option>
+                        <option value="Financing Program">Financing Facility</option>
+                        <option value="TBD">TBD (Pending)</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">目标交付入住周期</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Target Occupancy Timeline</label>
                       <input
                         type="text"
                         value={opp.targetTimeline || ""}
@@ -1123,18 +1134,18 @@ function OpportunityNodeComponent({
                     {[
                       {
                         val: "secured",
-                        title: "资金已落实到位 (Funding Secured)",
-                        desc: "自有资金充足或银行授信已获批，资金条件具备 (+10 pts)",
+                        title: "Funding Secured / Approved Credit Facility",
+                        desc: "Equity confirmed or bank credit approved; ready to proceed (+10 pts)",
                       },
                       {
                         val: "progressing",
-                        title: "融资申请推进中 (Progressing Clear Criteria)",
-                        desc: "正在办理贷款审批或补贴申请，有明确放款时间表 (+6 pts)",
+                        title: "Financing In Progress (Clear Criteria)",
+                        desc: "Underwriting in progress with clear approval milestones (+6 pts)",
                       },
                       {
                         val: "speculative",
-                        title: "资金尚未落实 (Speculative / High Dependency)",
-                        desc: "高度依赖未明朗的融资条件，需前置设定付款保障里程碑 (+1 pt)",
+                        title: "Speculative / Unsecured Funding",
+                        desc: "Highly contingent on speculative financing; requires proof of funds milestone (+1 pt)",
                       },
                     ].map((opt) => (
                       <button
@@ -1174,10 +1185,10 @@ function OpportunityNodeComponent({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Layers className="size-4 text-primary" />
-                      Q7. 模块化工程适配度 (Modular Fit Check)
+                      Q7. Modular Feasibility Fit Check
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      核查道路运输尺寸、箱体网格标准化与现场吊装可行性
+                      Verify highway transport clearances, crane staging, and modular grid repeatability
                     </p>
                   </div>
 
@@ -1185,18 +1196,18 @@ function OpportunityNodeComponent({
                     {[
                       {
                         val: "high",
-                        title: "高度适配模块化 (High Modular Fit)",
-                        desc: "平面规整、无超限运输障碍、现场吊装空间充裕 (+10 pts)",
+                        title: "High Modular Suitability",
+                        desc: "Regular grid, standard module transport envelopes, clear site crane access (+10 pts)",
                       },
                       {
                         val: "moderate",
-                        title: "需工程微调 (Moderate Fit)",
-                        desc: "部分异形结构或吊装条件需技术深化与局部非标适配 (+5 pts)",
+                        title: "Moderate Suitability (Minor Adjustments)",
+                        desc: "Custom non-standard modules or unique crane rigging required (+5 pts)",
                       },
                       {
                         val: "blocker",
-                        title: "存在不可克服硬伤 (Fatal Modular Blocker)",
-                        desc: "道路完全无法通行超宽车辆，或结构形式根本无法模块化拆分 (-20 pts, NO-GO)",
+                        title: "Fatal Modular Blocker",
+                        desc: "Site road inaccessible for wide loads, or building geometry cannot be modularized (-20 pts, NO-GO)",
                       },
                     ].map((opt) => (
                       <button
@@ -1229,6 +1240,39 @@ function OpportunityNodeComponent({
                   </div>
                 </div>
               )}
+
+              {/* Logic Guide Modal/Drawer (When Open) */}
+              {showLogicGuide && (
+                <div className="rounded-xl border border-primary/40 bg-primary/5 p-3.5 space-y-3 mt-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-primary flex items-center gap-1.5">
+                      <ShieldCheck className="size-4" />
+                      Automated Scoring & Classification Logic Rules
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowLogicGuide(false)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground font-semibold"
+                    >
+                      Close ✕
+                    </button>
+                  </div>
+                  <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+                    <p>
+                      <strong>1. Score Formula (0-100 pts):</strong> Q1 Decision Maker (20) + Q2 Scale (15) + Q3 Site (15) + Q4 Design (15) + Q5 Budget (15) + Q6 Funding (10) + Q7 Modular Fit (10).
+                    </p>
+                    <p>
+                      <strong>2. Tier Thresholds:</strong> Tier A (80-100 pts) · Tier B (55-79 pts) · Tier C (35-54 pts) · Tier D (&lt;35 pts or Fatal Red Flag).
+                    </p>
+                    <p>
+                      <strong>3. Owner Type Rules:</strong> If Level 0 Plans &rarr; <em>Concept-Stage</em>; if Level 1/2 Plans &rarr; <em>Design-Needed</em>; if Searching Site &rarr; <em>Site-Unresolved</em>; if Level 3/4 Plans &rarr; <em>Permit-Ready</em>; if Score &ge; 80 &rarr; <em>Project-Ready</em>.
+                    </p>
+                    <p>
+                      <strong>4. Gate 1 Verdict:</strong> Pass (Tier A / Tier B with controlled gaps), Hold (Tier C / unresolved gaps), NO-GO (Fatal Red Flag / Tier D).
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Stepper Control */}
@@ -1255,24 +1299,24 @@ function OpportunityNodeComponent({
             </div>
           </div>
 
-          {/* RIGHT: AI Rating & Recommendation Dashboard */}
-          <div className="w-[300px] shrink-0 flex flex-col bg-muted/15 p-4 space-y-4 overflow-y-auto scroll-thin">
+          {/* RIGHT: AI Rating & Recommendation Dashboard (320px with proper padding & text wrap) */}
+          <div className="w-[320px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
             {/* Health Score Circular Banner */}
-            <div className="rounded-xl border bg-card p-3.5 shadow-xs space-y-3">
+            <div className="rounded-xl border bg-card p-3 shadow-xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  评级模型 (Rating)
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Rating Model
                 </span>
-                <span className="text-[10px] font-mono text-muted-foreground">Known & Controlled</span>
+                <span className="text-[9px] font-mono text-muted-foreground">Known & Controlled</span>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="relative flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
-                  <span className="text-xl font-extrabold">{scoreBreakdown.totalScore}</span>
-                  <span className="absolute -bottom-1 text-[8px] font-bold uppercase">Score</span>
+                <div className="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                  <span className="text-lg font-extrabold">{scoreBreakdown.totalScore}</span>
+                  <span className="absolute -bottom-1 text-[7px] font-bold uppercase">Score</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className={cn("text-xs font-bold truncate rounded-md px-2 py-0.5 border inline-block", scoreBreakdown.tierColor)}>
+                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-1 border block text-left leading-tight whitespace-normal break-words", scoreBreakdown.tierColor)}>
                     {scoreBreakdown.tierLabel}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 leading-tight line-clamp-2">
@@ -1283,32 +1327,32 @@ function OpportunityNodeComponent({
             </div>
 
             {/* Auto-Assigned Owner Type */}
-            <div className="rounded-xl border bg-card p-3 space-y-1.5 shadow-xs">
+            <div className="rounded-xl border bg-card p-3 space-y-1 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>系统推荐客户分类</span>
+                <span>Assigned Owner Type</span>
                 <Tag className="size-3 text-primary" />
               </div>
               <div className="font-bold text-xs text-foreground">
                 {scoreBreakdown.autoOwnerType}
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                当前设定: <strong className="text-foreground">{opp.ownerType || "TBD"}</strong>
+              <div className="text-[10px] text-muted-foreground truncate">
+                Current: <strong className="text-foreground">{opp.ownerType || "TBD"}</strong>
               </div>
             </div>
 
             {/* Identified Gaps & Controlled Mitigation Plan */}
-            <div className="rounded-xl border bg-card p-3 space-y-2 shadow-xs">
+            <div className="rounded-xl border bg-card p-3 space-y-1.5 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>已知缺口与受控对策</span>
+                <span>Known Gaps & Actions</span>
                 <ShieldCheck className="size-3 text-primary" />
               </div>
               {scoreBreakdown.gaps.length === 0 ? (
-                <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1.5">
-                  <BadgeCheck className="size-4" />
-                  无显著缺口，所有关键维度均已就绪
+                <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1.5 py-1">
+                  <BadgeCheck className="size-4 shrink-0" />
+                  All core pillars ready & verified
                 </div>
               ) : (
-                <div className="space-y-1.5 max-h-36 overflow-y-auto scroll-thin">
+                <div className="space-y-1.5 max-h-32 overflow-y-auto scroll-thin pr-1">
                   {scoreBreakdown.gaps.map((g, i) => (
                     <div
                       key={i}
@@ -1329,7 +1373,7 @@ function OpportunityNodeComponent({
                         )}
                         {g.label}
                       </div>
-                      <div className="mt-0.5 opacity-90 pl-4">{g.action}</div>
+                      <div className="mt-0.5 opacity-90 pl-3.5 leading-snug">{g.action}</div>
                     </div>
                   ))}
                 </div>
@@ -1337,9 +1381,9 @@ function OpportunityNodeComponent({
             </div>
 
             {/* Recommended Engagement Path */}
-            <div className="rounded-xl border bg-card p-3 space-y-1.5 shadow-xs">
+            <div className="rounded-xl border bg-card p-3 space-y-1 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>推荐签约协议路径</span>
+                <span>Recommended Engagement</span>
                 <FileCheck2 className="size-3 text-primary" />
               </div>
               <div className="text-xs font-bold text-primary">
@@ -1354,13 +1398,13 @@ function OpportunityNodeComponent({
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
             >
               <Zap className="size-3.5" />
-              应用系统智能评级结果
+              Apply System Rating
             </button>
 
             {/* Gate 1 Direct Decision Trigger */}
             <div className="space-y-1.5 pt-1">
               <span className="text-[10px] font-bold uppercase text-muted-foreground block">
-                Gate 1 决策出口切换：
+                Gate 1 Decision Routing:
               </span>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
