@@ -63,8 +63,11 @@ export function useFlowNodes(modelNodes: Node[]) {
   }, [modelNodes]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const positionChanges = changes.filter((change) => change.type === "position");
+    if (positionChanges.length === 0) return;
+
     setNodes((current) => {
-      const next = applyNodeChanges(changes, current);
+      const next = applyNodeChanges(positionChanges, current);
       return next.map((node) =>
         node.type === "phase" && node.selected
           ? { ...node, selected: false }

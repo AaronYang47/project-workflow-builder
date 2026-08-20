@@ -152,37 +152,28 @@ function CanvasInner() {
 
   const labelObstacles = useMemo<LabelObstacle[]>(
     () => {
-      const cards = nodes
-        .filter((node) => !node.hidden && node.type !== "phase")
+      const cards = file.graph.nodes
+        .filter((node) => node.type !== "phase")
         .map((node) => {
-          const positioned = node as Node & {
-            internals?: { positionAbsolute?: { x: number; y: number } };
-            positionAbsolute?: { x: number; y: number };
-          };
-          const position =
-            positioned.internals?.positionAbsolute ??
-            positioned.positionAbsolute ??
-            resolveAbsolutePosition(node, (id) => nodeById.get(id));
+          const layout = file.layout.nodes[node.id];
           return {
             id: node.id,
-            x: position.x,
-            y: position.y,
-            width: Math.max(node.measured?.width ?? node.width ?? 270, 270),
-            height: Math.max(node.measured?.height ?? node.height ?? 240, 240),
+            x: layout?.x || 0,
+            y: layout?.y || 0,
+            width: Math.max(layout?.width || 270, 270),
+            height: Math.max(layout?.height || 240, 240),
           };
         });
 
-      const headers = nodes
-        .filter((node) => !node.hidden && node.type === "phase")
+      const headers = file.graph.nodes
+        .filter((node) => node.type === "phase")
         .map((node) => {
-          const position = resolveAbsolutePosition(node, (id) =>
-            nodeById.get(id),
-          );
+          const layout = file.layout.nodes[node.id];
           return {
             id: `${node.id}__header`,
-            x: position.x,
-            y: position.y,
-            width: node.measured?.width ?? node.width ?? 720,
+            x: layout?.x || 0,
+            y: layout?.y || 0,
+            width: layout?.width || 720,
             height: PHASE_HEADER_HEIGHT,
             kind: "phase-header" as const,
           };
@@ -190,7 +181,7 @@ function CanvasInner() {
 
       return [...cards, ...headers];
     },
-    [nodeById, nodes],
+    [file.graph.nodes, file.layout.nodes],
   );
 
   const edgeIndexes = useMemo(() => {
