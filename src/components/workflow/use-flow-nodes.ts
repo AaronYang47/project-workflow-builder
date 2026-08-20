@@ -53,10 +53,25 @@ function mergeFlowNodes(model: Node[], current: Node[]): Node[] {
  * ensuring zero internal setState loops.
  */
 export function useFlowNodes(modelNodes: Node[]) {
+  const [nodes, setNodes] = useState<Node[]>(modelNodes);
+
+  useEffect(() => {
+    setNodes((current) => {
+      const next = mergeFlowNodes(modelNodes, current);
+      return next === current ? current : next;
+    });
+  }, [modelNodes]);
+
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // Selection and deletions are handled by onSelectionChange and onNodesDelete in ReactFlow.
-    // Node dragging commit is handled by onNodeDragStop -> commitLayoutDrag.
+    setNodes((current) => {
+      const next = applyNodeChanges(changes, current);
+      return next.map((node) =>
+        node.type === "phase" && node.selected
+          ? { ...node, selected: false }
+          : node,
+      );
+    });
   }, []);
 
-  return { nodes: modelNodes, setNodes: () => {}, onNodesChange };
+  return { nodes, setNodes, onNodesChange };
 }
