@@ -13,6 +13,7 @@ import {
   PROJECT_ID_PATTERN,
 } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
+import { evaluateOpportunity } from "@/lib/opportunity-evaluation";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
@@ -239,14 +240,11 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
           (edge.sourceHandle === "yes" && gateApprovalReady(source)) ||
           (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
       } else if (source.type === "opportunityValidation") {
-        const currentOutcome =
-          source.config.opportunity?.decisionOutcome || "pass-p1-p2";
+        const evalResult = evaluateOpportunity(source);
+        const currentOutcome = evalResult.recommendedOutcome;
         const handle = edge.sourceHandle || "pass-p1-p2";
         allowed =
           handle === currentOutcome ||
-          (currentOutcome === "pass" && handle === "pass-p1-p2") ||
-          (currentOutcome === "hold" && handle === "hold-rework") ||
-          (currentOutcome === "nogo" && handle === "nogo-disqualified") ||
           (currentOutcome === "pass-p1-p2" && (handle === "pass-p1-p2" || handle === "pass")) ||
           (currentOutcome === "hold-rework" && (handle === "hold-rework" || handle === "hold")) ||
           (currentOutcome === "nogo-disqualified" && (handle === "nogo-disqualified" || handle === "nogo"));
