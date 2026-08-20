@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
 import {
   AlertOctagon,
@@ -535,20 +535,76 @@ function OpportunityNodeComponent({
   }, [answers, variance]);
 
   const color = node.color || "#1f5fa7";
-  const outcome = opp.decisionOutcome || "pass-p1-p2";
+  const outcome = scoreBreakdown.recommendedOutcome;
 
-  // Quick apply system recommendation
-  const applyRecommendation = () => {
-    savePatch({
-      opportunityScore: scoreBreakdown.totalScore,
-      opportunityGrade: scoreBreakdown.grade,
-      ownerType: scoreBreakdown.autoOwnerType,
-      engagementPath: scoreBreakdown.autoPath,
-      decisionOutcome: scoreBreakdown.recommendedOutcome,
-      riskTags: scoreBreakdown.dynamicRiskTags,
-      gapMitigationNotes: scoreBreakdown.gaps.map((g) => `${g.label}: ${g.action}`).join("; "),
-    });
-  };
+  // Score color scheme based on points and fatal flags
+  const scoreStyle = useMemo(() => {
+    const s = scoreBreakdown.totalScore;
+    if (scoreBreakdown.hasFatalRedFlag || s < 40) {
+      return {
+        text: "text-red-600 dark:text-red-400",
+        bg: "bg-red-500/15 dark:bg-red-500/25",
+        border: "border-red-500/40",
+        badge: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40",
+        solid: "bg-red-600 text-white",
+      };
+    }
+    if (s >= 85) {
+      return {
+        text: "text-emerald-600 dark:text-emerald-400",
+        bg: "bg-emerald-500/15 dark:bg-emerald-500/25",
+        border: "border-emerald-500/40",
+        badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
+        solid: "bg-emerald-600 text-white",
+      };
+    }
+    if (s >= 60) {
+      return {
+        text: "text-blue-600 dark:text-blue-400",
+        bg: "bg-blue-500/15 dark:bg-blue-500/25",
+        border: "border-blue-500/40",
+        badge: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40",
+        solid: "bg-blue-600 text-white",
+      };
+    }
+    return {
+      text: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/15 dark:bg-amber-500/25",
+      border: "border-amber-500/40",
+      badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
+      solid: "bg-amber-600 text-white",
+    };
+  }, [scoreBreakdown.totalScore, scoreBreakdown.hasFatalRedFlag]);
+
+  // Purely automated route & rating sync: automatically updates store when evaluation changes
+  useEffect(() => {
+    if (
+      opp.decisionOutcome !== scoreBreakdown.recommendedOutcome ||
+      opp.opportunityScore !== scoreBreakdown.totalScore ||
+      opp.opportunityGrade !== scoreBreakdown.grade ||
+      opp.ownerType !== scoreBreakdown.autoOwnerType ||
+      opp.engagementPath !== scoreBreakdown.autoPath
+    ) {
+      savePatch({
+        opportunityScore: scoreBreakdown.totalScore,
+        opportunityGrade: scoreBreakdown.grade,
+        ownerType: scoreBreakdown.autoOwnerType,
+        engagementPath: scoreBreakdown.autoPath,
+        decisionOutcome: scoreBreakdown.recommendedOutcome,
+        riskTags: scoreBreakdown.dynamicRiskTags,
+        gapMitigationNotes: scoreBreakdown.gaps
+          .map((g) => `${g.label}: ${g.action}`)
+          .join("; "),
+      });
+    }
+  }, [
+    opp.decisionOutcome,
+    opp.opportunityScore,
+    opp.opportunityGrade,
+    opp.ownerType,
+    opp.engagementPath,
+    scoreBreakdown,
+  ]);
 
   const questions = [
     {
@@ -648,7 +704,7 @@ function OpportunityNodeComponent({
                 <span
                   className={cn(
                     "rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
-                    outcome === "pass-p1-p2" || outcome === "pass"
+                    outcome === "pass-p1-p2"
                       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
                       : outcome === "csa-pcs"
                         ? "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
@@ -656,12 +712,12 @@ function OpportunityNodeComponent({
                           ? "bg-purple-500/15 text-purple-600 border-purple-500/30 dark:text-purple-400"
                           : outcome === "site-feasibility"
                             ? "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400"
-                            : outcome === "hold-rework" || outcome === "hold"
+                            : outcome === "hold-rework"
                               ? "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
                               : "bg-red-500/15 text-red-600 border-red-500/30 dark:text-red-400",
                   )}
                 >
-                  {outcome === "pass-p1-p2" || outcome === "pass"
+                  {outcome === "pass-p1-p2"
                     ? "GATE 1 PASSED (P1/P2)"
                     : outcome === "csa-pcs"
                       ? "PROCEED TO CSA / PCS"
@@ -669,7 +725,7 @@ function OpportunityNodeComponent({
                         ? "STRATEGIC LOI (CAPPED)"
                         : outcome === "site-feasibility"
                           ? "SITE FEASIBILITY LOOP"
-                          : outcome === "hold-rework" || outcome === "hold"
+                          : outcome === "hold-rework"
                             ? "HOLD · REWORK LOOP"
                             : "NO-GO DISQUALIFIED"}
                 </span>
@@ -691,8 +747,13 @@ function OpportunityNodeComponent({
               <Info className="size-3.5 text-primary" />
               <span>Logic Rules</span>
             </button>
-            <div className="flex items-center gap-1.5 rounded-lg bg-background/90 px-2.5 py-1 text-xs font-bold shadow-xs border">
-              <Sparkles className="size-3.5 text-primary" />
+            <div
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold shadow-xs border transition-colors",
+                scoreStyle.badge,
+              )}
+            >
+              <Sparkles className={cn("size-3.5", scoreStyle.text)} />
               <span>
                 {scoreBreakdown.grade} · {scoreBreakdown.totalScore}/100
               </span>
@@ -1731,7 +1792,14 @@ function OpportunityNodeComponent({
               </div>
 
               <div className="flex items-start gap-2.5">
-                <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                <div
+                  className={cn(
+                    "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border transition-colors",
+                    scoreStyle.bg,
+                    scoreStyle.border,
+                    scoreStyle.text,
+                  )}
+                >
                   <span className="text-base font-extrabold leading-none">{scoreBreakdown.totalScore}</span>
                   <span className="text-[7px] font-bold uppercase leading-none mt-0.5">Score</span>
                 </div>
@@ -1839,94 +1907,77 @@ function OpportunityNodeComponent({
               </div>
             </div>
 
-            {/* One-Click Apply Recommendation */}
-            <button
-              type="button"
-              onClick={applyRecommendation}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-            >
-              <Zap className="size-3.5" />
-              Apply Automated Rating
-            </button>
-
-            {/* Multi-Handle Direct Routing Activator */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-bold uppercase text-muted-foreground block">
-                Activate Output Route:
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "pass-p1-p2" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "pass-p1-p2" || outcome === "pass"
-                      ? "bg-emerald-500 text-white border-emerald-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-emerald-500",
-                  )}
-                >
-                  PASS (P1/P2)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "csa-pcs" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "csa-pcs"
-                      ? "bg-blue-500 text-white border-blue-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-blue-500",
-                  )}
-                >
-                  Paid CSA / PCS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "loi-governed" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "loi-governed"
-                      ? "bg-purple-500 text-white border-purple-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-purple-500",
-                  )}
-                >
-                  Governed LOI
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "site-feasibility" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "site-feasibility"
-                      ? "bg-amber-500 text-white border-amber-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-amber-500",
-                  )}
-                >
-                  Site Feasibility
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "hold-rework" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "hold-rework" || outcome === "hold"
-                      ? "bg-orange-500 text-white border-orange-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-orange-500",
-                  )}
-                >
-                  HOLD · Rework
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePatch({ decisionOutcome: "nogo-disqualified" })}
-                  className={cn(
-                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "nogo-disqualified" || outcome === "nogo"
-                      ? "bg-red-500 text-white border-red-600 shadow-sm"
-                      : "bg-background text-muted-foreground hover:border-red-500",
-                  )}
-                >
-                  NO-GO
-                </button>
+            {/* Automated Dynamic Output Route Indicator */}
+            <div className="rounded-xl border bg-card p-3 space-y-2 shadow-xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Active Output Route</span>
+                <span className="text-[10px] font-bold text-primary flex items-center gap-1">
+                  <Zap className="size-3" /> Auto-Selected
+                </span>
+              </div>
+              <div
+                className={cn(
+                  "rounded-lg p-2.5 text-xs font-bold border flex items-center justify-between shadow-xs transition-colors",
+                  outcome === "pass-p1-p2"
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                    : outcome === "csa-pcs"
+                      ? "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
+                      : outcome === "loi-governed"
+                        ? "bg-purple-500/15 border-purple-500/40 text-purple-700 dark:text-purple-300"
+                        : outcome === "site-feasibility"
+                          ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
+                          : outcome === "hold-rework"
+                            ? "bg-orange-500/15 border-orange-500/40 text-orange-700 dark:text-orange-300"
+                            : "bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-300",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "size-2.5 rounded-full animate-pulse",
+                      outcome === "pass-p1-p2"
+                        ? "bg-emerald-500"
+                        : outcome === "csa-pcs"
+                          ? "bg-blue-500"
+                          : outcome === "loi-governed"
+                            ? "bg-purple-500"
+                            : outcome === "site-feasibility"
+                              ? "bg-amber-500"
+                              : outcome === "hold-rework"
+                                ? "bg-orange-500"
+                                : "bg-red-500",
+                    )}
+                  />
+                  <span>
+                    {outcome === "pass-p1-p2"
+                      ? "GATE 1 PASSED (P1/P2)"
+                      : outcome === "csa-pcs"
+                        ? "PROCEED TO CSA / PCS"
+                        : outcome === "loi-governed"
+                          ? "STRATEGIC GOVERNED LOI"
+                          : outcome === "site-feasibility"
+                            ? "SITE FEASIBILITY LOOP"
+                            : outcome === "hold-rework"
+                              ? "HOLD · REWORK LOOP"
+                              : "NO-GO · DISQUALIFIED"}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono opacity-80 uppercase">
+                  {outcome}
+                </span>
+              </div>
+              <div className="text-[10px] text-muted-foreground leading-snug">
+                {outcome === "pass-p1-p2"
+                  ? "Direct fast-track release into Stage 1 & Gate 1."
+                  : outcome === "csa-pcs"
+                    ? "Directs workflow into Pre-Construction Paid Design Assist."
+                    : outcome === "loi-governed"
+                      ? "Directs workflow into capped 21-day / 20-hour Strategic LOI corridor."
+                      : outcome === "site-feasibility"
+                        ? "Routes to municipal servicing & zoning due diligence."
+                        : outcome === "hold-rework"
+                          ? "Holds workflow and loops back for commercial strategy recalibration."
+                          : "Terminates flow and directs project to disqualification archive."}
               </div>
             </div>
           </div>
@@ -1935,12 +1986,12 @@ function OpportunityNodeComponent({
         {/* --- Card Footer Status Bar --- */}
         <div className="border-t bg-muted/40 px-4 py-2 text-[11px] flex items-center justify-between text-muted-foreground">
           <span>
-            Grade: <strong className="text-foreground">{scoreBreakdown.grade} ({scoreBreakdown.totalScore}/100)</strong> · Owner:{" "}
+            Grade: <strong className={cn("font-bold", scoreStyle.text)}>{scoreBreakdown.grade} ({scoreBreakdown.totalScore}/100)</strong> · Owner:{" "}
             <strong className="text-foreground">{opp.ownerType || scoreBreakdown.autoOwnerType}</strong> · Path:{" "}
             <strong className="text-foreground">{opp.engagementPath || scoreBreakdown.autoPath}</strong>
           </span>
           <span className="font-semibold text-primary">
-            {outcome === "pass-p1-p2" || outcome === "pass"
+            {outcome === "pass-p1-p2"
               ? "Gate 1 Passed — Validated Opportunity"
               : outcome === "csa-pcs"
                 ? "Route to Paid Consultation (CSA/PCS)"
@@ -1948,7 +1999,7 @@ function OpportunityNodeComponent({
                   ? "Route to Strategic Governed LOI"
                   : outcome === "site-feasibility"
                     ? "Route to Site Discovery Loop"
-                    : outcome === "hold-rework" || outcome === "hold"
+                    : outcome === "hold-rework"
                       ? "Opportunity on HOLD (Rework Loop)"
                       : "Opportunity Disqualified / Closed"}
           </span>
@@ -1981,7 +2032,7 @@ function OpportunityNodeComponent({
           title="Gate 1 Passed — Validated Opportunity (P1/P2 Fast-Track)"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "pass-p1-p2" || outcome === "pass"
+            outcome === "pass-p1-p2"
               ? "!bg-emerald-500 ring-2 ring-emerald-500/40"
               : "!bg-muted-foreground/40",
           )}
@@ -1993,7 +2044,7 @@ function OpportunityNodeComponent({
           position={Position.Right}
           id="csa-pcs"
           style={{ top: "32%" }}
-          title="Proceed to Paid CSA / PCS (Design-Needed / Concept)"
+          title="Paid CSA / PCS Pre-Construction Consultation"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
             outcome === "csa-pcs"
@@ -2008,7 +2059,7 @@ function OpportunityNodeComponent({
           position={Position.Right}
           id="loi-governed"
           style={{ top: "48%" }}
-          title="Strategic Governed LOI (Max 21d/20h Cap & Conversion Trigger)"
+          title="Strategic Governed LOI (Capped 21 Days)"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
             outcome === "loi-governed"
@@ -2017,13 +2068,13 @@ function OpportunityNodeComponent({
           )}
         />
 
-        {/* 4. Site Feasibility Loop */}
+        {/* 4. Site Feasibility & Due Diligence Loop */}
         <Handle
           type="source"
           position={Position.Right}
           id="site-feasibility"
           style={{ top: "64%" }}
-          title="Site Feasibility Loop (Site-Unresolved)"
+          title="Site Feasibility & Due Diligence Loop"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
             outcome === "site-feasibility"
@@ -2041,7 +2092,7 @@ function OpportunityNodeComponent({
           title="HOLD · Rework / Gap Resolution Loop"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "hold-rework" || outcome === "hold"
+            outcome === "hold-rework"
               ? "!bg-orange-500 ring-2 ring-orange-500/40"
               : "!bg-muted-foreground/40",
           )}
@@ -2056,7 +2107,7 @@ function OpportunityNodeComponent({
           title="NO-GO · Disqualified Archive"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "nogo-disqualified" || outcome === "nogo"
+            outcome === "nogo-disqualified"
               ? "!bg-red-500 ring-2 ring-red-500/40"
               : "!bg-muted-foreground/40",
           )}
