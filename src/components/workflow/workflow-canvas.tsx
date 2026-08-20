@@ -242,8 +242,7 @@ function CanvasInner() {
           target: domain.target,
           sourceHandle: domain.sourceHandle,
           targetHandle: domain.targetHandle,
-          reconnectable:
-            isDeniedEdge(domain) || isApprovedEdge(domain) ? "target" : false,
+          reconnectable: true,
           selected: selection.edgeId === domain.id,
           markerEnd:
             domain.arrowStyle === "none"

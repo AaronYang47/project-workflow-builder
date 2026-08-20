@@ -144,14 +144,6 @@ export function useCanvasConnections({
       state: FinalConnectionState,
     ) => {
       if (state.isValid || handleType !== "target") return;
-      const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
-      const sourceHandle = domain?.sourceHandle ?? edge.sourceHandle;
-      if (
-        !isDeniedSourceHandle(sourceHandle) &&
-        !isApprovedEdge({ sourceHandle, type: domain?.type })
-      ) {
-        return;
-      }
       const targetId = nodeIdFromPointer(event);
       if (!targetId) return;
       const target = nodes.find((node) => node.id === targetId);
@@ -163,17 +155,18 @@ export function useCanvasConnections({
         return;
       }
       const source = nodes.find((node) => node.id === edge.source);
+      const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
+      const sourceHandle = domain?.sourceHandle ?? edge.sourceHandle;
+      const preGateSales =
+        source?.metadata.workflowSection === "Pre-Gate Sales";
+
       updateEdge(edge.id, {
         target: targetId,
-        targetHandle:
-          sourceHandle && isDeniedSourceHandle(sourceHandle)
-            ? deniedTargetHandle({
-                sourceHandle,
-                preGateSales:
-                  source?.metadata.workflowSection === "Pre-Gate Sales",
-                droppedHandle: "rework-in",
-              })
-            : "in",
+        targetHandle: deniedTargetHandle({
+          sourceHandle,
+          preGateSales,
+          droppedHandle: isDeniedSourceHandle(sourceHandle) ? "rework-in" : "in",
+        }),
       });
     },
     [nodes, updateEdge],
