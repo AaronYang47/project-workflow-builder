@@ -232,10 +232,24 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
     if (source.type !== "gate" && !nodeReleaseReady(source, projectStart))
       continue;
     for (const edge of outgoing.get(sourceId) || []) {
-      const allowed =
-        source.type !== "gate" ||
-        (edge.sourceHandle === "yes" && gateApprovalReady(source)) ||
-        (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
+      let allowed = true;
+      if (source.type === "gate") {
+        allowed =
+          (edge.sourceHandle === "yes" && gateApprovalReady(source)) ||
+          (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
+      } else if (source.type === "opportunityValidation") {
+        const currentOutcome =
+          source.config.opportunity?.decisionOutcome || "pass-p1-p2";
+        const handle = edge.sourceHandle || "pass-p1-p2";
+        allowed =
+          handle === currentOutcome ||
+          (currentOutcome === "pass" && handle === "pass-p1-p2") ||
+          (currentOutcome === "hold" && handle === "hold-rework") ||
+          (currentOutcome === "nogo" && handle === "nogo-disqualified") ||
+          (currentOutcome === "pass-p1-p2" && (handle === "pass-p1-p2" || handle === "pass")) ||
+          (currentOutcome === "hold-rework" && (handle === "hold-rework" || handle === "hold")) ||
+          (currentOutcome === "nogo-disqualified" && (handle === "nogo-disqualified" || handle === "nogo"));
+      }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);
       if (!reachedNodeIds.has(edge.target)) {

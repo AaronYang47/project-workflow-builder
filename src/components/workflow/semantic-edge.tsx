@@ -600,9 +600,26 @@ export function SemanticEdge({
         : targetY;
       const stacked =
         sourceBottom + 12 < targetTop || targetBottom + 12 < sourceTop;
-      if (approachX - escapeX >= 24 || stacked) {
-        const middleX =
-          approachX - escapeX >= 24 ? (escapeX + approachX) / 2 : escapeX;
+      const middleX =
+        approachX - escapeX >= 24 ? (escapeX + approachX) / 2 : escapeX;
+      const cards = cardObstacles(obstacles);
+      const intermediateCards = cards.filter(
+        (item) =>
+          item.id !== domain.source &&
+          item.id !== domain.target &&
+          item.x <= Math.max(sourceX, targetX) + 10 &&
+          item.x + item.width >= Math.min(sourceX, targetX) - 10,
+      );
+
+      const middleXCollides = intermediateCards.some(
+        (c) =>
+          middleX >= c.x - 16 &&
+          middleX <= c.x + c.width + 16 &&
+          Math.min(sourceY, targetY) <= c.y + c.height + 16 &&
+          Math.max(sourceY, targetY) >= c.y - 16,
+      );
+
+      if (!middleXCollides && (approachX - escapeX >= 24 || stacked)) {
         return compact([
           { x: sourceX, y: sourceY },
           { x: escapeX, y: sourceY },
@@ -612,14 +629,21 @@ export function SemanticEdge({
           { x: targetX, y: targetY },
         ]);
       }
+
+      const highestCardTop = intermediateCards.length
+        ? Math.min(...intermediateCards.map((c) => c.y), sourceTop, targetTop)
+        : Math.min(sourceTop, targetTop);
+      const lowestCardBottom = intermediateCards.length
+        ? Math.max(...intermediateCards.map((c) => c.y + c.height), sourceBottom, targetBottom)
+        : Math.max(sourceBottom, targetBottom);
+
       const lane = Math.abs(data?.labelLane ?? 0) % 3;
-      const aboveY = Math.min(sourceTop, targetTop) - 40 - lane * 24;
-      const belowY = Math.max(sourceBottom, targetBottom) + 40 + lane * 24;
-      const aboveCost =
-        Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
-      const belowCost =
-        Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
-      const corridorY = aboveCost <= belowCost ? aboveY : belowY;
+      const aboveY = highestCardTop - 44 - lane * 24;
+      const belowY = lowestCardBottom + 44 + lane * 24;
+      const aboveCost = Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
+      const belowCost = Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
+      const corridorY = targetY > sourceY ? belowY : aboveCost <= belowCost ? aboveY : belowY;
+
       return compact([
         { x: sourceX, y: sourceY },
         { x: escapeX, y: sourceY },
@@ -689,8 +713,9 @@ export function SemanticEdge({
     80,
     Math.min(360, connectorGap - 28),
   );
-  const color = getSemanticEdgeColor(domain);
+  const rawColor = getSemanticEdgeColor(domain);
   const active = data?.active;
+  const color = active === false ? "#94a3b8" : rawColor;
 
   return (
     <>
@@ -699,8 +724,8 @@ export function SemanticEdge({
         path={path}
         style={{
           stroke: color,
-          strokeWidth: selected || active ? 3.8 : 2.8,
-          opacity: active === false ? 0.25 : 1,
+          strokeWidth: selected ? 3.8 : active ? 3.2 : 2.0,
+          opacity: active === false ? 0.3 : 1,
           filter: active ? `drop-shadow(0 0 3px ${color}55)` : undefined,
           strokeLinejoin: "round",
           strokeLinecap: "round",
@@ -719,7 +744,7 @@ export function SemanticEdge({
           d={path}
           fill="none"
           className="workflow-edge-flow pointer-events-none"
-          style={{ color, stroke: color, opacity: selected ? 1 : 0.82 }}
+          style={{ color, stroke: color, opacity: selected ? 1 : 0.85 }}
         />
       ) : null}
       <EdgeLabelRenderer>
@@ -731,8 +756,8 @@ export function SemanticEdge({
             className="nodrag nopan absolute z-20 max-w-[360px] whitespace-normal rounded-md border bg-background/95 px-2.5 py-1.5 text-center text-xs font-semibold leading-4 text-foreground shadow-sm"
             style={{
               transform: `translate(-50%, -50%) translate(${placement.point.x}px, ${placement.point.y}px)`,
-              borderColor: `${color}55`,
-              opacity: active === false ? 0.35 : 1,
+              borderColor: active === false ? "#cbd5e1" : `${color}55`,
+              opacity: active === false ? 0.4 : 1,
               maxWidth: approved ? approvedLabelMaxWidth : 360,
             }}
           >
