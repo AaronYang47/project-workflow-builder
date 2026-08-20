@@ -149,19 +149,21 @@ export function ApprovalConditionsPanel({
         </span>
       </div>
       <div data-conditions-content className="nodrag px-4 py-3">
-        <div className="mb-2 flex h-7 items-center">
-          <span
-            data-inspector-target="config.checklistTitle"
-            className="text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground"
-          >
-            {interfaceText.checklistTitle}
-          </span>
-          <span
-            data-inspector-target="config.checklistHint"
-            className="ml-2 text-[11px] text-muted-foreground"
-          >
-            {interfaceText.checklistHint}
-          </span>
+        <div className="mb-2 flex h-7 items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+            <span
+              data-inspector-target="config.checklistTitle"
+              className="shrink-0 text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground whitespace-nowrap"
+            >
+              {interfaceText.checklistTitle}
+            </span>
+            <span
+              data-inspector-target="config.checklistHint"
+              className="text-[11px] text-muted-foreground truncate"
+            >
+              {interfaceText.checklistHint}
+            </span>
+          </div>
           <button
             aria-label="Add decision condition"
             data-inspector-target="config.addConditionLabel"
@@ -177,10 +179,10 @@ export function ApprovalConditionsPanel({
                 },
               ])
             )}
-            className="ml-auto flex h-6 items-center gap-1 rounded-md border bg-background px-2.5 text-[11px] font-bold text-primary shadow-sm hover:bg-primary/5"
+            className="shrink-0 whitespace-nowrap inline-flex h-6 items-center gap-1 rounded-md border bg-background px-2.5 text-[11px] font-bold text-primary shadow-xs hover:bg-primary/5 transition"
           >
-            <Plus className="size-3" />
-            {interfaceText.addConditionLabel}
+            <Plus className="size-3 shrink-0" />
+            <span>{interfaceText.addConditionLabel}</span>
           </button>
         </div>
         <div className="space-y-2">
