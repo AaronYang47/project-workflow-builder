@@ -48,52 +48,15 @@ function mergeFlowNodes(model: Node[], current: Node[]): Node[] {
 }
 
 /**
- * Bridges the workflow-store's node model with React Flow's controlled
- * `nodes` array. Maintains drag positions and measured sizes in a stable ref
- * without useEffect setState feedback loops.
+ * Bridges the workflow-store's node model with React Flow's node rendering.
+ * All positions, sizes, and selections are owned by the Zustand store (file.layout.nodes & selection),
+ * ensuring zero internal setState loops.
  */
 export function useFlowNodes(modelNodes: Node[]) {
-  const [localInteractions, setLocalInteractions] = useState<
-    Map<string, { position?: { x: number; y: number }; dragging?: boolean; measured?: Node["measured"] }>
-  >(() => new Map());
-
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    setLocalInteractions((prev) => {
-      const next = new Map(prev);
-      let changed = false;
-      for (const change of changes) {
-        if (change.type === "position" && change.position) {
-          const current = next.get(change.id) || {};
-          next.set(change.id, {
-            ...current,
-            position: change.position,
-            dragging: change.dragging ?? current.dragging,
-          });
-          changed = true;
-        } else if (change.type === "dimensions" && change.dimensions) {
-          const current = next.get(change.id) || {};
-          next.set(change.id, {
-            ...current,
-            measured: change.dimensions,
-          });
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
+    // Selection and deletions are handled by onSelectionChange and onNodesDelete in ReactFlow.
+    // Node dragging commit is handled by onNodeDragStop -> commitLayoutDrag.
   }, []);
 
-  const nodes = modelNodes.map((node) => {
-    const local = localInteractions.get(node.id);
-    if (!local) return node;
-    return {
-      ...node,
-      position: local.dragging && local.position ? local.position : node.position,
-      dragging: local.dragging,
-      measured: local.measured ?? node.measured,
-      selected: node.type === "phase" ? false : node.selected,
-    };
-  });
-
-  return { nodes, setNodes: () => {}, onNodesChange };
+  return { nodes: modelNodes, setNodes: () => {}, onNodesChange };
 }
