@@ -37,6 +37,68 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       : {},
     config: projectStart
       ? { serviceType: "Standard", buildingCode: "", moduleCode: "" }
+      : type === "opportunityValidation"
+        ? {
+            stage: "Opportunity Validation",
+            iconKey: "check",
+            outcomes: [
+              {
+                id: "pass",
+                label: "GATE 1 PASS",
+                edgeType: "success",
+                color: "#16866f",
+                enabled: true,
+              },
+              {
+                id: "hold",
+                label: "HOLD · Gaps Loop",
+                edgeType: "hold",
+                color: "#d97706",
+                enabled: true,
+              },
+              {
+                id: "nogo",
+                label: "NO-GO · Disqualified",
+                edgeType: "failure",
+                color: "#dc2626",
+                enabled: true,
+              },
+            ],
+            opportunity: {
+              companyName: "",
+              contactPerson: "",
+              leadSource: "Direct Inquiry",
+              contactPhone: "",
+              contactEmail: "",
+              decisionMakerName: "",
+              decisionMakerRole: "",
+              decisionMakerConfirmed: false,
+              decisionMakerNotes: "",
+              projectIntent: "Multi-family Residential",
+              projectLocation: "",
+              storeys: 4,
+              grossFloorArea: 24000,
+              unitCount: 32,
+              siteStatus: "Owned",
+              siteAddress: "",
+              siteConstraints: "Servicing & access verified",
+              designStage: "Level 1: Concept",
+              clientBudget: "8500000",
+              budgetScope: "Turnkey Total",
+              targetCostPerSqFt: "350",
+              fundingSource: "Commercial Loan",
+              fundingSecured: true,
+              targetTimeline: "Target occupancy in 14 months",
+              consultantsInfo: "Architect on board; modular engineering via ProFab",
+              modularFitPassed: true,
+              realityCheckStatus: "passed",
+              ownerType: "Design-Needed",
+              gapMitigationNotes: "Plans at concept stage -> proceed with CSA for design coordination & modular optimization",
+              engagementPath: "CSA",
+              engagementStatus: "Draft",
+              decisionOutcome: "draft",
+            },
+          }
       : gate
         ? {
           gateLabel: "DECISION",

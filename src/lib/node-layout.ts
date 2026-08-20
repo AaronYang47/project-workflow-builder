@@ -24,6 +24,12 @@ export function estimateNodeHeaderWidth(node: DomainNode) {
 
 export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout, "width" | "height">) {
   if (node.type === "gate") return getGateLayoutMetrics(node);
+  if (node.type === "opportunityValidation") {
+    return {
+      width: Math.max(current?.width || 0, 720),
+      height: Math.max(current?.height || 0, 760),
+    };
+  }
   if (node.type === "phase") return { width: current?.width || 720, height: current?.height || 420 };
   if (node.type === "projectStart") {
     const fallback = getNodeDefinition(node.type).defaultSize;

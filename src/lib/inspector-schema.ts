@@ -154,6 +154,7 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
   ],
   document,
   gate,
+  opportunityValidation: general,
 };
 export const getInspectorSchema = (type: WorkflowNodeType) =>
   [...common, ...(configByType[type] || [])].filter(

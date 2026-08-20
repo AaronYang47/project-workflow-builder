@@ -333,17 +333,23 @@ export function placeEmptyPhases(
 }
 
 export function placeNoBranches(nodes: Record<string, NodeLayout>) {
-  const placeNoBranch = (decisionId: string, terminalId: string) => {
+  const placeNoBranch = (
+    decisionId: string,
+    terminalId: string,
+    offsetX = 0,
+  ) => {
     const decision = nodes[decisionId];
     const terminal = nodes[terminalId];
     if (!decision || !terminal) return;
     nodes[terminalId] = {
       ...terminal,
-      x: decision.x + (decision.width - terminal.width) / 2,
-      y: decision.y + decision.height + 112,
+      x: decision.x + (decision.width - terminal.width) / 2 + offsetX,
+      y: decision.y + decision.height + 96,
       parentId: undefined,
     };
   };
+  placeNoBranch("opportunity-validation", "no-go-archive", -160);
+  placeNoBranch("opportunity-validation", "hold-gap-rework", 160);
   placeNoBranch("class-d-reality-check", "no-go-archive");
   placeNoBranch("select-engagement-path", "hold-gap-rework");
   placeNoBranch("qualified-opportunity", "archive-follow-up");

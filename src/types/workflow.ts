@@ -1,6 +1,7 @@
 export const NODE_TYPES = [
   "general",
   "projectStart",
+  "opportunityValidation",
   "start",
   "end",
   "phase",
@@ -210,7 +211,70 @@ export interface DomainNode {
     buildingCode?: string;
     moduleCode?: string;
     paidServiceType?: unknown;
+    opportunity?: OpportunityValidationConfig;
   };
+}
+
+export interface OpportunityValidationConfig {
+  companyName?: string;
+  contactPerson?: string;
+  leadSource?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  decisionMakerName?: string;
+  decisionMakerRole?: string;
+  decisionMakerConfirmed?: boolean;
+  decisionMakerNotes?: string;
+
+  projectIntent?: string;
+  projectLocation?: string;
+  storeys?: number | string;
+  grossFloorArea?: number | string;
+  unitCount?: number | string;
+
+  siteStatus?: "Owned" | "Under Option" | "Searching" | "Unresolved";
+  siteAddress?: string;
+  siteConstraints?: string;
+  designStage?:
+    | "Level 0: No Plans"
+    | "Level 1: Concept"
+    | "Level 2: Preliminary"
+    | "Level 3: Permit Set"
+    | "Level 4: Permit Issued";
+
+  clientBudget?: string;
+  budgetScope?: "Turnkey Total" | "Modular Scope Only";
+  targetCostPerSqFt?: string;
+  fundingSource?:
+    | "Equity"
+    | "Commercial Loan"
+    | "Government Grant"
+    | "Financing Program"
+    | "TBD";
+  fundingSecured?: boolean;
+  targetTimeline?: string;
+
+  consultantsInfo?: string;
+  modularFitPassed?: boolean;
+  realityCheckStatus?: "passed" | "failed" | "pending";
+
+  ownerType?:
+    | "Project-Ready"
+    | "Design-Needed"
+    | "Site-Unresolved"
+    | "Concept-Stage"
+    | "Permit-Ready";
+  gapMitigationNotes?: string;
+
+  engagementPath?:
+    | "CSA"
+    | "PCS"
+    | "LOI"
+    | "Paid Feasibility"
+    | "Direct Technical Review";
+  engagementStatus?: "Draft" | "Out for Signature" | "Executed";
+
+  decisionOutcome?: "draft" | "pass" | "hold" | "nogo";
 }
 
 export interface ComponentNotePost {

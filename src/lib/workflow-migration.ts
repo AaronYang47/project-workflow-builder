@@ -20,6 +20,7 @@ import {
 const stageByType: Record<WorkflowNodeType, string> = {
   general: "Stage",
   projectStart: "Project",
+  opportunityValidation: "Opportunity",
   start: "Start",
   end: "End",
   phase: "Phase",
@@ -47,6 +48,7 @@ const stageByType: Record<WorkflowNodeType, string> = {
 const iconByType: Record<WorkflowNodeType, string> = {
   general: "activity",
   projectStart: "building",
+  opportunityValidation: "check",
   start: "flag",
   end: "check",
   phase: "box",
@@ -393,6 +395,15 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     (node) => node.id === "g1-opportunity",
   );
   const legacyPreGateIds = new Set([
+    "lead-inquiry",
+    "client-decision-maker",
+    "project-intent-scale",
+    "site-design-readiness",
+    "budget-financing-timeline",
+    "consultants-modular-fit",
+    "class-d-reality-check",
+    "assign-owner-type",
+    "select-engagement-path",
     "sales-intake",
     "basic-client-project-info",
     "qualified-opportunity",
@@ -408,9 +419,9 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   );
   if (hasLegacyPreGate) {
     file.graph.nodes = file.graph.nodes.filter(
-      (node) => !legacyPreGateIds.has(node.id) && node.id !== "lead-inquiry",
+      (node) => !legacyPreGateIds.has(node.id),
     );
-    const legacyEdgePrefixes = ["pre-sales-"];
+    const legacyEdgePrefixes = ["pre-sales-", "opp-"];
     file.graph.edges = file.graph.edges.filter(
       (edge) =>
         !legacyEdgePrefixes.some((prefix) => edge.id.startsWith(prefix)) &&
@@ -420,10 +431,10 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   }
   if (
     isLegacyGateWorkflow &&
-    !file.graph.nodes.some((node) => node.id === "lead-inquiry")
+    !file.graph.nodes.some((node) => node.id === "opportunity-validation")
   ) {
     const gateOne = absolute("g1-opportunity");
-    const injectedLayouts = getPreGateSalesLayouts(gateOne.x - 3200, gateOne.y);
+    const injectedLayouts = getPreGateSalesLayouts(gateOne.x - 1200, gateOne.y);
     file.graph.nodes.push(...PRE_GATE_SALES_NODES);
     const existingEdgeIds = new Set(file.graph.edges.map((edge) => edge.id));
     file.graph.edges.push(
