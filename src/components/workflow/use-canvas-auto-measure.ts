@@ -38,13 +38,15 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
             ? Math.ceil(48 + decision.scrollHeight + 16)
             : metrics.decisionHeight;
 
-          patches[id] = {
-            height:
-              metrics.conditionsTop +
-              conditionsHeight +
-              GATE_SECTION_GAP +
-              decisionHeight,
-          };
+          const targetHeight =
+            metrics.conditionsTop +
+            conditionsHeight +
+            GATE_SECTION_GAP +
+            decisionHeight;
+          const layout = current.layout.nodes[id];
+          if (!layout || Math.abs(targetHeight - layout.height) > 2) {
+            patches[id] = { height: targetHeight };
+          }
         });
 
       // 2. Measure General Node Content
@@ -56,7 +58,7 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         if (!id || !layout || !domain || domain.type === "gate") return;
 
         const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
-        if (requiredHeight > layout.height) {
+        if (Math.abs(requiredHeight - layout.height) > 2) {
           patches[id] = {
             ...patches[id],
             height: requiredHeight,
@@ -73,11 +75,14 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         if (!id || !layout || !domain || domain.type === "gate") return;
 
         const overflow = Math.ceil(header.scrollWidth - header.clientWidth);
-        if (overflow > 1) {
-          patches[id] = {
-            ...patches[id],
-            width: layout.width + overflow + 12,
-          };
+        if (overflow > 2) {
+          const targetWidth = layout.width + overflow + 12;
+          if (Math.abs(targetWidth - layout.width) > 2) {
+            patches[id] = {
+              ...patches[id],
+              width: targetWidth,
+            };
+          }
         }
       });
 
@@ -88,21 +93,30 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         );
         if (!children.length) continue;
 
-        patches[phase.id] = {
-          width: Math.max(
-            420,
-            ...children.map((layout) => layout.x + layout.width + 42),
+        const targetWidth = Math.max(
+          420,
+          ...children.map((layout) => layout.x + layout.width + 42),
+        );
+        const targetHeight = Math.max(
+          260,
+          ...children.map(
+            (layout) =>
+              layout.y +
+              (patches[layout.nodeId]?.height ?? layout.height) +
+              42,
           ),
-          height: Math.max(
-            260,
-            ...children.map(
-              (layout) =>
-                layout.y +
-                (patches[layout.nodeId]?.height ?? layout.height) +
-                42,
-            ),
-          ),
-        };
+        );
+        const phaseLayout = current.layout.nodes[phase.id];
+        if (
+          !phaseLayout ||
+          Math.abs(targetWidth - phaseLayout.width) > 2 ||
+          Math.abs(targetHeight - phaseLayout.height) > 2
+        ) {
+          patches[phase.id] = {
+            width: targetWidth,
+            height: targetHeight,
+          };
+        }
       }
 
       if (Object.keys(patches).length > 0) {
@@ -139,5 +153,5 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
       observer.disconnect();
       window.removeEventListener("workflow:measure-layout", measureAfterArrange);
     };
-  }, [nodes, updateLayouts, wrapper]);
+  }, [updateLayouts, wrapper]);
 }

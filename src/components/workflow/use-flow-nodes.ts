@@ -20,12 +20,17 @@ function mergeFlowNodes(model: Node[], current: Node[]): Node[] {
     }
     const position = local.dragging ? local.position : node.position;
     const selected = node.type === "phase" ? false : node.selected;
+    const dataChanged =
+      local.data?.domain !== node.data?.domain ||
+      local.data?.reached !== node.data?.reached ||
+      local.data?.emphasized !== node.data?.emphasized ||
+      local.data?.dimmed !== node.data?.dimmed;
     if (
       position.x !== local.position.x ||
       position.y !== local.position.y ||
       local.selected !== selected ||
       local.dragging !== node.dragging ||
-      local.data !== node.data ||
+      dataChanged ||
       local.width !== node.width ||
       local.height !== node.height
     ) {
