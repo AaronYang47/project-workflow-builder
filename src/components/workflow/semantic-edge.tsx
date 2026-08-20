@@ -423,34 +423,8 @@ export function SemanticEdge({
   });
   const preGateSales =
     data?.preGateSales ||
-    domain.customFields.workflowSection === "Pre-Gate Sales";
-  const preGateSalesRoute = preGateSales
-    ? domain.sourceHandle === "no"
-      ? (() => {
-          const targetObstacle = data?.obstacles?.find(
-            (item) => item.id === domain.target,
-          );
-          const lane = Math.abs(data?.labelLane ?? 0) % 3;
-          const approachX = (targetObstacle?.x ?? targetX) - 44;
-          const corridorY = targetObstacle
-            ? targetObstacle.y + targetObstacle.height + 48 + lane * 24
-            : Math.max(sourceY, targetY) + 96 + lane * 24;
-          return compact([
-            { x: sourceX, y: sourceY },
-            { x: sourceX + 34, y: sourceY },
-            { x: sourceX + 34, y: corridorY },
-            { x: approachX, y: corridorY },
-            { x: approachX, y: targetY },
-            { x: targetX, y: targetY },
-          ]);
-        })()
-      : compact([
-          { x: sourceX, y: sourceY },
-          { x: (sourceX + targetX) / 2, y: sourceY },
-          { x: (sourceX + targetX) / 2, y: targetY },
-          { x: targetX, y: targetY },
-        ])
-    : undefined;
+    domain.customFields?.workflowSection === "Pre-Gate Sales";
+  const preGateSalesRoute = undefined;
   const denied =
     !preGateSales &&
     (domain.sourceHandle?.startsWith("no") || ["rework", "exception", "hold"].includes(domain.type));
@@ -635,15 +609,15 @@ export function SemanticEdge({
           item.x + item.width >= Math.min(sourceX, targetX) - 10,
       );
 
-      const middleXCollides = intermediateCards.some(
+      const pathCollidesWithCards = intermediateCards.some(
         (c) =>
-          middleX >= c.x - 16 &&
-          middleX <= c.x + c.width + 16 &&
-          Math.min(sourceY, targetY) <= c.y + c.height + 16 &&
-          Math.max(sourceY, targetY) >= c.y - 16,
+          c.x + c.width >= Math.min(sourceX, targetX) - 10 &&
+          c.x <= Math.max(sourceX, targetX) + 10 &&
+          c.y <= Math.max(sourceY, targetY) + 20 &&
+          c.y + c.height >= Math.min(sourceY, targetY) - 20,
       );
 
-      if (!middleXCollides && (approachX - escapeX >= 24 || stacked)) {
+      if (!pathCollidesWithCards && (approachX - escapeX >= 24 || stacked)) {
         return compact([
           { x: sourceX, y: sourceY },
           { x: escapeX, y: sourceY },
