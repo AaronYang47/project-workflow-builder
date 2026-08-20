@@ -26,7 +26,7 @@ export function getAdaptiveNodeSize(node: DomainNode, current?: Pick<NodeLayout,
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "opportunityValidation") {
     return {
-      width: Math.max(current?.width || 0, 720),
+      width: Math.max(current?.width || 0, 840),
       height: Math.max(current?.height || 0, 760),
     };
   }
