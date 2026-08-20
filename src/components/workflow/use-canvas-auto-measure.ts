@@ -55,7 +55,14 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         const id = flowNode?.dataset.id;
         const domain = current.graph.nodes.find((node) => node.id === id);
         const layout = id ? current.layout.nodes[id] : undefined;
-        if (!id || !layout || !domain || domain.type === "gate") return;
+        if (
+          !id ||
+          !layout ||
+          !domain ||
+          domain.type === "gate" ||
+          domain.type === "opportunityValidation"
+        )
+          return;
 
         const requiredHeight = Math.ceil(NODE_HEADER_HEIGHT + 2 + content.scrollHeight);
         if (Math.abs(requiredHeight - layout.height) > 2) {
@@ -72,7 +79,14 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
         const id = flowNode?.dataset.id;
         const domain = id ? current.graph.nodes.find((node) => node.id === id) : undefined;
         const layout = id ? current.layout.nodes[id] : undefined;
-        if (!id || !layout || !domain || domain.type === "gate") return;
+        if (
+          !id ||
+          !layout ||
+          !domain ||
+          domain.type === "gate" ||
+          domain.type === "opportunityValidation"
+        )
+          return;
 
         const overflow = Math.ceil(header.scrollWidth - header.clientWidth);
         if (overflow > 2) {
