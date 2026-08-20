@@ -1553,28 +1553,118 @@ function OpportunityNodeComponent({
                   </div>
 
                   {/* LOI Governance Specific Rules Card */}
-                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2">
+                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-3">
                     <div className="flex items-center justify-between text-xs font-bold text-purple-700 dark:text-purple-300">
                       <span className="flex items-center gap-1.5">
                         <Timer className="size-4" />
-                        Strict LOI Governance & Anti-Free-Work Boundary
+                        Strict LOI Governance & Anti-Free-Work Controls
                       </span>
-                      <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded-full font-mono">
-                        Governed Cap
+                      <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
+                        Customizable Cap
                       </span>
                     </div>
+
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
-                        <div className="text-[10px] text-muted-foreground">Time Limit</div>
-                        <div className="font-bold text-foreground mt-0.5">Max 21 Calendar Days</div>
+                        <label className="text-[10px] font-semibold text-muted-foreground">Time Limit (Calendar Days)</label>
+                        <div className="flex items-center gap-1 mt-1">
+                          <input
+                            type="text"
+                            value={opp.loiConfig?.maxDays ?? "21"}
+                            onChange={(e) =>
+                              savePatch({
+                                loiConfig: {
+                                  ...(opp.loiConfig || {}),
+                                  maxDays: Number(e.target.value) || 0,
+                                },
+                              })
+                            }
+                            placeholder="21"
+                            className="w-full rounded-md border bg-card px-2 py-1 text-xs font-bold text-foreground outline-none focus:border-purple-500 font-mono"
+                          />
+                          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Days</span>
+                        </div>
                       </div>
                       <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
-                        <div className="text-[10px] text-muted-foreground">Engineering Hour Cap</div>
-                        <div className="font-bold text-foreground mt-0.5">Max 20 Billable Hours</div>
+                        <label className="text-[10px] font-semibold text-muted-foreground">Engineering Hour Cap (Max)</label>
+                        <div className="flex items-center gap-1 mt-1">
+                          <input
+                            type="text"
+                            value={opp.loiConfig?.maxHours ?? "20"}
+                            onChange={(e) =>
+                              savePatch({
+                                loiConfig: {
+                                  ...(opp.loiConfig || {}),
+                                  maxHours: Number(e.target.value) || 0,
+                                },
+                              })
+                            }
+                            placeholder="20"
+                            className="w-full rounded-md border bg-card px-2 py-1 text-xs font-bold text-foreground outline-none focus:border-purple-500 font-mono"
+                          />
+                          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Hours</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-                      <strong>Mandatory Conversion Trigger:</strong> Upon delivery of preliminary Class D cost model or expiration of 21 days, client must execute paid CSA ($15k–$35k) or PCS ($50k+) to continue engineering work.
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <label className="text-[10px] font-semibold text-muted-foreground">Review Milestone Date</label>
+                        <input
+                          type="date"
+                          value={opp.loiConfig?.reviewDate ?? ""}
+                          onChange={(e) =>
+                            savePatch({
+                              loiConfig: {
+                                ...(opp.loiConfig || {}),
+                                reviewDate: e.target.value,
+                              },
+                            })
+                          }
+                          className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-muted-foreground">Governed Scope Boundary</label>
+                        <input
+                          type="text"
+                          value={
+                            opp.loiConfig?.scopeSummary ??
+                            "Limited geometry fit check & Class D benchmarking only"
+                          }
+                          onChange={(e) =>
+                            savePatch({
+                              loiConfig: {
+                                ...(opp.loiConfig || {}),
+                                scopeSummary: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="e.g. Fit check & Class D benchmarking only"
+                          className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Mandatory Conversion Trigger to Paid CSA / PCS</label>
+                      <input
+                        type="text"
+                        value={
+                          opp.loiConfig?.conversionTrigger ??
+                          "Delivery of Class D cost model or expiration of day cap -> Mandatory convert to paid CSA ($15k–$35k) or PCS ($50k+)"
+                        }
+                        onChange={(e) =>
+                          savePatch({
+                            loiConfig: {
+                              ...(opp.loiConfig || {}),
+                              conversionTrigger: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Conversion trigger description"
+                        className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
+                      />
                     </div>
                   </div>
                 </div>
