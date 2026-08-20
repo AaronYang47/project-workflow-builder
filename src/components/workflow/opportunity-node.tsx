@@ -446,33 +446,33 @@ function OpportunityNodeComponent({
     let grade: "P1" | "P2" | "P3" | "P4" | "P5" = "P3";
     let gradeLabel = "P3 · Developing Opportunity";
     let gradeDesc = "Viable opportunity with moderate gaps; requires CSA / Paid Feasibility.";
-    let gradeColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+    let gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
 
     if (hasFatalRedFlag || totalScore < 40) {
       grade = "P5";
       gradeLabel = "P5 · Disqualified / Fatal Red Flag";
       gradeDesc = "Severe budget disconnect, fatal site/fit blocker, or no decision authority.";
-      gradeColor = "text-red-500 bg-red-500/10 border-red-500/30";
-    } else if (totalScore >= 90) {
+      gradeColor = "text-red-700 bg-red-500/15 border-red-500/30 dark:text-red-300";
+    } else if (totalScore >= 85) {
       grade = "P1";
       gradeLabel = "P1 · Premier Validated (Fast-Track)";
       gradeDesc = "High certainty across all pillars. Full commitment and zero blocking gaps.";
-      gradeColor = "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
-    } else if (totalScore >= 75) {
+      gradeColor = "text-emerald-700 bg-emerald-500/15 border-emerald-500/30 dark:text-emerald-300";
+    } else if (totalScore >= 70) {
       grade = "P2";
       gradeLabel = "P2 · Strong Qualified (Minor Gaps)";
       gradeDesc = "Strong commercial fundamentals with clearly defined, controlled mitigation actions.";
-      gradeColor = "text-teal-500 bg-teal-500/10 border-teal-500/30";
+      gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
     } else if (totalScore >= 60) {
       grade = "P3";
       gradeLabel = "P3 · Developing Opportunity";
       gradeDesc = "Promising project requiring structured CSA / PCS pre-construction engagement.";
-      gradeColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+      gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
     } else {
       grade = "P4";
       gradeLabel = "P4 · Early Stage / High Gaps";
       gradeDesc = "High gap density. Requires Paid Feasibility Study or scope recalibration.";
-      gradeColor = "text-amber-500 bg-amber-500/10 border-amber-500/30";
+      gradeColor = "text-amber-700 bg-amber-500/15 border-amber-500/30 dark:text-amber-300";
     }
 
     // Automated Owner Type Recommendation
