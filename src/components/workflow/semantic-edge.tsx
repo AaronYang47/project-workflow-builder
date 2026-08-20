@@ -506,19 +506,40 @@ export function SemanticEdge({
         const crossedObstacles = cards.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
-        let safeEscapeX = escapeX;
-        let safeApproachX = approachX;
-        for (const obs of crossedObstacles) {
-          if (obs.id === domain.source || obs.id === domain.target) continue;
-          if (safeEscapeX >= obs.x - 12 && safeEscapeX <= obs.x + obs.width + 12) {
-            if (sourceRight <= obs.x) safeEscapeX = Math.min(safeEscapeX, obs.x - 20);
-            else safeEscapeX = Math.max(safeEscapeX, obs.x + obs.width + 20);
-          }
-          if (safeApproachX >= obs.x - 12 && safeApproachX <= obs.x + obs.width + 12) {
-            if (targetLeft >= obs.x + obs.width) safeApproachX = Math.max(safeApproachX, obs.x + obs.width + 20);
-            else safeApproachX = Math.min(safeApproachX, obs.x - 20);
+        // Centered escape and approach in gaps between obstacles, with strict directional clamping
+        let safeApproachX = targetLeft - 24;
+        let safeEscapeX = sourceRight + 24;
+
+        const lastIntermediate = crossedObstacles
+          .filter((obs) => obs.id !== domain.source && obs.id !== domain.target && obs.x + obs.width <= targetLeft)
+          .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
+
+        if (lastIntermediate) {
+          const gapLeft = lastIntermediate.x + lastIntermediate.width;
+          const gapRight = targetLeft;
+          if (gapRight > gapLeft) {
+            safeApproachX = (gapLeft + gapRight) / 2;
+          } else {
+            safeApproachX = targetLeft - 20;
           }
         }
+
+        const firstIntermediate = crossedObstacles
+          .filter((obs) => obs.id !== domain.source && obs.id !== domain.target && obs.x >= sourceRight)
+          .sort((a, b) => a.x - b.x)[0];
+
+        if (firstIntermediate) {
+          const gapLeft = sourceRight;
+          const gapRight = firstIntermediate.x;
+          if (gapRight > gapLeft) {
+            safeEscapeX = (gapLeft + gapRight) / 2;
+          } else {
+            safeEscapeX = sourceRight + 20;
+          }
+        }
+
+        safeApproachX = Math.min(safeApproachX, targetLeft - 12);
+        safeEscapeX = Math.max(safeEscapeX, sourceRight + 12);
 
         const sourceBottom = sourceObstacle ? sourceObstacle.y + sourceObstacle.height : sourceY;
         const targetBottom = targetObstacle ? targetObstacle.y + targetObstacle.height : targetY;
@@ -628,17 +649,58 @@ export function SemanticEdge({
         ]);
       }
 
-      let safeEscapeX = escapeX;
-      let safeApproachX = approachX;
-      for (const card of intermediateCards) {
-        if (safeEscapeX >= card.x - 12 && safeEscapeX <= card.x + card.width + 12) {
-          if (sourceX <= card.x) safeEscapeX = Math.min(safeEscapeX, card.x - 24);
-          else safeEscapeX = Math.max(safeEscapeX, card.x + card.width + 24);
+      // Centered escape and approach in gaps between obstacles, with strict directional clamping
+      let safeApproachX = targetPosition === Position.Left
+        ? targetX - 24
+        : targetPosition === Position.Right
+          ? targetX + 24
+          : targetX;
+
+      let safeEscapeX = sourcePosition === Position.Right
+        ? sourceX + 24
+        : sourcePosition === Position.Left
+          ? sourceX - 24
+          : sourceX;
+
+      const lastIntermediateBeforeTarget = intermediateCards
+        .filter((c) => c.x + c.width <= targetX)
+        .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
+
+      if (lastIntermediateBeforeTarget && targetPosition === Position.Left) {
+        const gapLeft = lastIntermediateBeforeTarget.x + lastIntermediateBeforeTarget.width;
+        const gapRight = targetX;
+        if (gapRight > gapLeft) {
+          safeApproachX = (gapLeft + gapRight) / 2;
+        } else {
+          safeApproachX = targetX - 20;
         }
-        if (safeApproachX >= card.x - 12 && safeApproachX <= card.x + card.width + 12) {
-          if (targetX >= card.x + card.width) safeApproachX = Math.max(safeApproachX, card.x + card.width + 24);
-          else safeApproachX = Math.min(safeApproachX, card.x - 24);
+      }
+
+      const firstIntermediateAfterSource = intermediateCards
+        .filter((c) => c.x >= sourceX)
+        .sort((a, b) => a.x - b.x)[0];
+
+      if (firstIntermediateAfterSource && sourcePosition === Position.Right) {
+        const gapLeft = sourceX;
+        const gapRight = firstIntermediateAfterSource.x;
+        if (gapRight > gapLeft) {
+          safeEscapeX = (gapLeft + gapRight) / 2;
+        } else {
+          safeEscapeX = sourceX + 20;
         }
+      }
+
+      // Hard directional clamps: never cross into the node
+      if (targetPosition === Position.Left) {
+        safeApproachX = Math.min(safeApproachX, targetX - 12);
+      } else if (targetPosition === Position.Right) {
+        safeApproachX = Math.max(safeApproachX, targetX + 12);
+      }
+
+      if (sourcePosition === Position.Right) {
+        safeEscapeX = Math.max(safeEscapeX, sourceX + 12);
+      } else if (sourcePosition === Position.Left) {
+        safeEscapeX = Math.min(safeEscapeX, sourceX - 12);
       }
 
       const highestCardTop = intermediateCards.length
