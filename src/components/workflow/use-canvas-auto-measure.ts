@@ -9,45 +9,48 @@ import type { NodeLayout } from "@/types/workflow";
  * NodeLayout width/height dynamically when content wraps or conditions expand.
  */
 export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) {
-  const nodes = useWorkflowStore((state) => state.file.graph.nodes);
   const updateLayouts = useWorkflowStore((state) => state.updateLayouts);
 
   useEffect(() => {
     const root = wrapper.current;
     if (!root) return;
     let frame = 0;
+    let isMeasuring = false;
 
     const measure = () => {
-      const current = useWorkflowStore.getState().file;
-      const patches: Record<string, Partial<NodeLayout>> = {};
+      if (isMeasuring) return;
+      isMeasuring = true;
+      try {
+        const current = useWorkflowStore.getState().file;
+        const patches: Record<string, Partial<NodeLayout>> = {};
 
-      // 1. Measure Approval conditions cards (Gate nodes)
-      root
-        .querySelectorAll<HTMLElement>('[aria-label="Approval conditions card"]')
-        .forEach((card) => {
-          const flowNode = card.closest<HTMLElement>(".react-flow__node");
-          const id = flowNode?.dataset.id;
-          const content = card.querySelector<HTMLElement>("[data-conditions-content]");
-          const decision = flowNode?.querySelector<HTMLElement>("[data-decision-content]");
-          const domain = current.graph.nodes.find((node) => node.id === id);
-          if (!id || !content || domain?.type !== "gate") return;
+        // 1. Measure Approval conditions cards (Gate nodes)
+        root
+          .querySelectorAll<HTMLElement>('[aria-label="Approval conditions card"]')
+          .forEach((card) => {
+            const flowNode = card.closest<HTMLElement>(".react-flow__node");
+            const id = flowNode?.dataset.id;
+            const content = card.querySelector<HTMLElement>("[data-conditions-content]");
+            const decision = flowNode?.querySelector<HTMLElement>("[data-decision-content]");
+            const domain = current.graph.nodes.find((node) => node.id === id);
+            if (!id || !content || domain?.type !== "gate") return;
 
-          const metrics = getGateLayoutMetrics(domain);
-          const conditionsHeight = Math.ceil(48 + content.scrollHeight + 16);
-          const decisionHeight = decision
-            ? Math.ceil(48 + decision.scrollHeight + 16)
-            : metrics.decisionHeight;
+            const metrics = getGateLayoutMetrics(domain);
+            const conditionsHeight = Math.ceil(48 + content.scrollHeight + 16);
+            const decisionHeight = decision
+              ? Math.ceil(48 + decision.scrollHeight + 16)
+              : metrics.decisionHeight;
 
-          const targetHeight =
-            metrics.conditionsTop +
-            conditionsHeight +
-            GATE_SECTION_GAP +
-            decisionHeight;
-          const layout = current.layout.nodes[id];
-          if (!layout || Math.abs(targetHeight - layout.height) > 2) {
-            patches[id] = { height: targetHeight };
-          }
-        });
+            const targetHeight =
+              metrics.conditionsTop +
+              conditionsHeight +
+              GATE_SECTION_GAP +
+              decisionHeight;
+            const layout = current.layout.nodes[id];
+            if (!layout || Math.abs(targetHeight - layout.height) > 4) {
+              patches[id] = { height: targetHeight };
+            }
+          });
 
       // 2. Measure General Node Content
       root.querySelectorAll<HTMLElement>("[data-node-content]").forEach((content) => {
@@ -135,6 +138,9 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
 
       if (Object.keys(patches).length > 0) {
         updateLayouts(patches);
+      }
+      } finally {
+        isMeasuring = false;
       }
     };
 

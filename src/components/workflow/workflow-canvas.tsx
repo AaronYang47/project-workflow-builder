@@ -13,7 +13,6 @@ import {
   useReactFlow,
   type Edge,
   type Node,
-  type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -332,38 +331,6 @@ function CanvasInner() {
     [addNode, flow],
   );
 
-  const onSelectionChange = useCallback(
-    ({
-      nodes: selectedNodes,
-      edges: selectedEdges,
-    }: OnSelectionChangeParams) => {
-      const current = useWorkflowStore.getState().selection;
-      if (selectedEdges[0]) {
-        if (current.edgeId !== selectedEdges[0].id)
-          selectEdge(selectedEdges[0].id);
-        return;
-      }
-      const ids = selectedNodes.map((node) => node.id);
-      if (ids.length === 0) {
-        const selectedId = current.nodeIds[0];
-        const selectedIsPhase =
-          current.nodeIds.length === 1 &&
-          useWorkflowStore
-            .getState()
-            .file.graph.nodes.find((node) => node.id === selectedId)?.type ===
-            "phase";
-        if (selectedIsPhase && !current.edgeId) return;
-      }
-      if (
-        current.edgeId ||
-        ids.length !== current.nodeIds.length ||
-        ids.some((id, index) => id !== current.nodeIds[index])
-      )
-        selectNodes(ids);
-    },
-    [selectEdge, selectNodes],
-  );
-
   const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(commitLayoutDrag);
 
   // Hook 2: Dynamic DOM Auto-measure for expanding cards & phase boundaries
@@ -403,13 +370,20 @@ function CanvasInner() {
             .getState()
             .deleteNodes(deleted.map((node) => node.id))
         }
-        onSelectionChange={onSelectionChange}
         onPaneClick={() => {
           const current = useWorkflowStore.getState().selection;
-          if (current.nodeIds.length || current.edgeId) selectNodes([]);
+          if (current.nodeIds.length || current.edgeId) {
+            selectNodes([]);
+            selectEdge(undefined);
+          }
         }}
         onNodeClick={(_, node) => {
-          if (node.type === "phase") selectNodes([node.id]);
+          selectNodes([node.id]);
+          selectEdge(undefined);
+        }}
+        onEdgeClick={(_, edge) => {
+          selectEdge(edge.id);
+          selectNodes([]);
         }}
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
