@@ -226,6 +226,8 @@ export interface OpportunityValidationConfig {
   decisionMakerConfirmed?: boolean;
   decisionMakerNotes?: string;
 
+  clientTierType?: "Standard" | "Returning" | "Trusted" | "Strategic";
+
   projectIntent?: string;
   projectLocation?: string;
   storeys?: number | string;
@@ -258,6 +260,9 @@ export interface OpportunityValidationConfig {
   modularFitPassed?: boolean;
   realityCheckStatus?: "passed" | "failed" | "pending";
 
+  opportunityScore?: number;
+  opportunityGrade?: "P1" | "P2" | "P3" | "P4" | "P5";
+
   ownerType?:
     | "Project-Ready"
     | "Design-Needed"
@@ -265,6 +270,33 @@ export interface OpportunityValidationConfig {
     | "Concept-Stage"
     | "Permit-Ready";
   gapMitigationNotes?: string;
+
+  riskTags?: Array<
+    | "Financing-Dependent"
+    | "Accelerated-Schedule"
+    | "Non-Standard-Grid"
+    | "Zoning-Unconfirmed"
+    | "High-Cost-Variance"
+  >;
+
+  loiConfig?: {
+    scopeSummary?: string;
+    maxDays?: number;
+    maxHours?: number;
+    reviewDate?: string;
+    conversionTrigger?: string;
+    isConvertedToPaid?: boolean;
+  };
+
+  gateConditions?: Array<{
+    id: string;
+    label: string;
+    type: "Mandatory" | "Conditional" | "Optional";
+    satisfied: boolean;
+    note?: string;
+  }>;
+
+  hardGateOverride?: boolean;
 
   engagementPath?:
     | "CSA"
@@ -274,7 +306,17 @@ export interface OpportunityValidationConfig {
     | "Direct Technical Review";
   engagementStatus?: "Draft" | "Out for Signature" | "Executed";
 
-  decisionOutcome?: "draft" | "pass" | "hold" | "nogo";
+  decisionOutcome?:
+    | "pass-p1-p2"
+    | "csa-pcs"
+    | "loi-governed"
+    | "site-feasibility"
+    | "hold-rework"
+    | "nogo-disqualified"
+    | "draft"
+    | "pass"
+    | "hold"
+    | "nogo";
 }
 
 export interface ComponentNotePost {

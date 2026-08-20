@@ -9,17 +9,22 @@ import {
   BadgeCheck,
   Building,
   Building2,
+  Calendar,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock,
   Compass,
+  DollarSign,
+  FileCheck,
   FileCheck2,
   FileText,
   HelpCircle,
+  Hourglass,
   Info,
   Landmark,
   Layers,
+  Lock,
   MapPin,
   Maximize2,
   Percent,
@@ -29,6 +34,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag,
+  Timer,
   TrendingUp,
   UserCheck,
   Users,
@@ -43,18 +49,23 @@ import { ComponentNoteButton } from "./component-note-button";
 export interface QuestionnaireAnswers {
   // Q1: Decision Maker
   dmLevel: "direct" | "influencer" | "unclear";
-  // Q2: Scale
+  // Q2: Project Definition & Scale
   scaleLevel: "defined" | "rough" | "none";
-  // Q3: Site
+  // Q3: Site Readiness
   siteLevel: "owned" | "option" | "searching";
-  // Q4: Design
+  // Q4: Design Readiness
   designLevel: "lvl4" | "lvl3" | "lvl2" | "lvl1" | "lvl0";
-  // Q5: Budget
+  // Q5: Budget & Reality Check
   budgetLevel: "aligned" | "manageable" | "disconnect";
-  // Q6: Funding
+  // Q6: Financing & Timeline
   fundingLevel: "secured" | "progressing" | "speculative";
-  // Q7: Modular Fit
+  timelineLevel: "realistic" | "accelerated" | "unfeasible";
+  // Q7: Consultants & Modular Fit
+  consultantLevel: "engaged" | "in_progress" | "none";
   fitLevel: "high" | "moderate" | "blocker";
+  // Q8: Client Commitment & Type
+  clientTier: "Standard" | "Returning" | "Trusted" | "Strategic";
+  commitmentLevel: "paid_contract" | "loi_governed" | "verbal_interest" | "uncommitted";
 }
 
 function OpportunityNodeComponent({
@@ -67,6 +78,7 @@ function OpportunityNodeComponent({
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const [activeSection, setActiveSection] = useState<number>(0);
   const [showLogicGuide, setShowLogicGuide] = useState<boolean>(false);
+  const [showLoiDrawer, setShowLoiDrawer] = useState<boolean>(false);
 
   const opp: OpportunityValidationConfig = useMemo(
     () => ({
@@ -79,6 +91,7 @@ function OpportunityNodeComponent({
       decisionMakerRole: "Managing Partner & Signing Officer",
       decisionMakerConfirmed: true,
       decisionMakerNotes: "Controls acquisition budget; board sign-off threshold is $15M.",
+      clientTierType: "Strategic",
       projectIntent: "4-Storey Multi-Family Rental",
       projectLocation: "Kelowna, BC",
       storeys: 4,
@@ -98,10 +111,20 @@ function OpportunityNodeComponent({
       modularFitPassed: true,
       realityCheckStatus: "passed",
       ownerType: "Design-Needed",
-      gapMitigationNotes: "Drawings currently at concept level -> Execute CSA to coordinate architectural modularization and preliminary MEP engineering.",
+      gapMitigationNotes: "Drawings currently at concept level -> Execute CSA to coordinate architectural modularization.",
       engagementPath: "CSA",
       engagementStatus: "Draft",
-      decisionOutcome: "draft",
+      decisionOutcome: "pass-p1-p2",
+      loiConfig: {
+        scopeSummary: "Limited modular geometry fit check & Class D benchmarking",
+        maxDays: 21,
+        maxHours: 20,
+        reviewDate: "2026-09-15",
+        conversionTrigger: "Class D variance confirmation & preliminary MEP scheme review",
+        isConvertedToPaid: false,
+      },
+      riskTags: ["Financing-Dependent"],
+      hardGateOverride: false,
       ...(node.config.opportunity || {}),
     }),
     [node.config.opportunity],
@@ -141,9 +164,25 @@ function OpportunityNodeComponent({
       fundingLevel:
         (customFields.q_funding as QuestionnaireAnswers["fundingLevel"]) ||
         (opp.fundingSecured ? "secured" : "progressing"),
+      timelineLevel:
+        (customFields.q_timeline as QuestionnaireAnswers["timelineLevel"]) ||
+        "realistic",
+      consultantLevel:
+        (customFields.q_consultants as QuestionnaireAnswers["consultantLevel"]) ||
+        (opp.consultantsInfo ? "engaged" : "in_progress"),
       fitLevel:
         (customFields.q_fit as QuestionnaireAnswers["fitLevel"]) ||
         (opp.modularFitPassed ? "high" : "moderate"),
+      clientTier:
+        (customFields.q_client_tier as QuestionnaireAnswers["clientTier"]) ||
+        (opp.clientTierType || "Standard"),
+      commitmentLevel:
+        (customFields.q_commitment as QuestionnaireAnswers["commitmentLevel"]) ||
+        (opp.engagementPath === "LOI"
+          ? "loi_governed"
+          : opp.engagementPath === "CSA" || opp.engagementPath === "PCS"
+            ? "paid_contract"
+            : "verbal_interest"),
     }),
     [customFields, opp],
   );
@@ -161,7 +200,11 @@ function OpportunityNodeComponent({
       if (answerPatch.designLevel) nextCustom.q_design = answerPatch.designLevel;
       if (answerPatch.budgetLevel) nextCustom.q_budget = answerPatch.budgetLevel;
       if (answerPatch.fundingLevel) nextCustom.q_funding = answerPatch.fundingLevel;
+      if (answerPatch.timelineLevel) nextCustom.q_timeline = answerPatch.timelineLevel;
+      if (answerPatch.consultantLevel) nextCustom.q_consultants = answerPatch.consultantLevel;
       if (answerPatch.fitLevel) nextCustom.q_fit = answerPatch.fitLevel;
+      if (answerPatch.clientTier) nextCustom.q_client_tier = answerPatch.clientTier;
+      if (answerPatch.commitmentLevel) nextCustom.q_commitment = answerPatch.commitmentLevel;
     }
     updateNode(node.id, {
       customFields: nextCustom,
@@ -180,53 +223,64 @@ function OpportunityNodeComponent({
   const variance =
     budgetNum > 0 ? ((benchmarkCost - budgetNum) / budgetNum) * 100 : 0;
 
-  // --- AUTOMATED SCORING & RATING ENGINE ---
+  // --- AUTOMATED SCORING & P1-P5 GRADING ENGINE ---
   const scoreBreakdown = useMemo(() => {
     let score = 0;
     const gaps: { label: string; action: string; severity: "warning" | "error" | "info" }[] = [];
+    const missingInfo: string[] = [];
     let hasFatalRedFlag = false;
+    let mandatoryPassed = true;
 
-    // 1. Decision Maker (max 20 pts)
-    if (answers.dmLevel === "direct") score += 20;
-    else if (answers.dmLevel === "influencer") {
-      score += 10;
+    // 1. Decision Maker (max 18 pts) [Mandatory]
+    if (answers.dmLevel === "direct") {
+      score += 18;
+    } else if (answers.dmLevel === "influencer") {
+      score += 9;
       gaps.push({
         label: "Decision Maker Access",
-        action: "Schedule direct alignment with authorized signing officer",
+        action: "Schedule direct alignment with authorized signing officer before engineering commitment",
         severity: "warning",
       });
+      missingInfo.push("Direct Decision Maker sign-off");
     } else {
       score += 0;
       hasFatalRedFlag = true;
+      mandatoryPassed = false;
       gaps.push({
         label: "No Decision Authority",
-        action: "Client contact lacks commercial decision power",
+        action: "Lead contact lacks commercial signing & budget allocation authority",
         severity: "error",
       });
+      missingInfo.push("Decision Maker Authority confirmation");
     }
 
-    // 2. Scale & Intent (max 15 pts)
-    if (answers.scaleLevel === "defined") score += 15;
-    else if (answers.scaleLevel === "rough") {
-      score += 8;
+    // 2. Project Definition & Scale (max 14 pts) [Mandatory for Class D]
+    if (answers.scaleLevel === "defined") {
+      score += 14;
+    } else if (answers.scaleLevel === "rough") {
+      score += 7;
       gaps.push({
         label: "Approximate Dimensions",
-        action: "Gather floor plan area breakdown for Class D precision",
+        action: "Gather floor plan area breakdown and unit mix for Class D baseline precision",
         severity: "info",
       });
+      missingInfo.push("Detailed Gross Floor Area & Unit breakdown");
     } else {
       score += 0;
+      mandatoryPassed = false;
       gaps.push({
-        label: "Missing Scale",
-        action: "Establish target gross floor area and unit mix",
+        label: "Missing Scale Parameters",
+        action: "Establish target gross floor area, storeys, and unit count",
         severity: "warning",
       });
+      missingInfo.push("Basic project scale & storeys");
     }
 
-    // 3. Site Status (max 15 pts)
-    if (answers.siteLevel === "owned") score += 15;
-    else if (answers.siteLevel === "option") {
-      score += 10;
+    // 3. Site Readiness (max 14 pts)
+    if (answers.siteLevel === "owned") {
+      score += 14;
+    } else if (answers.siteLevel === "option") {
+      score += 9;
       gaps.push({
         label: "Land Under Option",
         action: "Confirm closing date and zoning feasibility contingencies",
@@ -236,22 +290,24 @@ function OpportunityNodeComponent({
       score += 2;
       gaps.push({
         label: "Site Unresolved",
-        action: "Commission Site Discovery & Feasibility Study",
+        action: "Commission Site Discovery & Feasibility Study to confirm municipal servicing and road access",
         severity: "warning",
       });
+      missingInfo.push("Site acquisition / Parcel confirmation");
     }
 
-    // 4. Design Maturity (max 15 pts)
-    if (answers.designLevel === "lvl4") score += 15;
-    else if (answers.designLevel === "lvl3") score += 13;
-    else if (answers.designLevel === "lvl2") score += 9;
+    // 4. Design Readiness (max 14 pts)
+    if (answers.designLevel === "lvl4") score += 14;
+    else if (answers.designLevel === "lvl3") score += 12;
+    else if (answers.designLevel === "lvl2") score += 8;
     else if (answers.designLevel === "lvl1") {
-      score += 6;
+      score += 5;
       gaps.push({
         label: "Concept-Only Drawings",
-        action: "Execute CSA for architectural modularization & design coordination",
+        action: "Execute CSA for architectural modularization & engineering design coordination",
         severity: "info",
       });
+      missingInfo.push("Architectural modular drawings");
     } else {
       score += 1;
       gaps.push({
@@ -259,49 +315,71 @@ function OpportunityNodeComponent({
         action: "Engage ProFab Pre-Construction & Architectural Design Services",
         severity: "warning",
       });
+      missingInfo.push("Architectural concept drawings");
     }
 
-    // 5. Budget Reality (max 15 pts)
-    if (answers.budgetLevel === "aligned") score += 15;
-    else if (answers.budgetLevel === "manageable") {
+    // 5. Budget & Reality Check (max 15 pts) [Mandatory]
+    if (answers.budgetLevel === "aligned") {
+      score += 15;
+    } else if (answers.budgetLevel === "manageable") {
       score += 8;
       gaps.push({
         label: "Budget Variance (10-25%)",
-        action: "Value engineering & scope calibration during CSA/PCS",
+        action: "Value engineering & scope calibration during CSA / PCS",
         severity: "warning",
       });
     } else {
       score -= 15;
       hasFatalRedFlag = true;
+      mandatoryPassed = false;
       gaps.push({
         label: "Severe Budget Disconnect",
-        action: "Client budget cannot support project scope; calibrate or HOLD",
+        action: "Client budget cannot support project scope; calibrate scope or HOLD",
+        severity: "error",
+      });
+      missingInfo.push("Calibrated budget ceiling matching Class D benchmark");
+    }
+
+    // 6. Financing & Timeline (max 10 pts)
+    if (answers.fundingLevel === "secured") score += 6;
+    else if (answers.fundingLevel === "progressing") score += 4;
+    else {
+      score += 1;
+      gaps.push({
+        label: "Speculative Funding",
+        action: "Establish proof of funds milestone prior to detailed engineering release",
+        severity: "warning",
+      });
+      missingInfo.push("Proof of funds / Bank financing commitment");
+    }
+
+    if (answers.timelineLevel === "realistic") score += 4;
+    else if (answers.timelineLevel === "accelerated") {
+      score += 2;
+      gaps.push({
+        label: "Accelerated Schedule",
+        action: "Implement fast-track engineering and pre-reserve factory manufacturing slot",
+        severity: "info",
+      });
+    } else {
+      score -= 10;
+      hasFatalRedFlag = true;
+      mandatoryPassed = false;
+      gaps.push({
+        label: "Impossible Timeline",
+        action: "Occupancy deadline is physically unachievable under standard manufacturing & permit lead times",
         severity: "error",
       });
     }
 
-    // 6. Funding Status (max 10 pts)
-    if (answers.fundingLevel === "secured") score += 10;
-    else if (answers.fundingLevel === "progressing") {
-      score += 6;
-      gaps.push({
-        label: "Financing Pending Approval",
-        action: "Incorporate financing approval milestones in agreement",
-        severity: "info",
-      });
-    } else {
-      score += 1;
-      gaps.push({
-        label: "Speculative Funding",
-        action: "Establish proof of funds before engineering commitment",
-        severity: "warning",
-      });
-    }
+    // 7. Consultants & Modular Fit (max 10 pts) [Mandatory Fit]
+    if (answers.consultantLevel === "engaged") score += 4;
+    else if (answers.consultantLevel === "in_progress") score += 2;
+    else score += 1;
 
-    // 7. Modular Fit (max 10 pts)
-    if (answers.fitLevel === "high") score += 10;
+    if (answers.fitLevel === "high") score += 6;
     else if (answers.fitLevel === "moderate") {
-      score += 5;
+      score += 3;
       gaps.push({
         label: "Modular Adjustments Required",
         action: "Perform transport clearance & crane logistics review",
@@ -310,36 +388,82 @@ function OpportunityNodeComponent({
     } else {
       score -= 20;
       hasFatalRedFlag = true;
+      mandatoryPassed = false;
       gaps.push({
         label: "Non-Modular Fit / Fatal Red Flag",
-        action: "Project geometry or transport limits are fundamentally unfeasible",
+        action: "Project geometry or transport limits are fundamentally unfeasible for volumetric modularization",
         severity: "error",
       });
+      missingInfo.push("Volumetric modular logistics clearance");
     }
+
+    // 8. Client Commitment & Strategic Status (max 5 pts)
+    const isStrategicOrTrusted =
+      answers.clientTier === "Strategic" ||
+      answers.clientTier === "Trusted" ||
+      answers.clientTier === "Returning";
+
+    if (answers.commitmentLevel === "paid_contract") score += 5;
+    else if (answers.commitmentLevel === "loi_governed") score += isStrategicOrTrusted ? 4 : 2;
+    else if (answers.commitmentLevel === "verbal_interest") score += 1;
 
     const totalScore = Math.max(0, Math.min(100, score));
 
-    // Automated Tier Rating
-    let tier: "A" | "B" | "C" | "D" = "B";
-    let tierLabel = "Tier B · Qualified Opportunity";
-    let tierDesc = "High viability with clear, manageable gaps.";
-    let tierColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+    // Dynamic Risk Tags Calculation
+    const dynamicRiskTags: Array<
+      | "Financing-Dependent"
+      | "Accelerated-Schedule"
+      | "Non-Standard-Grid"
+      | "Zoning-Unconfirmed"
+      | "High-Cost-Variance"
+    > = [];
+    if (answers.fundingLevel === "progressing" || answers.fundingLevel === "speculative") {
+      dynamicRiskTags.push("Financing-Dependent");
+    }
+    if (answers.timelineLevel === "accelerated") {
+      dynamicRiskTags.push("Accelerated-Schedule");
+    }
+    if (answers.fitLevel === "moderate") {
+      dynamicRiskTags.push("Non-Standard-Grid");
+    }
+    if (answers.siteLevel === "searching" || answers.siteLevel === "option") {
+      dynamicRiskTags.push("Zoning-Unconfirmed");
+    }
+    if (variance > 15) {
+      dynamicRiskTags.push("High-Cost-Variance");
+    }
 
-    if (hasFatalRedFlag || totalScore < 35) {
-      tier = "D";
-      tierLabel = "Tier D · High Risk / Disqualified";
-      tierDesc = "Severe budget disconnect, fatal site/fit blocker, or no decision authority.";
-      tierColor = "text-red-500 bg-red-500/10 border-red-500/30";
-    } else if (totalScore >= 80) {
-      tier = "A";
-      tierLabel = "Tier A · Validated (Fast-Track)";
-      tierDesc = "All core criteria fully validated. Ready for immediate Phase 1 entry.";
-      tierColor = "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
-    } else if (totalScore < 55) {
-      tier = "C";
-      tierLabel = "Tier C · Early Stage / High Gaps";
-      tierDesc = "Promising intent but multiple missing pillars. Requires Paid Feasibility.";
-      tierColor = "text-amber-500 bg-amber-500/10 border-amber-500/30";
+    // Automated P1 - P5 Opportunity Grade Assignment
+    let grade: "P1" | "P2" | "P3" | "P4" | "P5" = "P3";
+    let gradeLabel = "P3 · Developing Opportunity";
+    let gradeDesc = "Viable opportunity with moderate gaps; requires CSA / Paid Feasibility.";
+    let gradeColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+
+    if (hasFatalRedFlag || totalScore < 40) {
+      grade = "P5";
+      gradeLabel = "P5 · Disqualified / Fatal Red Flag";
+      gradeDesc = "Severe budget disconnect, fatal site/fit blocker, or no decision authority.";
+      gradeColor = "text-red-500 bg-red-500/10 border-red-500/30";
+    } else if (totalScore >= 90) {
+      grade = "P1";
+      gradeLabel = "P1 · Premier Validated (Fast-Track)";
+      gradeDesc = "High certainty across all pillars. Full commitment and zero blocking gaps.";
+      gradeColor = "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
+    } else if (totalScore >= 75) {
+      grade = "P2";
+      gradeLabel = "P2 · Strong Qualified (Minor Gaps)";
+      gradeDesc = "Strong commercial fundamentals with clearly defined, controlled mitigation actions.";
+      gradeColor = "text-teal-500 bg-teal-500/10 border-teal-500/30";
+    } else if (totalScore >= 60) {
+      grade = "P3";
+      gradeLabel = "P3 · Developing Opportunity";
+      gradeDesc = "Promising project requiring structured CSA / PCS pre-construction engagement.";
+      gradeColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+    } else {
+      grade = "P4";
+      gradeLabel = "P4 · Early Stage / High Gaps";
+      gradeDesc = "High gap density. Requires Paid Feasibility Study or scope recalibration.";
+      gradeColor = "text-amber-500 bg-amber-500/10 border-amber-500/30";
     }
 
     // Automated Owner Type Recommendation
@@ -348,44 +472,71 @@ function OpportunityNodeComponent({
     else if (answers.designLevel === "lvl1" || answers.designLevel === "lvl2") autoOwnerType = "Design-Needed";
     else if (answers.siteLevel === "searching") autoOwnerType = "Site-Unresolved";
     else if (answers.designLevel === "lvl3" || answers.designLevel === "lvl4") autoOwnerType = "Permit-Ready";
-    else if (totalScore >= 80) autoOwnerType = "Project-Ready";
+    else if (totalScore >= 75) autoOwnerType = "Project-Ready";
 
-    // Automated Engagement Path Recommendation
+    // Automated Engagement Path Recommendation (With Strategic LOI path check)
     let autoPath: OpportunityValidationConfig["engagementPath"] = "CSA";
-    if (tier === "A") autoPath = autoOwnerType === "Permit-Ready" ? "Direct Technical Review" : "PCS";
-    else if (tier === "B") autoPath = autoOwnerType === "Design-Needed" ? "CSA" : "PCS";
-    else if (tier === "C") autoPath = "Paid Feasibility";
-    else autoPath = "CSA";
+    let isLoiAllowed = isStrategicOrTrusted && totalScore >= 60 && !hasFatalRedFlag;
 
-    // Recommended Gate 1 Outcome
-    let recommendedOutcome: "pass" | "hold" | "nogo" = "pass";
-    if (tier === "D" || hasFatalRedFlag) recommendedOutcome = "nogo";
-    else if (tier === "C" || (tier === "B" && gaps.some((g) => g.severity === "error"))) recommendedOutcome = "hold";
-    else recommendedOutcome = "pass";
+    if (grade === "P1") {
+      autoPath = autoOwnerType === "Permit-Ready" ? "Direct Technical Review" : "PCS";
+    } else if (grade === "P2") {
+      autoPath = isLoiAllowed ? "LOI" : autoOwnerType === "Design-Needed" ? "CSA" : "PCS";
+    } else if (grade === "P3") {
+      autoPath = isLoiAllowed ? "LOI" : "CSA";
+    } else if (grade === "P4") {
+      autoPath = "Paid Feasibility";
+    } else {
+      autoPath = "CSA";
+    }
+
+    // Recommended Multi-Handle Outcome
+    let recommendedOutcome: OpportunityValidationConfig["decisionOutcome"] = "pass-p1-p2";
+    if (grade === "P5" || hasFatalRedFlag) {
+      recommendedOutcome = "nogo-disqualified";
+    } else if (autoOwnerType === "Site-Unresolved") {
+      recommendedOutcome = "site-feasibility";
+    } else if (autoPath === "LOI" && isLoiAllowed) {
+      recommendedOutcome = "loi-governed";
+    } else if (grade === "P1" || (grade === "P2" && mandatoryPassed)) {
+      recommendedOutcome = "pass-p1-p2";
+    } else if (autoOwnerType === "Design-Needed" || autoOwnerType === "Concept-Stage") {
+      recommendedOutcome = "csa-pcs";
+    } else {
+      recommendedOutcome = "hold-rework";
+    }
 
     return {
       totalScore,
-      tier,
-      tierLabel,
-      tierDesc,
-      tierColor,
+      grade,
+      gradeLabel,
+      gradeDesc,
+      gradeColor,
       autoOwnerType,
       autoPath,
       recommendedOutcome,
       gaps,
+      missingInfo,
       hasFatalRedFlag,
+      mandatoryPassed,
+      dynamicRiskTags,
+      isStrategicOrTrusted,
+      isLoiAllowed,
     };
-  }, [answers]);
+  }, [answers, variance]);
 
   const color = node.color || "#1f5fa7";
-  const outcome = opp.decisionOutcome || "draft";
+  const outcome = opp.decisionOutcome || "pass-p1-p2";
 
   // Quick apply system recommendation
   const applyRecommendation = () => {
     savePatch({
+      opportunityScore: scoreBreakdown.totalScore,
+      opportunityGrade: scoreBreakdown.grade,
       ownerType: scoreBreakdown.autoOwnerType,
       engagementPath: scoreBreakdown.autoPath,
       decisionOutcome: scoreBreakdown.recommendedOutcome,
+      riskTags: scoreBreakdown.dynamicRiskTags,
       gapMitigationNotes: scoreBreakdown.gaps.map((g) => `${g.label}: ${g.action}`).join("; "),
     });
   };
@@ -394,44 +545,50 @@ function OpportunityNodeComponent({
     {
       id: "dm",
       title: "1. Decision Maker & Client Profile",
-      subtitle: "Verify direct access to the budget controller and signing authority",
+      subtitle: "Verify budget authority, signing power, and client relationship tier",
       icon: Users,
     },
     {
       id: "scale",
-      title: "2. Project Intent & Class D Scale",
-      subtitle: "Capture building use, location, storeys, area, and units for rough benchmarking",
+      title: "2. Project Definition & Scale",
+      subtitle: "Establish typology, location, storeys, area (sq.ft.), and unit mix",
       icon: Scale,
     },
     {
       id: "site",
       title: "3. Site & Land Readiness",
-      subtitle: "Confirm property ownership status, municipal servicing, and access constraints",
+      subtitle: "Verify property ownership, municipal servicing, and access constraints",
       icon: MapPin,
     },
     {
       id: "design",
-      title: "4. Plans & Design Maturity Level",
+      title: "4. Design & Plans Maturity",
       subtitle: "Classify architectural design maturity from Level 0 (idea) to Level 4 (permit issued)",
       icon: FileText,
     },
     {
       id: "budget",
-      title: "5. Class D Budget Reality Check",
+      title: "5. Budget & Class D Reality Check",
       subtitle: "Benchmark Cost (Area × $/sq.ft.) vs Client Target Budget comparison",
       icon: Landmark,
     },
     {
-      id: "funding",
+      id: "financing",
       title: "6. Financing & Target Timeline",
       subtitle: "Funding structure (equity/loan/grant) and target occupancy schedule",
       icon: Clock,
     },
     {
       id: "fit",
-      title: "7. Modular Feasibility Fit Check",
-      subtitle: "Screen for transport clearances, grid modularity, and structural red flags",
+      title: "7. Consultants & Modular Fit",
+      subtitle: "Highway transport clearances, crane staging, and modular grid repeatability",
       icon: Layers,
+    },
+    {
+      id: "commitment",
+      title: "8. Client Commitment & LOI Governance",
+      subtitle: "Governed LOI scope, time caps, review points, and conversion triggers",
+      icon: FileCheck,
     },
   ];
 
@@ -446,8 +603,8 @@ function OpportunityNodeComponent({
         style={{ borderColor: `${color}65` }}
       >
         <NodeResizer
-          minWidth={800}
-          minHeight={720}
+          minWidth={880}
+          minHeight={780}
           isVisible={selected}
           onResizeEnd={(_, params) =>
             useWorkflowStore
@@ -477,27 +634,35 @@ function OpportunityNodeComponent({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Opportunity Validation Assessment
+                  Opportunity Validation & Client Scoring Engine
                 </span>
                 <span
                   className={cn(
                     "rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
-                    outcome === "pass"
+                    outcome === "pass-p1-p2" || outcome === "pass"
                       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
-                      : outcome === "hold"
-                        ? "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400"
-                        : outcome === "nogo"
-                          ? "bg-red-500/15 text-red-600 border-red-500/30 dark:text-red-400"
-                          : "bg-muted text-muted-foreground border-border",
+                      : outcome === "csa-pcs"
+                        ? "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
+                        : outcome === "loi-governed"
+                          ? "bg-purple-500/15 text-purple-600 border-purple-500/30 dark:text-purple-400"
+                          : outcome === "site-feasibility"
+                            ? "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400"
+                            : outcome === "hold-rework" || outcome === "hold"
+                              ? "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
+                              : "bg-red-500/15 text-red-600 border-red-500/30 dark:text-red-400",
                   )}
                 >
-                  {outcome === "pass"
-                    ? "GATE 1 PASS ✅"
-                    : outcome === "hold"
-                      ? "HOLD · GAPS ⚠️"
-                      : outcome === "nogo"
-                        ? "NO-GO ❌"
-                        : "EVALUATION IN PROGRESS"}
+                  {outcome === "pass-p1-p2" || outcome === "pass"
+                    ? "GATE 1 PASSED (P1/P2) ✅"
+                    : outcome === "csa-pcs"
+                      ? "PROCEED TO CSA / PCS 📄"
+                      : outcome === "loi-governed"
+                        ? "STRATEGIC LOI (CAPPED) ⏱️"
+                        : outcome === "site-feasibility"
+                          ? "SITE FEASIBILITY LOOP 📍"
+                          : outcome === "hold-rework" || outcome === "hold"
+                            ? "HOLD · REWORK LOOP ⚠️"
+                            : "NO-GO DISQUALIFIED ❌"}
                 </span>
               </div>
               <h3 className="text-sm font-bold text-foreground">
@@ -519,7 +684,9 @@ function OpportunityNodeComponent({
             </button>
             <div className="flex items-center gap-1.5 rounded-lg bg-background/90 px-3 py-1 text-xs font-bold shadow-xs border">
               <Sparkles className="size-3.5 text-primary" />
-              <span>Score: {scoreBreakdown.totalScore}/100</span>
+              <span>
+                {scoreBreakdown.grade} · {scoreBreakdown.totalScore}/100
+              </span>
             </div>
             <ComponentNoteButton
               nodeId={node.id}
@@ -559,22 +726,22 @@ function OpportunityNodeComponent({
 
             {/* Question Content Scroll Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs scroll-thin">
-              {/* Q1: Decision Maker */}
+              {/* Q1: Decision Maker & Client Tier */}
               {activeSection === 0 && (
                 <div className="space-y-3.5">
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Users className="size-4 text-primary" />
-                      Q1. Client Profile & Decision Maker Authority
+                      Q1. Client Profile, Decision Maker & Client Relationship Tier
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Verify client background and confirm commercial decision-making authority
+                      Verify commercial signing authority and classify whether client qualifies for Strategic LOI fast-tracking.
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Company / Organization</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Company Name</label>
                       <input
                         type="text"
                         value={opp.companyName || ""}
@@ -594,17 +761,28 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Lead / Referral Source</label>
-                      <input
-                        type="text"
-                        value={opp.leadSource || ""}
-                        onChange={(e) => savePatch({ leadSource: e.target.value })}
-                        placeholder="e.g. Architect Referral, Website"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
+                      <label className="text-[10px] font-semibold text-muted-foreground">Client Relationship Tier</label>
+                      <select
+                        value={answers.clientTier}
+                        onChange={(e) =>
+                          savePatch(
+                            {
+                              clientTierType: e.target
+                                .value as OpportunityValidationConfig["clientTierType"],
+                            },
+                            { clientTier: e.target.value as QuestionnaireAnswers["clientTier"] },
+                          )
+                        }
+                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-semibold text-primary"
+                      >
+                        <option value="Standard">Standard Lead (Requires Paid CSA/PCS)</option>
+                        <option value="Returning">Returning Client (LOI Allowed)</option>
+                        <option value="Trusted">Trusted Partner (LOI Allowed)</option>
+                        <option value="Strategic">Strategic Account (LOI Allowed)</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Contact Details (Email / Phone)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Contact Email / Phone</label>
                       <input
                         type="text"
                         value={opp.contactEmail || ""}
@@ -615,30 +793,30 @@ function OpportunityNodeComponent({
                     </div>
                   </div>
 
-                  {/* Question Choice Cards */}
+                  {/* Decision Authority Choice Cards */}
                   <div className="space-y-2 pt-1">
                     <label className="text-[11px] font-bold text-foreground">
-                      Decision Authority Assessment:
+                      Decision Authority Assessment (Mandatory Hard Requirement):
                     </label>
                     <div className="space-y-1.5">
                       {[
                         {
                           val: "direct",
-                          title: "Direct Decision Maker (Signing & Budget Authority)",
-                          desc: "Direct access to authorized officer who can sign agreements and allocate budget (+20 pts)",
-                          badge: "High Confidence",
+                          title: "Direct Decision Maker (Authorized Signing Officer)",
+                          desc: "Direct access to officer with autonomous budget signing and agreement authority (+18 pts)",
+                          badge: "Mandatory Passed",
                         },
                         {
                           val: "influencer",
                           title: "Project Representative / Manager (DM Known)",
-                          desc: "Decision maker is identified but approval goes through an internal chain (+10 pts)",
-                          badge: "Follow-up Required",
+                          desc: "Decision maker identified but review must proceed via internal management chain (+9 pts)",
+                          badge: "Conditional Follow-up",
                         },
                         {
                           val: "unclear",
                           title: "Unclear Authority / No Access to Decision Maker",
-                          desc: "Contact lacks decision authority, or decision process is opaque (0 pts, Risk Flag)",
-                          badge: "Risk Flag",
+                          desc: "Contact lacks decision authority or commercial mandate (0 pts, Fatal Red Flag)",
+                          badge: "Hard Blocker",
                         },
                       ].map((opt) => (
                         <button
@@ -680,22 +858,22 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q2: Scale */}
+              {/* Q2: Project Definition & Scale */}
               {activeSection === 1 && (
                 <div className="space-y-3.5">
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Scale className="size-4 text-primary" />
-                      Q2. Project Intent & Class D Scale Parameters
+                      Q2. Project Definition & Geometric Scale
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Establish building typology, storeys, area, and units for rough benchmarking
+                      Capture building typology, storeys, area, and unit mix to calculate Class D rough cost baseline.
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Project Intent / Typology</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Project Typology / Intent</label>
                       <input
                         type="text"
                         value={opp.projectIntent || ""}
@@ -736,7 +914,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Units / Modules Count</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Unit / Module Count</label>
                       <input
                         type="number"
                         value={opp.unitCount || ""}
@@ -755,17 +933,17 @@ function OpportunityNodeComponent({
                         {
                           val: "defined",
                           title: "Full Scale Defined (Ready for Class D Benchmark)",
-                          desc: "Storeys, gross floor area, and unit count are captured (+15 pts)",
+                          desc: "Storeys, gross floor area, and unit count are confirmed (+14 pts)",
                         },
                         {
                           val: "rough",
                           title: "Approximate Concept Scale Only",
-                          desc: "Approximate footprint or rough unit count only; requires refinement (+8 pts)",
+                          desc: "Approximate footprint or rough unit mix only; requires refinement (+7 pts)",
                         },
                         {
                           val: "none",
                           title: "Scale Unknown / Undefined",
-                          desc: "No dimensions available; economic benchmarking cannot be run (0 pts)",
+                          desc: "No dimensions available; cannot run financial benchmarking (0 pts)",
                         },
                       ].map((opt) => (
                         <button
@@ -800,7 +978,7 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q3: Site */}
+              {/* Q3: Site Readiness */}
               {activeSection === 2 && (
                 <div className="space-y-3.5">
                   <div>
@@ -809,7 +987,7 @@ function OpportunityNodeComponent({
                       Q3. Site & Land Readiness Status
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Confirm property title, municipal servicing, and road access
+                      Confirm property title, municipal servicing, and road access.
                     </p>
                   </div>
 
@@ -842,18 +1020,18 @@ function OpportunityNodeComponent({
                       {[
                         {
                           val: "owned",
-                          title: "Owned Land (Project-Ready)",
-                          desc: "Property is owned or fully controlled; servicing & zoning verified (+15 pts)",
+                          title: "Owned Land (Project-Ready / Clear Servicing)",
+                          desc: "Property is owned or fully controlled; municipal servicing & zoning verified (+14 pts)",
                         },
                         {
                           val: "option",
-                          title: "Under Option / Purchase Contract",
-                          desc: "Under binding purchase agreement with closing contingencies (+10 pts)",
+                          title: "Under Option / Binding Purchase Contract",
+                          desc: "Under binding purchase agreement with closing contingencies (+9 pts)",
                         },
                         {
                           val: "searching",
-                          title: "Searching for Site / Unresolved",
-                          desc: "Site selection in progress; requires Site Feasibility Study (+2 pts)",
+                          title: "Searching for Site / Unresolved (Routes to Site Feasibility)",
+                          desc: "Site selection in progress; routes to dedicated Site Feasibility Loop (+2 pts)",
                         },
                       ].map((opt) => (
                         <button
@@ -895,16 +1073,16 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q4: Design */}
+              {/* Q4: Design Readiness */}
               {activeSection === 3 && (
                 <div className="space-y-3.5">
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <FileText className="size-4 text-primary" />
-                      Q4. Plans & Architectural Design Maturity Level
+                      Q4. Design & Plans Maturity Level
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Classify drawings across Levels 0 to 4 to establish design coordination scope
+                      Classify architectural drawings across Levels 0 to 4 to establish scope and Owner Type.
                     </p>
                   </div>
 
@@ -913,22 +1091,22 @@ function OpportunityNodeComponent({
                       {
                         val: "lvl4",
                         title: "Level 4: Permit Issued (Drawings Approved)",
-                        desc: "Official building permit issued; ready for modular fabrication review (+15 pts)",
+                        desc: "Official building permit issued; ready for modular fabrication review (+14 pts, Permit-Ready)",
                       },
                       {
                         val: "lvl3",
                         title: "Level 3: Permit Set Submitted",
-                        desc: "Complete architectural & engineering drawings submitted for municipal review (+13 pts)",
+                        desc: "Complete architectural & engineering drawings submitted for municipal review (+12 pts)",
                       },
                       {
                         val: "lvl2",
                         title: "Level 2: Preliminary Architectural Scheme",
-                        desc: "Floor plans, elevations, and sections available; requires modular grid split (+9 pts)",
+                        desc: "Floor plans and elevations available; requires modular grid split (+8 pts, Design-Needed)",
                       },
                       {
                         val: "lvl1",
                         title: "Level 1: Concept / Sketches Only",
-                        desc: "Concept sketches only; requires CSA for architectural modularization (+6 pts, Design-Needed)",
+                        desc: "Concept sketches only; requires CSA for architectural modularization (+5 pts, Design-Needed)",
                       },
                       {
                         val: "lvl0",
@@ -974,7 +1152,7 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q5: Budget & Reality Check */}
+              {/* Q5: Budget & Class D Reality Check */}
               {activeSection === 4 && (
                 <div className="space-y-3.5">
                   <div>
@@ -983,7 +1161,7 @@ function OpportunityNodeComponent({
                       Q5. Budget Basis & Class D Reality Check
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Benchmark estimated cost against client target budget to verify economic feasibility
+                      Benchmark estimated cost against client target budget to verify economic feasibility.
                     </p>
                   </div>
 
@@ -1051,7 +1229,7 @@ function OpportunityNodeComponent({
                       {
                         val: "disconnect",
                         title: "Severe Budget Disconnect (>25% Gap)",
-                        desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, NO-GO)",
+                        desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, Hard Blocker)",
                       },
                     ].map((opt) => (
                       <button
@@ -1085,7 +1263,7 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q6: Funding & Timeline */}
+              {/* Q6: Financing & Timeline */}
               {activeSection === 5 && (
                 <div className="space-y-3.5">
                   <div>
@@ -1094,7 +1272,7 @@ function OpportunityNodeComponent({
                       Q6. Financing Structure & Target Timeline
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Confirm funding commitment and target delivery schedule
+                      Confirm funding commitment and verify whether schedule requires accelerated fast-track processing.
                     </p>
                   </div>
 
@@ -1131,21 +1309,22 @@ function OpportunityNodeComponent({
                   </div>
 
                   <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] font-bold text-foreground">Timeline Feasibility:</label>
                     {[
                       {
-                        val: "secured",
-                        title: "Funding Secured / Approved Credit Facility",
-                        desc: "Equity confirmed or bank credit approved; ready to proceed (+10 pts)",
+                        val: "realistic",
+                        title: "Standard Realistic Schedule (>12 Months)",
+                        desc: "Adequate window for design, municipal permitting, and plant production (+4 pts)",
                       },
                       {
-                        val: "progressing",
-                        title: "Financing In Progress (Clear Criteria)",
-                        desc: "Underwriting in progress with clear approval milestones (+6 pts)",
+                        val: "accelerated",
+                        title: "Accelerated Schedule (<10 Months) [Risk Tag]",
+                        desc: "Requires fast-track engineering parallelization and pre-reserved manufacturing slot (+2 pts)",
                       },
                       {
-                        val: "speculative",
-                        title: "Speculative / Unsecured Funding",
-                        desc: "Highly contingent on speculative financing; requires proof of funds milestone (+1 pt)",
+                        val: "unfeasible",
+                        title: "Physically Unfeasible (<5 Months)",
+                        desc: "Occupancy deadline is impossible under standard municipal and factory lead times (-10 pts, Blocker)",
                       },
                     ].map((opt) => (
                       <button
@@ -1153,18 +1332,18 @@ function OpportunityNodeComponent({
                         key={opt.val}
                         onClick={() =>
                           savePatch(
-                            { fundingSecured: opt.val === "secured" },
-                            { fundingLevel: opt.val as QuestionnaireAnswers["fundingLevel"] },
+                            {},
+                            { timelineLevel: opt.val as QuestionnaireAnswers["timelineLevel"] },
                           )
                         }
                         className={cn(
                           "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.fundingLevel === opt.val
+                          answers.timelineLevel === opt.val
                             ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
                             : "border-border bg-card hover:border-primary/40 text-muted-foreground",
                         )}
                       >
-                        {answers.fundingLevel === opt.val ? (
+                        {answers.timelineLevel === opt.val ? (
                           <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
                         ) : (
                           <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
@@ -1179,16 +1358,16 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Q7: Modular Fit */}
+              {/* Q7: Consultants & Modular Fit */}
               {activeSection === 6 && (
                 <div className="space-y-3.5">
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <Layers className="size-4 text-primary" />
-                      Q7. Modular Feasibility Fit Check
+                      Q7. External Consultants & Modular Feasibility Fit
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Verify highway transport clearances, crane staging, and modular grid repeatability
+                      Verify architectural/engineering consultants and screen for volumetric transportation limits.
                     </p>
                   </div>
 
@@ -1196,18 +1375,18 @@ function OpportunityNodeComponent({
                     {[
                       {
                         val: "high",
-                        title: "High Modular Suitability",
-                        desc: "Regular grid, standard module transport envelopes, clear site crane access (+10 pts)",
+                        title: "High Modular Suitability (Clear Logistics)",
+                        desc: "Regular grid, standard module transport envelopes, clear site crane access (+6 pts)",
                       },
                       {
                         val: "moderate",
-                        title: "Moderate Suitability (Minor Adjustments)",
-                        desc: "Custom non-standard modules or unique crane rigging required (+5 pts)",
+                        title: "Moderate Suitability (Minor Adjustments Required)",
+                        desc: "Custom non-standard modules or unique crane rigging required (+3 pts)",
                       },
                       {
                         val: "blocker",
-                        title: "Fatal Modular Blocker",
-                        desc: "Site road inaccessible for wide loads, or building geometry cannot be modularized (-20 pts, NO-GO)",
+                        title: "Fatal Modular Blocker (Site/Geometry Incompatible)",
+                        desc: "Site road inaccessible for wide loads, or building geometry cannot be modularized (-20 pts, Hard Blocker)",
                       },
                     ].map((opt) => (
                       <button
@@ -1241,13 +1420,101 @@ function OpportunityNodeComponent({
                 </div>
               )}
 
-              {/* Logic Guide Modal/Drawer (When Open) */}
+              {/* Q8: Client Commitment & Governed LOI Path */}
+              {activeSection === 7 && (
+                <div className="space-y-3.5">
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <FileCheck className="size-4 text-primary" />
+                      Q8. Client Commitment & Governed LOI Controls
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Define the commercial instrument. LOI is restricted to Strategic/Trusted clients with strict scope & hour caps.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {[
+                      {
+                        val: "paid_contract",
+                        title: "Executed Paid Agreement (CSA / PCS / Fee Paid)",
+                        desc: "Standard commercial contract executed with pre-construction retainer (+5 pts)",
+                      },
+                      {
+                        val: "loi_governed",
+                        title: "Governed LOI (Strategic / Returning Client Path Only)",
+                        desc: "Letter of Interest for early validation. Capped at 21 days / 20 engineering hours with mandatory conversion trigger (+4 pts)",
+                      },
+                      {
+                        val: "verbal_interest",
+                        title: "Verbal Interest / Exploration Phase",
+                        desc: "Early dialogue; requires conversion to paid CSA/PCS prior to detailed engineering (+1 pt)",
+                      },
+                    ].map((opt) => (
+                      <button
+                        type="button"
+                        key={opt.val}
+                        onClick={() =>
+                          savePatch(
+                            {},
+                            { commitmentLevel: opt.val as QuestionnaireAnswers["commitmentLevel"] },
+                          )
+                        }
+                        className={cn(
+                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
+                          answers.commitmentLevel === opt.val
+                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
+                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
+                        )}
+                      >
+                        {answers.commitmentLevel === opt.val ? (
+                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+                        ) : (
+                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* LOI Governance Specific Rules Card */}
+                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-purple-700 dark:text-purple-300">
+                      <span className="flex items-center gap-1.5">
+                        <Timer className="size-4" />
+                        Strict LOI Governance & Anti-Free-Work Boundary
+                      </span>
+                      <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded-full font-mono">
+                        Governed Cap
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
+                        <div className="text-[10px] text-muted-foreground">Time Limit</div>
+                        <div className="font-bold text-foreground mt-0.5">Max 21 Calendar Days</div>
+                      </div>
+                      <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
+                        <div className="text-[10px] text-muted-foreground">Engineering Hour Cap</div>
+                        <div className="font-bold text-foreground mt-0.5">Max 20 Billable Hours</div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground leading-relaxed pt-1">
+                      <strong>Mandatory Conversion Trigger:</strong> Upon delivery of preliminary Class D cost model or expiration of 21 days, client must execute paid CSA ($15k–$35k) or PCS ($50k+) to continue engineering work.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Logic Guide Modal/Drawer */}
               {showLogicGuide && (
                 <div className="rounded-xl border border-primary/40 bg-primary/5 p-3.5 space-y-3 mt-4 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-primary flex items-center gap-1.5">
                       <ShieldCheck className="size-4" />
-                      Automated Scoring & Classification Logic Rules
+                      Automated Scoring, P1-P5 Grading & Routing Logic
                     </span>
                     <button
                       type="button"
@@ -1259,16 +1526,16 @@ function OpportunityNodeComponent({
                   </div>
                   <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
                     <p>
-                      <strong>1. Score Formula (0-100 pts):</strong> Q1 Decision Maker (20) + Q2 Scale (15) + Q3 Site (15) + Q4 Design (15) + Q5 Budget (15) + Q6 Funding (10) + Q7 Modular Fit (10).
+                      <strong>1. Score Formula (0-100 pts):</strong> Q1 Decision Maker (18) + Q2 Scale (14) + Q3 Site (14) + Q4 Design (14) + Q5 Budget (15) + Q6 Financing/Timeline (10) + Q7 Fit (10) + Q8 Commitment (5).
                     </p>
                     <p>
-                      <strong>2. Tier Thresholds:</strong> Tier A (80-100 pts) · Tier B (55-79 pts) · Tier C (35-54 pts) · Tier D (&lt;35 pts or Fatal Red Flag).
+                      <strong>2. P1–P5 Grades:</strong> P1 (90-100 pts) · P2 (75-89 pts) · P3 (60-74 pts) · P4 (40-59 pts) · P5 (&lt;40 pts or Fatal Hard Blocker).
                     </p>
                     <p>
-                      <strong>3. Owner Type Rules:</strong> If Level 0 Plans &rarr; <em>Concept-Stage</em>; if Level 1/2 Plans &rarr; <em>Design-Needed</em>; if Searching Site &rarr; <em>Site-Unresolved</em>; if Level 3/4 Plans &rarr; <em>Permit-Ready</em>; if Score &ge; 80 &rarr; <em>Project-Ready</em>.
+                      <strong>3. LOI Rule:</strong> Only allowed for Returning / Trusted / Strategic clients (P2/P3 grade). Must have a 21-day / 20-hour cap with mandatory conversion trigger to CSA/PCS.
                     </p>
                     <p>
-                      <strong>4. Gate 1 Verdict:</strong> Pass (Tier A / Tier B with controlled gaps), Hold (Tier C / unresolved gaps), NO-GO (Fatal Red Flag / Tier D).
+                      <strong>4. Mandatory Hard Gate:</strong> If any Mandatory requirement fails (No DM, Budget disconnect &gt;25%, Non-modular geometry, Unfeasible timeline), system forces <em>HOLD</em> or <em>NO-GO</em>.
                     </p>
                   </div>
                 </div>
@@ -1299,15 +1566,15 @@ function OpportunityNodeComponent({
             </div>
           </div>
 
-          {/* RIGHT: AI Rating & Recommendation Dashboard (320px with proper padding & text wrap) */}
-          <div className="w-[320px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
-            {/* Health Score Circular Banner */}
+          {/* RIGHT: AI Rating & Recommendation Dashboard */}
+          <div className="w-[330px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
+            {/* Score & P1-P5 Grade Circular Banner */}
             <div className="rounded-xl border bg-card p-3 shadow-xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Rating Model
+                  Opportunity Grade
                 </span>
-                <span className="text-[9px] font-mono text-muted-foreground">Known & Controlled</span>
+                <span className="text-[9px] font-mono text-muted-foreground">0–100 Engine</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1316,40 +1583,68 @@ function OpportunityNodeComponent({
                   <span className="absolute -bottom-1 text-[7px] font-bold uppercase">Score</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-1 border block text-left leading-tight whitespace-normal break-words", scoreBreakdown.tierColor)}>
-                    {scoreBreakdown.tierLabel}
+                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-1 border block text-left leading-tight whitespace-normal break-words", scoreBreakdown.gradeColor)}>
+                    {scoreBreakdown.gradeLabel}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 leading-tight line-clamp-2">
-                    {scoreBreakdown.tierDesc}
+                    {scoreBreakdown.gradeDesc}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Risk Tags Bar */}
+            {scoreBreakdown.dynamicRiskTags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {scoreBreakdown.dynamicRiskTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300"
+                  >
+                    <AlertTriangle className="size-2.5" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Auto-Assigned Owner Type */}
-            <div className="rounded-xl border bg-card p-3 space-y-1 shadow-xs">
+            <div className="rounded-xl border bg-card p-2.5 space-y-1 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Assigned Owner Type</span>
+                <span>Identified Owner Type</span>
                 <Tag className="size-3 text-primary" />
               </div>
               <div className="font-bold text-xs text-foreground">
                 {scoreBreakdown.autoOwnerType}
               </div>
               <div className="text-[10px] text-muted-foreground truncate">
-                Current: <strong className="text-foreground">{opp.ownerType || "TBD"}</strong>
+                Client Tier: <strong className="text-foreground">{answers.clientTier}</strong>
               </div>
             </div>
 
-            {/* Identified Gaps & Controlled Mitigation Plan */}
-            <div className="rounded-xl border bg-card p-3 space-y-1.5 shadow-xs">
+            {/* Governed LOI Status Pill (If Strategic) */}
+            {scoreBreakdown.isStrategicOrTrusted && (
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2.5 space-y-1">
+                <div className="text-[10px] font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between">
+                  <span>Governed LOI Eligible</span>
+                  <Timer className="size-3" />
+                </div>
+                <div className="text-[10px] text-purple-800 dark:text-purple-200">
+                  Cap: <strong>21 Days / 20 Hours</strong> &rarr; Convert to CSA/PCS
+                </div>
+              </div>
+            )}
+
+            {/* Missing Info & Actionable Next Steps */}
+            <div className="rounded-xl border bg-card p-2.5 space-y-1.5 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Known Gaps & Actions</span>
+                <span>Gaps & Next Actions</span>
                 <ShieldCheck className="size-3 text-primary" />
               </div>
               {scoreBreakdown.gaps.length === 0 ? (
                 <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1.5 py-1">
                   <BadgeCheck className="size-4 shrink-0" />
-                  All core pillars ready & verified
+                  All core pillars validated & controlled
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-32 overflow-y-auto scroll-thin pr-1">
@@ -1381,9 +1676,9 @@ function OpportunityNodeComponent({
             </div>
 
             {/* Recommended Engagement Path */}
-            <div className="rounded-xl border bg-card p-3 space-y-1 shadow-xs">
+            <div className="rounded-xl border bg-card p-2.5 space-y-1 shadow-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Recommended Engagement</span>
+                <span>Recommended Path</span>
                 <FileCheck2 className="size-3 text-primary" />
               </div>
               <div className="text-xs font-bold text-primary">
@@ -1398,45 +1693,81 @@ function OpportunityNodeComponent({
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
             >
               <Zap className="size-3.5" />
-              Apply System Rating
+              Apply Automated Rating
             </button>
 
-            {/* Gate 1 Direct Decision Trigger */}
+            {/* Multi-Handle Direct Routing Activator */}
             <div className="space-y-1.5 pt-1">
               <span className="text-[10px] font-bold uppercase text-muted-foreground block">
-                Gate 1 Decision Routing:
+                Activate Output Route:
               </span>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => savePatch({ decisionOutcome: "pass" })}
+                  onClick={() => savePatch({ decisionOutcome: "pass-p1-p2" })}
                   className={cn(
                     "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "pass"
+                    outcome === "pass-p1-p2" || outcome === "pass"
                       ? "bg-emerald-500 text-white border-emerald-600 shadow-sm"
                       : "bg-background text-muted-foreground hover:border-emerald-500",
                   )}
                 >
-                  PASS ✅
+                  PASS (P1/P2) ✅
                 </button>
                 <button
                   type="button"
-                  onClick={() => savePatch({ decisionOutcome: "hold" })}
+                  onClick={() => savePatch({ decisionOutcome: "csa-pcs" })}
                   className={cn(
                     "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "hold"
+                    outcome === "csa-pcs"
+                      ? "bg-blue-500 text-white border-blue-600 shadow-sm"
+                      : "bg-background text-muted-foreground hover:border-blue-500",
+                  )}
+                >
+                  Paid CSA / PCS 📄
+                </button>
+                <button
+                  type="button"
+                  onClick={() => savePatch({ decisionOutcome: "loi-governed" })}
+                  className={cn(
+                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
+                    outcome === "loi-governed"
+                      ? "bg-purple-500 text-white border-purple-600 shadow-sm"
+                      : "bg-background text-muted-foreground hover:border-purple-500",
+                  )}
+                >
+                  Governed LOI ⏱️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => savePatch({ decisionOutcome: "site-feasibility" })}
+                  className={cn(
+                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
+                    outcome === "site-feasibility"
                       ? "bg-amber-500 text-white border-amber-600 shadow-sm"
                       : "bg-background text-muted-foreground hover:border-amber-500",
                   )}
                 >
-                  HOLD ⚠️
+                  Site Feasibility 📍
                 </button>
                 <button
                   type="button"
-                  onClick={() => savePatch({ decisionOutcome: "nogo" })}
+                  onClick={() => savePatch({ decisionOutcome: "hold-rework" })}
                   className={cn(
                     "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
-                    outcome === "nogo"
+                    outcome === "hold-rework" || outcome === "hold"
+                      ? "bg-orange-500 text-white border-orange-600 shadow-sm"
+                      : "bg-background text-muted-foreground hover:border-orange-500",
+                  )}
+                >
+                  HOLD · Rework ⚠️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => savePatch({ decisionOutcome: "nogo-disqualified" })}
+                  className={cn(
+                    "rounded-lg p-1.5 text-[10px] font-bold border transition text-center",
+                    outcome === "nogo-disqualified" || outcome === "nogo"
                       ? "bg-red-500 text-white border-red-600 shadow-sm"
                       : "bg-background text-muted-foreground hover:border-red-500",
                   )}
@@ -1451,60 +1782,119 @@ function OpportunityNodeComponent({
         {/* --- Card Footer Status Bar --- */}
         <div className="border-t bg-muted/40 px-4 py-2 text-[11px] flex items-center justify-between text-muted-foreground">
           <span>
-            Rating: <strong className="text-foreground">{scoreBreakdown.tierLabel.split("·")[0]}</strong> · Owner:{" "}
+            Grade: <strong className="text-foreground">{scoreBreakdown.grade} ({scoreBreakdown.totalScore}/100)</strong> · Owner:{" "}
             <strong className="text-foreground">{opp.ownerType || scoreBreakdown.autoOwnerType}</strong> · Path:{" "}
             <strong className="text-foreground">{opp.engagementPath || scoreBreakdown.autoPath}</strong>
           </span>
           <span className="font-semibold text-primary">
-            {outcome === "pass"
-              ? "✓ Gate 1 Approved (Advancing to Phase 1)"
-              : outcome === "hold"
-                ? "⚠ Opportunity on HOLD (Rework Loop)"
-                : outcome === "nogo"
-                  ? "❌ Opportunity Closed / Disqualified"
-                  : "Assessment in Progress"}
+            {outcome === "pass-p1-p2" || outcome === "pass"
+              ? "✓ Gate 1 Passed — Validated Opportunity"
+              : outcome === "csa-pcs"
+                ? "📄 Route to Paid Consultation (CSA/PCS)"
+                : outcome === "loi-governed"
+                  ? "⏱️ Route to Strategic Governed LOI"
+                  : outcome === "site-feasibility"
+                    ? "📍 Route to Site Discovery Loop"
+                    : outcome === "hold-rework" || outcome === "hold"
+                      ? "⚠ Opportunity on HOLD (Rework Loop)"
+                      : "❌ Opportunity Disqualified / Closed"}
           </span>
         </div>
 
-        {/* --- Handles --- */}
+        {/* --- Multi-Handle Outputs (One for each distinct route) --- */}
+        {/* Left Input Handle */}
         <Handle
           type="target"
           position={Position.Left}
           id="in"
           className="!size-3.5 !border-2 !border-background !bg-primary transition hover:!scale-125"
         />
+
+        {/* 1. Gate 1 Passed (P1/P2 Fast-Track) */}
         <Handle
           type="source"
           position={Position.Right}
-          id="pass"
-          style={{ top: "35%" }}
+          id="pass-p1-p2"
+          style={{ top: "16%" }}
+          title="Gate 1 Passed — Validated Opportunity (P1/P2 Fast-Track)"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "pass"
+            outcome === "pass-p1-p2" || outcome === "pass"
               ? "!bg-emerald-500 ring-2 ring-emerald-500/40"
               : "!bg-muted-foreground/40",
           )}
         />
+
+        {/* 2. Paid CSA / PCS Workstream */}
         <Handle
           type="source"
           position={Position.Right}
-          id="hold"
-          style={{ top: "65%" }}
+          id="csa-pcs"
+          style={{ top: "32%" }}
+          title="Proceed to Paid CSA / PCS (Design-Needed / Concept)"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "hold"
+            outcome === "csa-pcs"
+              ? "!bg-blue-500 ring-2 ring-blue-500/40"
+              : "!bg-muted-foreground/40",
+          )}
+        />
+
+        {/* 3. Strategic Governed LOI Path */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="loi-governed"
+          style={{ top: "48%" }}
+          title="Strategic Governed LOI (Max 21d/20h Cap & Conversion Trigger)"
+          className={cn(
+            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
+            outcome === "loi-governed"
+              ? "!bg-purple-500 ring-2 ring-purple-500/40"
+              : "!bg-muted-foreground/40",
+          )}
+        />
+
+        {/* 4. Site Feasibility Loop */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="site-feasibility"
+          style={{ top: "64%" }}
+          title="Site Feasibility Loop (Site-Unresolved)"
+          className={cn(
+            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
+            outcome === "site-feasibility"
               ? "!bg-amber-500 ring-2 ring-amber-500/40"
               : "!bg-muted-foreground/40",
           )}
         />
+
+        {/* 5. HOLD · Rework / Gap Resolution Loop */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="hold-rework"
+          style={{ top: "80%" }}
+          title="HOLD · Rework / Gap Resolution Loop"
+          className={cn(
+            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
+            outcome === "hold-rework" || outcome === "hold"
+              ? "!bg-orange-500 ring-2 ring-orange-500/40"
+              : "!bg-muted-foreground/40",
+          )}
+        />
+
+        {/* 6. NO-GO Disqualified Archive */}
         <Handle
           type="source"
           position={Position.Bottom}
-          id="nogo"
+          id="nogo-disqualified"
           style={{ left: "30%" }}
+          title="NO-GO · Disqualified Archive"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "nogo"
+            outcome === "nogo-disqualified" || outcome === "nogo"
               ? "!bg-red-500 ring-2 ring-red-500/40"
               : "!bg-muted-foreground/40",
           )}
