@@ -526,30 +526,8 @@ export function routeRemainingEdges(
       edge.type === "reopen" ||
       edge.sourceHandle?.startsWith("no");
     if (preGateSales) {
-      const sourcePoint = { x: source.x + source.width, y: centerY(source) };
-      const targetPoint = { x: target.x, y: centerY(target) };
-      const noRoute = edge.sourceHandle === "no";
-      const middleX = noRoute
-        ? sourcePoint.x + 34
-        : (sourcePoint.x + targetPoint.x) / 2;
-      edges[edge.id] = {
-        edgeId: edge.id,
-        points: noRoute
-          ? [
-              sourcePoint,
-              { x: middleX, y: sourcePoint.y },
-              { x: middleX, y: target.y + target.height + 48 },
-              { x: target.x - 44, y: target.y + target.height + 48 },
-              { x: target.x - 44, y: targetPoint.y },
-              targetPoint,
-            ]
-          : [
-              sourcePoint,
-              { x: middleX, y: sourcePoint.y },
-              { x: middleX, y: targetPoint.y },
-              targetPoint,
-            ],
-      };
+      // Dynamic live routing with obstacle avoidance will compute obstacle-free paths in real-time
+      continue;
     } else if (isReturn) {
       topReturnChannel -= 34;
       const sourceX = source.x + source.width;

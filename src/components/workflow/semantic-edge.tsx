@@ -520,10 +520,25 @@ export function SemanticEdge({
         const crossedObstacles = cards.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
-        // Pick the corridor closer to where the edge needs to go: route above
-        // both endpoints when the target sits higher than the source, below
-        // when the target sits lower.
+        let safeEscapeX = escapeX;
+        let safeApproachX = approachX;
+        for (const obs of crossedObstacles) {
+          if (obs.id === domain.source || obs.id === domain.target) continue;
+          if (safeEscapeX >= obs.x - 12 && safeEscapeX <= obs.x + obs.width + 12) {
+            if (sourceRight <= obs.x) safeEscapeX = Math.min(safeEscapeX, obs.x - 20);
+            else safeEscapeX = Math.max(safeEscapeX, obs.x + obs.width + 20);
+          }
+          if (safeApproachX >= obs.x - 12 && safeApproachX <= obs.x + obs.width + 12) {
+            if (targetLeft >= obs.x + obs.width) safeApproachX = Math.max(safeApproachX, obs.x + obs.width + 20);
+            else safeApproachX = Math.min(safeApproachX, obs.x - 20);
+          }
+        }
+
+        const sourceBottom = sourceObstacle ? sourceObstacle.y + sourceObstacle.height : sourceY;
+        const targetBottom = targetObstacle ? targetObstacle.y + targetObstacle.height : targetY;
         const routeAbove = targetY < sourceY;
+
+        const lane = Math.abs(data?.labelLane ?? 0) % 3;
         if (routeAbove) {
           const highestCardTop = aboveRouteCardTop(
             sourceObstacle,
@@ -531,7 +546,6 @@ export function SemanticEdge({
             Math.min(sourceY, targetY),
             crossedObstacles.filter((item) => !containsEndpoint(item)),
           );
-          const lane = Math.abs(data?.labelLane ?? 0) % 3;
           const corridorY = corridorYAboveCards(
             highestCardTop,
             lane,
@@ -541,25 +555,23 @@ export function SemanticEdge({
           );
           return compact([
             { x: sourceX, y: sourceY },
-            { x: escapeX, y: sourceY },
-            { x: escapeX, y: corridorY },
-            { x: approachX, y: corridorY },
-            { x: approachX, y: targetY },
+            { x: safeEscapeX, y: sourceY },
+            { x: safeEscapeX, y: corridorY },
+            { x: safeApproachX, y: corridorY },
+            { x: safeApproachX, y: targetY },
             { x: targetX, y: targetY },
           ]);
         }
-        const filteredCrossed = crossedObstacles.filter((item) => !containsEndpoint(item));
-        const lowestCardBottom = filteredCrossed.length
-          ? Math.max(...filteredCrossed.map((item) => item.y + item.height))
-          : Math.max(sourceY, targetY);
-        const lane = Math.abs(data?.labelLane ?? 0) % 3;
+        const lowestCardBottom = crossedObstacles.length
+          ? Math.max(...crossedObstacles.map((item) => item.y + item.height), sourceBottom, targetBottom)
+          : Math.max(sourceBottom, targetBottom);
         const corridorY = lowestCardBottom + 48 + lane * 30;
         return compact([
           { x: sourceX, y: sourceY },
-          { x: escapeX, y: sourceY },
-          { x: escapeX, y: corridorY },
-          { x: approachX, y: corridorY },
-          { x: approachX, y: targetY },
+          { x: safeEscapeX, y: sourceY },
+          { x: safeEscapeX, y: corridorY },
+          { x: safeApproachX, y: corridorY },
+          { x: safeApproachX, y: targetY },
           { x: targetX, y: targetY },
         ]);
       })()
@@ -630,6 +642,19 @@ export function SemanticEdge({
         ]);
       }
 
+      let safeEscapeX = escapeX;
+      let safeApproachX = approachX;
+      for (const card of intermediateCards) {
+        if (safeEscapeX >= card.x - 12 && safeEscapeX <= card.x + card.width + 12) {
+          if (sourceX <= card.x) safeEscapeX = Math.min(safeEscapeX, card.x - 20);
+          else safeEscapeX = Math.max(safeEscapeX, card.x + card.width + 20);
+        }
+        if (safeApproachX >= card.x - 12 && safeApproachX <= card.x + card.width + 12) {
+          if (targetX >= card.x + card.width) safeApproachX = Math.max(safeApproachX, card.x + card.width + 20);
+          else safeApproachX = Math.min(safeApproachX, card.x - 20);
+        }
+      }
+
       const highestCardTop = intermediateCards.length
         ? Math.min(...intermediateCards.map((c) => c.y), sourceTop, targetTop)
         : Math.min(sourceTop, targetTop);
@@ -646,10 +671,10 @@ export function SemanticEdge({
 
       return compact([
         { x: sourceX, y: sourceY },
-        { x: escapeX, y: sourceY },
-        { x: escapeX, y: corridorY },
-        { x: approachX, y: corridorY },
-        { x: approachX, y: targetY },
+        { x: safeEscapeX, y: sourceY },
+        { x: safeEscapeX, y: corridorY },
+        { x: safeApproachX, y: corridorY },
+        { x: safeApproachX, y: targetY },
         { x: targetX, y: targetY },
       ]);
     }
@@ -663,17 +688,41 @@ export function SemanticEdge({
       { x: targetX, y: targetY },
     ]);
   })();
+
+  const routedCollides = Boolean(
+    routed &&
+    (data?.obstacles ?? []).some(
+      (obs) =>
+        obs.id !== domain.source &&
+        obs.id !== domain.target &&
+        obs.kind !== "phase-header" &&
+        routed.some((pt, idx) => {
+          if (idx === 0) return false;
+          const prev = routed[idx - 1];
+          const minX = Math.min(prev.x, pt.x);
+          const maxX = Math.max(prev.x, pt.x);
+          const minY = Math.min(prev.y, pt.y);
+          const maxY = Math.max(prev.y, pt.y);
+          return (
+            minX <= obs.x + obs.width - 4 &&
+            maxX >= obs.x + 4 &&
+            minY <= obs.y + obs.height - 4 &&
+            maxY >= obs.y + 4
+          );
+        }),
+    ),
+  );
+
   // Live routes win when a stored auto-layout polyline has become a long
-  // detour — typical after dragging one endpoint while the old bend points
-  // stay behind.
+  // detour or passes through an obstacle card.
   const storedDetour =
     Boolean(routed && automaticRoute) &&
-    pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40;
+    (routedCollides || pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40);
   const visibleRoute = withMinEndStub(
     preGateSalesRoute ??
       deniedRoute ??
       approvedRoute ??
-      (storedDetour ? automaticRoute : routed) ??
+      (storedDetour || routedCollides ? automaticRoute : routed) ??
       automaticRoute ??
       [],
     targetPosition,
