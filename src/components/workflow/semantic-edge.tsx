@@ -752,26 +752,28 @@ export function SemanticEdge({
         : targetY;
       const stacked =
         sourceBottom + 12 < targetTop || targetBottom + 12 < sourceTop;
-      const middleX =
-        approachX - escapeX >= 24 ? (escapeX + approachX) / 2 : escapeX;
       const cards = cardObstacles(obstacles);
+      const minSpanX = Math.min(sourceX, targetX);
+      const maxSpanX = Math.max(sourceX, targetX);
       const intermediateCards = cards.filter(
         (item) =>
           item.id !== domain.source &&
           item.id !== domain.target &&
-          item.x <= Math.max(sourceX, targetX) + 10 &&
-          item.x + item.width >= Math.min(sourceX, targetX) - 10,
+          item.x + item.width > minSpanX + 16 &&
+          item.x < maxSpanX - 16,
       );
 
       const pathCollidesWithCards = intermediateCards.some(
         (c) =>
-          c.x + c.width >= Math.min(sourceX, targetX) - 10 &&
-          c.x <= Math.max(sourceX, targetX) + 10 &&
-          c.y <= Math.max(sourceY, targetY) + 20 &&
-          c.y + c.height >= Math.min(sourceY, targetY) - 20,
+          c.y <= Math.max(sourceY, targetY) + 30 &&
+          c.y + c.height >= Math.min(sourceY, targetY) - 30,
       );
 
-      if (stacked && (escapeX < approachX || targetX < sourceX || pathCollidesWithCards)) {
+      const needsDetour =
+        pathCollidesWithCards ||
+        (stacked && (escapeX < approachX || targetX < sourceX));
+
+      if (needsDetour) {
         let safeApproachX = approachX;
         let safeEscapeX = escapeX;
 
@@ -785,7 +787,7 @@ export function SemanticEdge({
           if (gapRight > gapLeft) {
             safeApproachX = (gapLeft + gapRight) / 2;
           } else {
-            safeApproachX = targetX - 20;
+            safeApproachX = targetX - 24;
           }
         }
 
@@ -799,21 +801,21 @@ export function SemanticEdge({
           if (gapRight > gapLeft) {
             safeEscapeX = (gapLeft + gapRight) / 2;
           } else {
-            safeEscapeX = sourceX + 20;
+            safeEscapeX = sourceX + 24;
           }
         }
 
         // Hard directional clamps: never cross into the node
         if (targetPosition === Position.Left) {
-          safeApproachX = Math.min(safeApproachX, targetX - 12);
+          safeApproachX = Math.min(safeApproachX, targetX - 14);
         } else if (targetPosition === Position.Right) {
-          safeApproachX = Math.max(safeApproachX, targetX + 12);
+          safeApproachX = Math.max(safeApproachX, targetX + 14);
         }
 
         if (sourcePosition === Position.Right) {
-          safeEscapeX = Math.max(safeEscapeX, sourceX + 12);
+          safeEscapeX = Math.max(safeEscapeX, sourceX + 14);
         } else if (sourcePosition === Position.Left) {
-          safeEscapeX = Math.min(safeEscapeX, sourceX - 12);
+          safeEscapeX = Math.min(safeEscapeX, sourceX - 14);
         }
 
         const highestCardTop = intermediateCards.length
@@ -824,11 +826,24 @@ export function SemanticEdge({
           : Math.max(sourceBottom, targetBottom);
 
         const lane = Math.abs(data?.labelLane ?? 0) % 3;
-        const aboveY = highestCardTop - 56 - lane * 28;
+        const aboveY = corridorYAboveCards(
+          highestCardTop,
+          lane,
+          minSpanX,
+          maxSpanX,
+          phaseHeaderObstacles(obstacles),
+        );
         const belowY = lowestCardBottom + 56 + lane * 28;
         const aboveCost = Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
         const belowCost = Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
-        const corridorY = targetY > sourceY ? belowY : aboveCost <= belowCost ? aboveY : belowY;
+        const corridorY =
+          targetY > sourceY + 40
+            ? belowY
+            : targetY < sourceY - 40
+              ? aboveY
+              : aboveCost <= belowCost
+                ? aboveY
+                : belowY;
 
         return compact([
           { x: sourceX, y: sourceY },
