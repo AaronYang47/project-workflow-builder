@@ -275,13 +275,13 @@ function OpportunityNodeComponent({
         action: "Gather floor plan area breakdown and unit mix for Class D baseline precision",
         severity: "info",
       });
-      missingInfo.push("Detailed Gross Floor Area & Unit breakdown");
+      missingInfo.push("Detailed Total Gross Floor Area & Unit breakdown");
     } else {
       score += 0;
       mandatoryPassed = false;
       gaps.push({
         label: "Missing Scale Parameters",
-        action: "Establish target gross floor area, storeys, and unit count",
+        action: "Establish target total gross floor area, storeys, and unit count",
         severity: "warning",
       });
       missingInfo.push("Basic project scale & storeys");
@@ -917,7 +917,7 @@ function OpportunityNodeComponent({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Gross Floor Area (sq.ft.)</label>
+                      <label className="text-[10px] font-semibold text-muted-foreground">Total Gross Floor Area (sq.ft.)</label>
                       <input
                         type="text"
                         value={opp.grossFloorArea ?? ""}
