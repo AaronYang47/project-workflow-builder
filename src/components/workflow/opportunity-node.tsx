@@ -177,9 +177,7 @@ function OpportunityNodeComponent({
               : opp.designStage?.startsWith("Level 1")
                 ? "lvl1"
                 : "lvl0"),
-      budgetLevel:
-        (customFields.q_budget as QuestionnaireAnswers["budgetLevel"]) ||
-        autoBudgetLevel,
+      budgetLevel: autoBudgetLevel,
       fundingLevel:
         (customFields.q_funding as QuestionnaireAnswers["fundingLevel"]) ||
         (opp.fundingSecured ? "secured" : "progressing"),
@@ -1282,23 +1280,16 @@ function OpportunityNodeComponent({
                             "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40",
                         },
                       ].map((opt) => {
-                        const isSelected = answers.budgetLevel === opt.val;
+                        const isSelected = autoBudgetLevel === opt.val;
                         const Icon = opt.icon;
                         return (
-                          <button
-                            type="button"
+                          <div
                             key={opt.val}
-                            onClick={() =>
-                              savePatch(
-                                {},
-                                { budgetLevel: opt.val as QuestionnaireAnswers["budgetLevel"] },
-                              )
-                            }
                             className={cn(
-                              "w-full rounded-xl border p-2.5 text-left transition flex items-start justify-between gap-3",
+                              "w-full rounded-xl border p-2.5 text-left transition-all duration-200 flex items-start justify-between gap-3 cursor-default select-none",
                               isSelected
                                 ? opt.activeClass
-                                : "border-border bg-card/60 hover:border-primary/40 text-muted-foreground opacity-60",
+                                : "border-border/60 bg-card/40 text-muted-foreground/60 opacity-45",
                             )}
                           >
                             <div className="min-w-0 flex-1">
@@ -1306,7 +1297,7 @@ function OpportunityNodeComponent({
                                 <Icon
                                   className={cn(
                                     "size-4 shrink-0",
-                                    isSelected ? opt.iconColor : "text-muted-foreground/50",
+                                    isSelected ? opt.iconColor : "text-muted-foreground/40",
                                   )}
                                 />
                                 <span className={isSelected ? "text-foreground font-bold" : ""}>
@@ -1320,14 +1311,14 @@ function OpportunityNodeComponent({
                             {isSelected && (
                               <span
                                 className={cn(
-                                  "text-[9px] font-bold px-2 py-0.5 rounded-md border shrink-0",
+                                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider animate-in fade-in",
                                   opt.badgeClass,
                                 )}
                               >
                                 {opt.badge}
                               </span>
                             )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
