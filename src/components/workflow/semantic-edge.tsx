@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -8,6 +9,8 @@ import {
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
+import { Pencil } from "lucide-react";
+import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainEdge, EdgeRoutePoint } from "@/types/workflow";
 import {
   cardObstacles,
@@ -390,6 +393,134 @@ const placeLabel = (
   return { point: { x: chosen.x, y: chosen.y }, avoided: chosen.offset !== 0 || chosen.fraction !== 0.5 };
 };
 
+function EditableEdgeLabel({
+  id,
+  displayLabel,
+  rawLabel,
+  color,
+  active,
+  approved,
+  approvedLabelMaxWidth,
+  placement,
+  selected,
+}: {
+  id: string;
+  displayLabel: string;
+  rawLabel?: string;
+  color: string;
+  active?: boolean;
+  approved?: boolean;
+  approvedLabelMaxWidth: number;
+  placement: { point: { x: number; y: number }; avoided: boolean };
+  selected?: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(
+    rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel,
+  );
+  const updateEdge = useWorkflowStore((s) => s.updateEdge);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraft(
+      rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel,
+    );
+  }, [rawLabel, displayLabel]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    setIsEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== (rawLabel ?? "")) {
+      updateEdge(id, { label: trimmed });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setDraft(
+        rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel,
+      );
+      setIsEditing(false);
+    }
+  };
+
+  if (!displayLabel && !selected && !isEditing) {
+    return null;
+  }
+
+  return (
+    <div
+      data-edge-label={id}
+      data-approved-edge-label={approved ? "true" : undefined}
+      data-label-placement={placement.avoided ? "avoided" : "midpoint"}
+      className="nodrag nopan absolute z-30 pointer-events-auto"
+      style={{
+        transform: `translate(-50%, -50%) translate(${placement.point.x}px, ${placement.point.y}px)`,
+      }}
+    >
+      {isEditing ? (
+        <div className="flex items-center gap-1 rounded-lg border-2 border-primary bg-background p-1 shadow-lg ring-2 ring-primary/20">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-auto min-w-[80px] max-w-[280px] rounded border-0 bg-transparent px-1.5 py-0.5 text-center text-xs font-semibold leading-4 text-foreground outline-none"
+            placeholder="Edit label..."
+          />
+        </div>
+      ) : displayLabel ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(true);
+          }}
+          title="Click to edit label"
+          className="group relative flex items-center justify-center gap-1 rounded-md border bg-background/95 px-2.5 py-1.5 text-center text-xs font-semibold leading-4 text-foreground shadow-sm transition hover:border-primary hover:shadow-md hover:bg-background cursor-pointer"
+          style={{
+            borderColor:
+              active === false ? "#cbd5e1" : selected ? "#2563eb" : `${color}55`,
+            opacity: active === false ? 0.4 : 1,
+            maxWidth: approved ? approvedLabelMaxWidth : 360,
+          }}
+        >
+          <span>{displayLabel}</span>
+          <Pencil className="size-2.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 group-hover:text-primary transition-opacity shrink-0 ml-0.5" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(true);
+          }}
+          title="Add label"
+          className="flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-background/95 px-2 py-0.5 text-[10px] font-bold text-primary shadow-xs hover:bg-primary/10 transition cursor-pointer"
+        >
+          <Pencil className="size-2.5" />
+          <span>+ Label</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SemanticEdge({
   id,
   sourceX,
@@ -429,11 +560,13 @@ export function SemanticEdge({
     !preGateSales &&
     (domain.sourceHandle?.startsWith("no") || ["rework", "exception", "hold"].includes(domain.type));
   const approved = !preGateSales && (domain.sourceHandle === "yes" || domain.type === "approval");
-  const displayLabel = approved
-    ? "APPROVED"
-    : denied
-      ? "DENIED"
-      : domain.label ?? "";
+  const displayLabel = domain.label !== undefined && domain.label !== ""
+      ? domain.label
+      : approved
+        ? "APPROVED"
+        : denied
+          ? "DENIED"
+          : "";
   const deniedRoute = denied
     ? (() => {
         const obstacles = data?.obstacles ?? [];
@@ -638,91 +771,81 @@ export function SemanticEdge({
           c.y + c.height >= Math.min(sourceY, targetY) - 20,
       );
 
-      if (!pathCollidesWithCards && (approachX - escapeX >= 24 || stacked)) {
+      if (stacked && (escapeX < approachX || targetX < sourceX || pathCollidesWithCards)) {
+        let safeApproachX = approachX;
+        let safeEscapeX = escapeX;
+
+        const lastIntermediateBeforeTarget = intermediateCards
+          .filter((c) => c.x + c.width <= targetX)
+          .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
+
+        if (lastIntermediateBeforeTarget && targetPosition === Position.Left) {
+          const gapLeft = lastIntermediateBeforeTarget.x + lastIntermediateBeforeTarget.width;
+          const gapRight = targetX;
+          if (gapRight > gapLeft) {
+            safeApproachX = (gapLeft + gapRight) / 2;
+          } else {
+            safeApproachX = targetX - 20;
+          }
+        }
+
+        const firstIntermediateAfterSource = intermediateCards
+          .filter((c) => c.x >= sourceX)
+          .sort((a, b) => a.x - b.x)[0];
+
+        if (firstIntermediateAfterSource && sourcePosition === Position.Right) {
+          const gapLeft = sourceX;
+          const gapRight = firstIntermediateAfterSource.x;
+          if (gapRight > gapLeft) {
+            safeEscapeX = (gapLeft + gapRight) / 2;
+          } else {
+            safeEscapeX = sourceX + 20;
+          }
+        }
+
+        // Hard directional clamps: never cross into the node
+        if (targetPosition === Position.Left) {
+          safeApproachX = Math.min(safeApproachX, targetX - 12);
+        } else if (targetPosition === Position.Right) {
+          safeApproachX = Math.max(safeApproachX, targetX + 12);
+        }
+
+        if (sourcePosition === Position.Right) {
+          safeEscapeX = Math.max(safeEscapeX, sourceX + 12);
+        } else if (sourcePosition === Position.Left) {
+          safeEscapeX = Math.min(safeEscapeX, sourceX - 12);
+        }
+
+        const highestCardTop = intermediateCards.length
+          ? Math.min(...intermediateCards.map((c) => c.y), sourceTop, targetTop)
+          : Math.min(sourceTop, targetTop);
+        const lowestCardBottom = intermediateCards.length
+          ? Math.max(...intermediateCards.map((c) => c.y + c.height), sourceBottom, targetBottom)
+          : Math.max(sourceBottom, targetBottom);
+
+        const lane = Math.abs(data?.labelLane ?? 0) % 3;
+        const aboveY = highestCardTop - 56 - lane * 28;
+        const belowY = lowestCardBottom + 56 + lane * 28;
+        const aboveCost = Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
+        const belowCost = Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
+        const corridorY = targetY > sourceY ? belowY : aboveCost <= belowCost ? aboveY : belowY;
+
         return compact([
           { x: sourceX, y: sourceY },
-          { x: escapeX, y: sourceY },
-          { x: middleX, y: sourceY },
-          { x: middleX, y: targetY },
-          { x: approachX, y: targetY },
+          { x: safeEscapeX, y: sourceY },
+          { x: safeEscapeX, y: corridorY },
+          { x: safeApproachX, y: corridorY },
+          { x: safeApproachX, y: targetY },
           { x: targetX, y: targetY },
         ]);
       }
-
-      // Centered escape and approach in gaps between obstacles, with strict directional clamping
-      let safeApproachX = targetPosition === Position.Left
-        ? targetX - 24
-        : targetPosition === Position.Right
-          ? targetX + 24
-          : targetX;
-
-      let safeEscapeX = sourcePosition === Position.Right
-        ? sourceX + 24
-        : sourcePosition === Position.Left
-          ? sourceX - 24
-          : sourceX;
-
-      const lastIntermediateBeforeTarget = intermediateCards
-        .filter((c) => c.x + c.width <= targetX)
-        .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
-
-      if (lastIntermediateBeforeTarget && targetPosition === Position.Left) {
-        const gapLeft = lastIntermediateBeforeTarget.x + lastIntermediateBeforeTarget.width;
-        const gapRight = targetX;
-        if (gapRight > gapLeft) {
-          safeApproachX = (gapLeft + gapRight) / 2;
-        } else {
-          safeApproachX = targetX - 20;
-        }
-      }
-
-      const firstIntermediateAfterSource = intermediateCards
-        .filter((c) => c.x >= sourceX)
-        .sort((a, b) => a.x - b.x)[0];
-
-      if (firstIntermediateAfterSource && sourcePosition === Position.Right) {
-        const gapLeft = sourceX;
-        const gapRight = firstIntermediateAfterSource.x;
-        if (gapRight > gapLeft) {
-          safeEscapeX = (gapLeft + gapRight) / 2;
-        } else {
-          safeEscapeX = sourceX + 20;
-        }
-      }
-
-      // Hard directional clamps: never cross into the node
-      if (targetPosition === Position.Left) {
-        safeApproachX = Math.min(safeApproachX, targetX - 12);
-      } else if (targetPosition === Position.Right) {
-        safeApproachX = Math.max(safeApproachX, targetX + 12);
-      }
-
-      if (sourcePosition === Position.Right) {
-        safeEscapeX = Math.max(safeEscapeX, sourceX + 12);
-      } else if (sourcePosition === Position.Left) {
-        safeEscapeX = Math.min(safeEscapeX, sourceX - 12);
-      }
-
-      const highestCardTop = intermediateCards.length
-        ? Math.min(...intermediateCards.map((c) => c.y), sourceTop, targetTop)
-        : Math.min(sourceTop, targetTop);
-      const lowestCardBottom = intermediateCards.length
-        ? Math.max(...intermediateCards.map((c) => c.y + c.height), sourceBottom, targetBottom)
-        : Math.max(sourceBottom, targetBottom);
-
-      const lane = Math.abs(data?.labelLane ?? 0) % 3;
-      const aboveY = highestCardTop - 56 - lane * 28;
-      const belowY = lowestCardBottom + 56 + lane * 28;
-      const aboveCost = Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
-      const belowCost = Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
-      const corridorY = targetY > sourceY ? belowY : aboveCost <= belowCost ? aboveY : belowY;
-
+      const middleY = (sourceStub.y + targetStub.y) / 2;
       return compact([
         { x: sourceX, y: sourceY },
-        { x: safeEscapeX, y: sourceY },
-        { x: safeEscapeX, y: corridorY },
-        { x: safeApproachX, y: corridorY },
-        { x: safeApproachX, y: targetY },
+        sourceStub,
+        { x: sourceStub.x, y: middleY },
+        { x: targetStub.x, y: middleY },
+        targetStub,
         { x: targetX, y: targetY },
       ]);
     }
@@ -845,22 +968,17 @@ export function SemanticEdge({
         />
       ) : null}
       <EdgeLabelRenderer>
-        {displayLabel ? (
-          <button
-            data-edge-label={id}
-            data-approved-edge-label={approved ? "true" : undefined}
-            data-label-placement={placement.avoided ? "avoided" : "midpoint"}
-            className="nodrag nopan absolute z-20 max-w-[360px] whitespace-normal rounded-md border bg-background/95 px-2.5 py-1.5 text-center text-xs font-semibold leading-4 text-foreground shadow-sm"
-            style={{
-              transform: `translate(-50%, -50%) translate(${placement.point.x}px, ${placement.point.y}px)`,
-              borderColor: active === false ? "#cbd5e1" : `${color}55`,
-              opacity: active === false ? 0.4 : 1,
-              maxWidth: approved ? approvedLabelMaxWidth : 360,
-            }}
-          >
-            {displayLabel}
-          </button>
-        ) : null}
+        <EditableEdgeLabel
+          id={id}
+          displayLabel={displayLabel}
+          rawLabel={domain.label}
+          color={color}
+          active={active}
+          approved={approved}
+          approvedLabelMaxWidth={approvedLabelMaxWidth}
+          placement={placement}
+          selected={selected}
+        />
       </EdgeLabelRenderer>
     </>
   );
