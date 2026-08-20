@@ -167,8 +167,8 @@ function CanvasInner() {
             id: node.id,
             x: position.x,
             y: position.y,
-            width: node.measured?.width ?? node.width ?? 240,
-            height: node.measured?.height ?? node.height ?? 140,
+            width: Math.max(node.measured?.width ?? node.width ?? 270, 270),
+            height: Math.max(node.measured?.height ?? node.height ?? 240, 240),
           };
         });
 

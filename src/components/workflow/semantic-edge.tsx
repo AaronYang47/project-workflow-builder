@@ -577,7 +577,7 @@ export function SemanticEdge({
         const lowestCardBottom = crossedObstacles.length
           ? Math.max(...crossedObstacles.map((item) => item.y + item.height), sourceBottom, targetBottom)
           : Math.max(sourceBottom, targetBottom);
-        const corridorY = lowestCardBottom + 48 + lane * 30;
+        const corridorY = lowestCardBottom + 56 + lane * 28;
         return compact([
           { x: sourceX, y: sourceY },
           { x: safeEscapeX, y: sourceY },
@@ -658,12 +658,12 @@ export function SemanticEdge({
       let safeApproachX = approachX;
       for (const card of intermediateCards) {
         if (safeEscapeX >= card.x - 12 && safeEscapeX <= card.x + card.width + 12) {
-          if (sourceX <= card.x) safeEscapeX = Math.min(safeEscapeX, card.x - 20);
-          else safeEscapeX = Math.max(safeEscapeX, card.x + card.width + 20);
+          if (sourceX <= card.x) safeEscapeX = Math.min(safeEscapeX, card.x - 24);
+          else safeEscapeX = Math.max(safeEscapeX, card.x + card.width + 24);
         }
         if (safeApproachX >= card.x - 12 && safeApproachX <= card.x + card.width + 12) {
-          if (targetX >= card.x + card.width) safeApproachX = Math.max(safeApproachX, card.x + card.width + 20);
-          else safeApproachX = Math.min(safeApproachX, card.x - 20);
+          if (targetX >= card.x + card.width) safeApproachX = Math.max(safeApproachX, card.x + card.width + 24);
+          else safeApproachX = Math.min(safeApproachX, card.x - 24);
         }
       }
 
@@ -675,8 +675,8 @@ export function SemanticEdge({
         : Math.max(sourceBottom, targetBottom);
 
       const lane = Math.abs(data?.labelLane ?? 0) % 3;
-      const aboveY = highestCardTop - 44 - lane * 24;
-      const belowY = lowestCardBottom + 44 + lane * 24;
+      const aboveY = highestCardTop - 56 - lane * 28;
+      const belowY = lowestCardBottom + 56 + lane * 28;
       const aboveCost = Math.abs(sourceY - aboveY) + Math.abs(targetY - aboveY);
       const belowCost = Math.abs(sourceY - belowY) + Math.abs(targetY - belowY);
       const corridorY = targetY > sourceY ? belowY : aboveCost <= belowCost ? aboveY : belowY;

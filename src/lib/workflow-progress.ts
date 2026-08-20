@@ -132,6 +132,7 @@ export function conditionDisplaySatisfied(
 
 export function nodeReleaseReady(node: DomainNode, projectStart?: DomainNode) {
   if (node.type === "gate") return gateApprovalReady(node);
+  if (node.type === "opportunityValidation") return true;
   if (
     node.type === "projectStart" &&
     !conditionIsSatisfied(
