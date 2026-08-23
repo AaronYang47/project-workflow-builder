@@ -1647,32 +1647,40 @@ function OpportunityNodeComponent({
           )}
         />
 
-        {/* 5. HOLD · Rework / Gap Resolution Loop */}
+        {/* 5. NO-GO · Disqualified Archive (Changed from HOLD to NO-GO) */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="nogo-disqualified"
+          style={{ top: "80%" }}
+          title="NO-GO · Disqualified Archive"
+          className={cn(
+            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
+            outcome === "nogo-disqualified"
+              ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
+              : "!bg-muted-foreground/40",
+          )}
+        />
+        {/* Backward-compatibility alias for hold-rework handle */}
         <Handle
           type="source"
           position={Position.Right}
           id="hold-rework"
-          style={{ top: "80%" }}
-          title="HOLD · Rework / Gap Resolution Loop"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "hold-rework"
-              ? "!bg-orange-500 ring-2 ring-orange-500/40"
-              : "!bg-muted-foreground/40",
-          )}
+          style={{ top: "80%", opacity: 0, pointerEvents: "none" }}
+          title="NO-GO · Disqualified Archive"
         />
 
-        {/* 6. NO-GO Disqualified Archive */}
+        {/* 6. NO-GO Disqualified (Bottom / Top Backup Handle) */}
         <Handle
           type="source"
           position={Position.Bottom}
-          id="nogo-disqualified"
+          id="nogo-disqualified-bottom"
           style={{ left: "30%" }}
           title="NO-GO · Disqualified Archive"
           className={cn(
             "!size-3.5 !border-2 !border-background transition hover:!scale-125",
             outcome === "nogo-disqualified"
-              ? "!bg-red-500 ring-2 ring-red-500/40"
+              ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
               : "!bg-muted-foreground/40",
           )}
         />
