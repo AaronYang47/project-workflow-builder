@@ -57,12 +57,12 @@ const colors: Record<DomainEdge["type"], string> = {
 };
 
 export const OPPORTUNITY_ROUTE_COLORS: Record<string, string> = {
-  "pass-p1-p2": "#10b981", // Emerald Green
-  "csa-pcs": "#2563eb", // Blue
-  "loi-governed": "#9333ea", // Purple
-  "site-feasibility": "#d97706", // Amber
-  "hold-rework": "#ea580c", // Orange
-  "nogo-disqualified": "#dc2626", // Red
+  "pass-p1-p2": "#10b981", // P1: Emerald Green
+  "loi-governed": "#9333ea", // Strategic LOI: Purple
+  "csa-pcs": "#0891b2", // P3: Vibrant Cyan / Teal
+  "site-feasibility": "#d97706", // P4: Amber
+  "hold-rework": "#ea580c", // P4: Orange
+  "nogo-disqualified": "#dc2626", // P5: Bright Red
 };
 
 export function getSemanticEdgeColor(edge: DomainEdge) {

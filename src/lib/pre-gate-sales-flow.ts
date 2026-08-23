@@ -65,17 +65,17 @@ export const PRE_GATE_SALES_NODES: DomainNode[] = [
           enabled: true,
         },
         {
-          id: "csa-pcs",
-          label: "Proceed to CSA / PCS",
-          edgeType: "normal",
-          color: "#2563eb",
-          enabled: true,
-        },
-        {
           id: "loi-governed",
           label: "Strategic Governed LOI",
           edgeType: "normal",
           color: "#9333ea",
+          enabled: true,
+        },
+        {
+          id: "csa-pcs",
+          label: "Proceed to CSA / PCS (P3)",
+          edgeType: "normal",
+          color: "#0891b2",
           enabled: true,
         },
         {

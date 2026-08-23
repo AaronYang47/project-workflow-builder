@@ -1605,34 +1605,32 @@ function OpportunityNodeComponent({
         )}
       />
 
-      {/* 2. Paid CSA / PCS Workstream */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="csa-pcs"
-        style={{ top: "32%" }}
-        title="Paid CSA / PCS Pre-Construction Consultation"
-        className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "csa-pcs"
-            ? scoreBreakdown.grade === "P3"
-              ? "!bg-cyan-500 ring-2 ring-cyan-500/40 animate-pulse"
-              : "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
-        )}
-      />
-
-      {/* 3. Strategic Governed LOI Path */}
+      {/* 2. Strategic Governed LOI Path (Top 32%) */}
       <Handle
         type="source"
         position={Position.Right}
         id="loi-governed"
-        style={{ top: "48%" }}
+        style={{ top: "32%" }}
         title="Strategic Governed LOI (Capped 21 Days)"
         className={cn(
           "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
           outcome === "loi-governed"
             ? "!bg-purple-500 ring-2 ring-purple-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
+
+      {/* 3. Paid CSA / PCS Workstream (Top 48% - P3 Cyan) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="csa-pcs"
+        style={{ top: "48%" }}
+        title="Paid CSA / PCS Pre-Construction Consultation"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "csa-pcs"
+            ? "!bg-cyan-500 ring-2 ring-cyan-500/40 animate-pulse"
             : "!bg-muted-foreground/40",
         )}
       />
