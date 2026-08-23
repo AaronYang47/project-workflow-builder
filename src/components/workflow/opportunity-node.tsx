@@ -1555,101 +1555,103 @@ function OpportunityNodeComponent({
                       : "Opportunity Disqualified / Closed"}
           </span>
         </div>
-
-        {/* Top Input / Receiver Handle for Rework Loop */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="in-rework"
-          style={{ left: "50%" }}
-          title="HOLD - Rework Return Input"
-          className="!size-3.5 !border-2 !border-background !bg-amber-500 transition hover:!scale-125"
-        />
-
-        {/* Left Input Handle */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="in"
-          className="!size-3.5 !border-2 !border-background !bg-primary transition hover:!scale-125"
-        />
-
-        {/* 1. Gate 1 Passed (P1/P2 Fast-Track) */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="pass-p1-p2"
-          style={{ top: "16%" }}
-          title="Gate 1 Passed — Validated Opportunity (P1/P2 Fast-Track)"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "pass-p1-p2"
-              ? "!bg-emerald-500 ring-2 ring-emerald-500/40"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-
-        {/* 2. Paid CSA / PCS Workstream */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="csa-pcs"
-          style={{ top: "32%" }}
-          title="Paid CSA / PCS Pre-Construction Consultation"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "csa-pcs"
-              ? "!bg-blue-500 ring-2 ring-blue-500/40"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-
-        {/* 3. Strategic Governed LOI Path */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="loi-governed"
-          style={{ top: "48%" }}
-          title="Strategic Governed LOI (Capped 21 Days)"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "loi-governed"
-              ? "!bg-purple-500 ring-2 ring-purple-500/40"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-
-        {/* 4. Site Feasibility & Due Diligence Loop */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="site-feasibility"
-          style={{ top: "64%" }}
-          title="Site Feasibility & Due Diligence Loop"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "site-feasibility"
-              ? "!bg-amber-500 ring-2 ring-amber-500/40"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-
-        {/* 5. NO-GO · Disqualified Archive Outlet */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="nogo-disqualified"
-          style={{ top: "80%" }}
-          title="NO-GO · Disqualified Archive"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "nogo-disqualified"
-              ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-
       </div>
+
+      {/* --- ALL HANDLES PLACED AT OUTER CONTAINER LEVEL FOR 100% UNRESTRICTED SNAPPING --- */}
+
+      {/* Top Input / Receiver Handle for Rework Loop */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="in-rework"
+        style={{ left: "50%" }}
+        title="HOLD - Rework Return Input"
+        className="!top-[-8px] !z-50 !size-4 !border-2 !border-background !bg-amber-500 transition hover:!scale-125 cursor-crosshair shadow-md"
+      />
+
+      {/* Left Main Input Handle */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in"
+        title="Main Input"
+        className="!left-[-8px] !z-50 !size-4 !border-2 !border-background !bg-primary transition hover:!scale-125 cursor-crosshair shadow-md"
+      />
+
+      {/* 1. Gate 1 Passed (P1/P2 Fast-Track) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="pass-p1-p2"
+        style={{ top: "16%" }}
+        title="Gate 1 Passed — Validated Opportunity (P1/P2 Fast-Track)"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "pass-p1-p2"
+            ? "!bg-emerald-500 ring-2 ring-emerald-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
+
+      {/* 2. Paid CSA / PCS Workstream */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="csa-pcs"
+        style={{ top: "32%" }}
+        title="Paid CSA / PCS Pre-Construction Consultation"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "csa-pcs"
+            ? "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
+
+      {/* 3. Strategic Governed LOI Path */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="loi-governed"
+        style={{ top: "48%" }}
+        title="Strategic Governed LOI (Capped 21 Days)"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "loi-governed"
+            ? "!bg-purple-500 ring-2 ring-purple-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
+
+      {/* 4. Site Feasibility & Due Diligence Loop */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="site-feasibility"
+        style={{ top: "64%" }}
+        title="Site Feasibility & Due Diligence Loop"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "site-feasibility"
+            ? "!bg-amber-500 ring-2 ring-amber-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
+
+      {/* 5. NO-GO · Disqualified Archive Outlet */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="nogo-disqualified"
+        style={{ top: "80%" }}
+        title="NO-GO · Disqualified Archive"
+        className={cn(
+          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
+          outcome === "nogo-disqualified"
+            ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
+            : "!bg-muted-foreground/40",
+        )}
+      />
     </div>
   );
 }
