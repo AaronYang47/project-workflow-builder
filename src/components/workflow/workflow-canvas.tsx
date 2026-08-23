@@ -43,6 +43,8 @@ import type { DomainEdge, WorkflowNodeType } from "@/types/workflow";
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
+import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -375,15 +377,36 @@ function CanvasInner() {
           if (current.nodeIds.length || current.edgeId) {
             selectNodes([]);
             selectEdge(undefined);
+            useCollaborationStore.getState().setFocusedNodeId(undefined);
+            collaborationManager.broadcast({
+              type: "PRESENCE",
+              senderId: useCollaborationStore.getState().localUser.peerId,
+              profile: {
+                ...useCollaborationStore.getState().localUser,
+                focusedNodeId: undefined,
+                lastActiveAt: Date.now(),
+              },
+            });
           }
         }}
         onNodeClick={(_, node) => {
           selectNodes([node.id]);
           selectEdge(undefined);
+          useCollaborationStore.getState().setFocusedNodeId(node.id);
+          collaborationManager.broadcast({
+            type: "PRESENCE",
+            senderId: useCollaborationStore.getState().localUser.peerId,
+            profile: {
+              ...useCollaborationStore.getState().localUser,
+              focusedNodeId: node.id,
+              lastActiveAt: Date.now(),
+            },
+          });
         }}
         onEdgeClick={(_, edge) => {
           selectEdge(edge.id);
           selectNodes([]);
+          useCollaborationStore.getState().setFocusedNodeId(undefined);
         }}
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}

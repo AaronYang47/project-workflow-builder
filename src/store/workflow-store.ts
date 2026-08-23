@@ -24,6 +24,9 @@ import {
   appendHistory,
   debouncedJSONStorage,
 } from "@/store/workflow-persist";
+import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
+import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import type { SyncMessage } from "@/lib/collaboration/collaboration-types";
 import type {
   DomainEdge,
   DomainNode,
@@ -32,6 +35,15 @@ import type {
   WorkflowFile,
   WorkflowNodeType,
 } from "@/types/workflow";
+
+function broadcastIfLocal(createMessage: (senderId: string) => SyncMessage) {
+  if (typeof window === "undefined") return;
+  const isRemoteApplying = useCollaborationStore.getState().isRemoteApplying;
+  if (!isRemoteApplying) {
+    const senderId = useCollaborationStore.getState().localUser.peerId;
+    collaborationManager.broadcast(createMessage(senderId));
+  }
+}
 
 type Snapshot = WorkflowFile;
 interface WorkflowState {
@@ -241,8 +253,16 @@ export const useWorkflowStore = create<WorkflowState>()(
         set({ selection: { nodeIds: [id] } });
         return id;
       },
-      updateNode: (id, patch) =>
-        get().commit((file) => patchNode(file, id, patch)),
+      updateNode: (id, patch) => {
+        get().commit((file) => patchNode(file, id, patch));
+        broadcastIfLocal((senderId) => ({
+          type: "PATCH_NODE",
+          senderId,
+          nodeId: id,
+          patch,
+          timestamp: Date.now(),
+        }));
+      },
       deleteNodes: (ids) => {
         if (!ids.length) return;
         const currentFile = get().file;
@@ -273,6 +293,12 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
         get().commit((file) => deleteNodesFromFile(file, ids));
+        broadcastIfLocal((senderId) => ({
+          type: "DELETE_NODES",
+          senderId,
+          nodeIds: ids,
+          timestamp: Date.now(),
+        }));
         set({ selection: { nodeIds: [] } });
       },
       deleteSelected: () => {
@@ -293,18 +319,29 @@ export const useWorkflowStore = create<WorkflowState>()(
       },
       showActionBlocked: (deleteBlocked) => set({ deleteBlocked }),
       dismissDeleteBlocked: () => set({ deleteBlocked: undefined }),
-      addEdge: (edge) =>
-        get().file.graph.nodes.find((node) => node.id === edge.target)?.type ===
-        "projectStart"
-          ? set({
-              deleteBlocked: {
-                title: "Invalid connection",
-                message: "Project Start must be the first node.",
-                items: ["Connect from Project Start to the next node instead."],
-              },
-            })
-          : get().commit((file) => addOrReplaceEdge(file, edge)),
-      updateEdge: (id, patch) =>
+      addEdge: (edge) => {
+        if (
+          get().file.graph.nodes.find((node) => node.id === edge.target)?.type ===
+          "projectStart"
+        ) {
+          set({
+            deleteBlocked: {
+              title: "Invalid connection",
+              message: "Project Start must be the first node.",
+              items: ["Connect from Project Start to the next node instead."],
+            },
+          });
+        } else {
+          get().commit((file) => addOrReplaceEdge(file, edge));
+          broadcastIfLocal((senderId) => ({
+            type: "ADD_EDGE",
+            senderId,
+            edge,
+            timestamp: Date.now(),
+          }));
+        }
+      },
+      updateEdge: (id, patch) => {
         get().commit((file) => {
           const reconnects =
             patch.source !== undefined ||
@@ -321,7 +358,15 @@ export const useWorkflowStore = create<WorkflowState>()(
             },
           };
           return reconnects ? clearEdgeRoute(next, id) : next;
-        }),
+        });
+        broadcastIfLocal((senderId) => ({
+          type: "UPDATE_EDGE",
+          senderId,
+          edgeId: id,
+          patch,
+          timestamp: Date.now(),
+        }));
+      },
       duplicateSelected: () => {
         const ids = get().selection.nodeIds.filter(
           (id) =>
@@ -403,7 +448,7 @@ export const useWorkflowStore = create<WorkflowState>()(
             dirty: true,
           };
         }),
-      commitLayoutDrag: (patches, before) =>
+      commitLayoutDrag: (patches, before) => {
         set((state) => {
           if (!Object.keys(before).length) return state;
           const snapshot = clone(state.file);
@@ -417,7 +462,14 @@ export const useWorkflowStore = create<WorkflowState>()(
             future: [],
             dirty: true,
           };
-        }),
+        });
+        broadcastIfLocal((senderId) => ({
+          type: "UPDATE_LAYOUTS",
+          senderId,
+          patches,
+          timestamp: Date.now(),
+        }));
+      },
       setViewport: (viewport) =>
         set((state) => ({
           file: { ...state.file, layout: { ...state.file.layout, viewport } },

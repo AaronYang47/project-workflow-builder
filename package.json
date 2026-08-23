@@ -28,6 +28,7 @@
     "react": "latest",
     "react-dom": "latest",
     "tailwind-merge": "latest",
+    "trystero": "^0.25.3",
     "zustand": "latest"
   },
   "devDependencies": {

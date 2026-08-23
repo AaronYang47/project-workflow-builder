@@ -25,6 +25,7 @@ import { autoLayout } from "@/lib/layout";
 import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { CloudProjectControls } from "./cloud-project-controls";
+import { CollaboratorPresence } from "./collaborator-presence";
 
 function ToolButton({
   label,
@@ -247,6 +248,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
         <span className="text-xs">Search</span>
         <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
       </Button>
+      <CollaboratorPresence />
       <div className="ml-auto flex shrink-0 items-center pl-2">
         <ToolButton
           label="Export Excel"
