@@ -400,20 +400,15 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   // Automated P1 - P5 Opportunity Grade Assignment (Industry Calibrated)
   let grade: "P1" | "P2" | "P3" | "P4" | "P5" = "P3";
   let gradeLabel = "P3 · Developing Opportunity";
-  let gradeDesc = "Viable opportunity with moderate gaps; requires CSA / Paid Feasibility.";
-  let gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
+  let gradeDesc = "Promising project requiring structured CSA modular design conversion.";
+  let gradeColor = "text-cyan-700 bg-cyan-500/15 border-cyan-500/30 dark:text-cyan-300";
 
-  if (hasFatalRedFlag || totalScore < 35) {
-    grade = "P5";
-    gradeLabel = "P5 · Disqualified / Fatal Red Flag";
-    gradeDesc = "Severe budget disconnect (>35%), fatal transport/fit blocker, or no decision authority.";
-    gradeColor = "text-red-700 bg-red-500/15 border-red-500/30 dark:text-red-300";
-  } else if (totalScore >= 85) {
+  if (totalScore >= 85 && !hasFatalRedFlag) {
     grade = "P1";
     gradeLabel = "P1 · Premier Validated (Fast-Track)";
     gradeDesc = "High certainty across all pillars. Full commitment and zero blocking gaps.";
     gradeColor = "text-emerald-700 bg-emerald-500/15 border-emerald-500/30 dark:text-emerald-300";
-  } else if (totalScore >= 70) {
+  } else if (totalScore >= 70 && !hasFatalRedFlag) {
     grade = "P2";
     gradeLabel = "P2 · Strong Qualified (Minor Gaps)";
     gradeDesc = "Strong commercial fundamentals with clearly defined, controlled mitigation actions.";
@@ -423,11 +418,16 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     gradeLabel = "P3 · Developing Opportunity";
     gradeDesc = "Promising project requiring structured CSA modular design conversion.";
     gradeColor = "text-cyan-700 bg-cyan-500/15 border-cyan-500/30 dark:text-cyan-300";
-  } else {
+  } else if (totalScore >= 35) {
     grade = "P4";
     gradeLabel = "P4 · Early Stage / Concept Scoping";
     gradeDesc = "Early exploration phase. Execute Paid Feasibility Study to validate site & geometry.";
     gradeColor = "text-amber-700 bg-amber-500/15 border-amber-500/30 dark:text-amber-300";
+  } else {
+    grade = "P5";
+    gradeLabel = "P5 · Disqualified / Fatal Red Flag";
+    gradeDesc = "Severe budget disconnect (>35%), fatal transport/fit blocker, or no decision authority.";
+    gradeColor = "text-red-700 bg-red-500/15 border-red-500/30 dark:text-red-300";
   }
 
   // Automated Owner Type Recommendation
@@ -456,7 +456,7 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
 
   // Recommended Multi-Handle Outcome (Strict 1-to-1 alignment with P1-P5 Grade)
   let recommendedOutcome: OpportunityValidationConfig["decisionOutcome"] = "pass-p1-p2";
-  if (grade === "P5" || hasFatalRedFlag) {
+  if (grade === "P5") {
     recommendedOutcome = "nogo-disqualified";
   } else if (grade === "P4") {
     recommendedOutcome = "site-feasibility";

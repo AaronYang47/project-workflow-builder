@@ -103,30 +103,17 @@ function OpportunityNodeComponent({
 
   // Fully dynamic theme color matching P1-P5 Grade
   const dynamicThemeColor = useMemo(() => {
-    if (scoreBreakdown.grade === "P5" || scoreBreakdown.hasFatalRedFlag) return "#dc2626";
-    if (scoreBreakdown.grade === "P1") return "#10b981";
+    if (scoreBreakdown.grade === "P1") return "#10b981"; // Emerald
     if (scoreBreakdown.grade === "P2") return "#2563eb"; // Royal Blue
     if (scoreBreakdown.grade === "P3") return "#0891b2"; // Vibrant Cyan / Teal
-    return "#f59e0b"; // P4: Amber
-  }, [scoreBreakdown.grade, scoreBreakdown.hasFatalRedFlag]);
+    if (scoreBreakdown.grade === "P4") return "#f59e0b"; // P4: Amber
+    return "#dc2626"; // P5: Bright Red
+  }, [scoreBreakdown.grade]);
 
   const color = dynamicThemeColor;
 
-  // Score color scheme based on points and fatal flags
+  // Score color scheme based on points and grade
   const scoreStyle = useMemo(() => {
-    if (
-      scoreBreakdown.grade === "P5" ||
-      scoreBreakdown.hasFatalRedFlag ||
-      scoreBreakdown.totalScore < 35
-    ) {
-      return {
-        text: "text-red-600 dark:text-red-400",
-        bg: "bg-red-500/15 dark:bg-red-500/25",
-        border: "border-red-500/40",
-        badge: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40",
-        solid: "bg-red-600 text-white",
-      };
-    }
     if (scoreBreakdown.grade === "P1" || scoreBreakdown.totalScore >= 85) {
       return {
         text: "text-emerald-600 dark:text-emerald-400",
@@ -154,12 +141,21 @@ function OpportunityNodeComponent({
         solid: "bg-cyan-600 text-white",
       };
     }
+    if (scoreBreakdown.grade === "P4" || scoreBreakdown.totalScore >= 35) {
+      return {
+        text: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-500/15 dark:bg-amber-500/25",
+        border: "border-amber-500/40",
+        badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
+        solid: "bg-amber-600 text-white",
+      };
+    }
     return {
-      text: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/15 dark:bg-amber-500/25",
-      border: "border-amber-500/40",
-      badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
-      solid: "bg-amber-600 text-white",
+      text: "text-red-600 dark:text-red-400",
+      bg: "bg-red-500/15 dark:bg-red-500/25",
+      border: "border-red-500/40",
+      badge: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40",
+      solid: "bg-red-600 text-white",
     };
   }, [scoreBreakdown]);
 
