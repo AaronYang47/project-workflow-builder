@@ -243,11 +243,20 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
         const evalResult = evaluateOpportunity(source);
         const currentOutcome = evalResult.recommendedOutcome;
         const handle = edge.sourceHandle || "pass-p1-p2";
-        allowed =
+        allowed = Boolean(
           handle === currentOutcome ||
-          (currentOutcome === "pass-p1-p2" && (handle === "pass-p1-p2" || handle === "pass")) ||
-          (currentOutcome === "hold-rework" && (handle === "hold-rework" || handle === "hold")) ||
-          (currentOutcome === "nogo-disqualified" && (handle === "nogo-disqualified" || handle === "nogo"));
+            (currentOutcome === "pass-p1-p2" &&
+              (handle === "pass-p1-p2" || handle === "pass")) ||
+            (currentOutcome === "hold-rework" &&
+              (handle === "hold-rework" || handle === "hold")) ||
+            (currentOutcome === "nogo-disqualified" &&
+              (handle === "nogo-disqualified" ||
+                handle === "nogo" ||
+                handle === "in-rework" ||
+                edge.label?.toLowerCase().includes("no-go") ||
+                edge.label?.toLowerCase().includes("nogo") ||
+                edge.label?.toLowerCase().includes("rework"))),
+        );
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

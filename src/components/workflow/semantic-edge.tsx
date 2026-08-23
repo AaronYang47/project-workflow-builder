@@ -69,8 +69,14 @@ export function getSemanticEdgeColor(edge: DomainEdge) {
   if (edge.sourceHandle && OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle]) {
     return OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle];
   }
-  if (edge.sourceHandle?.startsWith("no") || edge.label?.trim().toLowerCase() === "denied") {
-    return "#dc4c55";
+  if (
+    edge.sourceHandle?.startsWith("no") ||
+    edge.sourceHandle === "in-rework" ||
+    edge.label?.trim().toLowerCase().includes("no-go") ||
+    edge.label?.trim().toLowerCase().includes("nogo") ||
+    edge.label?.trim().toLowerCase() === "denied"
+  ) {
+    return "#dc2626";
   }
   return colors[edge.type] || "#159a75";
 }
