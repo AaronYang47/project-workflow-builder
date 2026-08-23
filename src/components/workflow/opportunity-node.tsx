@@ -1559,14 +1559,14 @@ function OpportunityNodeComponent({
 
       {/* --- ALL HANDLES PLACED AT OUTER CONTAINER LEVEL FOR 100% UNRESTRICTED SNAPPING --- */}
 
-      {/* Top Input / Receiver Handle for Rework Loop */}
+      {/* Top Input / Receiver Handle for NO-GO / Strategy Re-entry */}
       <Handle
         type="target"
         position={Position.Top}
         id="in-rework"
         style={{ left: "50%" }}
-        title="HOLD - Rework Return Input"
-        className="!top-[-8px] !z-50 !size-4 !border-2 !border-background !bg-amber-500 transition hover:!scale-125 cursor-crosshair shadow-md"
+        title="NO-GO · Strategy Re-entry / Loopback"
+        className="!top-[-8px] !z-50 !size-4 !border-2 !border-background !bg-rose-600 hover:!bg-red-500 transition hover:!scale-125 cursor-crosshair shadow-md"
       />
 
       {/* Left Main Input Handle */}

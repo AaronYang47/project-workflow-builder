@@ -77,7 +77,12 @@ export function useCanvasConnections({
   const isValidConnection = useCallback<IsValidConnection>(
     (connection) => {
       if (!connection.source || !connection.target) return false;
-      if (connection.source === connection.target) return false;
+      if (
+        connection.source === connection.target &&
+        connection.sourceHandle === connection.targetHandle
+      ) {
+        return false;
+      }
       const target = nodes.find((node) => node.id === connection.target);
       if (!target || target.type === "phase" || target.type === "projectStart") {
         return false;
