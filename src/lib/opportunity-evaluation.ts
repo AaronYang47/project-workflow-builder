@@ -325,13 +325,11 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
       severity: "info",
     });
   } else {
-    score -= 10;
-    hasFatalRedFlag = true;
-    mandatoryPassed = false;
+    score += 0;
     gaps.push({
-      label: "Impossible Timeline",
-      action: "Occupancy deadline is physically unachievable under standard manufacturing & permit lead times",
-      severity: "error",
+      label: "Highly Constrained Schedule",
+      action: "Recalibrate milestone schedule or implement phased module delivery",
+      severity: "warning",
     });
   }
 
@@ -370,7 +368,10 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   else if (answers.commitmentLevel === "loi_governed") score += isStrategicOrTrusted ? 4 : 2;
   else if (answers.commitmentLevel === "verbal_interest") score += 1;
 
-  const totalScore = Math.max(0, Math.min(100, score));
+  // When a Fatal Red Flag is present, totalScore is capped at <= 25 so Score is ALWAYS strictly congruent with P5 (< 35)
+  const totalScore = hasFatalRedFlag
+    ? Math.min(25, Math.max(0, score))
+    : Math.max(0, Math.min(100, score));
 
   // Dynamic Risk Tags Calculation
   const dynamicRiskTags: Array<
@@ -383,7 +384,7 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   if (answers.fundingLevel === "progressing" || answers.fundingLevel === "speculative") {
     dynamicRiskTags.push("Financing-Dependent");
   }
-  if (answers.timelineLevel === "accelerated") {
+  if (answers.timelineLevel === "accelerated" || answers.timelineLevel === "unfeasible") {
     dynamicRiskTags.push("Accelerated-Schedule");
   }
   if (answers.fitLevel === "moderate") {

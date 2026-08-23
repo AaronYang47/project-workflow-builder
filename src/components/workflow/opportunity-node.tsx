@@ -993,13 +993,13 @@ function OpportunityNodeComponent({
                       },
                       {
                         val: "accelerated",
-                        title: "Accelerated Schedule (<10 Months) [Risk Tag]",
+                        title: "Accelerated Schedule (8–12 Months) [Risk Tag]",
                         desc: "Requires fast-track engineering parallelization and pre-reserved manufacturing slot (+2 pts)",
                       },
                       {
                         val: "unfeasible",
-                        title: "Physically Unfeasible (<5 Months)",
-                        desc: "Occupancy deadline is impossible under standard municipal and factory lead times (-10 pts, Blocker)",
+                        title: "Highly Constrained / Expedited (<8 Months)",
+                        desc: "Occupancy deadline is highly constrained; requires phased delivery and overtime production (+0 pts)",
                       },
                     ].map((opt) => (
                       <button
