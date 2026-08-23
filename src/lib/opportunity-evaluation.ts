@@ -421,8 +421,8 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   } else if (totalScore >= 55) {
     grade = "P3";
     gradeLabel = "P3 · Developing Opportunity";
-    gradeDesc = "Promising project requiring structured CSA / PCS pre-construction engagement.";
-    gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
+    gradeDesc = "Promising project requiring structured CSA modular design conversion.";
+    gradeColor = "text-cyan-700 bg-cyan-500/15 border-cyan-500/30 dark:text-cyan-300";
   } else {
     grade = "P4";
     gradeLabel = "P4 · Early Stage / Concept Scoping";

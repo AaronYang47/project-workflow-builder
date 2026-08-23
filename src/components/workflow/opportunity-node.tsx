@@ -105,8 +105,9 @@ function OpportunityNodeComponent({
   const dynamicThemeColor = useMemo(() => {
     if (scoreBreakdown.grade === "P5" || scoreBreakdown.hasFatalRedFlag) return "#dc2626";
     if (scoreBreakdown.grade === "P1") return "#10b981";
-    if (scoreBreakdown.grade === "P4") return "#f59e0b";
-    return "#2563eb"; // P2 / P3
+    if (scoreBreakdown.grade === "P2") return "#2563eb"; // Royal Blue
+    if (scoreBreakdown.grade === "P3") return "#0891b2"; // Vibrant Cyan / Teal
+    return "#f59e0b"; // P4: Amber
   }, [scoreBreakdown.grade, scoreBreakdown.hasFatalRedFlag]);
 
   const color = dynamicThemeColor;
@@ -135,17 +136,22 @@ function OpportunityNodeComponent({
         solid: "bg-emerald-600 text-white",
       };
     }
-    if (
-      scoreBreakdown.grade === "P2" ||
-      scoreBreakdown.grade === "P3" ||
-      scoreBreakdown.totalScore >= 55
-    ) {
+    if (scoreBreakdown.grade === "P2" || scoreBreakdown.totalScore >= 70) {
       return {
         text: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-500/15 dark:bg-blue-500/25",
         border: "border-blue-500/40",
         badge: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40",
         solid: "bg-blue-600 text-white",
+      };
+    }
+    if (scoreBreakdown.grade === "P3" || scoreBreakdown.totalScore >= 55) {
+      return {
+        text: "text-cyan-600 dark:text-cyan-400",
+        bg: "bg-cyan-500/15 dark:bg-cyan-500/25",
+        border: "border-cyan-500/40",
+        badge: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/40",
+        solid: "bg-cyan-600 text-white",
       };
     }
     return {
@@ -258,7 +264,9 @@ function OpportunityNodeComponent({
                     outcome === "pass-p1-p2"
                       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
                       : outcome === "csa-pcs"
-                        ? "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
+                        ? scoreBreakdown.grade === "P3"
+                          ? "bg-cyan-500/15 text-cyan-600 border-cyan-500/30 dark:text-cyan-400"
+                          : "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
                         : outcome === "loi-governed"
                           ? "bg-purple-500/15 text-purple-600 border-purple-500/30 dark:text-purple-400"
                           : outcome === "site-feasibility"
@@ -1472,7 +1480,9 @@ function OpportunityNodeComponent({
                   outcome === "pass-p1-p2"
                     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
                     : outcome === "csa-pcs"
-                      ? "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
+                      ? scoreBreakdown.grade === "P3"
+                        ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300"
+                        : "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
                       : outcome === "loi-governed"
                         ? "bg-purple-500/15 border-purple-500/40 text-purple-700 dark:text-purple-300"
                         : outcome === "site-feasibility"
@@ -1489,7 +1499,9 @@ function OpportunityNodeComponent({
                       outcome === "pass-p1-p2"
                         ? "bg-emerald-500"
                         : outcome === "csa-pcs"
-                          ? "bg-blue-500"
+                          ? scoreBreakdown.grade === "P3"
+                            ? "bg-cyan-500"
+                            : "bg-blue-500"
                           : outcome === "loi-governed"
                             ? "bg-purple-500"
                             : outcome === "site-feasibility"
@@ -1603,7 +1615,9 @@ function OpportunityNodeComponent({
         className={cn(
           "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
           outcome === "csa-pcs"
-            ? "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
+            ? scoreBreakdown.grade === "P3"
+              ? "!bg-cyan-500 ring-2 ring-cyan-500/40 animate-pulse"
+              : "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
             : "!bg-muted-foreground/40",
         )}
       />
