@@ -49,15 +49,22 @@ export function useCanvasConnections({
         source: connection.source,
         target: connection.target,
         sourceHandle: connection.sourceHandle || undefined,
-        targetHandle: deniedTargetHandle({
-          sourceHandle: connection.sourceHandle,
-          preGateSales,
-          droppedHandle: connection.targetHandle,
-        }),
-        type: outcome?.edgeType || "normal",
+        targetHandle:
+          connection.targetHandle ||
+          deniedTargetHandle({
+            sourceHandle: connection.sourceHandle,
+            preGateSales,
+            droppedHandle: connection.targetHandle,
+          }) ||
+          "in",
+        type:
+          outcome?.edgeType ||
+          (connection.sourceHandle?.startsWith("no") ? "failure" : "normal"),
         label: outcome?.label
           ? outcome.label[0] + outcome.label.slice(1).toLowerCase()
-          : "",
+          : connection.sourceHandle?.startsWith("no")
+            ? "NO-GO"
+            : "",
         lineStyle: "solid",
         arrowStyle: "closed",
         customFields: {},
@@ -70,14 +77,9 @@ export function useCanvasConnections({
   const isValidConnection = useCallback<IsValidConnection>(
     (connection) => {
       if (!connection.source || !connection.target) return false;
+      if (connection.source === connection.target) return false;
       const target = nodes.find((node) => node.id === connection.target);
       if (!target || target.type === "phase" || target.type === "projectStart") {
-        return false;
-      }
-      if (
-        isDeniedSourceHandle(connection.sourceHandle) &&
-        !canReceiveDeniedReturn(target.type)
-      ) {
         return false;
       }
       return true;

@@ -1556,27 +1556,14 @@ function OpportunityNodeComponent({
           </span>
         </div>
 
-        {/* Top Output Handle for NO-GO / Disqualified Route */}
+        {/* Top Input / Receiver Handle for Rework Loop */}
         <Handle
-          type="source"
-          position={Position.Top}
-          id="nogo-disqualified"
-          style={{ left: "50%" }}
-          title="NO-GO · Disqualified Archive"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "nogo-disqualified"
-              ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
-              : "!bg-muted-foreground/40",
-          )}
-        />
-        {/* Alias for backward compatibility if an edge is still wired to in-rework */}
-        <Handle
-          type="source"
+          type="target"
           position={Position.Top}
           id="in-rework"
-          style={{ left: "50%", opacity: 0, pointerEvents: "none" }}
-          title="NO-GO · Disqualified Alias"
+          style={{ left: "50%" }}
+          title="HOLD - Rework Return Input"
+          className="!size-3.5 !border-2 !border-background !bg-amber-500 transition hover:!scale-125"
         />
 
         {/* Left Input Handle */}
@@ -1647,7 +1634,7 @@ function OpportunityNodeComponent({
           )}
         />
 
-        {/* 5. NO-GO · Disqualified Archive (Changed from HOLD to NO-GO) */}
+        {/* 5. NO-GO · Disqualified Archive Outlet */}
         <Handle
           type="source"
           position={Position.Right}
@@ -1660,14 +1647,6 @@ function OpportunityNodeComponent({
               ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
               : "!bg-muted-foreground/40",
           )}
-        />
-        {/* Backward-compatibility alias for hold-rework handle */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="hold-rework"
-          style={{ top: "80%", opacity: 0, pointerEvents: "none" }}
-          title="NO-GO · Disqualified Archive"
         />
 
       </div>
