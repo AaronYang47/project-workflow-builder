@@ -37,6 +37,8 @@ export type SemanticFlowEdge = Edge<
     labelLane?: number;
     labelHugsPath?: boolean;
     preGateSales?: boolean;
+    siblingIndex?: number;
+    siblingCount?: number;
   },
   "semantic"
 >;
@@ -302,6 +304,8 @@ const placeLabel = (
   labelHugsPath = false,
   exactMidpoint?: Point,
   lockToConnectorGap = false,
+  siblingIndex = 0,
+  siblingCount = 1,
 ) => {
   const { width, height } = estimateEdgeLabelChip(label);
   const source = obstacles.find((obstacle) => obstacle.id === sourceId);
@@ -316,17 +320,26 @@ const placeLabel = (
     : Array.from({ length: 101 }, (_, index) => pointAlongPath(points, index / 100)).sort(
         (a, b) => Math.abs(a.x - gapCenterX) - Math.abs(b.x - gapCenterX),
       )[0];
-  // Approval labels describe the forward connector itself. Keep them centred
-  // on the clear horizontal run between cards instead of allowing the generic
-  // obstacle avoidance pass to push them into a Phase or beside a node.
-  if (lockToConnectorGap && gapCenterX !== undefined && closestGapPoint) {
+
+  if (siblingCount <= 1 && lockToConnectorGap && gapCenterX !== undefined && closestGapPoint) {
     return {
       point: { x: gapCenterX, y: closestGapPoint.y },
       avoided: false,
     };
   }
+
+  // Stagger preferred anchor points along the path for multiple sibling edges to prevent clustering
+  const preferredFraction =
+    siblingCount > 1
+      ? Math.max(0.15, Math.min(0.85, (siblingIndex + 1) / (siblingCount + 1)))
+      : 0.5;
+
   const returnFractions = [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85, 0.1, 0.9];
-  const preferredReturnFraction = returnFractions[labelLane % returnFractions.length];
+  const preferredReturnFraction =
+    siblingCount > 1
+      ? preferredFraction
+      : returnFractions[Math.abs(labelLane) % returnFractions.length];
+
   const preferredReturnPoint = pointAlongPath(points, preferredReturnFraction);
   const returnEscapePoints = labelHugsPath
     ? [...new Map([source, target].filter(Boolean).map((obstacle) => [obstacle!.id, obstacle!])).values()]
@@ -339,18 +352,26 @@ const placeLabel = (
         .sort((a, b) => distance(a, preferredReturnPoint) - distance(b, preferredReturnPoint))
         .map((point) => ({ ...point, fraction: preferredReturnFraction }))
     : [];
+
   const gapPoints = labelHugsPath
     ? [{ ...preferredReturnPoint, fraction: preferredReturnFraction }]
-    : gapCenterX !== undefined && closestGapPoint
+    : gapCenterX !== undefined && closestGapPoint && siblingCount <= 1
       ? [{ ...closestGapPoint, x: gapCenterX, y: closestGapPoint.y + labelLane, fraction: 0.5 }]
-      : [];
-  const fractions = Array.from({ length: 19 }, (_, index) => (index + 1) * 0.05).sort(
-    (a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5),
+      : [{ ...preferredReturnPoint, fraction: preferredReturnFraction }];
+
+  const fractions = Array.from({ length: 33 }, (_, index) => (index + 1) * 0.03).sort(
+    (a, b) => Math.abs(a - preferredFraction) - Math.abs(b - preferredFraction),
   );
-  const lane = labelLane || (([...edgeId].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 7) - 3) * 32;
+
+  const lane =
+    siblingCount > 1
+      ? (siblingIndex - (siblingCount - 1) / 2) * 28
+      : labelLane || 0;
+
   const offsets = labelHugsPath
     ? [0, 16, -16, 28, -28, 40, -40, 56, -56, 72, -72]
-    : [...new Set([lane, 0, lane + 40, lane - 40, 68, -68, 96, -96, 128, -128])];
+    : [...new Set([lane, 0, lane + 28, lane - 28, 56, -56, 84, -84])];
+
   const pathPoints = [
     ...gapPoints,
     ...returnEscapePoints,
@@ -387,8 +408,8 @@ const placeLabel = (
     scored.sort(
       (a, b) =>
         a.overlap - b.overlap ||
-        Math.abs(a.fraction - 0.5) - Math.abs(b.fraction - 0.5) ||
-        Math.abs(a.offset) - Math.abs(b.offset),
+        Math.abs(a.fraction - preferredFraction) - Math.abs(b.fraction - preferredFraction) ||
+        Math.abs(a.offset - lane) - Math.abs(b.offset - lane),
     )[0];
   return { point: { x: chosen.x, y: chosen.y }, avoided: chosen.offset !== 0 || chosen.fraction !== 0.5 };
 };
@@ -930,6 +951,8 @@ export function SemanticEdge({
     data?.labelHugsPath,
     visibleRoute.length >= 2 ? undefined : { x: bezierLabelX, y: bezierLabelY },
     approved,
+    data?.siblingIndex ?? 0,
+    data?.siblingCount ?? 1,
   );
   const sourceObstacle = data?.obstacles?.find(
     (obstacle) => obstacle.id === domain.source,

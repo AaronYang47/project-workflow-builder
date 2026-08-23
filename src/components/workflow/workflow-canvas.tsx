@@ -253,6 +253,8 @@ function CanvasInner() {
               labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
               labelHugsPath,
               preGateSales,
+              siblingIndex: Math.max(0, siblingIndex),
+              siblingCount: siblingEdges.length,
             },
           };
       });
