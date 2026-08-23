@@ -148,7 +148,9 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
             : opp.designStage?.startsWith("Level 1")
               ? "lvl1"
               : "lvl0"),
-    budgetLevel: autoBudgetLevel,
+    budgetLevel:
+      (customFields.q_budget as QuestionnaireAnswers["budgetLevel"]) ||
+      autoBudgetLevel,
     fundingLevel:
       (customFields.q_funding as QuestionnaireAnswers["fundingLevel"]) ||
       (opp.fundingSecured ? "secured" : "progressing"),
@@ -368,10 +370,8 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   else if (answers.commitmentLevel === "loi_governed") score += isStrategicOrTrusted ? 4 : 2;
   else if (answers.commitmentLevel === "verbal_interest") score += 1;
 
-  // When a Fatal Red Flag is present, totalScore is capped at <= 25 so Score is ALWAYS strictly congruent with P5 (< 35)
-  const totalScore = hasFatalRedFlag
-    ? Math.min(25, Math.max(0, score))
-    : Math.max(0, Math.min(100, score));
+  // Total Score is computed naturally from all questions (0-100 pts)
+  const totalScore = Math.max(0, Math.min(100, score));
 
   // Dynamic Risk Tags Calculation
   const dynamicRiskTags: Array<
