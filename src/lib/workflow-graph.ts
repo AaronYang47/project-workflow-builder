@@ -44,9 +44,10 @@ export function deniedTargetHandle(options: {
   preGateSales?: boolean;
   droppedHandle?: string | null;
 }) {
-  if (options.preGateSales) return options.droppedHandle || "in";
+  if (options.droppedHandle) return options.droppedHandle;
+  if (options.preGateSales) return "in";
   if (isDeniedSourceHandle(options.sourceHandle)) return DENIED_RETURN_HANDLE;
-  return options.droppedHandle || undefined;
+  return undefined;
 }
 
 export function clearEdgeRoute(file: WorkflowFile, id: string): WorkflowFile {

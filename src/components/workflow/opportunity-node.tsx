@@ -1670,20 +1670,6 @@ function OpportunityNodeComponent({
           title="NO-GO · Disqualified Archive"
         />
 
-        {/* 6. NO-GO Disqualified (Bottom / Top Backup Handle) */}
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="nogo-disqualified-bottom"
-          style={{ left: "30%" }}
-          title="NO-GO · Disqualified Archive"
-          className={cn(
-            "!size-3.5 !border-2 !border-background transition hover:!scale-125",
-            outcome === "nogo-disqualified"
-              ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
-              : "!bg-muted-foreground/40",
-          )}
-        />
       </div>
     </div>
   );
