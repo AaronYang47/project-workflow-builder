@@ -59,7 +59,7 @@ export const PRE_GATE_SALES_NODES: DomainNode[] = [
       outcomes: [
         {
           id: "pass-p1-p2",
-          label: "GATE 1 PASSED (P1/P2)",
+          label: "GATE 1 PASSED (P1)",
           edgeType: "success",
           color: "#16866f",
           enabled: true,

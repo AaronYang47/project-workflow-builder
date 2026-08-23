@@ -303,7 +303,8 @@ export interface OpportunityValidationConfig {
     | "PCS"
     | "LOI"
     | "Paid Feasibility"
-    | "Direct Technical Review";
+    | "Direct Technical Review"
+    | "Decline / No-Go";
   engagementStatus?: "Draft" | "Out for Signature" | "Executed";
 
   decisionOutcome?:

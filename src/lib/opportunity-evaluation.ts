@@ -450,7 +450,7 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   } else if (grade === "P4") {
     autoPath = "Paid Feasibility";
   } else {
-    autoPath = "CSA";
+    autoPath = "Decline / No-Go";
   }
 
   // Recommended Multi-Handle Outcome (Strict alignment with P1-P5 Grade)
@@ -473,16 +473,14 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
       recommendedOutcome = "csa-pcs";
     }
   } else if (grade === "P2") {
-    // P2 (Strong Qualified): Pass P1/P2 or CSA/PCS / LOI
+    // P2 (Strong Qualified): Directs to Pre-Construction PCS/CSA or Strategic LOI
     if (isLoiAllowed && autoPath === "LOI") {
       recommendedOutcome = "loi-governed";
-    } else if (mandatoryPassed && (autoOwnerType === "Project-Ready" || autoOwnerType === "Permit-Ready")) {
-      recommendedOutcome = "pass-p1-p2";
     } else {
       recommendedOutcome = "csa-pcs";
     }
   } else {
-    // P1 (Premier Validated): Fast-Track Direct Pass
+    // P1 (Premier Validated 85-100 pts): Direct Fast-Track Pass Gate 1
     recommendedOutcome = "pass-p1-p2";
   }
 

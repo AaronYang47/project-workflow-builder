@@ -99,15 +99,24 @@ function OpportunityNodeComponent({
     });
   };
 
-  const color = node.color || "#1f5fa7";
   const outcome = scoreBreakdown.recommendedOutcome;
+
+  // Fully dynamic theme color matching P1-P5 Grade
+  const dynamicThemeColor = useMemo(() => {
+    if (scoreBreakdown.grade === "P5" || scoreBreakdown.hasFatalRedFlag) return "#dc2626";
+    if (scoreBreakdown.grade === "P1") return "#10b981";
+    if (scoreBreakdown.grade === "P4") return "#f59e0b";
+    return "#2563eb"; // P2 / P3
+  }, [scoreBreakdown.grade, scoreBreakdown.hasFatalRedFlag]);
+
+  const color = dynamicThemeColor;
 
   // Score color scheme based on points and fatal flags
   const scoreStyle = useMemo(() => {
     if (
       scoreBreakdown.grade === "P5" ||
       scoreBreakdown.hasFatalRedFlag ||
-      scoreBreakdown.totalScore < 40
+      scoreBreakdown.totalScore < 35
     ) {
       return {
         text: "text-red-600 dark:text-red-400",
@@ -129,7 +138,7 @@ function OpportunityNodeComponent({
     if (
       scoreBreakdown.grade === "P2" ||
       scoreBreakdown.grade === "P3" ||
-      scoreBreakdown.totalScore >= 60
+      scoreBreakdown.totalScore >= 55
     ) {
       return {
         text: "text-blue-600 dark:text-blue-400",
@@ -146,7 +155,7 @@ function OpportunityNodeComponent({
       badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
       solid: "bg-amber-600 text-white",
     };
-  }, [scoreBreakdown.totalScore, scoreBreakdown.grade, scoreBreakdown.hasFatalRedFlag]);
+  }, [scoreBreakdown]);
 
   const questions = [
     {
