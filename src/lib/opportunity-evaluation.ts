@@ -229,7 +229,7 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
   if (answers.siteLevel === "owned") {
     score += 15;
   } else if (answers.siteLevel === "option") {
-    score += 8;
+    score += 10;
     gaps.push({
       label: "Conditional Land Control",
       action: "Track option expiration and municipal servicing due diligence window",
@@ -237,15 +237,14 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     });
     missingInfo.push("Land purchase agreement / Option expiry terms");
   } else {
-    score -= 15;
-    hasFatalRedFlag = true;
-    mandatoryPassed = false;
+    // Early site search is standard for P4 exploratory projects requiring Site Feasibility
+    score += 3;
     gaps.push({
-      label: "No Site Control / Fatal Blocker",
-      action: "Client has not secured land ownership or binding option",
-      severity: "error",
+      label: "Site Under Evaluation",
+      action: "Identify target parcel and execute Paid Site & Logistics Feasibility Study",
+      severity: "warning",
     });
-    missingInfo.push("Property parcel identification & title verification");
+    missingInfo.push("Target property parcel zoning & crane access evaluation");
   }
 
   // 4. Design Readiness (max 15 pts)
@@ -261,10 +260,10 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
       severity: "info",
     });
   } else {
-    score += 2;
+    score += 3;
     gaps.push({
-      label: "No Architectural Drawings",
-      action: "Provide volumetric modular layout massing or initiate concept scoping",
+      label: "No Architectural Drawings (Concept Phase)",
+      action: "Execute Paid Feasibility to generate volumetric modular layout massing",
       severity: "warning",
     });
     missingInfo.push("Architectural concept massing / floor layouts");
@@ -282,22 +281,33 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     });
     missingInfo.push("Value engineering target breakdown");
   } else {
-    score -= 15;
-    hasFatalRedFlag = true;
-    mandatoryPassed = false;
-    gaps.push({
-      label: "Severe Budget Disconnect (>25% Gap)",
-      action: "Client budget cannot construct target square footage; recalibrate scope or decline",
-      severity: "error",
-    });
-    missingInfo.push("Class D target budget alignment agreement");
+    // Over 25% gap: If extreme (>35%), fatal red flag; if 25-35%, early recalibration gap
+    if (variance > 35) {
+      score -= 15;
+      hasFatalRedFlag = true;
+      mandatoryPassed = false;
+      gaps.push({
+        label: "Extreme Budget Disconnect (>35% Gap)",
+        action: "Client budget cannot construct target square footage; recalibrate scope or decline",
+        severity: "error",
+      });
+      missingInfo.push("Class D target budget alignment agreement");
+    } else {
+      score += 2;
+      gaps.push({
+        label: "High Budget Gap (25–35%)",
+        action: "Perform comprehensive Class D cost model benchmarking during Paid Feasibility",
+        severity: "warning",
+      });
+      missingInfo.push("Scope & finishes calibration");
+    }
   }
 
   // 6. Financing & Timeline (max 10 pts)
   if (answers.fundingLevel === "secured") score += 6;
   else if (answers.fundingLevel === "progressing") score += 4;
   else {
-    score += 1;
+    score += 2;
     gaps.push({
       label: "Speculative Funding",
       action: "Establish proof of funds milestone prior to detailed engineering release",
@@ -386,16 +396,16 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     dynamicRiskTags.push("High-Cost-Variance");
   }
 
-  // Automated P1 - P5 Opportunity Grade Assignment
+  // Automated P1 - P5 Opportunity Grade Assignment (Industry Calibrated)
   let grade: "P1" | "P2" | "P3" | "P4" | "P5" = "P3";
   let gradeLabel = "P3 · Developing Opportunity";
   let gradeDesc = "Viable opportunity with moderate gaps; requires CSA / Paid Feasibility.";
   let gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
 
-  if (hasFatalRedFlag || totalScore < 40) {
+  if (hasFatalRedFlag || totalScore < 35) {
     grade = "P5";
     gradeLabel = "P5 · Disqualified / Fatal Red Flag";
-    gradeDesc = "Severe budget disconnect, fatal site/fit blocker, or no decision authority.";
+    gradeDesc = "Severe budget disconnect (>35%), fatal transport/fit blocker, or no decision authority.";
     gradeColor = "text-red-700 bg-red-500/15 border-red-500/30 dark:text-red-300";
   } else if (totalScore >= 85) {
     grade = "P1";
@@ -407,23 +417,23 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     gradeLabel = "P2 · Strong Qualified (Minor Gaps)";
     gradeDesc = "Strong commercial fundamentals with clearly defined, controlled mitigation actions.";
     gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
-  } else if (totalScore >= 60) {
+  } else if (totalScore >= 55) {
     grade = "P3";
     gradeLabel = "P3 · Developing Opportunity";
     gradeDesc = "Promising project requiring structured CSA / PCS pre-construction engagement.";
     gradeColor = "text-blue-700 bg-blue-500/15 border-blue-500/30 dark:text-blue-300";
   } else {
     grade = "P4";
-    gradeLabel = "P4 · Early Stage / High Gaps";
-    gradeDesc = "High gap density. Requires Paid Feasibility Study or scope recalibration.";
+    gradeLabel = "P4 · Early Stage / Concept Scoping";
+    gradeDesc = "Early exploration phase. Execute Paid Feasibility Study to validate site & geometry.";
     gradeColor = "text-amber-700 bg-amber-500/15 border-amber-500/30 dark:text-amber-300";
   }
 
   // Automated Owner Type Recommendation
   let autoOwnerType: OpportunityValidationConfig["ownerType"] = "Project-Ready";
   if (answers.designLevel === "lvl0") autoOwnerType = "Concept-Stage";
-  else if (answers.designLevel === "lvl1" || answers.designLevel === "lvl2") autoOwnerType = "Design-Needed";
   else if (answers.siteLevel === "searching") autoOwnerType = "Site-Unresolved";
+  else if (answers.designLevel === "lvl1" || answers.designLevel === "lvl2") autoOwnerType = "Design-Needed";
   else if (answers.designLevel === "lvl3" || answers.designLevel === "lvl4") autoOwnerType = "Permit-Ready";
   else if (totalScore >= 75) autoOwnerType = "Project-Ready";
 
