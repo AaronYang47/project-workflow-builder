@@ -140,14 +140,14 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground">
           PW
         </div>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-2">
           <Input
             aria-label="Workflow name"
             value={store.file.graph.metadata.name}
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ name: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="h-7 min-w-0 flex-1 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
+            className="h-7 w-auto min-w-[100px] max-w-[180px] border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
           />
           <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:inline">
             {store.file.graph.metadata.status}
@@ -161,7 +161,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ version: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="h-7 w-20 shrink-0 bg-transparent px-1 text-[11px] text-muted-foreground outline-none focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="h-7 w-16 shrink-0 bg-transparent px-1 text-[11px] text-muted-foreground outline-none focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           />
           {dirty ? (
             <span
@@ -186,69 +186,75 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
           )}
         </div>
       </div>
-      <div className="mx-1 h-7 w-px bg-border" />
-      <ToolButton
-        label="Undo (⌘Z)"
-        onClick={store.undo}
-        disabled={!store.past.length}
-      >
-        <Undo2 className="size-4" />
-      </ToolButton>
-      <ToolButton
-        label="Redo (⇧⌘Z)"
-        onClick={store.redo}
-        disabled={!store.future.length}
-      >
-        <Redo2 className="size-4" />
-      </ToolButton>
-      <div className="mx-1 h-7 w-px bg-border" />
-      <ToolButton label="Validate workflow" onClick={store.validate}>
-        <CheckCircle2 className="size-4" />
-      </ToolButton>
-      <Button
-        title="Automatically arrange nodes and route connections"
-        aria-label="Auto arrange nodes"
-        variant="outline"
-        size="sm"
-        onClick={arrange}
-        disabled={arranging}
-        className="h-8 shrink-0 px-2.5 text-xs"
-      >
-        <span className={arranging ? "animate-spin" : ""}>
-          {arranging ? (
-            <LoaderCircle className="size-3.5" />
-          ) : (
-            <AlignHorizontalDistributeCenter className="size-3.5" />
-          )}
-        </span>
-        {arranging ? "Arranging…" : "Auto arrange"}
-      </Button>
-      <ToolButton
-        label="Group selected"
-        onClick={store.groupSelected}
-        disabled={!store.selection.nodeIds.length}
-      >
-        <Group className="size-4" />
-      </ToolButton>
-      <ToolButton
-        label="Zoom to fit"
-        onClick={() => window.dispatchEvent(new Event("workflow:fit"))}
-      >
-        <Focus className="size-4" />
-      </ToolButton>
-      <div className="mx-1 h-7 w-px bg-border" />
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={openPalette}
-        className="hidden h-8 gap-2 border text-muted-foreground lg:flex"
-        aria-label="Search nodes and commands"
-      >
-        <Search className="size-3.5" />
-        <span className="text-xs">Search</span>
-        <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
-      </Button>
-      <CollaboratorPresence />
+      <div className="mx-1.5 h-6 w-px bg-border/60" />
+      <div className="flex shrink-0 items-center gap-1">
+        <ToolButton
+          label="Undo (⌘Z)"
+          onClick={store.undo}
+          disabled={!store.past.length}
+        >
+          <Undo2 className="size-4" />
+        </ToolButton>
+        <ToolButton
+          label="Redo (⇧⌘Z)"
+          onClick={store.redo}
+          disabled={!store.future.length}
+        >
+          <Redo2 className="size-4" />
+        </ToolButton>
+      </div>
+      <div className="mx-1.5 h-6 w-px bg-border/60" />
+      <div className="flex shrink-0 items-center gap-1">
+        <ToolButton label="Validate workflow" onClick={store.validate}>
+          <CheckCircle2 className="size-4" />
+        </ToolButton>
+        <Button
+          title="Automatically arrange nodes and route connections"
+          aria-label="Auto arrange nodes"
+          variant="outline"
+          size="sm"
+          onClick={arrange}
+          disabled={arranging}
+          className="h-8 shrink-0 px-2.5 text-xs"
+        >
+          <span className={arranging ? "animate-spin" : ""}>
+            {arranging ? (
+              <LoaderCircle className="size-3.5" />
+            ) : (
+              <AlignHorizontalDistributeCenter className="size-3.5" />
+            )}
+          </span>
+          {arranging ? "Arranging…" : "Auto arrange"}
+        </Button>
+        <ToolButton
+          label="Group selected"
+          onClick={store.groupSelected}
+          disabled={!store.selection.nodeIds.length}
+        >
+          <Group className="size-4" />
+        </ToolButton>
+        <ToolButton
+          label="Zoom to fit"
+          onClick={() => window.dispatchEvent(new Event("workflow:fit"))}
+        >
+          <Focus className="size-4" />
+        </ToolButton>
+      </div>
+      <div className="mx-2 h-6 w-px bg-border/60" />
+      <div className="flex shrink-0 items-center gap-2.5 mr-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={openPalette}
+          className="hidden h-8 gap-2 border border-border/80 text-muted-foreground lg:flex"
+          aria-label="Search nodes and commands"
+        >
+          <Search className="size-3.5" />
+          <span className="text-xs">Search</span>
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
+        </Button>
+        <CollaboratorPresence />
+      </div>
       <div className="ml-auto flex shrink-0 items-center pl-2">
         <ToolButton
           label="Export Excel"
