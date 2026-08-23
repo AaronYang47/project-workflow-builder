@@ -58,7 +58,7 @@ const colors: Record<DomainEdge["type"], string> = {
 
 export const OPPORTUNITY_ROUTE_COLORS: Record<string, string> = {
   "pass-p1-p2": "#10b981", // P1: Emerald Green
-  "loi-governed": "#9333ea", // Strategic LOI: Purple
+  "loi-governed": "#2563eb", // P2: Royal Blue
   "csa-pcs": "#0891b2", // P3: Vibrant Cyan / Teal
   "site-feasibility": "#d97706", // P4: Amber
   "hold-rework": "#ea580c", // P4: Orange

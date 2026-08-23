@@ -263,12 +263,10 @@ function OpportunityNodeComponent({
                     "rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
                     outcome === "pass-p1-p2"
                       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
-                      : outcome === "csa-pcs"
-                        ? scoreBreakdown.grade === "P3"
+                      : outcome === "loi-governed"
+                        ? "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
+                        : outcome === "csa-pcs"
                           ? "bg-cyan-500/15 text-cyan-600 border-cyan-500/30 dark:text-cyan-400"
-                          : "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
-                        : outcome === "loi-governed"
-                          ? "bg-purple-500/15 text-purple-600 border-purple-500/30 dark:text-purple-400"
                           : outcome === "site-feasibility"
                             ? "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400"
                             : outcome === "hold-rework"
@@ -277,16 +275,16 @@ function OpportunityNodeComponent({
                   )}
                 >
                   {outcome === "pass-p1-p2"
-                    ? "GATE 1 PASSED (P1/P2)"
-                    : outcome === "csa-pcs"
-                      ? "PROCEED TO CSA / PCS"
-                      : outcome === "loi-governed"
-                        ? "STRATEGIC LOI (CAPPED)"
+                    ? "GATE 1 PASSED (P1)"
+                    : outcome === "loi-governed"
+                      ? "PROCEED TO PCS (P2)"
+                      : outcome === "csa-pcs"
+                        ? "PROCEED TO CSA (P3)"
                         : outcome === "site-feasibility"
-                          ? "SITE FEASIBILITY LOOP"
+                          ? "SITE FEASIBILITY LOOP (P4)"
                           : outcome === "hold-rework"
-                            ? "HOLD · REWORK LOOP"
-                            : "NO-GO DISQUALIFIED"}
+                            ? "HOLD · REWORK LOOP (P4)"
+                            : "NO-GO DISQUALIFIED (P5)"}
                 </span>
               </div>
               <h3 className="text-sm font-bold text-foreground truncate">
@@ -1479,12 +1477,10 @@ function OpportunityNodeComponent({
                   "rounded-lg p-2.5 text-xs font-bold border flex items-center justify-between shadow-xs transition-colors",
                   outcome === "pass-p1-p2"
                     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
-                    : outcome === "csa-pcs"
-                      ? scoreBreakdown.grade === "P3"
+                    : outcome === "loi-governed"
+                      ? "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
+                      : outcome === "csa-pcs"
                         ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300"
-                        : "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
-                      : outcome === "loi-governed"
-                        ? "bg-purple-500/15 border-purple-500/40 text-purple-700 dark:text-purple-300"
                         : outcome === "site-feasibility"
                           ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
                           : outcome === "hold-rework"
@@ -1498,12 +1494,10 @@ function OpportunityNodeComponent({
                       "size-2.5 rounded-full animate-pulse",
                       outcome === "pass-p1-p2"
                         ? "bg-emerald-500"
-                        : outcome === "csa-pcs"
-                          ? scoreBreakdown.grade === "P3"
+                        : outcome === "loi-governed"
+                          ? "bg-blue-500"
+                          : outcome === "csa-pcs"
                             ? "bg-cyan-500"
-                            : "bg-blue-500"
-                          : outcome === "loi-governed"
-                            ? "bg-purple-500"
                             : outcome === "site-feasibility"
                               ? "bg-amber-500"
                               : outcome === "hold-rework"
@@ -1513,34 +1507,34 @@ function OpportunityNodeComponent({
                   />
                   <span>
                     {outcome === "pass-p1-p2"
-                      ? "GATE 1 PASSED (P1/P2)"
-                      : outcome === "csa-pcs"
-                        ? "PROCEED TO CSA / PCS"
-                        : outcome === "loi-governed"
-                          ? "STRATEGIC GOVERNED LOI"
+                      ? "GATE 1 PASSED (P1)"
+                      : outcome === "loi-governed"
+                        ? "PROCEED TO PCS (P2)"
+                        : outcome === "csa-pcs"
+                          ? "PROCEED TO CSA (P3)"
                           : outcome === "site-feasibility"
-                            ? "SITE FEASIBILITY LOOP"
+                            ? "SITE FEASIBILITY LOOP (P4)"
                             : outcome === "hold-rework"
-                              ? "HOLD · REWORK LOOP"
-                              : "NO-GO · DISQUALIFIED"}
+                              ? "HOLD · REWORK LOOP (P4)"
+                              : "NO-GO · DISQUALIFIED (P5)"}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono opacity-80 uppercase">
-                  {outcome}
+                  {outcome === "loi-governed" ? "p2-pcs" : outcome === "csa-pcs" ? "p3-csa" : outcome}
                 </span>
               </div>
               <div className="text-[10px] text-muted-foreground leading-snug">
                 {outcome === "pass-p1-p2"
-                  ? "Direct fast-track release into Stage 1 & Gate 1."
-                  : outcome === "csa-pcs"
-                    ? "Directs workflow into Pre-Construction Paid Design Assist."
-                    : outcome === "loi-governed"
-                      ? "Directs workflow into capped 21-day / 20-hour Strategic LOI corridor."
+                  ? "Direct fast-track release into Stage 1 & Gate 1 (P1 Validated)."
+                  : outcome === "loi-governed"
+                    ? "Directs workflow into Pre-Construction PCS Consultation (P2 Qualified)."
+                    : outcome === "csa-pcs"
+                      ? "Directs workflow into Pre-Construction CSA Modular Design Assist (P3)."
                       : outcome === "site-feasibility"
-                        ? "Routes to municipal servicing & zoning due diligence."
+                        ? "Routes to municipal servicing & zoning feasibility loop (P4)."
                         : outcome === "hold-rework"
                           ? "Holds workflow and loops back for commercial strategy recalibration."
-                          : "Terminates flow and directs project to disqualification archive."}
+                          : "Terminates flow and directs project to disqualification archive (P5)."}
               </div>
             </div>
           </div>
@@ -1605,17 +1599,17 @@ function OpportunityNodeComponent({
         )}
       />
 
-      {/* 2. Strategic Governed LOI Path (Top 32%) */}
+      {/* 2. PROCEED TO PCS / STAGE 1 (Top 32% - P2 Royal Blue) */}
       <Handle
         type="source"
         position={Position.Right}
         id="loi-governed"
         style={{ top: "32%" }}
-        title="Strategic Governed LOI (Capped 21 Days)"
+        title="Proceed to PCS / Stage 1 Pre-Construction (P2)"
         className={cn(
           "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
           outcome === "loi-governed"
-            ? "!bg-purple-500 ring-2 ring-purple-500/40 animate-pulse"
+            ? "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
             : "!bg-muted-foreground/40",
         )}
       />

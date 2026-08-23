@@ -454,32 +454,16 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     autoPath = "Decline / No-Go";
   }
 
-  // Recommended Multi-Handle Outcome (Strict alignment with P1-P5 Grade)
+  // Recommended Multi-Handle Outcome (Strict 1-to-1 alignment with P1-P5 Grade)
   let recommendedOutcome: OpportunityValidationConfig["decisionOutcome"] = "pass-p1-p2";
   if (grade === "P5" || hasFatalRedFlag) {
     recommendedOutcome = "nogo-disqualified";
   } else if (grade === "P4") {
-    // P4 (Early Stage / Concept Scoping) MUST execute Paid Feasibility or Rework.
-    // Never allow P4 to directly enter Stage 1.
-    if (answers.siteLevel === "searching" || autoOwnerType === "Site-Unresolved") {
-      recommendedOutcome = "site-feasibility";
-    } else {
-      recommendedOutcome = "hold-rework";
-    }
+    recommendedOutcome = "site-feasibility";
   } else if (grade === "P3") {
-    // P3 (Developing Opportunity): Proceed to CSA
-    if (isLoiAllowed && autoPath === "LOI") {
-      recommendedOutcome = "loi-governed";
-    } else {
-      recommendedOutcome = "csa-pcs";
-    }
+    recommendedOutcome = "csa-pcs";
   } else if (grade === "P2") {
-    // P2 (Strong Qualified): Directs to Pre-Construction PCS/CSA or Strategic LOI
-    if (isLoiAllowed && autoPath === "LOI") {
-      recommendedOutcome = "loi-governed";
-    } else {
-      recommendedOutcome = "csa-pcs";
-    }
+    recommendedOutcome = "loi-governed";
   } else {
     // P1 (Premier Validated 85-100 pts): Direct Fast-Track Pass Gate 1
     recommendedOutcome = "pass-p1-p2";
