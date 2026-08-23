@@ -453,20 +453,37 @@ export function evaluateOpportunity(node: DomainNode): OpportunityEvaluationResu
     autoPath = "CSA";
   }
 
-  // Recommended Multi-Handle Outcome
+  // Recommended Multi-Handle Outcome (Strict alignment with P1-P5 Grade)
   let recommendedOutcome: OpportunityValidationConfig["decisionOutcome"] = "pass-p1-p2";
   if (grade === "P5" || hasFatalRedFlag) {
     recommendedOutcome = "nogo-disqualified";
-  } else if (autoOwnerType === "Site-Unresolved") {
-    recommendedOutcome = "site-feasibility";
-  } else if (autoPath === "LOI" && isLoiAllowed) {
-    recommendedOutcome = "loi-governed";
-  } else if (grade === "P1" || (grade === "P2" && mandatoryPassed)) {
-    recommendedOutcome = "pass-p1-p2";
-  } else if (autoOwnerType === "Design-Needed" || autoOwnerType === "Concept-Stage") {
-    recommendedOutcome = "csa-pcs";
+  } else if (grade === "P4") {
+    // P4 (Early Stage / Concept Scoping) MUST execute Paid Feasibility or Rework.
+    // Never allow P4 to directly enter Stage 1.
+    if (answers.siteLevel === "searching" || autoOwnerType === "Site-Unresolved") {
+      recommendedOutcome = "site-feasibility";
+    } else {
+      recommendedOutcome = "hold-rework";
+    }
+  } else if (grade === "P3") {
+    // P3 (Developing Opportunity): Proceed to CSA
+    if (isLoiAllowed && autoPath === "LOI") {
+      recommendedOutcome = "loi-governed";
+    } else {
+      recommendedOutcome = "csa-pcs";
+    }
+  } else if (grade === "P2") {
+    // P2 (Strong Qualified): Pass P1/P2 or CSA/PCS / LOI
+    if (isLoiAllowed && autoPath === "LOI") {
+      recommendedOutcome = "loi-governed";
+    } else if (mandatoryPassed && (autoOwnerType === "Project-Ready" || autoOwnerType === "Permit-Ready")) {
+      recommendedOutcome = "pass-p1-p2";
+    } else {
+      recommendedOutcome = "csa-pcs";
+    }
   } else {
-    recommendedOutcome = "hold-rework";
+    // P1 (Premier Validated): Fast-Track Direct Pass
+    recommendedOutcome = "pass-p1-p2";
   }
 
   return {

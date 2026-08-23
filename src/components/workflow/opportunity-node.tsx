@@ -1529,8 +1529,8 @@ function OpportunityNodeComponent({
         <div className="border-t bg-muted/40 px-4 py-2 text-[11px] flex items-center justify-between text-muted-foreground">
           <span>
             Grade: <strong className={cn("font-bold", scoreStyle.text)}>{scoreBreakdown.grade} ({scoreBreakdown.totalScore}/100)</strong> · Owner:{" "}
-            <strong className="text-foreground">{opp.ownerType || scoreBreakdown.autoOwnerType}</strong> · Path:{" "}
-            <strong className="text-foreground">{opp.engagementPath || scoreBreakdown.autoPath}</strong>
+            <strong className="text-foreground">{scoreBreakdown.autoOwnerType}</strong> · Path:{" "}
+            <strong className="text-foreground">{scoreBreakdown.autoPath}</strong>
           </span>
           <span className="font-semibold text-primary">
             {outcome === "pass-p1-p2"
