@@ -340,6 +340,8 @@ function CanvasInner() {
   // Hook 3: Global focus, fit, and image export handlers
   useCanvasExport(flow, wrapper);
 
+  const lastNodeInteractionRef = useRef(0);
+
   return (
     <div
       ref={wrapper}
@@ -372,6 +374,18 @@ function CanvasInner() {
             .deleteNodes(deleted.map((node) => node.id))
         }
         onPaneClick={(event) => {
+          const globalLast =
+            typeof window !== "undefined"
+              ? (window as unknown as { __lastNodeClickTime?: number })
+                  .__lastNodeClickTime || 0
+              : 0;
+          if (
+            Date.now() -
+              Math.max(lastNodeInteractionRef.current, globalLast) <
+            400
+          ) {
+            return;
+          }
           const target = event?.target as HTMLElement | undefined;
           if (
             target &&
@@ -399,6 +413,12 @@ function CanvasInner() {
           }
         }}
         onNodeClick={(_, node) => {
+          lastNodeInteractionRef.current = Date.now();
+          if (typeof window !== "undefined") {
+            (
+              window as unknown as { __lastNodeClickTime?: number }
+            ).__lastNodeClickTime = Date.now();
+          }
           selectNodes([node.id]);
           selectEdge(undefined);
           useCollaborationStore.getState().setFocusedNodeId(node.id);

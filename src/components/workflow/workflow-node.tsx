@@ -28,7 +28,11 @@ function WorkflowNodeComponent({
   const selectEdge = useWorkflowStore((state) => state.selectEdge);
 
   const handleSelectNode = (e: React.SyntheticEvent) => {
-    // Only select if not already selected to avoid redundant dispatches
+    if (typeof window !== "undefined") {
+      (
+        window as unknown as { __lastNodeClickTime?: number }
+      ).__lastNodeClickTime = Date.now();
+    }
     const currentSelection = useWorkflowStore.getState().selection;
     if (!currentSelection.nodeIds.includes(node.id) || currentSelection.edgeId) {
       selectNodes([node.id]);

@@ -270,9 +270,19 @@ function OutcomeEditor({
   );
 }
 
+import { useShallow } from "zustand/react/shallow";
+
 export function Inspector() {
   const { file, selection, updateNode, updateEdge, deleteSelected } =
-    useWorkflowStore();
+    useWorkflowStore(
+      useShallow((state) => ({
+        file: state.file,
+        selection: state.selection,
+        updateNode: state.updateNode,
+        updateEdge: state.updateEdge,
+        deleteSelected: state.deleteSelected,
+      })),
+    );
   const node = file.graph.nodes.find(
     (item) => item.id === selection.nodeIds[0],
   );
