@@ -8,6 +8,8 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { ComponentNoteButton } from "./component-note-button";
 import { ProjectIdBadge } from "./project-id-badge";
 
+import { cn } from "@/lib/utils";
+
 export type PhaseFlowNode = Node<{ domain: DomainNode }, "phase">;
 const rowsFor = (value: string, characters: number) =>
   Math.max(1, Math.ceil(value.length / characters));
@@ -17,12 +19,23 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
   const selected = useWorkflowStore((state) =>
     state.selection.nodeIds.includes(node.id),
   );
+  const selectNodes = useWorkflowStore((state) => state.selectNodes);
+  const selectEdge = useWorkflowStore((state) => state.selectEdge);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const color = node.color || "#64748b";
+
+  const handleSelectPhase = () => {
+    selectNodes([node.id]);
+    selectEdge(undefined);
+  };
+
   return (
     <div
       data-canvas-node
-      className="h-full w-full rounded-2xl border-2 bg-slate-500/[0.035]"
+      className={cn(
+        "h-full w-full rounded-2xl border-2 bg-slate-500/[0.035] transition duration-200",
+        selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+      )}
       style={{ borderColor: `${color}66` }}
     >
       <div className="pointer-events-auto">
@@ -43,6 +56,8 @@ function PhaseNodeComponent({ data }: NodeProps<PhaseFlowNode>) {
       </div>
       <div
         data-phase-header
+        onClick={handleSelectPhase}
+        onPointerDownCapture={handleSelectPhase}
         className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-28 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3.5 shadow-sm backdrop-blur active:cursor-grabbing"
       >
         <span

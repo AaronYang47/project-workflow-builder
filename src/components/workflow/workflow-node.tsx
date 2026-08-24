@@ -8,6 +8,7 @@ import { OpportunityNode } from "./opportunity-node";
 import type { WorkflowFlowNode } from "./node-utils";
 
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { useWorkflowStore } from "@/store/workflow-store";
 
 function WorkflowNodeComponent({
   data,
@@ -19,16 +20,33 @@ function WorkflowNodeComponent({
     (peer) => peer.focusedNodeId === node.id && Date.now() - peer.lastActiveAt < 30000,
   );
 
+  const storeSelected = useWorkflowStore((state) =>
+    state.selection.nodeIds.includes(node.id),
+  );
+  const isSelected = selected || storeSelected;
+  const selectNodes = useWorkflowStore((state) => state.selectNodes);
+  const selectEdge = useWorkflowStore((state) => state.selectEdge);
+
+  const handleSelectNode = (e: React.SyntheticEvent) => {
+    // Only select if not already selected to avoid redundant dispatches
+    const currentSelection = useWorkflowStore.getState().selection;
+    if (!currentSelection.nodeIds.includes(node.id) || currentSelection.edgeId) {
+      selectNodes([node.id]);
+      selectEdge(undefined);
+      useCollaborationStore.getState().setFocusedNodeId(node.id);
+    }
+  };
+
   let inner = null;
   if (node.type === "gate") {
-    inner = <GateNode node={node} selected={selected} />;
+    inner = <GateNode node={node} selected={isSelected} />;
   } else if (node.type === "opportunityValidation") {
-    inner = <OpportunityNode node={node} selected={selected} />;
+    inner = <OpportunityNode node={node} selected={isSelected} />;
   } else {
     inner = (
       <GeneralNode
         node={node}
-        selected={selected}
+        selected={isSelected}
         emphasized={data.emphasized}
         dimmed={data.dimmed}
         reached={data.reached}
@@ -36,12 +54,22 @@ function WorkflowNodeComponent({
     );
   }
 
+  const content = (
+    <div
+      onClick={handleSelectNode}
+      onPointerDownCapture={handleSelectNode}
+      className="h-full w-full"
+    >
+      {inner}
+    </div>
+  );
+
   if (!activeCollaborator) {
-    return inner;
+    return content;
   }
 
   return (
-    <div className="relative group">
+    <div className="relative group h-full w-full">
       {/* Remote Collaborator Halo & Badge */}
       <div
         className="pointer-events-none absolute -inset-1 rounded-2xl ring-2 transition-all duration-300 z-20"
@@ -57,7 +85,7 @@ function WorkflowNodeComponent({
         <span className="size-1.5 rounded-full bg-white animate-pulse" />
         <span>{activeCollaborator.name}</span>
       </div>
-      {inner}
+      {content}
     </div>
   );
 }

@@ -102,7 +102,8 @@ export function GeneralNode({
       data-canvas-node
       data-inspector-target="color"
       className={cn(
-        "workflow-node group h-full w-full overflow-hidden rounded-xl border bg-card shadow-[0_3px_12px_rgba(15,23,42,.09)] transition",
+        "workflow-node group h-full w-full overflow-hidden rounded-xl border bg-card shadow-[0_3px_12px_rgba(15,23,42,.09)] transition duration-200",
+        selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
         emphasized &&
           "shadow-[0_0_0_2px_rgba(37,99,169,.28),0_8px_22px_rgba(15,23,42,.12)]",
         dimmed && "opacity-35",

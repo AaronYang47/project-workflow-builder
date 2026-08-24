@@ -117,10 +117,7 @@ function CanvasInner() {
             height: layout?.height,
             parentId: layout?.parentId,
             zIndex: domain.type === "phase" ? -1 : layout?.zIndex,
-            selected:
-              domain.type === "phase"
-                ? false
-                : selection.nodeIds.includes(domain.id),
+            selected: selection.nodeIds.includes(domain.id),
             draggable: true,
             dragHandle:
               domain.type === "phase" ? ".phase-drag-handle" : undefined,
@@ -409,6 +406,25 @@ function CanvasInner() {
           selectEdge(edge.id);
           selectNodes([]);
           useCollaborationStore.getState().setFocusedNodeId(undefined);
+        }}
+        onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
+          if (selectedNodes.length > 0) {
+            const ids = selectedNodes.map((n) => n.id);
+            const currentSelection = useWorkflowStore.getState().selection;
+            if (
+              currentSelection.nodeIds.length !== ids.length ||
+              !ids.every((id) => currentSelection.nodeIds.includes(id))
+            ) {
+              selectNodes(ids);
+              selectEdge(undefined);
+            }
+          } else if (selectedEdges.length > 0) {
+            const edgeId = selectedEdges[0].id;
+            if (useWorkflowStore.getState().selection.edgeId !== edgeId) {
+              selectEdge(edgeId);
+              selectNodes([]);
+            }
+          }
         }}
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}

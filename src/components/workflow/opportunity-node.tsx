@@ -216,7 +216,7 @@ function OpportunityNodeComponent({
         data-canvas-node
         className={cn(
           "workflow-node group flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-[0_8px_30px_rgba(15,23,42,0.14)] transition duration-200",
-          selected && "ring-2 ring-primary/70 ring-offset-2",
+          selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
         )}
         style={{ borderColor: `${color}65` }}
       >

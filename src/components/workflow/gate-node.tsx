@@ -4,6 +4,7 @@ import { NodeResizer } from "@xyflow/react";
 import { getGateLayoutMetrics, withMeasuredGateHeight } from "@/lib/gate-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { cn } from "@/lib/utils";
 import { GateRules } from "./gate-rules";
 
 export function GateNode({
@@ -21,7 +22,13 @@ export function GateNode({
     layoutHeight,
   );
   return (
-    <div data-canvas-node className="relative h-full w-full overflow-visible rounded-2xl">
+    <div
+      data-canvas-node
+      className={cn(
+        "relative h-full w-full overflow-visible rounded-2xl transition duration-200",
+        selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+      )}
+    >
       <NodeResizer
         minWidth={metrics.width}
         minHeight={metrics.height}

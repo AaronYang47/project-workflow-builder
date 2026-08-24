@@ -69,19 +69,36 @@ function ReferenceNodeComponent({
       ),
     });
 
+  const storeSelected = useWorkflowStore((state) =>
+    state.selection.nodeIds.includes(node.id),
+  );
+  const isSelected = selected || storeSelected;
+  const selectNodes = useWorkflowStore((state) => state.selectNodes);
+  const selectEdge = useWorkflowStore((state) => state.selectEdge);
+
+  const handleSelectReference = () => {
+    selectNodes([node.id]);
+    selectEdge(undefined);
+  };
+
   return (
-    <div className="relative h-full w-full overflow-visible">
+    <div
+      onClick={handleSelectReference}
+      onPointerDownCapture={handleSelectReference}
+      className="relative h-full w-full overflow-visible"
+    >
     <div
       data-canvas-node
       className={cn(
-        "nowheel min-w-0 h-full w-full overflow-hidden rounded-2xl border bg-card shadow-[0_8px_28px_rgba(15,23,42,.12)]",
+        "nowheel min-w-0 h-full w-full overflow-hidden rounded-2xl border bg-card shadow-[0_8px_28px_rgba(15,23,42,.12)] transition duration-200",
+        isSelected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
       style={{ borderColor: `${node.color || definition.color}66` }}
     >
       <NodeResizer
         minWidth={280}
         minHeight={140}
-        isVisible={selected}
+        isVisible={isSelected}
         lineClassName="!border-primary"
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
         onResizeEnd={(_, params) =>
