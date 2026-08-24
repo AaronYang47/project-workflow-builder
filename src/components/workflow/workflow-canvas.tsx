@@ -371,7 +371,17 @@ function CanvasInner() {
             .getState()
             .deleteNodes(deleted.map((node) => node.id))
         }
-        onPaneClick={() => {
+        onPaneClick={(event) => {
+          const target = event?.target as HTMLElement | undefined;
+          if (
+            target &&
+            (target.closest(".react-flow__node") ||
+              target.closest("[data-canvas-node]") ||
+              target.closest(".workflow-node") ||
+              target.closest(".nodrag"))
+          ) {
+            return;
+          }
           const current = useWorkflowStore.getState().selection;
           if (current.nodeIds.length || current.edgeId) {
             selectNodes([]);

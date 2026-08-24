@@ -226,7 +226,8 @@ export const useWorkflowStore = create<WorkflowState>()(
         const lastSavedAt = new Date().toISOString();
         set({ dirty: false, lastSavedAt });
       },
-      selectNodes: (nodeIds) => set({ selection: { nodeIds } }),
+      selectNodes: (nodeIds) =>
+        set({ selection: { nodeIds, edgeId: undefined } }),
       selectEdge: (edgeId) => set({ selection: { nodeIds: [], edgeId } }),
       setFocusedInspectorField: (focusedInspectorField) =>
         set({ focusedInspectorField }),
