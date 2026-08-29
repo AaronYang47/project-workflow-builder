@@ -441,13 +441,18 @@ export function ExecutionView({
       .map((workflowNode) => {
         const layout = file.layout.nodes[workflowNode.id];
         const position = resolvePosition(workflowNode.id);
+        const isOpportunity =
+          workflowNode.type === "opportunityValidation" ||
+          workflowNode.id.toLowerCase().includes("opportunity");
+        const nodeWidth = isOpportunity ? 680 : Math.min(layout?.width || 220, 220);
+        const nodeHeight = 140;
         return {
           id: workflowNode.id,
           label: workflowNode.title,
           x: position.x,
           y: position.y,
-          width: layout?.width || 270,
-          height: layout?.height || 220,
+          width: nodeWidth,
+          height: nodeHeight,
           color: workflowNode.color || getNodeDefinition(workflowNode.type).color,
           active: workflowNode.id === nodeId,
           container: workflowNode.type === "phase",
@@ -589,10 +594,10 @@ export function ExecutionView({
             }}
             className="w-full shadow-sm"
             expandable
-            compact={false}
+            compact={true}
           />
-          <p className="mt-1.5 px-1 text-[10px] leading-4 text-muted-foreground">
-            The highlighted green node is the active L2 source. Click the node or steps in the minimap to return to that location in L2 Detailed Workflow.
+          <p className="mt-1 px-1 text-[9.5px] leading-3 text-muted-foreground">
+            The highlighted green node is the active L2 source. Click any node in the minimap to return to that location in L2 Detailed Workflow.
           </p>
         </div>
       </div>

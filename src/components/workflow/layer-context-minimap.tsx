@@ -200,11 +200,11 @@ export function LayerContextMinimap({
         : 88
       : expanded
         ? compact
-          ? 280
-          : 440
+          ? 200
+          : 320
         : compact
-          ? 180
-          : 250;
+          ? 110
+          : 150;
   const svgHeight = Math.round(baseInnerHeight * zoom);
   const svgWidth = Math.round((vbWidth / vbHeight) * svgHeight);
 
@@ -830,24 +830,24 @@ export function LayerContextMinimap({
                       height={Math.max(1, node.height - 16)}
                       className="pointer-events-none"
                     >
-                      <div className="flex h-full w-full flex-col justify-between p-3 font-sans select-none">
+                      <div className="flex h-full w-full flex-col justify-between p-2 font-sans select-none">
                         {/* Header Row in Minimap */}
-                        <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-black shrink-0">
+                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="flex size-5 items-center justify-center rounded-md bg-primary/15 text-primary text-xs font-bold shrink-0">
                               🎯
                             </span>
-                            <span className="text-sm font-extrabold text-foreground truncate">
+                            <span className="text-xs font-bold text-foreground truncate">
                               {node.label}
                             </span>
                           </div>
-                          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 shrink-0 shadow-xs border border-emerald-500/30">
+                          <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0 border border-emerald-500/30">
                             Active: Step 1 · Intake
                           </span>
                         </div>
 
                         {/* 6 Steps Row in Minimap */}
-                        <div className="grid grid-cols-6 gap-2 mt-2">
+                        <div className="grid grid-cols-6 gap-1.5 mt-1">
                           {[
                             { num: "STEP 1", title: "Intake", sub: "Evidence", status: "Active", active: true },
                             { num: "STEP 2", title: "Blockers", sub: "Eligibility", status: "Pending", active: false },
@@ -859,27 +859,27 @@ export function LayerContextMinimap({
                             <div
                               key={step.num}
                               className={cn(
-                                "rounded-xl border p-2 text-center transition-all flex flex-col justify-between",
+                                "rounded-lg border p-1 text-center transition-all flex flex-col justify-between",
                                 step.active
-                                  ? "border-emerald-500 bg-emerald-500/20 shadow-md ring-2 ring-emerald-500/60"
-                                  : "border-border/70 bg-card/60 opacity-80",
+                                  ? "border-emerald-500 bg-emerald-500/20 shadow-xs ring-1 ring-emerald-500/60"
+                                  : "border-border/60 bg-card/60 opacity-80",
                               )}
                             >
                               <div>
-                                <div className="text-[9.5px] font-extrabold text-muted-foreground tracking-wider uppercase">
+                                <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">
                                   {step.num}
                                 </div>
-                                <div className="text-xs font-black text-foreground truncate mt-0.5">
+                                <div className="text-[11px] font-black text-foreground truncate mt-0.5">
                                   {step.title}
                                 </div>
-                                <div className="text-[10px] text-muted-foreground truncate font-medium">
+                                <div className="text-[9px] text-muted-foreground truncate font-medium">
                                   {step.sub}
                                 </div>
                               </div>
-                              <div className="mt-1">
+                              <div className="mt-0.5">
                                 <span
                                   className={cn(
-                                    "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
+                                    "inline-block rounded px-1 py-0.2 text-[7.5px] font-bold uppercase",
                                     step.active
                                       ? "bg-emerald-500/30 text-emerald-800 dark:text-emerald-200"
                                       : "bg-muted text-muted-foreground",
@@ -938,8 +938,8 @@ export function LayerContextMinimap({
             level === "L1"
               ? "gap-1.5 px-2.5 py-1.5 bg-transparent"
               : compact
-                ? "gap-1 px-2 py-1.5 bg-background/90"
-                : "gap-2 px-3 py-2.5 bg-background/90",
+                ? "gap-1 px-2 py-1 bg-background/80"
+                : "gap-1.5 px-2.5 py-1.5 bg-background/80",
           )}
         >
           {orderedNavigatorNodes.map((node, index) => (
@@ -952,32 +952,26 @@ export function LayerContextMinimap({
               title={node.label}
               className={cn(
                 "flex shrink-0 items-center transition-all",
-                level === "L1"
-                  ? "max-w-48 gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium bg-card/60"
-                  : compact
-                    ? "max-w-56 gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-semibold"
-                    : "max-w-64 gap-2.5 rounded-xl border px-3.5 py-2 text-xs font-semibold",
+                compact
+                  ? "max-w-40 gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium"
+                  : "max-w-48 gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold",
                 node.active
-                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 shadow-[0_0_14px_rgba(16,185,129,0.3)] dark:text-emerald-200"
-                  : "bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
+                  ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 shadow-xs"
+                  : "bg-card/70 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
               )}
             >
               <span
                 className={cn(
                   "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
-                  level === "L1"
-                    ? "size-4 text-[9px]"
-                    : compact
-                      ? "size-4 text-[9px]"
-                      : "size-5 text-[10px]",
+                  compact ? "size-3.5 text-[8px]" : "size-4 text-[9px]",
                   node.active
-                    ? "node-beacon-pulse bg-emerald-500 text-white"
+                    ? "bg-emerald-500 text-white"
                     : "bg-muted text-muted-foreground",
                 )}
               >
                 {index + 1}
               </span>
-              <span className="truncate font-medium">{node.label}</span>
+              <span className="truncate">{node.label}</span>
             </button>
           ))}
         </div>
