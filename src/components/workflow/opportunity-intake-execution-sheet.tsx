@@ -272,43 +272,29 @@ export function OpportunityIntakeExecutionSheet({
   };
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* Top L3 Sub-Header */}
-      <header className="flex shrink-0 items-center justify-between border-b bg-card px-5 py-3 shadow-xs">
+    <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
+      {/* Top Dossier Readiness & Score Ribbon */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="h-8 gap-1.5 text-xs font-semibold"
-          >
-            <ArrowLeft className="size-3.5" />
-            Back to Workflow
-          </Button>
-          <div className="h-4 w-px bg-border/60" />
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Target className="size-4" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-foreground">
-                  Step 1 · Objective Intake & Evidence Dossier
-                </h2>
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
-                  L3 Execution Layer
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Formal qualification intake for {node.title || "Opportunity Node"}
-              </p>
+          <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Target className="size-5" />
+          </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-foreground">
+                Step 1 · Objective Intake & Evidence Dossier
+              </h2>
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+                L3 Execution Sheet
+              </span>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Direct factual intake establishing Gate 1 project eligibility
+            </p>
           </div>
         </div>
 
-        {/* Header Right Badges */}
-        <div className="flex items-center gap-3">
-          {/* Readiness Indicator */}
+        <div className="flex items-center gap-2.5">
           <div
             className={cn(
               "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-xs",
@@ -327,18 +313,11 @@ export function OpportunityIntakeExecutionSheet({
             </span>
           </div>
 
-          {/* Quality Score Indicator */}
           <div className="rounded-full border border-border/80 bg-muted/40 px-3 py-1 text-xs font-bold text-foreground shadow-xs">
-            Quality Score: {isStep1Complete ? `${evaluation.totalScore}/100 · ${evaluation.scoreGrade}` : "Pending"}
+            Score: {isStep1Complete ? `${evaluation.totalScore}/100 · ${evaluation.scoreGrade}` : "Pending"}
           </div>
-
-          {/* Project ID Badge */}
-          <ProjectIdBadge showPlaceholder />
         </div>
-      </header>
-
-      {/* Main Body */}
-      <div className="scroll-thin flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
+      </div>
         {/* Quick Scenario Ribbon */}
         <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3.5 shadow-xs">
           <div className="flex items-center gap-2">
@@ -821,7 +800,6 @@ export function OpportunityIntakeExecutionSheet({
           </Button>
         </div>
       </div>
-    </div>
   );
 }
 

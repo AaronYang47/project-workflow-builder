@@ -40,6 +40,7 @@ import {
   type ContextMapNode,
 } from "./layer-context-minimap";
 import { OpportunityIntakeExecutionSheet } from "./opportunity-intake-execution-sheet";
+import { ProjectIdBadge } from "./project-id-badge";
 
 function progressTone(item: ExecutionItem) {
   const progress = executionItemProgress(item);
@@ -485,10 +486,6 @@ export function ExecutionView({
     );
   }
 
-  if (node.type === "opportunityValidation") {
-    return <OpportunityIntakeExecutionSheet node={node} onBack={onBack} />;
-  }
-
   const addItem = () => {
     const id = addExecutionItem(node.id, "Document");
     if (id) setSelectedItemId(id);
@@ -518,47 +515,55 @@ export function ExecutionView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-              summary.status === "Blocked"
-                ? "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                : summary.status === "Incomplete"
-                  ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-            )}
-          >
-            {summary.completedCount}/{summary.itemCount} Complete · {summary.status}
-          </div>
-          {items.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                useWorkflowStore.getState().showConfirmClear({
-                  title: `Clear L3 Requirements for "${node.title}"`,
-                  message: `Are you sure you want to clear all ${items.length} execution requirements for "${node.title}"? This action cannot be undone.`,
-                  confirmLabel: "Clear Node Requirements",
-                  onConfirm: () =>
-                    useWorkflowStore.getState().clearExecutionItems(node.id),
-                });
-              }}
-              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              aria-label="Clear L3 execution requirements for this node"
-            >
-              <Trash2 className="size-3.5" />
-              Clear L3
-            </Button>
+          {node.type === "opportunityValidation" ? (
+            <div className="flex items-center gap-2">
+              <ProjectIdBadge showPlaceholder />
+            </div>
+          ) : (
+            <>
+              <div
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  summary.status === "Blocked"
+                    ? "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                    : summary.status === "Incomplete"
+                      ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                )}
+              >
+                {summary.completedCount}/{summary.itemCount} Complete · {summary.status}
+              </div>
+              {items.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    useWorkflowStore.getState().showConfirmClear({
+                      title: `Clear L3 Requirements for "${node.title}"`,
+                      message: `Are you sure you want to clear all ${items.length} execution requirements for "${node.title}"? This action cannot be undone.`,
+                      confirmLabel: "Clear Node Requirements",
+                      onConfirm: () =>
+                        useWorkflowStore.getState().clearExecutionItems(node.id),
+                    });
+                  }}
+                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  aria-label="Clear L3 execution requirements for this node"
+                >
+                  <Trash2 className="size-3.5" />
+                  Clear L3
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={addItem}
+                aria-label="Add execution item"
+              >
+                <Plus className="size-3.5" />
+                Add Item
+              </Button>
+            </>
           )}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={addItem}
-            aria-label="Add execution item"
-          >
-            <Plus className="size-3.5" />
-            Add Item
-          </Button>
         </div>
       </header>
 
@@ -589,11 +594,14 @@ export function ExecutionView({
         </div>
       </div>
 
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:overflow-hidden">
-        <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 lg:h-full xl:grid-cols-[minmax(280px,0.85fr)_minmax(340px,1.15fr)]">
-          <div className="flex min-h-64 flex-col rounded-xl border bg-background/80 lg:min-h-0">
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
-              <div>
+      {node.type === "opportunityValidation" ? (
+        <OpportunityIntakeExecutionSheet node={node} onBack={onBack} />
+      ) : (
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:overflow-hidden">
+          <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 lg:h-full xl:grid-cols-[minmax(280px,0.85fr)_minmax(340px,1.15fr)]">
+            <div className="flex min-h-64 flex-col rounded-xl border bg-background/80 lg:min-h-0">
+              <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
+                <div>
                 <p className="text-sm font-semibold">Execution Items</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {items.length ? `${items.length} item${items.length === 1 ? "" : "s"} linked to this node` : "No items linked yet"}
@@ -701,6 +709,7 @@ export function ExecutionView({
           )}
         </div>
       </div>
+      )}
     </section>
   );
 }
