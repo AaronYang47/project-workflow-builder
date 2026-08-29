@@ -525,6 +525,26 @@ export function ExecutionView({
           >
             {summary.completedCount}/{summary.itemCount} Complete · {summary.status}
           </div>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `WARNING: Are you sure you want to clear all L3 execution requirements for "${node.title}"? This action cannot be undone.`,
+                  )
+                ) {
+                  useWorkflowStore.getState().clearExecutionItems(node.id);
+                }
+              }}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Clear L3 execution requirements for this node"
+            >
+              <Trash2 className="size-3.5" />
+              Clear L3
+            </Button>
+          )}
           <Button
             variant="default"
             size="sm"

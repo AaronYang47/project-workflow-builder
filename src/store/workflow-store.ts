@@ -137,6 +137,8 @@ interface WorkflowState {
   loadProject: (file: WorkflowFile, projectId: string, userId: string) => void;
   resetWorkspace: (userId?: string) => void;
   clearDetailedNodes: () => void;
+  clearHighLevelNodes: () => void;
+  clearExecutionItems: (nodeId?: string) => void;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -316,6 +318,50 @@ export const useWorkflowStore = create<WorkflowState>()(
               highLevel,
             },
             selection: { nodeIds: [] },
+            future: [],
+            dirty: true,
+          };
+        }),
+      clearHighLevelNodes: () =>
+        set((state) => {
+          if (!state.file.highLevel) return state;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: {
+              ...state.file,
+              highLevel: {
+                ...state.file.highLevel,
+                graph: {
+                  nodes: [],
+                  edges: [],
+                },
+                layout: {
+                  ...state.file.highLevel.layout,
+                  nodes: {},
+                  edges: {},
+                },
+              },
+            },
+            selection: { nodeIds: [] },
+            future: [],
+            dirty: true,
+          };
+        }),
+      clearExecutionItems: (nodeId?: string) =>
+        set((state) => {
+          const execution = state.file.execution || createEmptyExecutionLayer();
+          const items = nodeId
+            ? execution.items.filter((item) => item.linkedLayer2NodeId !== nodeId)
+            : [];
+          return {
+            past: appendHistory(state.past, state.file),
+            file: {
+              ...state.file,
+              execution: {
+                ...execution,
+                items,
+              },
+            },
             future: [],
             dirty: true,
           };
@@ -1001,7 +1047,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v20-pure-english",
+      name: "project-workflow-builder:v21-clear-l1-l2-l3",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

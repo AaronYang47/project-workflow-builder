@@ -265,6 +265,27 @@ export function TopToolbar({
           </span>
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
+        {isHighLevelView && !isExecutionView && (store.file.highLevel?.graph.nodes.length || 0) > 0 && (
+          <Button
+            title="Clear all L1 nodes"
+            aria-label="Clear L1 Nodes"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "WARNING: Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone.",
+                )
+              ) {
+                store.clearHighLevelNodes();
+              }
+            }}
+            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-3.5 mr-1" />
+            Clear L1
+          </Button>
+        )}
         {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
           <Button
             title="Clear all L2 nodes"
@@ -272,7 +293,11 @@ export function TopToolbar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (window.confirm("Are you sure you want to clear all L2 nodes?")) {
+              if (
+                window.confirm(
+                  "WARNING: Are you sure you want to clear all L2 nodes? This action cannot be undone.",
+                )
+              ) {
                 store.clearDetailedNodes();
               }
             }}
@@ -280,6 +305,27 @@ export function TopToolbar({
           >
             <Trash2 className="size-3.5 mr-1" />
             Clear L2
+          </Button>
+        )}
+        {isExecutionView && (store.file.execution?.items.length || 0) > 0 && (
+          <Button
+            title="Clear all L3 execution requirements"
+            aria-label="Clear L3 Requirements"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "WARNING: Are you sure you want to clear all L3 execution requirements? This action cannot be undone.",
+                )
+              ) {
+                store.clearExecutionItems();
+              }
+            }}
+            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-3.5 mr-1" />
+            Clear L3
           </Button>
         )}
         <div
