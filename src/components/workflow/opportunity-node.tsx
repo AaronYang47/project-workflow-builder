@@ -62,6 +62,15 @@ export function OpportunityNode({
   // Step 6 check: Gate 1 Dossier handoff ready
   const step6Ready = step5Approved;
 
+  const openStep = (step: number) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(
+      new CustomEvent("workflow:open-execution", {
+        detail: { nodeId: node.id, step },
+      }),
+    );
+  };
+
   return (
     <div className="relative h-full w-full select-none">
       {/* Target Handle: Input from Project Start */}
@@ -122,8 +131,12 @@ export function OpportunityNode({
         <div className="mt-3.5 flex items-center justify-between gap-1.5">
           {/* STEP 1: INTAKE */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(1)}
+            title="Click to open L3 Execution Layer for Step 1"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               step1Complete
                 ? "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20"
                 : "border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/30",
@@ -157,8 +170,12 @@ export function OpportunityNode({
 
           {/* STEP 2: BLOCKERS */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(2)}
+            title="Click to view L3 execution details for Step 2"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               !step1Complete
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : step2Passed
@@ -202,8 +219,12 @@ export function OpportunityNode({
 
           {/* STEP 3: REALITY */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(3)}
+            title="Click to view L3 execution details for Step 3"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               !step2Passed
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : "border-sky-500/30 bg-sky-500/5 dark:bg-sky-950/20",
@@ -241,8 +262,12 @@ export function OpportunityNode({
 
           {/* STEP 4: ROUTING */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(4)}
+            title="Click to view L3 execution details for Step 4"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               !step3Resolved
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : "border-indigo-500/30 bg-indigo-500/5 dark:bg-indigo-950/20",
@@ -280,8 +305,12 @@ export function OpportunityNode({
 
           {/* STEP 5: APPROVAL (CEO Sign-Off for LOI / Commercial) */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(5)}
+            title="Click to view L3 execution details for Step 5"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               !step4Resolved
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : isLoi
@@ -323,8 +352,12 @@ export function OpportunityNode({
 
           {/* STEP 6: HANDOFF (Gate 1 Dossier) */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={openStep(6)}
+            title="Click to view L3 execution details for Step 6"
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all cursor-pointer hover:border-primary/80 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
               !step5Approved
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20",

@@ -78,6 +78,18 @@ export default function WorkflowBuilder() {
   const closeExecutionView = useCallback(() => {
     setExecutionNodeId(null);
   }, []);
+
+  useEffect(() => {
+    const handleOpenExecution = (event: Event) => {
+      const custom = event as CustomEvent<{ nodeId?: string; step?: number }>;
+      if (custom.detail?.nodeId) {
+        openExecutionView(custom.detail.nodeId);
+      }
+    };
+    window.addEventListener("workflow:open-execution", handleOpenExecution);
+    return () =>
+      window.removeEventListener("workflow:open-execution", handleOpenExecution);
+  }, [openExecutionView]);
   const copied = useRef<
     { items: Array<{ node: DomainNode; layout: NodeLayout }> } | null
   >(null);

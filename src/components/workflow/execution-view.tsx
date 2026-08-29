@@ -577,11 +577,14 @@ export function ExecutionView({
             activeLabel={node.title}
             onOpenParent={onBack}
             onOpenNode={(targetNodeId) => {
-              if (targetNodeId && targetNodeId !== nodeId) {
-                const targetNode = file.graph.nodes.find((n) => n.id === targetNodeId);
-                if (targetNode && targetNode.type !== "phase") {
-                  onSelectNode?.(targetNodeId);
-                }
+              if (targetNodeId) {
+                useWorkflowStore.getState().selectNodes([targetNodeId]);
+                onBack();
+                window.setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("workflow:focus-node", { detail: targetNodeId }),
+                  );
+                }, 100);
               }
             }}
             className="w-full shadow-sm"
@@ -589,7 +592,7 @@ export function ExecutionView({
             compact
           />
           <p className="mt-1.5 px-1 text-[10px] leading-4 text-muted-foreground">
-            The highlighted green node is the active L2 source for these execution requirements. Click any other node in the workflow to switch to its execution requirements.
+            The highlighted green node is the active L2 source. Click the node or steps in the minimap to return to that location in L2 Detailed Workflow.
           </p>
         </div>
       </div>

@@ -812,64 +812,89 @@ export function LayerContextMinimap({
                     className="transition-all"
                   />
 
-                  {/* Opportunity Node: Render 6 Output Ports & Labels Matching L2 */}
+                  {/* Opportunity Node with 6 Stepped Pipeline */}
                   {isOpportunity ? (
-                    <g className="pointer-events-none">
-                      {opportunityOutputs.map((out) => {
-                        const portY = node.y + node.height * out.topRatio;
-                        const portX = node.x + node.width;
-                        const portRadius = Math.max(5, Math.min(8, node.height * 0.022));
-                        return (
-                          <g key={out.id}>
-                            <circle
-                              cx={portX}
-                              cy={portY}
-                              r={portRadius}
-                              fill={out.color}
-                              stroke="var(--card)"
-                              strokeWidth="2"
-                            />
-                            <text
-                              x={portX - 14}
-                              y={portY + 4}
-                              textAnchor="end"
-                              fill={out.color}
-                              fontSize={Math.max(11, Math.min(15, node.height * 0.042))}
-                              fontWeight="600"
-                              fontFamily="sans-serif"
-                              className="select-none"
-                            >
-                              {out.label}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </g>
-                  ) : null}
+                    <foreignObject
+                      x={node.x + 10}
+                      y={node.y + 10}
+                      width={Math.max(1, node.width - 20)}
+                      height={Math.max(1, node.height - 20)}
+                      className="pointer-events-none"
+                    >
+                      <div className="flex h-full w-full flex-col justify-between p-2 font-sans select-none">
+                        {/* Header Row in Minimap */}
+                        <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold shrink-0">
+                              🎯
+                            </span>
+                            <span className="text-xs font-bold text-foreground truncate">
+                              {node.label}
+                            </span>
+                          </div>
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">
+                            Active Step: 1 · Intake
+                          </span>
+                        </div>
 
-                  {/* Node Title with Adaptive Font Size & Clean Weight */}
-                  <foreignObject
-                    x={node.x + (isOpportunity ? 20 : 14)}
-                    y={node.y + 14}
-                    width={Math.max(1, node.width - (isOpportunity ? 56 : 28))}
-                    height={Math.max(1, node.height - 28)}
-                    className="pointer-events-none"
-                  >
-                    <div className="flex h-full w-full items-center justify-center p-1 font-sans select-none text-center">
-                      <span
-                        className={cn(
-                          "line-clamp-4 font-normal tracking-tight text-foreground",
-                          isActive && "font-medium text-emerald-950 dark:text-emerald-50",
-                        )}
-                        style={{
-                          fontSize: adaptiveFontSize,
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {node.label}
-                      </span>
-                    </div>
-                  </foreignObject>
+                        {/* 6 Steps Row in Minimap */}
+                        <div className="grid grid-cols-6 gap-1.5 mt-1.5">
+                          {[
+                            { num: "STEP 1", title: "Intake", sub: "Evidence", active: true },
+                            { num: "STEP 2", title: "Blockers", sub: "Eligibility", active: false },
+                            { num: "STEP 3", title: "Reality", sub: "Class D", active: false },
+                            { num: "STEP 4", title: "Routing", sub: "Commercial", active: false },
+                            { num: "STEP 5", title: "Approval", sub: "CEO Sign", active: false },
+                            { num: "STEP 6", title: "Handoff", sub: "G1 Dossier", active: false },
+                          ].map((step) => (
+                            <div
+                              key={step.num}
+                              className={cn(
+                                "rounded-lg border p-1.5 text-center transition-all",
+                                step.active
+                                  ? "border-emerald-500 bg-emerald-500/15 shadow-xs ring-1 ring-emerald-500/50"
+                                  : "border-border/60 bg-muted/20 opacity-70",
+                              )}
+                            >
+                              <div className="text-[8px] font-bold text-muted-foreground uppercase">
+                                {step.num}
+                              </div>
+                              <div className="text-[10.5px] font-bold text-foreground truncate">
+                                {step.title}
+                              </div>
+                              <div className="text-[8.5px] text-muted-foreground truncate">
+                                {step.sub}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </foreignObject>
+                  ) : (
+                    /* Default Node Title */
+                    <foreignObject
+                      x={node.x + 14}
+                      y={node.y + 14}
+                      width={Math.max(1, node.width - 28)}
+                      height={Math.max(1, node.height - 28)}
+                      className="pointer-events-none"
+                    >
+                      <div className="flex h-full w-full items-center justify-center p-1 font-sans select-none text-center">
+                        <span
+                          className={cn(
+                            "line-clamp-4 font-normal tracking-tight text-foreground",
+                            isActive && "font-medium text-emerald-950 dark:text-emerald-50",
+                          )}
+                          style={{
+                            fontSize: adaptiveFontSize,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {node.label}
+                        </span>
+                      </div>
+                    </foreignObject>
+                  )}
                 </g>
               );
             })}
