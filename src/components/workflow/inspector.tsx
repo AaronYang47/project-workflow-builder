@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { HighLevelInspector } from "./high-level-inspector";
+import { OpportunityInspector } from "./opportunity-inspector";
 import { getExecutionSummary } from "@/lib/execution";
 
 const applyPromoteToPaid = (node: DomainNode): DomainNode => {
@@ -401,50 +402,54 @@ function DetailedInspector({
                 </button>
               </section>
             ) : null}
-            {Array.from(new Set(schema.map((field) => field.section))).map(
-              (section) => {
-                const open = openSections[section] ?? true;
-                return (
-                  <Fragment key={section}>
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      onClick={() =>
-                        setOpenSections((state) => ({
-                          ...state,
-                          [section]: !open,
-                        }))
-                      }
-                      className="mb-3 flex w-full items-center gap-1 text-left text-xs font-semibold"
-                    >
+            {node.type === "opportunityValidation" ? (
+              <OpportunityInspector node={node} />
+            ) : (
+              Array.from(new Set(schema.map((field) => field.section))).map(
+                (section) => {
+                  const open = openSections[section] ?? true;
+                  return (
+                    <Fragment key={section}>
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setOpenSections((state) => ({
+                            ...state,
+                            [section]: !open,
+                          }))
+                        }
+                        className="mb-3 flex w-full items-center gap-1 text-left text-xs font-semibold"
+                      >
+                        {open ? (
+                          <ChevronDown className="size-3.5" />
+                        ) : (
+                          <ChevronRight className="size-3.5" />
+                        )}
+                        {section}
+                      </button>
                       {open ? (
-                        <ChevronDown className="size-3.5" />
-                      ) : (
-                        <ChevronRight className="size-3.5" />
-                      )}
-                      {section}
-                    </button>
-                    {open ? (
-                      <div className="mb-5 space-y-4">
-                        {schema
-                          .filter(
-                            (field) =>
-                              field.section === section &&
-                              isInspectorFieldVisible(field, node),
-                          )
-                          .map((field) => (
-                            <Field
-                              key={field.key}
-                              field={field}
-                              node={node}
-                              update={(next) => updateNode(node.id, next)}
-                            />
-                          ))}
-                      </div>
-                    ) : null}
-                  </Fragment>
-                );
-              },
+                        <div className="mb-5 space-y-4">
+                          {schema
+                            .filter(
+                              (field) =>
+                                field.section === section &&
+                                isInspectorFieldVisible(field, node),
+                            )
+                            .map((field) => (
+                              <Field
+                                key={field.key}
+                                field={field}
+                                node={node}
+                                update={(next) => updateNode(node.id, next)}
+                              />
+                            ))}
+                        </div>
+                      ) : null}
+                    </Fragment>
+                  );
+                },
+              )
             )}
             {node.type === "gate" ? (
               <OutcomeEditor
