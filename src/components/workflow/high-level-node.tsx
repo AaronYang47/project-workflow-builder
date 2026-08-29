@@ -45,16 +45,16 @@ function FlowHandles({
         <Handle
           type="target"
           position={Position.Left}
-          isConnectable={false}
-          className="!size-2 !border-border !bg-muted-foreground/60"
+          isConnectable={true}
+          className="!size-3.5 !border-2 !border-background !bg-primary hover:!scale-125 transition-transform cursor-crosshair shadow-xs"
         />
       ) : null}
       {source ? (
         <Handle
           type="source"
           position={Position.Right}
-          isConnectable={false}
-          className="!size-2 !border-border !bg-muted-foreground/60"
+          isConnectable={true}
+          className="!size-3.5 !border-2 !border-background !bg-primary hover:!scale-125 transition-transform cursor-crosshair shadow-xs"
         />
       ) : null}
     </>
