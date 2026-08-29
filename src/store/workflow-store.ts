@@ -1058,7 +1058,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v33-step-navigation-minimap",
+      name: "project-workflow-builder:v34-larger-legible-minimap",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

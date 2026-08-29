@@ -589,7 +589,7 @@ export function ExecutionView({
             }}
             className="w-full shadow-sm"
             expandable
-            compact
+            compact={false}
           />
           <p className="mt-1.5 px-1 text-[10px] leading-4 text-muted-foreground">
             The highlighted green node is the active L2 source. Click the node or steps in the minimap to return to that location in L2 Detailed Workflow.

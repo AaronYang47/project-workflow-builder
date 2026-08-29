@@ -166,7 +166,16 @@ export function LayerContextMinimap({
     },
   );
   const hasNodes = nodes.length > 0;
-  const CORRIDOR_VERTICAL_PAD = level === "L2" ? 72 : 0;
+  const hasCorridorEdges = edges.some(
+    (e) =>
+      e.sourceHandle === "nogo-disqualified" ||
+      e.sourceHandle === "csa-pcs" ||
+      e.sourceHandle?.startsWith("no") ||
+      e.type === "failure" ||
+      e.type === "rework" ||
+      e.type === "exception",
+  );
+  const CORRIDOR_VERTICAL_PAD = level === "L2" && hasCorridorEdges ? 48 : 8;
   const vbWidth = Math.max(1, bounds.maxX - bounds.minX + MAP_PADDING * 2);
   const vbHeight = Math.max(
     1,
@@ -194,8 +203,8 @@ export function LayerContextMinimap({
           ? 280
           : 440
         : compact
-          ? 150
-          : 230;
+          ? 180
+          : 250;
   const svgHeight = Math.round(baseInnerHeight * zoom);
   const svgWidth = Math.round((vbWidth / vbHeight) * svgHeight);
 
@@ -815,55 +824,69 @@ export function LayerContextMinimap({
                   {/* Opportunity Node with 6 Stepped Pipeline */}
                   {isOpportunity ? (
                     <foreignObject
-                      x={node.x + 10}
-                      y={node.y + 10}
-                      width={Math.max(1, node.width - 20)}
-                      height={Math.max(1, node.height - 20)}
+                      x={node.x + 8}
+                      y={node.y + 8}
+                      width={Math.max(1, node.width - 16)}
+                      height={Math.max(1, node.height - 16)}
                       className="pointer-events-none"
                     >
-                      <div className="flex h-full w-full flex-col justify-between p-2 font-sans select-none">
+                      <div className="flex h-full w-full flex-col justify-between p-3 font-sans select-none">
                         {/* Header Row in Minimap */}
-                        <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold shrink-0">
+                        <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-black shrink-0">
                               🎯
                             </span>
-                            <span className="text-xs font-bold text-foreground truncate">
+                            <span className="text-sm font-extrabold text-foreground truncate">
                               {node.label}
                             </span>
                           </div>
-                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">
-                            Active Step: 1 · Intake
+                          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 shrink-0 shadow-xs border border-emerald-500/30">
+                            Active: Step 1 · Intake
                           </span>
                         </div>
 
                         {/* 6 Steps Row in Minimap */}
-                        <div className="grid grid-cols-6 gap-1.5 mt-1.5">
+                        <div className="grid grid-cols-6 gap-2 mt-2">
                           {[
-                            { num: "STEP 1", title: "Intake", sub: "Evidence", active: true },
-                            { num: "STEP 2", title: "Blockers", sub: "Eligibility", active: false },
-                            { num: "STEP 3", title: "Reality", sub: "Class D", active: false },
-                            { num: "STEP 4", title: "Routing", sub: "Commercial", active: false },
-                            { num: "STEP 5", title: "Approval", sub: "CEO Sign", active: false },
-                            { num: "STEP 6", title: "Handoff", sub: "G1 Dossier", active: false },
+                            { num: "STEP 1", title: "Intake", sub: "Evidence", status: "Active", active: true },
+                            { num: "STEP 2", title: "Blockers", sub: "Eligibility", status: "Pending", active: false },
+                            { num: "STEP 3", title: "Reality", sub: "Class D", status: "Pending", active: false },
+                            { num: "STEP 4", title: "Routing", sub: "Commercial", status: "Pending", active: false },
+                            { num: "STEP 5", title: "Approval", sub: "CEO Sign", status: "Locked", active: false },
+                            { num: "STEP 6", title: "Handoff", sub: "G1 Dossier", status: "Locked", active: false },
                           ].map((step) => (
                             <div
                               key={step.num}
                               className={cn(
-                                "rounded-lg border p-1.5 text-center transition-all",
+                                "rounded-xl border p-2 text-center transition-all flex flex-col justify-between",
                                 step.active
-                                  ? "border-emerald-500 bg-emerald-500/15 shadow-xs ring-1 ring-emerald-500/50"
-                                  : "border-border/60 bg-muted/20 opacity-70",
+                                  ? "border-emerald-500 bg-emerald-500/20 shadow-md ring-2 ring-emerald-500/60"
+                                  : "border-border/70 bg-card/60 opacity-80",
                               )}
                             >
-                              <div className="text-[8px] font-bold text-muted-foreground uppercase">
-                                {step.num}
+                              <div>
+                                <div className="text-[9.5px] font-extrabold text-muted-foreground tracking-wider uppercase">
+                                  {step.num}
+                                </div>
+                                <div className="text-xs font-black text-foreground truncate mt-0.5">
+                                  {step.title}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground truncate font-medium">
+                                  {step.sub}
+                                </div>
                               </div>
-                              <div className="text-[10.5px] font-bold text-foreground truncate">
-                                {step.title}
-                              </div>
-                              <div className="text-[8.5px] text-muted-foreground truncate">
-                                {step.sub}
+                              <div className="mt-1">
+                                <span
+                                  className={cn(
+                                    "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
+                                    step.active
+                                      ? "bg-emerald-500/30 text-emerald-800 dark:text-emerald-200"
+                                      : "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  {step.status}
+                                </span>
                               </div>
                             </div>
                           ))}
