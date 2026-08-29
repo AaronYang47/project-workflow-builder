@@ -62,27 +62,45 @@ export function OpportunityNode({
         if (canScrollX) {
           // If container has horizontal scroll and user wheels vertically, convert to horizontal scroll
           if (e.deltaY !== 0 && e.deltaX === 0) {
-            target.scrollLeft += e.deltaY;
-            e.stopPropagation();
-            e.preventDefault();
-            return;
-          }
-          if (e.deltaX !== 0) {
-            e.stopPropagation();
-            return;
+            const maxScrollLeft = target.scrollWidth - target.clientWidth;
+            const nextScroll = target.scrollLeft + e.deltaY;
+            if (
+              (e.deltaY > 0 && target.scrollLeft < maxScrollLeft) ||
+              (e.deltaY < 0 && target.scrollLeft > 0)
+            ) {
+              target.scrollLeft = nextScroll;
+              e.stopPropagation();
+              e.preventDefault();
+              return;
+            }
+          } else if (e.deltaX !== 0) {
+            const maxScrollLeft = target.scrollWidth - target.clientWidth;
+            if (
+              (e.deltaX > 0 && target.scrollLeft < maxScrollLeft) ||
+              (e.deltaX < 0 && target.scrollLeft > 0)
+            ) {
+              e.stopPropagation();
+              return;
+            }
           }
         }
 
         if (canScrollY && e.deltaY !== 0) {
-          e.stopPropagation();
-          return;
+          const maxScrollTop = target.scrollHeight - target.clientHeight;
+          if (
+            (e.deltaY > 0 && target.scrollTop < maxScrollTop) ||
+            (e.deltaY < 0 && target.scrollTop > 0)
+          ) {
+            e.stopPropagation();
+            return;
+          }
         }
 
         target = target.parentElement;
       }
 
-      // If user wheels anywhere over the node card itself, prevent canvas zoom/pan from stealing it
-      e.stopPropagation();
+      // If the target is NOT scrollable (or already hit the scroll edge), do NOT call stopPropagation().
+      // This allows the wheel event to bubble straight to React Flow, smoothly panning/moving the canvas!
     };
 
     card.addEventListener("wheel", onWheel, { capture: true, passive: false });
@@ -265,7 +283,7 @@ export function OpportunityNode({
       <div
         ref={cardRef}
         className={cn(
-          "w-[480px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left nodrag nopan nowheel",
+          "w-[480px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
           selected
             ? "border-primary ring-2 ring-primary/20 shadow-lg"
             : "border-border hover:border-primary/50",

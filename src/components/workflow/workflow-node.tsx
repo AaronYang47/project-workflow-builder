@@ -77,7 +77,7 @@ function WorkflowNodeComponent({
     );
 
   const decorated = (
-    <div className="relative h-full w-full nowheel">
+    <div className="relative h-full w-full">
       {inner}
       <ExecutionSummaryBadge summary={data.executionSummary} />
     </div>
