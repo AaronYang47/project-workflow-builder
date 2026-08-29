@@ -18,17 +18,6 @@ import type {
 export const DETAILED_LIFECYCLE_IDS = [
   "project-start",
   "opportunity-intake",
-  "gate-g1-qualified",
-  "pre-construction",
-  "gate-g2-technical-commitment",
-  "production-readiness",
-  "gate-g3-production-authorization",
-  "factory-production",
-  "gate-g4-factory-release",
-  "delivery-project-completion",
-  "gate-g5-warranty-start",
-  "commissioning-warranty",
-  "final-close",
 ] as const;
 
 type DetailedLifecycle = Pick<WorkflowFile, "graph" | "layout"> & {
@@ -144,74 +133,6 @@ function createScaffoldNodes() {
   return [
     projectStart,
     opportunityIntake,
-    gateNode("gate-g1-qualified", "G1 — QUALIFIED & COMMERCIALLY ENGAGED", "Authorize managed pre-construction after qualification and commercial engagement.", [
-      "Opportunity evidence reviewed and route selected",
-      "Commercial engagement instrument authorized",
-      "Client decision authority and required parties confirmed",
-    ]),
-    generalNode("pre-construction", "PRE-CONSTRUCTION", "Develop design, technical, site, cost, and scope definition according to client maturity.", colors.preConstruction, [
-      "Design basis or consultation scope recorded",
-      "Site and foundation feasibility reviewed",
-      "Class D cost and scope assumptions documented",
-    ]),
-    gateNode("gate-g2-technical-commitment", "G2 — PROJECT / TECHNICAL COMMITMENT", "Authorize the project and technical basis for production readiness.", [
-      "Project scope and technical basis accepted",
-      "Site, transport, and foundation interfaces reviewed",
-      "Client commitment and commercial terms confirmed",
-    ]),
-    generalNode("production-readiness", "PRODUCTION READINESS", "Freeze production inputs, procurement planning, capacity, and release package.", colors.readiness, [
-      "Production package and design inputs complete",
-      "Procurement and factory capacity confirmed",
-      "Open technical risks have an owner and disposition",
-    ]),
-    gateNode("gate-g3-production-authorization", "G3 — PRODUCTION AUTHORIZATION", "Release the approved package to factory production.", [
-      "Production package approved",
-      "Material, capacity, and commercial release confirmed",
-      "Required technical approvals recorded",
-    ]),
-    generalNode("factory-production", "FACTORY PRODUCTION", "Manufacture modules with quality control, inspection, and issue resolution.", colors.factory, [
-      "Manufacturing progress is tracked",
-      "Quality inspections are current",
-      "Non-conformances and punch items are controlled",
-    ]),
-    gateNode("gate-g4-factory-release", "G4 — FACTORY COMPLETION / RELEASE", "Release completed factory work to delivery.", [
-      "Factory completion and QA records accepted",
-      "Punch list and non-conformances dispositioned",
-      "Delivery readiness and transport plan confirmed",
-    ]),
-    generalNode("delivery-project-completion", "DELIVERY / PROJECT COMPLETION", "Coordinate delivery, installation, interface work, and deficiency resolution.", colors.delivery, [
-      "Modules delivered and installation complete",
-      "Site interfaces and deficiencies reviewed",
-      "Completion evidence assembled",
-    ]),
-    gateNode("gate-g5-warranty-start", "G5 — PROJECT COMPLETION / WARRANTY START", "Accept project completion and start the warranty period.", [
-      "Project completion accepted",
-      "Outstanding deficiencies have a controlled disposition",
-      "Warranty start date and responsibilities recorded",
-    ]),
-    generalNode("commissioning-warranty", "COMMISSIONING & WARRANTY", "Support commissioning, manage warranty issues, and track closeout obligations.", colors.warranty, [
-      "Commissioning and handover evidence complete",
-      "Warranty issues are tracked to closure",
-      "Final obligations and claims are reconciled",
-    ]),
-    (() => {
-      const node = createDomainNode("terminal", "final-close");
-      return {
-        ...node,
-        title: "FINAL CLOSE",
-        description: "Close the project after warranty completion and all outstanding obligations are resolved.",
-        color: colors.close,
-        metadata: { workflowSection: "Lifecycle Scaffold" },
-        config: {
-          ...node.config,
-          reference: {
-            sections: [
-              { id: "closeout", title: "Closeout checks", items: ["Warranty obligations closed", "Final documents issued", "Commercial and claims reconciliation complete"] },
-            ],
-          },
-        },
-      } satisfies DomainNode;
-    })(),
   ];
 }
 
@@ -221,17 +142,6 @@ export function createDefaultDetailedLifecycle(
   const nodes = createScaffoldNodes();
   const edges: DomainEdge[] = [
     edge("lifecycle-start-to-intake", "project-start", "opportunity-intake", { label: "Project ID confirmed" }),
-    edge("lifecycle-intake-to-g1", "opportunity-intake", "gate-g1-qualified", { sourceHandle: "pass-p1-p2", label: "Qualified & Engaged", type: "success" }),
-    edge("lifecycle-g1-preconstruction", "gate-g1-qualified", "pre-construction", { sourceHandle: "yes", label: "Approved" }),
-    edge("lifecycle-preconstruction-g2", "pre-construction", "gate-g2-technical-commitment", { label: "Technical basis ready" }),
-    edge("lifecycle-g2-readiness", "gate-g2-technical-commitment", "production-readiness", { sourceHandle: "yes", label: "Approved" }),
-    edge("lifecycle-readiness-g3", "production-readiness", "gate-g3-production-authorization", { label: "Release package ready" }),
-    edge("lifecycle-g3-factory", "gate-g3-production-authorization", "factory-production", { sourceHandle: "yes", label: "Approved" }),
-    edge("lifecycle-factory-g4", "factory-production", "gate-g4-factory-release", { label: "Factory complete" }),
-    edge("lifecycle-g4-delivery", "gate-g4-factory-release", "delivery-project-completion", { sourceHandle: "yes", label: "Released" }),
-    edge("lifecycle-delivery-g5", "delivery-project-completion", "gate-g5-warranty-start", { label: "Completion evidence" }),
-    edge("lifecycle-g5-warranty", "gate-g5-warranty-start", "commissioning-warranty", { sourceHandle: "yes", label: "Warranty starts" }),
-    edge("lifecycle-warranty-close", "commissioning-warranty", "final-close", { label: "Closeout ready" }),
   ];
   const layout: Record<string, NodeLayout> = {};
   const mainIds = DETAILED_LIFECYCLE_IDS;
@@ -245,17 +155,6 @@ export function createDefaultDetailedLifecycle(
   const linkMap: Record<string, string[]> = {
     "high-level-1": ["project-start"],
     "high-level-2": ["opportunity-intake"],
-    "high-level-3": ["gate-g1-qualified"],
-    "high-level-4": ["pre-construction"],
-    "high-level-5": ["gate-g2-technical-commitment"],
-    "high-level-6": ["production-readiness"],
-    "high-level-7": ["gate-g3-production-authorization"],
-    "high-level-8": ["factory-production"],
-    "high-level-9": ["gate-g4-factory-release"],
-    "high-level-10": ["delivery-project-completion"],
-    "high-level-11": ["gate-g5-warranty-start"],
-    "high-level-12": ["commissioning-warranty"],
-    "high-level-13": ["final-close"],
   };
   const linkedHighLevel: HighLevelWorkflow = {
     ...highLevel,

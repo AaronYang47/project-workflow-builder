@@ -124,68 +124,13 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
   }> = [
     {
       type: "start",
-      title: "INITIAL CONTACT",
-      description: "Project intake and initial client communication.",
+      title: "PROJECT START",
+      description: "Project intake, identification, and client relationship baseline.",
     },
     {
       type: "phase",
       title: "OPPORTUNITY & QUALIFICATION",
-      description: "Evidence-based qualification, eligibility, route selection, and management score.",
-    },
-    {
-      type: "primaryGate",
-      title: "G1 — QUALIFIED & COMMERCIALLY ENGAGED",
-      description: "Opportunity is qualified and commercially authorized for managed pre-construction.",
-    },
-    {
-      type: "phase",
-      title: "PRE-CONSTRUCTION",
-      description: "Dynamic design, technical, site, cost, and scope development based on client maturity.",
-    },
-    {
-      type: "primaryGate",
-      title: "G2 — PROJECT / TECHNICAL COMMITMENT",
-      description: "Project and technical commitment is authorized for the next phase.",
-    },
-    {
-      type: "phase",
-      title: "PRODUCTION READINESS",
-      description: "Production inputs, technical definition, procurement planning, and factory capacity.",
-    },
-    {
-      type: "primaryGate",
-      title: "G3 — PRODUCTION AUTHORIZATION",
-      description: "Production is authorized at the primary control point.",
-    },
-    {
-      type: "phase",
-      title: "FACTORY PRODUCTION",
-      description: "Factory manufacturing and quality control.",
-    },
-    {
-      type: "primaryGate",
-      title: "G4 — FACTORY COMPLETION / RELEASE",
-      description: "Factory completion and release to delivery.",
-    },
-    {
-      type: "phase",
-      title: "DELIVERY / PROJECT COMPLETION",
-      description: "Site delivery, installation, interface work, and deficiency resolution.",
-    },
-    {
-      type: "primaryGate",
-      title: "G5 — PROJECT COMPLETION / WARRANTY START",
-      description: "Project completion is accepted and warranty starts.",
-    },
-    {
-      type: "phase",
-      title: "COMMISSIONING & WARRANTY",
-      description: "Commissioning support, warranty service, and closeout tracking.",
-    },
-    {
-      type: "end",
-      title: "FINAL CLOSE",
-      description: "Final close after warranty completion and outstanding obligations are closed.",
+      description: "Sequential 6-step qualification, LOI governance, and Gate 1 dossier handoff.",
     },
   ];
   const nodes = steps.map((s, index) => {

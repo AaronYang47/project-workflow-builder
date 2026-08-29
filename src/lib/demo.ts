@@ -21,26 +21,17 @@ export const DEMO_WORKFLOW: WorkflowFile = {
       updatedAt: now,
       notes: "High-Level lifecycle skeleton from Initial Contact through Final Close.",
     },
-    nodes: [],
-    edges: [],
+    nodes: detailed.graph.nodes,
+    edges: detailed.graph.edges,
     rules: [],
   },
   layout: {
-    nodes: {},
-    edges: {},
-    viewport: { x: 0, y: 0, zoom: 0.8 },
+    nodes: detailed.layout.nodes,
+    edges: detailed.layout.edges,
+    viewport: detailed.layout.viewport,
     snapToGrid: true,
     gridSize: 16,
   },
-  highLevel: {
-    ...highLevel,
-    graph: {
-      ...highLevel.graph,
-      nodes: highLevel.graph.nodes.map((node) => ({
-        ...node,
-        linkedLayer2NodeIds: [],
-      })),
-    },
-  },
+  highLevel: detailed.highLevel,
   execution: createEmptyExecutionLayer(),
 };
