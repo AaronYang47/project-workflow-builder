@@ -133,8 +133,12 @@ function createScaffoldNodes() {
   projectStart.metadata = { workflowSection: "Lifecycle Scaffold" };
 
   const opportunityIntake = createDomainNode("opportunityValidation", "opportunity-intake");
-  opportunityIntake.title = "OPPORTUNITY EVIDENCE INTAKE";
-  opportunityIntake.description = "Capture facts across Client, Scale, Site, Design, Budget & Team.";
+  opportunityIntake.title = "Opportunity Node";
+  opportunityIntake.description = "卡片内容已全部清空";
+  opportunityIntake.config = {
+    ...opportunityIntake.config,
+    opportunity: { intake: {} },
+  };
   opportunityIntake.metadata = { workflowSection: "Lifecycle Scaffold" };
 
   return [
