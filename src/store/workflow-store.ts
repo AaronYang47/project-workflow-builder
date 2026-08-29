@@ -1058,7 +1058,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v28-6-step-project-id",
+      name: "project-workflow-builder:v29-opportunity-notes-button",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

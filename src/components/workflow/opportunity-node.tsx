@@ -18,6 +18,7 @@ import { evaluateOpportunity, getOpportunityConfig } from "@/lib/opportunity-eva
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { ProjectIdBadge } from "./project-id-badge";
+import { ComponentNoteButton } from "./component-note-button";
 
 export function OpportunityNode({
   node,
@@ -105,8 +106,15 @@ export function OpportunityNode({
                 ? `Score: ${evaluation.totalScore}/100 · ${evaluation.scoreGrade}`
                 : "Score: Pending Intake"}
             </span>
-            {/* Global Rule: Project ID Badge in Top Right */}
+            {/* Global Rule 1: Project ID Badge in Top Right */}
             <ProjectIdBadge className="shrink-0" showPlaceholder />
+            {/* Global Rule 2: Notes Button in Top Right */}
+            <ComponentNoteButton
+              nodeId={node.id}
+              noteKey="opportunity-card"
+              label={`${node.title || "Opportunity Node"} card`}
+              className="shrink-0"
+            />
           </div>
         </div>
 
