@@ -62,45 +62,33 @@ export function OpportunityNode({
         if (canScrollX) {
           // If container has horizontal scroll and user wheels vertically, convert to horizontal scroll
           if (e.deltaY !== 0 && e.deltaX === 0) {
-            const maxScrollLeft = target.scrollWidth - target.clientWidth;
-            const nextScroll = target.scrollLeft + e.deltaY;
-            if (
-              (e.deltaY > 0 && target.scrollLeft < maxScrollLeft) ||
-              (e.deltaY < 0 && target.scrollLeft > 0)
-            ) {
-              target.scrollLeft = nextScroll;
-              e.stopPropagation();
-              e.preventDefault();
-              return;
-            }
-          } else if (e.deltaX !== 0) {
-            const maxScrollLeft = target.scrollWidth - target.clientWidth;
-            if (
-              (e.deltaX > 0 && target.scrollLeft < maxScrollLeft) ||
-              (e.deltaX < 0 && target.scrollLeft > 0)
-            ) {
-              e.stopPropagation();
-              return;
-            }
+            target.scrollLeft += e.deltaY;
           }
+          // Never leak to canvas when scrolling inside a horizontally scrollable element
+          e.stopPropagation();
+          e.preventDefault();
+          return;
         }
 
-        if (canScrollY && e.deltaY !== 0) {
-          const maxScrollTop = target.scrollHeight - target.clientHeight;
-          if (
-            (e.deltaY > 0 && target.scrollTop < maxScrollTop) ||
-            (e.deltaY < 0 && target.scrollTop > 0)
-          ) {
-            e.stopPropagation();
-            return;
+        if (canScrollY) {
+          // Inside a vertically scrollable container:
+          // ALWAYS consume the event and NEVER let it chain to canvas when reaching top or bottom boundary!
+          e.stopPropagation();
+          const atTop = target.scrollTop <= 0 && e.deltaY < 0;
+          const atBottom =
+            target.scrollTop + target.clientHeight >= target.scrollHeight - 1 &&
+            e.deltaY > 0;
+          if (atTop || atBottom) {
+            e.preventDefault();
           }
+          return;
         }
 
         target = target.parentElement;
       }
 
-      // If the target is NOT scrollable (or already hit the scroll edge), do NOT call stopPropagation().
-      // This allows the wheel event to bubble straight to React Flow, smoothly panning/moving the canvas!
+      // If the target is NOT inside any scrollable container, do NOT call stopPropagation().
+      // This allows React Flow panOnScroll to move the canvas smoothly!
     };
 
     card.addEventListener("wheel", onWheel, { capture: true, passive: false });
@@ -319,12 +307,11 @@ export function OpportunityNode({
           onWheel={(e) => {
             if (e.deltaY !== 0 && e.deltaX === 0) {
               e.currentTarget.scrollLeft += e.deltaY;
-              e.stopPropagation();
-            } else if (e.deltaX !== 0) {
-              e.stopPropagation();
             }
+            e.stopPropagation();
+            e.preventDefault();
           }}
-          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin"
+          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin overscroll-contain"
         >
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
             <Sparkles className="size-3 text-primary" />
