@@ -444,8 +444,8 @@ export function ExecutionView({
         const isOpportunity =
           workflowNode.type === "opportunityValidation" ||
           workflowNode.id.toLowerCase().includes("opportunity");
-        const nodeWidth = isOpportunity ? 680 : 180;
-        const nodeHeight = 130;
+        const nodeWidth = isOpportunity ? 740 : 180;
+        const nodeHeight = 175;
         return {
           id: workflowNode.id,
           label: workflowNode.title,
@@ -461,7 +461,7 @@ export function ExecutionView({
       .sort((a, b) => a.rawX - b.rawX);
 
     // Center-align all nodes on a single horizontal axis to maximize space and keep flow straight
-    const centerY = 80;
+    const centerY = 100;
     const gap = 56;
     const resultNodes: ContextMapNode[] = [];
     let runningX = 0;

@@ -232,8 +232,8 @@ export function LayerContextMinimap({
           ? 200
           : 320
         : compact
-          ? 110
-          : 150;
+          ? 140
+          : 180;
   const svgHeight = Math.round(baseInnerHeight * zoom);
   const svgWidth = Math.round((vbWidth / vbHeight) * svgHeight);
 
@@ -859,14 +859,14 @@ export function LayerContextMinimap({
                       height={Math.max(1, node.height - 16)}
                       className="pointer-events-none"
                     >
-                      <div className="flex h-full w-full flex-col justify-between p-2 font-sans select-none">
+                      <div className="flex h-full w-full flex-col justify-between p-2.5 font-sans select-none">
                         {/* Header Row in Minimap */}
-                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="flex size-5 items-center justify-center rounded-md bg-primary/15 text-primary text-xs font-bold shrink-0">
+                        <div className="flex items-center justify-between border-b border-border/50 pb-1.5 shrink-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary text-xs font-bold shrink-0">
                               🎯
                             </span>
-                            <span className="text-xs font-bold text-foreground truncate">
+                            <span className="text-xs font-extrabold text-foreground truncate">
                               {node.label}
                             </span>
                           </div>
@@ -876,7 +876,7 @@ export function LayerContextMinimap({
                         </div>
 
                         {/* 6 Steps Row in Minimap */}
-                        <div className="grid grid-cols-6 gap-1.5 mt-1">
+                        <div className="grid grid-cols-6 gap-2 mt-2 flex-1 items-stretch">
                           {[
                             { num: "STEP 1", title: "Intake", sub: "Evidence", status: "Active", active: true },
                             { num: "STEP 2", title: "Blockers", sub: "Eligibility", status: "Pending", active: false },
@@ -888,27 +888,27 @@ export function LayerContextMinimap({
                             <div
                               key={step.num}
                               className={cn(
-                                "rounded-lg border p-1 text-center transition-all flex flex-col justify-between",
+                                "rounded-xl border px-1.5 py-2 text-center transition-all flex flex-col justify-between shadow-xs",
                                 step.active
-                                  ? "border-emerald-500 bg-emerald-500/20 shadow-xs ring-1 ring-emerald-500/60"
-                                  : "border-border/60 bg-card/60 opacity-80",
+                                  ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500/60"
+                                  : "border-border/60 bg-card/75 opacity-90",
                               )}
                             >
                               <div>
-                                <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">
+                                <div className="text-[8.5px] font-extrabold text-muted-foreground uppercase tracking-wider">
                                   {step.num}
                                 </div>
-                                <div className="text-[11px] font-black text-foreground truncate mt-0.5">
+                                <div className="text-[11.5px] font-black text-foreground truncate mt-0.5">
                                   {step.title}
                                 </div>
-                                <div className="text-[9px] text-muted-foreground truncate font-medium">
+                                <div className="text-[9.5px] text-muted-foreground truncate font-medium mt-0.5">
                                   {step.sub}
                                 </div>
                               </div>
-                              <div className="mt-0.5">
+                              <div className="mt-1.5">
                                 <span
                                   className={cn(
-                                    "inline-block rounded px-1 py-0.2 text-[7.5px] font-bold uppercase",
+                                    "inline-block rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase",
                                     step.active
                                       ? "bg-emerald-500/30 text-emerald-800 dark:text-emerald-200"
                                       : "bg-muted text-muted-foreground",

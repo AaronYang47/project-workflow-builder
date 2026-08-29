@@ -1058,7 +1058,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v39-uniform-minimap-line-length",
+      name: "project-workflow-builder:v40-unclipped-opportunity-steps",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,
