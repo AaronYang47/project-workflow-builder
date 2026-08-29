@@ -60,27 +60,26 @@ export function OpportunityNode({
           target.scrollHeight - target.clientHeight > 2;
 
         if (canScrollX) {
-          // If container has horizontal scroll and user wheels vertically, convert to horizontal scroll
-          if (e.deltaY !== 0 && e.deltaX === 0) {
+          // If user scrolls vertical mouse wheel over horizontal element, convert deltaY to horizontal scroll
+          if (Math.abs(e.deltaY) > 0 && Math.abs(e.deltaX) === 0) {
             target.scrollLeft += e.deltaY;
+            e.stopPropagation();
+            e.preventDefault();
+            return;
           }
-          // Never leak to canvas when scrolling inside a horizontally scrollable element
+          // If horizontal scroll (Mac trackpad swipe, Shift+Wheel, Magic Mouse):
+          // Stop propagation to canvas, but NEVER call preventDefault so native trackpad scroll is smooth!
+          if (Math.abs(e.deltaX) > 0) {
+            e.stopPropagation();
+            return;
+          }
           e.stopPropagation();
-          e.preventDefault();
           return;
         }
 
         if (canScrollY) {
-          // Inside a vertically scrollable container:
-          // ALWAYS consume the event and NEVER let it chain to canvas when reaching top or bottom boundary!
+          // Inside a vertically scrollable container: stop propagation to canvas
           e.stopPropagation();
-          const atTop = target.scrollTop <= 0 && e.deltaY < 0;
-          const atBottom =
-            target.scrollTop + target.clientHeight >= target.scrollHeight - 1 &&
-            e.deltaY > 0;
-          if (atTop || atBottom) {
-            e.preventDefault();
-          }
           return;
         }
 
@@ -303,16 +302,7 @@ export function OpportunityNode({
         </div>
 
         {/* 1-Click Presets Ribbon */}
-        <div
-          onWheel={(e) => {
-            if (e.deltaY !== 0 && e.deltaX === 0) {
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin overscroll-contain"
-        >
+        <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin overscroll-contain">
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
             <Sparkles className="size-3 text-primary" />
             Presets:
