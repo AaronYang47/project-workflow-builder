@@ -665,10 +665,5 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     graph: { ...file.graph, nodes, edges },
     layout: { ...file.layout, nodes: layouts, edges: undefined },
   };
-  const hasLifecycleGate = migratedFile.graph.nodes.some(
-    (node) => node.id === "gate-g1-qualified" || /^G1\b/i.test(node.title.trim()),
-  );
-  return Boolean(migratedFile.highLevel?.graph.nodes.length) && !hasLifecycleGate
-    ? ensureDetailedLifecycleScaffold(migratedFile)
-    : migratedFile;
+  return migratedFile;
 }

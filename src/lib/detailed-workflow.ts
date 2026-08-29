@@ -278,6 +278,9 @@ export function createDefaultDetailedLifecycle(
  * existing nodes, links, or user-entered values. Used when an older saved file
  * only contains Project Start and Opportunity Validation. */
 export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFile {
+  if (!file.graph.nodes.length) {
+    return file;
+  }
   const highLevel = file.highLevel || createDefaultHighLevelProcess();
   const scaffold = createDefaultDetailedLifecycle(highLevel);
   const existingProjectStart = file.graph.nodes.find((node) => node.type === "projectStart");

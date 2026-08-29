@@ -18,6 +18,7 @@ import {
   Redo2,
   Search,
   Sun,
+  Trash2,
   Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,23 @@ export function TopToolbar({
           </span>
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
+        {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
+          <Button
+            title="Clear all L2 nodes"
+            aria-label="Clear L2 Nodes"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (window.confirm("确定要清空 L2 里的所有流程 Nodes 吗？")) {
+                store.clearDetailedNodes();
+              }
+            }}
+            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-3.5 mr-1" />
+            清空 L2
+          </Button>
+        )}
         <div
           className="flex h-8 shrink-0 items-center rounded-md border bg-muted/35 p-0.5"
           aria-label="Workflow view level"

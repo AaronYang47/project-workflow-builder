@@ -136,6 +136,7 @@ interface WorkflowState {
   replaceFile: (file: WorkflowFile) => void;
   loadProject: (file: WorkflowFile, projectId: string, userId: string) => void;
   resetWorkspace: (userId?: string) => void;
+  clearDetailedNodes: () => void;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -283,6 +284,41 @@ export const useWorkflowStore = create<WorkflowState>()(
           selection: { nodeIds: [] },
           issues: [],
           validationOpen: false,
+        }),
+      clearDetailedNodes: () =>
+        set((state) => {
+          const highLevel = state.file.highLevel
+            ? {
+                ...state.file.highLevel,
+                graph: {
+                  ...state.file.highLevel.graph,
+                  nodes: state.file.highLevel.graph.nodes.map((node) => ({
+                    ...node,
+                    linkedLayer2NodeIds: [],
+                  })),
+                },
+              }
+            : undefined;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: {
+              ...state.file,
+              graph: {
+                ...state.file.graph,
+                nodes: [],
+                edges: [],
+              },
+              layout: {
+                ...state.file.layout,
+                nodes: {},
+                edges: {},
+              },
+              highLevel,
+            },
+            selection: { nodeIds: [] },
+            future: [],
+            dirty: true,
+          };
         }),
       undo: () =>
         set((state) =>
@@ -965,7 +1001,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v18-card-completely-cleared",
+      name: "project-workflow-builder:v19-l2-cleared-empty",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,
