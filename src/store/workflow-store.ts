@@ -1001,7 +1001,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v19-l2-cleared-empty",
+      name: "project-workflow-builder:v20-pure-english",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

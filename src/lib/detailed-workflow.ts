@@ -134,7 +134,7 @@ function createScaffoldNodes() {
 
   const opportunityIntake = createDomainNode("opportunityValidation", "opportunity-intake");
   opportunityIntake.title = "Opportunity Node";
-  opportunityIntake.description = "卡片内容已全部清空";
+  opportunityIntake.description = "Card contents cleared";
   opportunityIntake.config = {
     ...opportunityIntake.config,
     opportunity: { intake: {} },

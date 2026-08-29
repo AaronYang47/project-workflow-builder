@@ -272,14 +272,14 @@ export function TopToolbar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (window.confirm("确定要清空 L2 里的所有流程 Nodes 吗？")) {
+              if (window.confirm("Are you sure you want to clear all L2 nodes?")) {
                 store.clearDetailedNodes();
               }
             }}
             className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="size-3.5 mr-1" />
-            清空 L2
+            Clear L2
           </Button>
         )}
         <div

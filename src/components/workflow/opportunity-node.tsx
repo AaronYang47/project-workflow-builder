@@ -35,7 +35,7 @@ export function OpportunityNode({
           {node.title || "Opportunity Node"}
         </h3>
         <p className="text-xs text-muted-foreground/80 mt-1">
-          （卡片内容已全部清空）
+          (Card contents cleared)
         </p>
         <span className="mt-3 inline-flex items-center rounded-full border border-dashed border-border px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
           Ready for Redesign
