@@ -14,16 +14,28 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
   const [dragPositions, setDragPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
-  const measuredCache = useRef<
+  const [measuredDimensions, setMeasuredDimensions] = useState<
     Record<string, { width: number; height: number }>
   >({});
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     // 1. Capture measured dimensions so nodes never revert to unmeasured state during drag
-    for (const change of changes) {
-      if (change.type === "dimensions" && change.dimensions) {
-        measuredCache.current[change.id] = change.dimensions;
-      }
+    const dimensionChanges = changes.filter(
+      (change): change is Extract<NodeChange, { type: "dimensions" }> =>
+        change.type === "dimensions" && Boolean(change.dimensions),
+    );
+    if (dimensionChanges.length > 0) {
+      setMeasuredDimensions((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const change of dimensionChanges) {
+          if (change.dimensions) {
+            next[change.id] = change.dimensions;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
     }
 
     // 2. Track position displacement
@@ -54,7 +66,10 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
   const nodes = useMemo(() => {
     return modelNodes.map((node) => {
       const draggedPos = dragPositions[node.id];
-      const measured = measuredCache.current[node.id] || (node as unknown as { measured?: { width: number; height: number } }).measured;
+      const measured =
+        measuredDimensions[node.id] ||
+        (node as unknown as { measured?: { width: number; height: number } })
+          .measured;
       if (!draggedPos && !measured) return node;
 
       return {
@@ -63,7 +78,7 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
         ...(draggedPos ? { position: draggedPos, dragging: true } : {}),
       };
     });
-  }, [modelNodes, dragPositions]);
+  }, [modelNodes, dragPositions, measuredDimensions]);
 
   return { nodes, onNodesChange };
 }

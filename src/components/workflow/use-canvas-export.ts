@@ -62,7 +62,7 @@ export function useCanvasExport(
       window.removeEventListener("workflow:focus-node", focus);
       window.removeEventListener("workflow:focus-nodes", focusMany);
     };
-  }, [flow]);
+  }, [flow, wrapper]);
 
   // Fit canvas event
   useEffect(() => {

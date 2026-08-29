@@ -269,15 +269,20 @@ export function CloudProjectControls() {
     void persistCloud(false);
   };
 
+  const persistCloudRef = useRef(persistCloud);
+  useEffect(() => {
+    persistCloudRef.current = persistCloud;
+  });
+
   useEffect(() => {
     if (!user || !activeProjectId || !dirty || view) return;
-    const timer = window.setTimeout(() => void persistCloud(true), AUTOSAVE_MS);
+    const timer = window.setTimeout(() => void persistCloudRef.current(true), AUTOSAVE_MS);
     return () => window.clearTimeout(timer);
   }, [user, activeProjectId, dirty, file, view]);
 
   useEffect(() => {
     const flush = () => {
-      if (document.visibilityState === "hidden") void persistCloud(true);
+      if (document.visibilityState === "hidden") void persistCloudRef.current(true);
     };
     document.addEventListener("visibilitychange", flush);
     window.addEventListener("pagehide", flush);
