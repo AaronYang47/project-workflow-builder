@@ -63,14 +63,13 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const NODE_READABLE_WIDTH = 180;
 const HIGH_LEVEL_EDGE_COLOR = "#159a75";
-const MIN_L1_EDGE_GAP = 64;
 const subscribeToHydration = () => () => {};
 const getClientHydrationSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
+const MIN_L1_EDGE_GAP = 56;
+const MIN_L2_EDGE_GAP = 56;
 
-const MIN_L2_EDGE_GAP = 68;
-
-function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
+function spaceLayerNodes(nodes: ContextMapNode[], uniformGap: number) {
   const nonContainers = nodes.filter((n) => !n.container);
   const targetCenterY =
     nonContainers.length > 0
@@ -87,15 +86,13 @@ function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
   ).sort(([leftX], [rightX]) => leftX - rightX);
   const adjustedX = new Map<string, number>();
   const adjustedY = new Map<string, number>();
-  let previousRight: number | undefined;
+  let runningX = 0;
 
-  for (const [columnX, columnNodes] of columns) {
+  for (const [, columnNodes] of columns) {
     const isOnlyContainers = columnNodes.every((n) => n.container);
     if (isOnlyContainers) continue;
 
-    const minimumX =
-      previousRight === undefined ? columnX : previousRight + minGap;
-    const renderedX = Math.max(columnX, minimumX);
+    const renderedX = runningX;
 
     const activeColNodes = columnNodes.filter((n) => !n.container);
     if (activeColNodes.length === 1) {
@@ -118,9 +115,12 @@ function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
       if (!adjustedX.has(node.id)) adjustedX.set(node.id, renderedX);
     }
 
-    previousRight = Math.max(
-      ...columnNodes.filter((n) => !n.container).map((node) => renderedX + node.width),
+    const colWidth = Math.max(
+      ...columnNodes.filter((n) => !n.container).map((node) => node.width),
+      0,
     );
+    // Every column is followed by the EXACT same uniform line gap
+    runningX = renderedX + colWidth + uniformGap;
   }
 
   return nodes.map((node) => ({

@@ -1058,7 +1058,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v38-all-minimaps-center-aligned",
+      name: "project-workflow-builder:v39-uniform-minimap-line-length",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,
