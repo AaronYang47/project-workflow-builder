@@ -82,7 +82,7 @@ export function OpportunityNode({
                 value={node.title || "Opportunity & Qualification"}
                 onChange={(e) => store.updateNode(node.id, { title: e.target.value })}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="truncate text-sm font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-full"
+                className="truncate text-sm font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-border/60 focus:outline-none w-full"
                 title="Click to edit node title"
               />
               <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -116,7 +116,7 @@ export function OpportunityNode({
               Intake
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              Objective Evidence
+              Evidence
             </div>
             <div className="mt-2.5">
               <span
@@ -159,7 +159,7 @@ export function OpportunityNode({
               Blockers
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              Hard & Eligibility
+              Eligibility
             </div>
             <div className="mt-2.5">
               <span
@@ -200,7 +200,7 @@ export function OpportunityNode({
               Reality
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              Class D & Route
+              Class D Route
             </div>
             <div className="mt-2.5">
               <span
@@ -241,7 +241,7 @@ export function OpportunityNode({
               Activation
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              {isLoi ? "Governed LOI" : "Commercial Path"}
+              Commercial
             </div>
             <div className="mt-2.5">
               <span
