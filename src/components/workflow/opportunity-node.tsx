@@ -54,10 +54,10 @@ export function OpportunityNode({
         const style = window.getComputedStyle(target);
         const canScrollX =
           (style.overflowX === "auto" || style.overflowX === "scroll") &&
-          target.scrollWidth > target.clientWidth;
+          target.scrollWidth - target.clientWidth > 2;
         const canScrollY =
           (style.overflowY === "auto" || style.overflowY === "scroll") &&
-          target.scrollHeight > target.clientHeight;
+          target.scrollHeight - target.clientHeight > 2;
 
         if (canScrollX) {
           // If container has horizontal scroll and user wheels vertically, convert to horizontal scroll
@@ -324,7 +324,7 @@ export function OpportunityNode({
               e.stopPropagation();
             }
           }}
-          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin nowheel"
+          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin"
         >
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
             <Sparkles className="size-3 text-primary" />
@@ -422,7 +422,7 @@ export function OpportunityNode({
 
         {/* Tab 1: Overview Dashboard */}
         {activeTab === "overview" && (
-          <div className="mt-3 grid grid-cols-2 gap-2 max-h-[190px] overflow-y-auto scroll-thin nowheel">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {/* Client & Scale Card */}
             <div
               onClick={() => setActiveTab("client")}
@@ -499,7 +499,7 @@ export function OpportunityNode({
 
         {/* Tab 2: Client & Scale Direct Inputs */}
         {activeTab === "client" && (
-          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -603,7 +603,7 @@ export function OpportunityNode({
 
         {/* Tab 3: Site & Design Direct Inputs */}
         {activeTab === "site" && (
-          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Site & Land Status (7-State Model)
@@ -688,7 +688,7 @@ export function OpportunityNode({
 
         {/* Tab 4: Budget & Class D Direct Inputs */}
         {activeTab === "budget" && (
-          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
