@@ -18,7 +18,7 @@ export interface NodeDefinition { type: WorkflowNodeType; label: string; descrip
 
 export const NODE_CATALOG: NodeDefinition[] = [
   { type: "projectStart", label: "Project Start", description: "Start a project with an editable project number", icon: FolderKanban, color: "#2563a9", category: "Flow", defaultSize: { width: 320, height: 220 } },
-  { type: "opportunityValidation", label: "Opportunity Node", description: "Opportunity Node (Cleared - Ready for Redesign)", icon: Target, color: "#1f5fa7", category: "Flow", defaultSize: { width: 320, height: 180 } },
+  { type: "opportunityValidation", label: "Opportunity Node", description: "High-Level 4-step opportunity screening and qualification pipeline", icon: Target, color: "#1f5fa7", category: "Flow", defaultSize: { width: 560, height: 220 } },
   { type: "general", label: "Node", description: "Custom stage, name, content, and icon", icon: Boxes, color: "#3f668c", category: "General", defaultSize: { width: 270, height: 168 } },
   { type: "start", label: "Start", description: "Workflow entry point", icon: CircleDot, color: "#16866f", category: "Flow", defaultSize: { width: 210, height: 104 } },
   { type: "end", label: "End", description: "Workflow completion", icon: CircleStop, color: "#64748b", category: "Flow", defaultSize: { width: 210, height: 104 } },
