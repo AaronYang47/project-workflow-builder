@@ -39,6 +39,7 @@ import {
   LayerContextMinimap,
   type ContextMapNode,
 } from "./layer-context-minimap";
+import { OpportunityIntakeExecutionSheet } from "./opportunity-intake-execution-sheet";
 
 function progressTone(item: ExecutionItem) {
   const progress = executionItemProgress(item);
@@ -482,6 +483,10 @@ export function ExecutionView({
         </div>
       </section>
     );
+  }
+
+  if (node.type === "opportunityValidation") {
+    return <OpportunityIntakeExecutionSheet node={node} onBack={onBack} />;
   }
 
   const addItem = () => {
