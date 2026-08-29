@@ -2,10 +2,12 @@
 
 import { Handle, Position } from "@xyflow/react";
 import {
+  CheckCheck,
   ChevronRight,
   ClipboardList,
+  FolderOutput,
   Lock,
-  Rocket,
+  Route,
   Scale,
   ShieldAlert,
   ShieldCheck,
@@ -15,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { evaluateOpportunity, getOpportunityConfig } from "@/lib/opportunity-evaluation";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { ProjectIdBadge } from "./project-id-badge";
 
 export function OpportunityNode({
   node,
@@ -45,12 +48,18 @@ export function OpportunityNode({
     evaluation.overallStatus === "HOLD";
   const step2Passed = step1Complete && !isBlocked;
 
-  // Step 3 check: Routing resolved
-  const step3Resolved = step2Passed && Boolean(evaluation.recommendedRoute);
+  // Step 3 check: Reality check resolved
+  const step3Resolved = step2Passed;
 
-  // Step 4 check: Commercial path active
+  // Step 4 check: Commercial routing resolved
+  const step4Resolved = step3Resolved && Boolean(evaluation.recommendedRoute);
+
+  // Step 5 check: Commercial approval / CEO sign-off
   const isLoi = evaluation.recommendedRoute === "GOVERNED_LOI";
-  const step4Active = step3Resolved;
+  const step5Approved = step4Resolved;
+
+  // Step 6 check: Gate 1 Dossier handoff ready
+  const step6Ready = step5Approved;
 
   return (
     <div className="relative h-full w-full select-none">
@@ -64,7 +73,7 @@ export function OpportunityNode({
 
       <div
         className={cn(
-          "w-[640px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
+          "w-[780px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
           selected
             ? "border-primary ring-2 ring-primary/20 shadow-lg"
             : "border-border hover:border-primary/50",
@@ -86,42 +95,46 @@ export function OpportunityNode({
                 title="Click to edit node title"
               />
               <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Gate 1 Pipeline · High-Level Qualification Flow
+                Gate 1 Pipeline · Qualification & Dossier Flow
               </p>
             </div>
           </div>
-          <span className="shrink-0 rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-[10px] font-bold text-foreground">
-            {step1Complete
-              ? `Score: ${evaluation.totalScore}/100 · ${evaluation.scoreGrade}`
-              : "Score: Pending Intake"}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[10px] font-bold text-foreground">
+              {step1Complete
+                ? `Score: ${evaluation.totalScore}/100 · ${evaluation.scoreGrade}`
+                : "Score: Pending Intake"}
+            </span>
+            {/* Global Rule: Project ID Badge in Top Right */}
+            <ProjectIdBadge className="shrink-0" showPlaceholder />
+          </div>
         </div>
 
-        {/* 4-Step Stepped Pipeline Flow */}
-        <div className="mt-3.5 flex items-center justify-between gap-2">
+        {/* 6-Step Stepped Pipeline Flow */}
+        <div className="mt-3.5 flex items-center justify-between gap-1.5">
           {/* STEP 1: INTAKE */}
           <div
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
               step1Complete
                 ? "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20"
                 : "border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/30",
             )}
           >
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
               <span>STEP 1</span>
-              <ClipboardList className="size-3.5 text-primary shrink-0" />
+              <ClipboardList className="size-3 text-primary shrink-0" />
             </div>
-            <div className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
               Intake
             </div>
-            <div className="text-[10px] text-muted-foreground truncate">
+            <div className="text-[9px] text-muted-foreground truncate">
               Evidence
             </div>
-            <div className="mt-2.5">
+            <div className="mt-2">
               <span
                 className={cn(
-                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
                   step1Complete
                     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                     : "bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse",
@@ -132,12 +145,12 @@ export function OpportunityNode({
             </div>
           </div>
 
-          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
+          <ChevronRight className="size-2.5 text-muted-foreground/40 shrink-0" />
 
           {/* STEP 2: BLOCKERS */}
           <div
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
               !step1Complete
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : step2Passed
@@ -145,26 +158,26 @@ export function OpportunityNode({
                   : "border-rose-500/40 bg-rose-500/10 dark:bg-rose-950/30",
             )}
           >
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
               <span>STEP 2</span>
               {!step1Complete ? (
-                <Lock className="size-3.5 text-muted-foreground shrink-0" />
+                <Lock className="size-3 text-muted-foreground shrink-0" />
               ) : step2Passed ? (
-                <ShieldCheck className="size-3.5 text-emerald-600 shrink-0" />
+                <ShieldCheck className="size-3 text-emerald-600 shrink-0" />
               ) : (
-                <ShieldAlert className="size-3.5 text-rose-600 shrink-0" />
+                <ShieldAlert className="size-3 text-rose-600 shrink-0" />
               )}
             </div>
-            <div className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
               Blockers
             </div>
-            <div className="text-[10px] text-muted-foreground truncate">
+            <div className="text-[9px] text-muted-foreground truncate">
               Eligibility
             </div>
-            <div className="mt-2.5">
+            <div className="mt-2">
               <span
                 className={cn(
-                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
                   !step1Complete
                     ? "bg-muted text-muted-foreground"
                     : step2Passed
@@ -177,35 +190,35 @@ export function OpportunityNode({
             </div>
           </div>
 
-          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
+          <ChevronRight className="size-2.5 text-muted-foreground/40 shrink-0" />
 
           {/* STEP 3: REALITY */}
           <div
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
               !step2Passed
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : "border-sky-500/30 bg-sky-500/5 dark:bg-sky-950/20",
             )}
           >
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
               <span>STEP 3</span>
               {!step2Passed ? (
-                <Lock className="size-3.5 text-muted-foreground shrink-0" />
+                <Lock className="size-3 text-muted-foreground shrink-0" />
               ) : (
-                <Scale className="size-3.5 text-sky-600 shrink-0" />
+                <Scale className="size-3 text-sky-600 shrink-0" />
               )}
             </div>
-            <div className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
               Reality
             </div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              Class D Route
+            <div className="text-[9px] text-muted-foreground truncate">
+              Class D
             </div>
-            <div className="mt-2.5">
+            <div className="mt-2">
               <span
                 className={cn(
-                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
                   !step2Passed
                     ? "bg-muted text-muted-foreground"
                     : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
@@ -216,43 +229,123 @@ export function OpportunityNode({
             </div>
           </div>
 
-          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
+          <ChevronRight className="size-2.5 text-muted-foreground/40 shrink-0" />
 
-          {/* STEP 4: ACTIVATION */}
+          {/* STEP 4: ROUTING */}
           <div
             className={cn(
-              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
               !step3Resolved
+                ? "border-border/40 bg-muted/20 opacity-60"
+                : "border-indigo-500/30 bg-indigo-500/5 dark:bg-indigo-950/20",
+            )}
+          >
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+              <span>STEP 4</span>
+              {!step3Resolved ? (
+                <Lock className="size-3 text-muted-foreground shrink-0" />
+              ) : (
+                <Route className="size-3 text-indigo-600 shrink-0" />
+              )}
+            </div>
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
+              Routing
+            </div>
+            <div className="text-[9px] text-muted-foreground truncate">
+              {evaluation.recommendedRoute ? "Route Assigned" : "Select Path"}
+            </div>
+            <div className="mt-2">
+              <span
+                className={cn(
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
+                  !step3Resolved
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+                )}
+              >
+                {!step3Resolved ? "Pending" : "Resolved"}
+              </span>
+            </div>
+          </div>
+
+          <ChevronRight className="size-2.5 text-muted-foreground/40 shrink-0" />
+
+          {/* STEP 5: APPROVAL (CEO Sign-Off for LOI / Commercial) */}
+          <div
+            className={cn(
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              !step4Resolved
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : isLoi
                   ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20"
                   : "border-purple-500/30 bg-purple-500/5 dark:bg-purple-950/20",
             )}
           >
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
-              <span>STEP 4</span>
-              {!step3Resolved ? (
-                <Lock className="size-3.5 text-muted-foreground shrink-0" />
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+              <span>STEP 5</span>
+              {!step4Resolved ? (
+                <Lock className="size-3 text-muted-foreground shrink-0" />
               ) : (
-                <Rocket className="size-3.5 text-purple-600 shrink-0" />
+                <CheckCheck className="size-3 text-emerald-600 shrink-0" />
               )}
             </div>
-            <div className="mt-1 text-xs font-bold text-foreground truncate">
-              Activation
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
+              Approval
             </div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              Commercial
+            <div className="text-[9px] text-muted-foreground truncate">
+              {isLoi ? "CEO Sign-Off" : "Commercial"}
             </div>
-            <div className="mt-2.5">
+            <div className="mt-2">
               <span
                 className={cn(
-                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                  !step3Resolved
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
+                  !step4Resolved
                     ? "bg-muted text-muted-foreground"
-                    : "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+                    : isLoi
+                      ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                      : "bg-purple-500/15 text-purple-700 dark:text-purple-300",
                 )}
               >
-                {!step3Resolved ? "Locked" : "Active"}
+                {!step4Resolved ? "Locked" : "Approved"}
+              </span>
+            </div>
+          </div>
+
+          <ChevronRight className="size-2.5 text-muted-foreground/40 shrink-0" />
+
+          {/* STEP 6: HANDOFF (Gate 1 Dossier) */}
+          <div
+            className={cn(
+              "flex-1 min-w-0 rounded-xl border p-2 transition-all",
+              !step5Approved
+                ? "border-border/40 bg-muted/20 opacity-60"
+                : "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20",
+            )}
+          >
+            <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+              <span>STEP 6</span>
+              {!step5Approved ? (
+                <Lock className="size-3 text-muted-foreground shrink-0" />
+              ) : (
+                <FolderOutput className="size-3 text-emerald-600 shrink-0" />
+              )}
+            </div>
+            <div className="mt-0.5 text-xs font-bold text-foreground truncate">
+              Handoff
+            </div>
+            <div className="text-[9px] text-muted-foreground truncate">
+              G1 Dossier
+            </div>
+            <div className="mt-2">
+              <span
+                className={cn(
+                  "inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase",
+                  !step5Approved
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+                )}
+              >
+                {!step5Approved ? "Locked" : "Ready"}
               </span>
             </div>
           </div>

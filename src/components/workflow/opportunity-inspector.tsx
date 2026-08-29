@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  CheckCheck,
   ClipboardList,
+  FolderOutput,
   Lock,
-  Rocket,
+  Route,
   Scale,
   ShieldAlert,
   ShieldCheck,
@@ -35,11 +37,18 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
     evaluation.overallStatus === "HOLD";
   const step2Passed = step1Complete && !isBlocked;
 
-  // Step 3 check: Routing resolved
-  const step3Resolved = step2Passed && Boolean(evaluation.recommendedRoute);
+  // Step 3 check: Reality check resolved
+  const step3Resolved = step2Passed;
 
-  // Step 4 check: Commercial path active
+  // Step 4 check: Commercial routing resolved
+  const step4Resolved = step3Resolved && Boolean(evaluation.recommendedRoute);
+
+  // Step 5 check: Commercial approval / CEO sign-off
   const isLoi = evaluation.recommendedRoute === "GOVERNED_LOI";
+  const step5Approved = step4Resolved;
+
+  // Step 6 check: Gate 1 Dossier handoff ready
+  const step6Ready = step5Approved;
 
   return (
     <div className="space-y-3.5 p-3 text-xs">
@@ -55,7 +64,7 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
                 Opportunity Qualification
               </h4>
               <p className="text-[10px] text-muted-foreground">
-                High-Level 4-Phase Architecture
+                6-Step Lifecycle Pipeline
               </p>
             </div>
           </div>
@@ -64,17 +73,17 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
           </span>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          Sequential 4-phase qualification pipeline establishing objective project viability before formal estimating and engineering engagement.
+          Sequential 6-step qualification flow establishing objective viability, LOI governance, and Gate 1 dossier handoff.
         </p>
       </div>
 
-      {/* 4 High-Level Pipeline Phase Cards */}
+      {/* 6 High-Level Pipeline Phase Cards */}
       <div className="space-y-2">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block px-0.5">
-          Pipeline Phases Overview
+          Pipeline Steps Overview
         </span>
 
-        {/* Phase 1 Card */}
+        {/* Step 1 Card */}
         <div
           className={cn(
             "rounded-xl border p-2.5 transition-all",
@@ -86,7 +95,7 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
               <ClipboardList className="size-3.5 text-primary" />
-              <span>Phase 1 · Intake & Evidence</span>
+              <span>Step 1 · Intake & Evidence</span>
             </div>
             <span
               className={cn(
@@ -100,11 +109,11 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
             </span>
           </div>
           <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Baseline objective facts collection (Client, Authority, Scale, Land, Design). Must be complete before unlocking downstream phases.
+            Baseline objective facts (Client, Authority, Scale, Land, Design). Must be complete before unlocking downstream evaluation.
           </p>
         </div>
 
-        {/* Phase 2 Card */}
+        {/* Step 2 Card */}
         <div
           className={cn(
             "rounded-xl border p-2.5 transition-all",
@@ -124,7 +133,7 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
               ) : (
                 <ShieldAlert className="size-3.5 text-rose-600" />
               )}
-              <span>Phase 2 · Hard Blockers</span>
+              <span>Step 2 · Hard Blockers</span>
             </div>
             <span
               className={cn(
@@ -140,11 +149,11 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
             </span>
           </div>
           <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Screening for fatal site constraints, authority status, and hard commercial blockers. Hard blockers trigger immediate Hold.
+            Prequalification screening for fatal constraints and authority verification. Unresolved blockers trigger immediate Hold.
           </p>
         </div>
 
-        {/* Phase 3 Card */}
+        {/* Step 3 Card */}
         <div
           className={cn(
             "rounded-xl border p-2.5 transition-all",
@@ -160,7 +169,7 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
               ) : (
                 <Scale className="size-3.5 text-sky-600" />
               )}
-              <span>Phase 3 · Reality & Routing</span>
+              <span>Step 3 · Class D Reality</span>
             </div>
             <span
               className={cn(
@@ -174,15 +183,49 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
             </span>
           </div>
           <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Sales reality check comparing target budget against Class D cost benchmarks (±15% tolerance) and bounded route determination.
+            Sales reality check comparing target budget against Class D cost benchmarks (±15% tolerance).
           </p>
         </div>
 
-        {/* Phase 4 Card */}
+        {/* Step 4 Card */}
         <div
           className={cn(
             "rounded-xl border p-2.5 transition-all",
             !step3Resolved
+              ? "border-border/40 bg-muted/20 opacity-60"
+              : "border-indigo-500/30 bg-indigo-500/5 dark:bg-indigo-950/20",
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
+              {!step3Resolved ? (
+                <Lock className="size-3.5 text-muted-foreground" />
+              ) : (
+                <Route className="size-3.5 text-indigo-600" />
+              )}
+              <span>Step 4 · Commercial Routing</span>
+            </div>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                !step3Resolved
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+              )}
+            >
+              {!step3Resolved ? "Pending" : "Resolved"}
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+            Bounded route assignment: Governed LOI, Direct PCS, Paid CSA Consultation, or Technical Review.
+          </p>
+        </div>
+
+        {/* Step 5 Card */}
+        <div
+          className={cn(
+            "rounded-xl border p-2.5 transition-all",
+            !step4Resolved
               ? "border-border/40 bg-muted/20 opacity-60"
               : isLoi
                 ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20"
@@ -191,28 +234,62 @@ export function OpportunityInspector({ node }: { node: DomainNode }) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
-              {!step3Resolved ? (
+              {!step4Resolved ? (
                 <Lock className="size-3.5 text-muted-foreground" />
               ) : (
-                <Rocket className="size-3.5 text-purple-600" />
+                <CheckCheck className="size-3.5 text-emerald-600" />
               )}
-              <span>Phase 4 · Commercial Activation</span>
+              <span>Step 5 · Scope & CEO Sign-Off</span>
             </div>
             <span
               className={cn(
                 "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                !step3Resolved
+                !step4Resolved
                   ? "bg-muted text-muted-foreground"
                   : isLoi
                     ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
                     : "bg-purple-500/15 text-purple-700 dark:text-purple-300",
               )}
             >
-              {!step3Resolved ? "Locked" : isLoi ? "Governed LOI" : "Active"}
+              {!step4Resolved ? "Locked" : "Approved"}
             </span>
           </div>
           <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Formal commercial agreement activation: Governed LOI (Complimentary with CEO Sign-off + Scope Caps), Direct PCS, or Paid CSA.
+            LOI governance: 45-day duration cap, 60-hour engineering cap, and mandatory CEO executive sign-off.
+          </p>
+        </div>
+
+        {/* Step 6 Card */}
+        <div
+          className={cn(
+            "rounded-xl border p-2.5 transition-all",
+            !step5Approved
+              ? "border-border/40 bg-muted/20 opacity-60"
+              : "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20",
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
+              {!step5Approved ? (
+                <Lock className="size-3.5 text-muted-foreground" />
+              ) : (
+                <FolderOutput className="size-3.5 text-emerald-600" />
+              )}
+              <span>Step 6 · Gate 1 Dossier Handoff</span>
+            </div>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                !step5Approved
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+              )}
+            >
+              {!step5Approved ? "Locked" : "Ready"}
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+            Compilation of objective evidence, reality check report, and commercial agreement for Gate 1 review.
           </p>
         </div>
       </div>

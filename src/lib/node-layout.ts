@@ -30,7 +30,7 @@ export function getAdaptiveNodeSize(
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "opportunityValidation") {
     return {
-      width: 640,
+      width: 780,
       height: 210,
     };
   }
