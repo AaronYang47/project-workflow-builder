@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position } from "@xyflow/react";
 import {
   Building2,
@@ -41,6 +41,53 @@ export function OpportunityNode({
   const intake: OpportunityIntake = config.intake || {};
 
   const [activeTab, setActiveTab] = useState<CardTab>("overview");
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Find closest scrollable element inside card starting from event target
+      let target = e.target as HTMLElement | null;
+      while (target && target !== card) {
+        const style = window.getComputedStyle(target);
+        const canScrollX =
+          (style.overflowX === "auto" || style.overflowX === "scroll") &&
+          target.scrollWidth > target.clientWidth;
+        const canScrollY =
+          (style.overflowY === "auto" || style.overflowY === "scroll") &&
+          target.scrollHeight > target.clientHeight;
+
+        if (canScrollX) {
+          // If container has horizontal scroll and user wheels vertically, convert to horizontal scroll
+          if (e.deltaY !== 0 && e.deltaX === 0) {
+            target.scrollLeft += e.deltaY;
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+          }
+          if (e.deltaX !== 0) {
+            e.stopPropagation();
+            return;
+          }
+        }
+
+        if (canScrollY && e.deltaY !== 0) {
+          e.stopPropagation();
+          return;
+        }
+
+        target = target.parentElement;
+      }
+
+      // If user wheels anywhere over the node card itself, prevent canvas zoom/pan from stealing it
+      e.stopPropagation();
+    };
+
+    card.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => card.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
 
   const updateIntake = (updater: (prev: OpportunityIntake) => OpportunityIntake) => {
     const nextIntake = updater(intake);
@@ -216,8 +263,9 @@ export function OpportunityNode({
       />
 
       <div
+        ref={cardRef}
         className={cn(
-          "w-[480px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left nodrag nopan",
+          "w-[480px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left nodrag nopan nowheel",
           selected
             ? "border-primary ring-2 ring-primary/20 shadow-lg"
             : "border-border hover:border-primary/50",
@@ -249,7 +297,17 @@ export function OpportunityNode({
         </div>
 
         {/* 1-Click Presets Ribbon */}
-        <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-thin">
+        <div
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && e.deltaX === 0) {
+              e.currentTarget.scrollLeft += e.deltaY;
+              e.stopPropagation();
+            } else if (e.deltaX !== 0) {
+              e.stopPropagation();
+            }
+          }}
+          className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-thin nowheel"
+        >
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
             <Sparkles className="size-3 text-primary" />
             Presets:
@@ -346,7 +404,7 @@ export function OpportunityNode({
 
         {/* Tab 1: Overview Dashboard */}
         {activeTab === "overview" && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 max-h-[190px] overflow-y-auto scroll-thin nowheel">
             {/* Client & Scale Card */}
             <div
               onClick={() => setActiveTab("client")}
@@ -423,7 +481,7 @@ export function OpportunityNode({
 
         {/* Tab 2: Client & Scale Direct Inputs */}
         {activeTab === "client" && (
-          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -527,7 +585,7 @@ export function OpportunityNode({
 
         {/* Tab 3: Site & Design Direct Inputs */}
         {activeTab === "site" && (
-          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Site & Land Status (7-State Model)
@@ -612,7 +670,7 @@ export function OpportunityNode({
 
         {/* Tab 4: Budget & Class D Direct Inputs */}
         {activeTab === "budget" && (
-          <div className="mt-3 space-y-2 rounded-xl border border-border/80 bg-background/80 p-3">
+          <div className="mt-3 space-y-2 max-h-[190px] overflow-y-auto scroll-thin nowheel rounded-xl border border-border/80 bg-background/80 p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
