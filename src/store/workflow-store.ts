@@ -1058,7 +1058,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v25-high-level-opportunity-node",
+      name: "project-workflow-builder:v26-high-level-inspector",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

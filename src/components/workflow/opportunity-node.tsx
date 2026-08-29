@@ -4,7 +4,6 @@ import { Handle, Position } from "@xyflow/react";
 import {
   ChevronRight,
   ClipboardList,
-  FileCheck2,
   Lock,
   Rocket,
   Scale,
@@ -65,14 +64,14 @@ export function OpportunityNode({
 
       <div
         className={cn(
-          "w-[560px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
+          "w-[640px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
           selected
             ? "border-primary ring-2 ring-primary/20 shadow-lg"
             : "border-border hover:border-primary/50",
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-3">
+        {/* Top Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-xs">
               <Target className="size-4.5" />
@@ -99,44 +98,46 @@ export function OpportunityNode({
         </div>
 
         {/* 4-Step Stepped Pipeline Flow */}
-        <div className="mt-3.5 flex items-center justify-between gap-1.5">
+        <div className="mt-3.5 flex items-center justify-between gap-2">
           {/* STEP 1: INTAKE */}
           <div
             className={cn(
-              "flex-1 rounded-xl border p-2.5 text-center transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
               step1Complete
                 ? "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20"
                 : "border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/30",
             )}
           >
-            <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              <ClipboardList className="size-3 text-primary" />
-              <span>Step 1</span>
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+              <span>STEP 1</span>
+              <ClipboardList className="size-3.5 text-primary shrink-0" />
             </div>
-            <h4 className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-1 text-xs font-bold text-foreground truncate">
               Intake
-            </h4>
-            <p className="text-[9px] text-muted-foreground truncate">
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
               Objective Evidence
-            </p>
-            <span
-              className={cn(
-                "mt-2 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                step1Complete
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                  : "bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse",
-              )}
-            >
-              {step1Complete ? "Complete" : "Incomplete"}
-            </span>
+            </div>
+            <div className="mt-2.5">
+              <span
+                className={cn(
+                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  step1Complete
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    : "bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse",
+                )}
+              >
+                {step1Complete ? "Complete" : "Incomplete"}
+              </span>
+            </div>
           </div>
 
-          <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
+          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
 
           {/* STEP 2: BLOCKERS */}
           <div
             className={cn(
-              "flex-1 rounded-xl border p-2.5 text-center transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
               !step1Complete
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : step2Passed
@@ -144,79 +145,83 @@ export function OpportunityNode({
                   : "border-rose-500/40 bg-rose-500/10 dark:bg-rose-950/30",
             )}
           >
-            <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+              <span>STEP 2</span>
               {!step1Complete ? (
-                <Lock className="size-3 text-muted-foreground" />
+                <Lock className="size-3.5 text-muted-foreground shrink-0" />
               ) : step2Passed ? (
-                <ShieldCheck className="size-3 text-emerald-600" />
+                <ShieldCheck className="size-3.5 text-emerald-600 shrink-0" />
               ) : (
-                <ShieldAlert className="size-3 text-rose-600" />
+                <ShieldAlert className="size-3.5 text-rose-600 shrink-0" />
               )}
-              <span>Step 2</span>
             </div>
-            <h4 className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-1 text-xs font-bold text-foreground truncate">
               Blockers
-            </h4>
-            <p className="text-[9px] text-muted-foreground truncate">
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
               Hard & Eligibility
-            </p>
-            <span
-              className={cn(
-                "mt-2 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                !step1Complete
-                  ? "bg-muted text-muted-foreground"
-                  : step2Passed
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : "bg-rose-500/20 text-rose-700 dark:text-rose-300",
-              )}
-            >
-              {!step1Complete ? "Pending" : step2Passed ? "Passed" : "Blocked"}
-            </span>
+            </div>
+            <div className="mt-2.5">
+              <span
+                className={cn(
+                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  !step1Complete
+                    ? "bg-muted text-muted-foreground"
+                    : step2Passed
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                      : "bg-rose-500/20 text-rose-700 dark:text-rose-300",
+                )}
+              >
+                {!step1Complete ? "Pending" : step2Passed ? "Passed" : "Blocked"}
+              </span>
+            </div>
           </div>
 
-          <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
+          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
 
           {/* STEP 3: REALITY */}
           <div
             className={cn(
-              "flex-1 rounded-xl border p-2.5 text-center transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
               !step2Passed
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : "border-sky-500/30 bg-sky-500/5 dark:bg-sky-950/20",
             )}
           >
-            <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+              <span>STEP 3</span>
               {!step2Passed ? (
-                <Lock className="size-3 text-muted-foreground" />
+                <Lock className="size-3.5 text-muted-foreground shrink-0" />
               ) : (
-                <Scale className="size-3 text-sky-600" />
+                <Scale className="size-3.5 text-sky-600 shrink-0" />
               )}
-              <span>Step 3</span>
             </div>
-            <h4 className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-1 text-xs font-bold text-foreground truncate">
               Reality
-            </h4>
-            <p className="text-[9px] text-muted-foreground truncate">
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
               Class D & Route
-            </p>
-            <span
-              className={cn(
-                "mt-2 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                !step2Passed
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-              )}
-            >
-              {!step2Passed ? "Pending" : "Resolved"}
-            </span>
+            </div>
+            <div className="mt-2.5">
+              <span
+                className={cn(
+                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  !step2Passed
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                )}
+              >
+                {!step2Passed ? "Pending" : "Resolved"}
+              </span>
+            </div>
           </div>
 
-          <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
+          <ChevronRight className="size-3 text-muted-foreground/40 shrink-0" />
 
           {/* STEP 4: ACTIVATION */}
           <div
             className={cn(
-              "flex-1 rounded-xl border p-2.5 text-center transition-all",
+              "flex-1 min-w-0 rounded-xl border p-2.5 transition-all",
               !step3Resolved
                 ? "border-border/40 bg-muted/20 opacity-60"
                 : isLoi
@@ -224,30 +229,32 @@ export function OpportunityNode({
                   : "border-purple-500/30 bg-purple-500/5 dark:bg-purple-950/20",
             )}
           >
-            <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+              <span>STEP 4</span>
               {!step3Resolved ? (
-                <Lock className="size-3 text-muted-foreground" />
+                <Lock className="size-3.5 text-muted-foreground shrink-0" />
               ) : (
-                <Rocket className="size-3 text-purple-600" />
+                <Rocket className="size-3.5 text-purple-600 shrink-0" />
               )}
-              <span>Step 4</span>
             </div>
-            <h4 className="mt-1 text-xs font-bold text-foreground truncate">
+            <div className="mt-1 text-xs font-bold text-foreground truncate">
               Activation
-            </h4>
-            <p className="text-[9px] text-muted-foreground truncate">
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
               {isLoi ? "Governed LOI" : "Commercial Path"}
-            </p>
-            <span
-              className={cn(
-                "mt-2 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                !step3Resolved
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-purple-500/15 text-purple-700 dark:text-purple-300",
-              )}
-            >
-              {!step3Resolved ? "Locked" : "Active"}
-            </span>
+            </div>
+            <div className="mt-2.5">
+              <span
+                className={cn(
+                  "inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                  !step3Resolved
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+                )}
+              >
+                {!step3Resolved ? "Locked" : "Active"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
