@@ -437,20 +437,19 @@ export function ExecutionView({
       return position;
     };
 
-    return file.graph.nodes
+    const rawNodes = file.graph.nodes
       .map((workflowNode) => {
         const layout = file.layout.nodes[workflowNode.id];
         const position = resolvePosition(workflowNode.id);
         const isOpportunity =
           workflowNode.type === "opportunityValidation" ||
           workflowNode.id.toLowerCase().includes("opportunity");
-        const nodeWidth = isOpportunity ? 680 : Math.min(layout?.width || 220, 220);
-        const nodeHeight = 140;
+        const nodeWidth = isOpportunity ? 680 : 180;
+        const nodeHeight = 130;
         return {
           id: workflowNode.id,
           label: workflowNode.title,
-          x: position.x,
-          y: position.y,
+          rawX: position.x,
           width: nodeWidth,
           height: nodeHeight,
           color: workflowNode.color || getNodeDefinition(workflowNode.type).color,
@@ -459,12 +458,29 @@ export function ExecutionView({
           type: workflowNode.type,
         };
       })
-      .sort((left, right) => {
-        if (left.container !== right.container) {
-          return Number(right.container) - Number(left.container);
-        }
-        return left.x - right.x || left.y - right.y;
+      .sort((a, b) => a.rawX - b.rawX);
+
+    // Center-align all nodes on a single horizontal axis to maximize space and keep flow straight
+    const centerY = 80;
+    const gap = 56;
+    const resultNodes: ContextMapNode[] = [];
+    let runningX = 0;
+    for (const n of rawNodes) {
+      resultNodes.push({
+        id: n.id,
+        label: n.label,
+        x: runningX,
+        y: centerY - n.height / 2,
+        width: n.width,
+        height: n.height,
+        color: n.color,
+        active: n.active,
+        container: n.container,
+        type: n.type,
       });
+      runningX += n.width + gap;
+    }
+    return resultNodes;
   }, [file.graph.nodes, file.layout.nodes, nodeId]);
 
   if (!node) {
