@@ -965,7 +965,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v15-clean-slate",
+      name: "project-workflow-builder:v16-lightweight-intake",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

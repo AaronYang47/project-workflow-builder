@@ -30,8 +30,8 @@ export function getAdaptiveNodeSize(
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "opportunityValidation") {
     return {
-      width: Math.max(current?.width || 0, 920),
-      height: Math.max(current?.height || 0, 800),
+      width: Math.max(current?.width || 0, 440),
+      height: Math.max(current?.height || 0, 680),
     };
   }
   // Split Opportunity evidence cards are detailed form surfaces. Preserve a

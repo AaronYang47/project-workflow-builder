@@ -17,6 +17,7 @@ import type {
  */
 export const DETAILED_LIFECYCLE_IDS = [
   "project-start",
+  "opportunity-intake",
   "gate-g1-qualified",
   "pre-construction",
   "gate-g2-technical-commitment",
@@ -131,8 +132,14 @@ function createScaffoldNodes() {
   projectStart.description = "Establish the project record and confirm the project identifier.";
   projectStart.metadata = { workflowSection: "Lifecycle Scaffold" };
 
+  const opportunityIntake = createDomainNode("opportunityValidation", "opportunity-intake");
+  opportunityIntake.title = "OPPORTUNITY EVIDENCE INTAKE";
+  opportunityIntake.description = "Capture facts across Client, Scale, Site, Design, Budget & Team.";
+  opportunityIntake.metadata = { workflowSection: "Lifecycle Scaffold" };
+
   return [
     projectStart,
+    opportunityIntake,
     gateNode("gate-g1-qualified", "G1 — QUALIFIED & COMMERCIALLY ENGAGED", "Authorize managed pre-construction after qualification and commercial engagement.", [
       "Opportunity evidence reviewed and route selected",
       "Commercial engagement instrument authorized",
@@ -209,6 +216,8 @@ export function createDefaultDetailedLifecycle(
 ): DetailedLifecycle {
   const nodes = createScaffoldNodes();
   const edges: DomainEdge[] = [
+    edge("lifecycle-start-to-intake", "project-start", "opportunity-intake", { label: "Project ID confirmed" }),
+    edge("lifecycle-intake-to-g1", "opportunity-intake", "gate-g1-qualified", { sourceHandle: "pass-p1-p2", label: "Qualified & Engaged", type: "success" }),
     edge("lifecycle-g1-preconstruction", "gate-g1-qualified", "pre-construction", { sourceHandle: "yes", label: "Approved" }),
     edge("lifecycle-preconstruction-g2", "pre-construction", "gate-g2-technical-commitment", { label: "Technical basis ready" }),
     edge("lifecycle-g2-readiness", "gate-g2-technical-commitment", "production-readiness", { sourceHandle: "yes", label: "Approved" }),
@@ -226,14 +235,12 @@ export function createDefaultDetailedLifecycle(
   for (const id of mainIds) {
     const node = nodes.find((item) => item.id === id)!;
     const size = getAdaptiveNodeSize(node);
-    const extraGap = id === "gate-g1-qualified" ? 540 : 0;
-    x += extraGap;
     layout[id] = { nodeId: id, x, y: 220, width: size.width, height: size.height };
     x += size.width + 160;
   }
   const linkMap: Record<string, string[]> = {
     "high-level-1": ["project-start"],
-    "high-level-2": [],
+    "high-level-2": ["opportunity-intake"],
     "high-level-3": ["gate-g1-qualified"],
     "high-level-4": ["pre-construction"],
     "high-level-5": ["gate-g2-technical-commitment"],
@@ -273,15 +280,16 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
   const idMap = new Map<string, string>();
   if (existingProjectStart) idMap.set("project-start", existingProjectStart.id);
 
-  const isOpportunityNode = (id: string, type?: string) =>
-    type === "opportunityValidation" ||
-    id.includes("opportunity") ||
+  const isLegacyOpportunityNode = (id: string) =>
+    id === "opportunity-validation" ||
+    id === "opportunity-hold" ||
+    id === "opportunity-no-go" ||
     id === "hold-gap-rework" ||
     id === "no-go-archive";
 
-  // Filter out any cleared opportunity nodes from existing file
+  // Filter out any legacy cleared opportunity nodes from existing file
   const nodes = file.graph.nodes
-    .filter((node) => !isOpportunityNode(node.id, node.type));
+    .filter((node) => !isLegacyOpportunityNode(node.id));
 
   for (const node of scaffold.graph.nodes) {
     if (idMap.has(node.id)) continue;
@@ -298,13 +306,13 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
     const mappedId = idMap.get(id) || id;
     if (!layouts[mappedId]) layouts[mappedId] = { ...layout, nodeId: mappedId };
   }
-  // Remove layouts for cleared opportunity nodes
+  // Remove layouts for cleared legacy opportunity nodes
   for (const key of Object.keys(layouts)) {
-    if (isOpportunityNode(key)) delete layouts[key];
+    if (isLegacyOpportunityNode(key)) delete layouts[key];
   }
 
   const existingEdges = file.graph.edges.filter(
-    (edge) => !isOpportunityNode(edge.source) && !isOpportunityNode(edge.target),
+    (edge) => !isLegacyOpportunityNode(edge.source) && !isLegacyOpportunityNode(edge.target),
   );
   for (const scaffoldEdge of scaffold.graph.edges) {
     const source = idMap.get(scaffoldEdge.source) || scaffoldEdge.source;
@@ -320,11 +328,11 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
       nodes: highLevel.graph.nodes.map((node) => ({
         ...node,
         linkedLayer2NodeIds: node.id === "high-level-2"
-          ? []
+          ? ["opportunity-intake"]
           : (node.linkedLayer2NodeIds || []).length
-            ? (node.linkedLayer2NodeIds || []).filter((id) => !isOpportunityNode(id))
+            ? (node.linkedLayer2NodeIds || []).filter((id) => !isLegacyOpportunityNode(id))
             : (node.linkedDetailedNodeIds || []).length
-              ? (node.linkedDetailedNodeIds || []).filter((id) => !isOpportunityNode(id))
+              ? (node.linkedDetailedNodeIds || []).filter((id) => !isLegacyOpportunityNode(id))
               : node.id.startsWith("high-level-")
                 ? (scaffold.highLevel.graph.nodes.find((item) => item.id === node.id)?.linkedLayer2NodeIds || []).map((id) => idMap.get(id) || id)
                 : undefined,
