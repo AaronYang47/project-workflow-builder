@@ -272,13 +272,13 @@ export function TopToolbar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (
-                window.confirm(
-                  "WARNING: Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone.",
-                )
-              ) {
-                store.clearHighLevelNodes();
-              }
+              store.showConfirmClear({
+                title: "Clear L1 High-Level Workflow",
+                message:
+                  "Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone and will remove the entire lifecycle skeleton.",
+                confirmLabel: "Clear L1 Workflow",
+                onConfirm: store.clearHighLevelNodes,
+              });
             }}
             className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
@@ -293,13 +293,13 @@ export function TopToolbar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (
-                window.confirm(
-                  "WARNING: Are you sure you want to clear all L2 nodes? This action cannot be undone.",
-                )
-              ) {
-                store.clearDetailedNodes();
-              }
+              store.showConfirmClear({
+                title: "Clear L2 Detailed Workflow",
+                message:
+                  "Are you sure you want to clear all L2 workflow nodes? All nodes, connections, and layouts on the detailed canvas will be removed.",
+                confirmLabel: "Clear L2 Workflow",
+                onConfirm: store.clearDetailedNodes,
+              });
             }}
             className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
@@ -314,13 +314,13 @@ export function TopToolbar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (
-                window.confirm(
-                  "WARNING: Are you sure you want to clear all L3 execution requirements? This action cannot be undone.",
-                )
-              ) {
-                store.clearExecutionItems();
-              }
+              store.showConfirmClear({
+                title: "Clear L3 Execution Requirements",
+                message:
+                  "Are you sure you want to clear all L3 execution requirements across all workflow nodes? This action cannot be undone.",
+                confirmLabel: "Clear L3 Requirements",
+                onConfirm: () => store.clearExecutionItems(),
+              });
             }}
             className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >

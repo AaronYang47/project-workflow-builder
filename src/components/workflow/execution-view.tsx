@@ -530,13 +530,13 @@ export function ExecutionView({
               variant="outline"
               size="sm"
               onClick={() => {
-                if (
-                  window.confirm(
-                    `WARNING: Are you sure you want to clear all L3 execution requirements for "${node.title}"? This action cannot be undone.`,
-                  )
-                ) {
-                  useWorkflowStore.getState().clearExecutionItems(node.id);
-                }
+                useWorkflowStore.getState().showConfirmClear({
+                  title: `Clear L3 Requirements for "${node.title}"`,
+                  message: `Are you sure you want to clear all ${items.length} execution requirements for "${node.title}"? This action cannot be undone.`,
+                  confirmLabel: "Clear Node Requirements",
+                  onConfirm: () =>
+                    useWorkflowStore.getState().clearExecutionItems(node.id),
+                });
               }}
               className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               aria-label="Clear L3 execution requirements for this node"

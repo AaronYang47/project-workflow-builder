@@ -106,16 +106,22 @@ function normalizeHighLevelLayer2Links(
   return Array.from(new Set(linkedIds)).filter((linkedId) => !alreadyClaimed.has(linkedId));
 }
 
-type Snapshot = WorkflowFile;
-interface WorkflowState {
+export type ConfirmClearNotice = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+};
+
+export interface WorkflowState {
   file: WorkflowFile;
-  workspaceOwnerId?: string;
+  workspaceOwnerId: string;
   activeProjectId?: string;
-  past: Snapshot[];
-  future: Snapshot[];
   dirty: boolean;
   lastSavedAt?: string;
   hydrated: boolean;
+  past: WorkflowFile[];
+  future: WorkflowFile[];
   selection: { nodeIds: string[]; edgeId?: string };
   highLevelSelection: { nodeIds: string[]; edgeId?: string };
   leftOpen: boolean;
@@ -124,6 +130,7 @@ interface WorkflowState {
   validationOpen: boolean;
   issues: ValidationIssue[];
   search: string;
+  confirmClear?: ConfirmClearNotice;
   deleteBlocked?: {
     title: string;
     message: string;
@@ -159,6 +166,8 @@ interface WorkflowState {
     notice: NonNullable<WorkflowState["deleteBlocked"]>,
   ) => void;
   dismissDeleteBlocked: () => void;
+  showConfirmClear: (notice: ConfirmClearNotice) => void;
+  dismissConfirmClear: () => void;
   addEdge: (edge: DomainEdge) => void;
   updateEdge: (id: string, patch: Partial<DomainEdge>) => void;
   duplicateSelected: () => void;
@@ -550,6 +559,8 @@ export const useWorkflowStore = create<WorkflowState>()(
       },
       showActionBlocked: (deleteBlocked) => set({ deleteBlocked }),
       dismissDeleteBlocked: () => set({ deleteBlocked: undefined }),
+      showConfirmClear: (confirmClear) => set({ confirmClear }),
+      dismissConfirmClear: () => set({ confirmClear: undefined }),
       addEdge: (edge) => {
         if (
           get().file.graph.nodes.find((node) => node.id === edge.target)?.type ===

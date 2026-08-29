@@ -15,6 +15,7 @@ const ExecutionView = dynamic(() => import("./execution-view").then((module) => 
 const ValidationPanel = dynamic(() => import("./validation-panel").then((module) => module.ValidationPanel), { ssr: false });
 const CommandPalette = dynamic(() => import("./command-palette").then((module) => module.CommandPalette), { ssr: false });
 const DeleteBlockedDialog = dynamic(() => import("./delete-blocked-dialog").then((module) => module.DeleteBlockedDialog), { ssr: false });
+const ConfirmClearDialog = dynamic(() => import("./confirm-clear-dialog").then((module) => module.ConfirmClearDialog), { ssr: false });
 
 function subscribeToMediaQuery(
   query: MediaQueryList,
@@ -313,6 +314,7 @@ export default function WorkflowBuilder() {
         onClose={() => setPaletteOpen(false)}
       />
       <DeleteBlockedDialog />
+      <ConfirmClearDialog />
     </main>
     </AuthGate>
   );
