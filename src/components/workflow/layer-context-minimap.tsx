@@ -71,6 +71,12 @@ const getServerHydrationSnapshot = () => false;
 const MIN_L2_EDGE_GAP = 68;
 
 function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
+  const nonContainers = nodes.filter((n) => !n.container);
+  const targetCenterY =
+    nonContainers.length > 0
+      ? nonContainers.reduce((sum, n) => sum + (n.y + n.height / 2), 0) / nonContainers.length
+      : 80;
+
   const columns = Array.from(
     nodes.reduce((result, node) => {
       const column = result.get(node.x) || [];
@@ -80,6 +86,7 @@ function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
     }, new Map<number, ContextMapNode[]>()),
   ).sort(([leftX], [rightX]) => leftX - rightX);
   const adjustedX = new Map<string, number>();
+  const adjustedY = new Map<string, number>();
   let previousRight: number | undefined;
 
   for (const [columnX, columnNodes] of columns) {
@@ -89,7 +96,28 @@ function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
     const minimumX =
       previousRight === undefined ? columnX : previousRight + minGap;
     const renderedX = Math.max(columnX, minimumX);
-    for (const node of columnNodes) adjustedX.set(node.id, renderedX);
+
+    const activeColNodes = columnNodes.filter((n) => !n.container);
+    if (activeColNodes.length === 1) {
+      const single = activeColNodes[0];
+      adjustedX.set(single.id, renderedX);
+      adjustedY.set(single.id, targetCenterY - single.height / 2);
+    } else if (activeColNodes.length > 1) {
+      activeColNodes.sort((a, b) => a.y - b.y);
+      const totalColHeight =
+        activeColNodes.reduce((sum, n) => sum + n.height, 0) + (activeColNodes.length - 1) * 20;
+      let startY = targetCenterY - totalColHeight / 2;
+      for (const node of activeColNodes) {
+        adjustedX.set(node.id, renderedX);
+        adjustedY.set(node.id, startY);
+        startY += node.height + 20;
+      }
+    }
+
+    for (const node of columnNodes) {
+      if (!adjustedX.has(node.id)) adjustedX.set(node.id, renderedX);
+    }
+
     previousRight = Math.max(
       ...columnNodes.filter((n) => !n.container).map((node) => renderedX + node.width),
     );
@@ -98,6 +126,7 @@ function spaceLayerNodes(nodes: ContextMapNode[], minGap: number) {
   return nodes.map((node) => ({
     ...node,
     x: adjustedX.get(node.id) ?? node.x,
+    y: adjustedY.get(node.id) ?? node.y,
   }));
 }
 
