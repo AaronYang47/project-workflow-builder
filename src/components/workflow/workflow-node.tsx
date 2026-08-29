@@ -1,7 +1,8 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useRef } from "react";
 import type { NodeProps } from "@xyflow/react";
+import { useNodeScrollContainment } from "@/lib/use-node-scroll-containment";
 import { GateNode } from "./gate-node";
 import { GeneralNode } from "./general-node";
 import { OpportunityNode } from "./opportunity-node";
@@ -50,6 +51,9 @@ function WorkflowNodeComponent({
   selected,
 }: NodeProps<WorkflowFlowNode>) {
   const node = data.domain;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useNodeScrollContainment(rootRef);
+
   const remotePeers = useCollaborationStore((state) => state.remotePeers);
   const now = useCurrentTime();
   const activeCollaborator = Object.values(remotePeers).find(
@@ -77,7 +81,7 @@ function WorkflowNodeComponent({
     );
 
   const decorated = (
-    <div className="relative h-full w-full">
+    <div ref={rootRef} className="relative h-full w-full">
       {inner}
       <ExecutionSummaryBadge summary={data.executionSummary} />
     </div>

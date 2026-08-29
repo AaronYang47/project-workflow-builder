@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Handle, Position } from "@xyflow/react";
 import {
   Building2,
@@ -41,58 +41,6 @@ export function OpportunityNode({
   const intake: OpportunityIntake = config.intake || {};
 
   const [activeTab, setActiveTab] = useState<CardTab>("overview");
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    const onWheel = (e: WheelEvent) => {
-      // Find closest scrollable element inside card starting from event target
-      let target = e.target as HTMLElement | null;
-      while (target && target !== card) {
-        const style = window.getComputedStyle(target);
-        const canScrollX =
-          (style.overflowX === "auto" || style.overflowX === "scroll") &&
-          target.scrollWidth - target.clientWidth > 2;
-        const canScrollY =
-          (style.overflowY === "auto" || style.overflowY === "scroll") &&
-          target.scrollHeight - target.clientHeight > 2;
-
-        if (canScrollX) {
-          // If user scrolls vertical mouse wheel over horizontal element, convert deltaY to horizontal scroll
-          if (Math.abs(e.deltaY) > 0 && Math.abs(e.deltaX) === 0) {
-            target.scrollLeft += e.deltaY;
-            e.stopPropagation();
-            e.preventDefault();
-            return;
-          }
-          // If horizontal scroll (Mac trackpad swipe, Shift+Wheel, Magic Mouse):
-          // Stop propagation to canvas, but NEVER call preventDefault so native trackpad scroll is smooth!
-          if (Math.abs(e.deltaX) > 0) {
-            e.stopPropagation();
-            return;
-          }
-          e.stopPropagation();
-          return;
-        }
-
-        if (canScrollY) {
-          // Inside a vertically scrollable container: stop propagation to canvas
-          e.stopPropagation();
-          return;
-        }
-
-        target = target.parentElement;
-      }
-
-      // If the target is NOT inside any scrollable container, do NOT call stopPropagation().
-      // This allows React Flow panOnScroll to move the canvas smoothly!
-    };
-
-    card.addEventListener("wheel", onWheel, { capture: true, passive: false });
-    return () => card.removeEventListener("wheel", onWheel, { capture: true });
-  }, []);
 
   const updateIntake = (updater: (prev: OpportunityIntake) => OpportunityIntake) => {
     const nextIntake = updater(intake);
@@ -268,7 +216,6 @@ export function OpportunityNode({
       />
 
       <div
-        ref={cardRef}
         className={cn(
           "w-[480px] rounded-2xl border bg-card/95 p-4 shadow-md transition-all text-left",
           selected
