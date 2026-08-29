@@ -1,15 +1,12 @@
 # Project Workflow Builder
 
-A desktop-first, local-only visual workflow modeling prototype built with Next.js, React, TypeScript, React Flow, Tailwind CSS, shadcn-style primitives, Zustand, and ELK.
+A desktop-first visual workflow modeling application built with Next.js, React, TypeScript, React Flow, Tailwind CSS, shadcn-style primitives, Zustand, and ELK.
 
-## Run locally
+## Online deployment
 
-```bash
-npm install
-npm run dev
-```
+The current Cloudflare Pages deployment is available at:
 
-Open [http://localhost:3000](http://localhost:3000).
+<https://project-workflow-builder.pages.dev/>
 
 ## What is included
 
@@ -52,4 +49,3 @@ The JSON document includes a `schemaVersion`, a `graph` section for domain data,
 ## Deployment
 
 Continuous deployment is configured with Cloudflare Pages. Pushes to the `main` branch automatically build the static export and deploy to [project-workflow-builder.pages.dev](https://project-workflow-builder.pages.dev).
-

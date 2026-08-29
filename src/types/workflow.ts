@@ -211,11 +211,31 @@ export interface DomainNode {
     buildingCode?: string;
     moduleCode?: string;
     paidServiceType?: unknown;
+    /** Optional role for the decomposed Opportunity screening workspace. */
+    opportunityRole?: "decisionHub";
+    /** Optional evidence area rendered by an Opportunity section node. */
+    opportunitySection?: "client" | "project" | "site" | "design" | "commercial" | "team";
+    opportunityParentId?: string;
+    /** Stable child ids created by the reversible Opportunity split action. */
+    opportunitySectionNodeIds?: string[];
     opportunity?: OpportunityValidationConfig;
   };
 }
 
 export interface OpportunityValidationConfig {
+  /** Stable child ids created by the reversible Opportunity split action. */
+  opportunitySectionNodeIds?: string[];
+  /**
+   * The structured intake is the source of truth for the screening workspace.
+   * The fields below it are retained solely to open older persisted workflows safely.
+   */
+  intake?: OpportunityIntake;
+  evaluation?: OpportunityEvaluationSnapshot;
+
+  /** Per-workflow business settings. Undefined values use the deterministic defaults. */
+  businessRules?: OpportunityBusinessRuleConfig;
+
+  // Legacy V1 questionnaire fields — intentionally retained for migration compatibility.
   companyName?: string;
   contactPerson?: string;
   leadSource?: string;
@@ -311,6 +331,12 @@ export interface OpportunityValidationConfig {
     | "pass-p1-p2"
     | "csa-pcs"
     | "loi-governed"
+    | "path-loi"
+    | "class-d"
+    | "consultation-csa"
+    | "pcs"
+    | "governed-loi"
+    | "technical-review"
     | "site-feasibility"
     | "hold-rework"
     | "nogo-disqualified"
@@ -319,6 +345,198 @@ export interface OpportunityValidationConfig {
     | "hold"
     | "nogo";
 }
+
+export type KnownStatus = "Yes" | "No" | "Unknown";
+
+export interface OpportunityStakeholder {
+  id: string;
+  name?: string;
+  role?: string;
+  organization?: string;
+  email?: string;
+  phone?: string;
+  decisionRole?:
+    | "Final Decision Maker"
+    | "Financial Approver"
+    | "Technical Approver"
+    | "Project Lead"
+    | "Owner / Partner"
+    | "Board / Committee"
+    | "Consultant"
+    | "Influencer"
+    | "Other";
+}
+
+export interface OpportunityTeamMember {
+  id: string;
+  name?: string;
+  company?: string;
+  role?:
+    | "Architect"
+    | "Structural Engineer"
+    | "Mechanical Engineer"
+    | "Electrical Engineer"
+    | "Civil Engineer"
+    | "Geotechnical"
+    | "General Contractor"
+    | "Construction Manager"
+    | "Project Manager"
+    | "Quantity Surveyor"
+    | "Municipality"
+    | "Owner Representative"
+    | "Financing Contact"
+    | "Other";
+  email?: string;
+  phone?: string;
+  status?: "Engaged" | "Proposed" | "TBD" | "Not Required" | "Unknown";
+}
+
+export interface OpportunityIntake {
+  clientAuthority?: {
+    clientName?: string;
+    clientType?: string;
+    primaryContactName?: string;
+    primaryContactRole?: string;
+    email?: string;
+    phone?: string;
+    decisionAuthorityStatus?: "Confirmed" | "Partially Confirmed" | "Unknown";
+    finalDecisionAuthorityIdentified?: KnownStatus;
+    requiredDecisionPartiesIdentified?: KnownStatus;
+    approvalPath?: string;
+    notes?: string;
+    clientRelationship?: "Standard" | "Returning" | "Trusted" | "Strategic";
+    stakeholders?: OpportunityStakeholder[];
+  };
+  projectDefinition?: {
+    projectName?: string;
+    projectType?: string;
+    buildingCount?: string;
+    storeys?: string;
+    grossFloorArea?: string;
+    unitsRoomsBeds?: string;
+    buildingDimensions?: string;
+    estimatedModuleCount?: string;
+  };
+  siteLand?: {
+    siteStatus?: string;
+    siteAddress?: string;
+    municipality?: string;
+    province?: string;
+    candidateSiteCount?: string;
+    siteOwner?: string;
+    siteControlNotes?: string;
+    zoningKnown?: KnownStatus;
+    servicingKnown?: KnownStatus;
+    accessKnown?: KnownStatus;
+    foundationConceptKnown?: KnownStatus;
+    craneSettingAccessKnown?: KnownStatus;
+    transportationConstraintsKnown?: KnownStatus;
+    fatalConstraintConfirmed?: boolean;
+    fatalConstraintResolvable?: KnownStatus;
+  };
+  design?: {
+    designMaturity?: string;
+    drawingPackageAvailable?: KnownStatus;
+    drawingRevision?: string;
+    drawingDate?: string;
+    architectIdentified?: KnownStatus;
+    designNotes?: string;
+    modularCompatibilityStatus?: string;
+    reviewedBy?: "Sales Preliminary" | "Technical" | "Engineering" | "Not Reviewed";
+    geometryModularFriendly?: KnownStatus | "Technical Review Required";
+    transportableGeometryLikelyFeasible?: KnownStatus | "Technical Review Required";
+    siteAccessLikelyFeasible?: KnownStatus | "Technical Review Required";
+    craneSettingConceptFeasible?: KnownStatus | "Technical Review Required";
+    structuralConceptCompatible?: KnownStatus | "Technical Review Required";
+    majorDesignConversionLikely?: KnownStatus | "Technical Review Required";
+    viableCorrectivePath?: KnownStatus;
+  };
+  budgetFundingTimeline?: {
+    clientBudgetProvided?: KnownStatus;
+    clientBudgetAmount?: string;
+    clientBudgetRangeLow?: string;
+    clientBudgetRangeHigh?: string;
+    budgetBasis?: string;
+    classDAvailable?: KnownStatus;
+    classDAmount?: string;
+    classDDate?: string;
+    classDRevision?: string;
+    fundingStatus?: string;
+    targetDesignStart?: string;
+    targetPermit?: string;
+    targetConstructionStart?: string;
+    targetProduction?: string;
+    targetDelivery?: string;
+    targetOccupancy?: string;
+    timelineStatus?: "Realistic" | "Aggressive" | "Unrealistic" | "Unknown" | "Requires Review";
+  };
+  teamCommitment?: {
+    members?: OpportunityTeamMember[];
+    clientAttendedMeetings?: KnownStatus;
+    clientProvidedDocuments?: KnownStatus;
+    clientProvidedBudget?: KnownStatus;
+    clientAssignedProjectContact?: KnownStatus;
+    clientEngagedConsultants?: KnownStatus;
+    clientRequestedFormalNextStep?: KnownStatus;
+    clientAcceptedPaidEarlyWork?: KnownStatus;
+    clientRespondsToRequests?: KnownStatus;
+  };
+}
+
+export interface OpportunityBusinessRuleConfig {
+  scoreWeights?: Partial<Record<"authority" | "project" | "site" | "design" | "modular" | "budget" | "fundingTimeline" | "teamCommitment", number>>;
+  scoreGradeThresholds?: { strong?: number; moderate?: number; weak?: number };
+  budgetAlignmentTolerancePercent?: number;
+  governedLoiAllowed?: boolean;
+  commercialEngagement?: "Complete" | "Incomplete" | "Blocked";
+}
+
+export interface OpportunityEvaluationSnapshot {
+  rules?: OpportunityRuleResult[];
+  eligibility?: OpportunityEligibility[];
+  recommendedRoute?: OpportunityRoute;
+  otherEligibleRoutes?: OpportunityRoute[];
+  score?: { value: number; grade: "Strong" | "Moderate" | "Weak" | "High Risk"; breakdown: Record<string, number> };
+  overallStatus?: OpportunityOverallStatus;
+  requiredActions?: string[];
+  riskFlags?: string[];
+  evaluatedAt?: string;
+}
+
+export type OpportunityRuleCategory = "HARD" | "CONDITIONAL" | "RISK";
+export type OpportunityRuleSeverity = "HOLD" | "BLOCK" | "NO_GO" | "WARNING" | "ACTION" | "INFO";
+export interface OpportunityRuleDefinition {
+  id: string;
+  name: string;
+  category: OpportunityRuleCategory;
+  severity: OpportunityRuleSeverity;
+  condition: string;
+  outcome: string;
+  message: string;
+  recommendedAction?: string;
+  enabled: boolean;
+}
+export interface OpportunityRuleResult {
+  id: string;
+  name: string;
+  category: OpportunityRuleCategory;
+  severity: OpportunityRuleSeverity;
+  /** Stable, human-readable condition that produced this result. */
+  condition?: string;
+  outcome: string;
+  message: string;
+  recommendedAction?: string;
+  enabled?: boolean;
+}
+export type OpportunityEligibilityStatus = "ELIGIBLE" | "CONDITIONALLY_ELIGIBLE" | "NOT_YET_ELIGIBLE" | "NOT_ELIGIBLE";
+export interface OpportunityEligibility {
+  key: "CLASS_D" | "CONSULTATION_CSA" | "PCS" | "GOVERNED_LOI" | "TECHNICAL_REVIEW" | "TECHNICAL_HANDOFF" | "PRE_CONSTRUCTION" | "HOLD";
+  label: string;
+  status: OpportunityEligibilityStatus;
+  reasons: string[];
+}
+export type OpportunityRoute = "CLASS_D" | "CONSULTATION_CSA" | "PCS" | "GOVERNED_LOI" | "TECHNICAL_REVIEW" | "HOLD_PREQUALIFICATION" | "NO_GO_ARCHIVE";
+export type OpportunityOverallStatus = "NO-GO" | "HOLD" | "BLOCKED" | "TECHNICAL REVIEW REQUIRED" | "ACTION REQUIRED" | "READY";
 
 export interface ComponentNotePost {
   id: string;
@@ -386,9 +604,138 @@ export interface CanvasLayout {
   snapToGrid: boolean;
   gridSize: number;
 }
+
+export const HIGH_LEVEL_NODE_TYPES = [
+  "start",
+  "phase",
+  "primaryGate",
+  "end",
+] as const;
+export type HighLevelNodeType = (typeof HIGH_LEVEL_NODE_TYPES)[number];
+
+export interface HighLevelNode {
+  id: string;
+  type: HighLevelNodeType;
+  title: string;
+  description: string;
+  linkedDetailedNodeIds?: string[];
+  linkedLayer2NodeIds?: string[];
+}
+
+export interface HighLevelEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface HighLevelGraph {
+  nodes: HighLevelNode[];
+  edges: HighLevelEdge[];
+}
+
+export interface HighLevelNodeLayout {
+  nodeId: string;
+  x: number;
+  y: number;
+}
+
+export interface HighLevelLayout {
+  nodes: Record<string, HighLevelNodeLayout>;
+  viewport: { x: number; y: number; zoom: number };
+}
+
+export interface HighLevelWorkflow {
+  graph: HighLevelGraph;
+  layout: HighLevelLayout;
+}
+
+export const createEmptyHighLevelWorkflow = (): HighLevelWorkflow => ({
+  graph: {
+    nodes: [],
+    edges: [],
+  },
+  layout: {
+    nodes: {},
+    viewport: { x: 0, y: 0, zoom: 1 },
+  },
+});
+
+export const EXECUTION_ITEM_TYPES = [
+  "Document",
+  "Agreement",
+  "Approval",
+  "Task",
+  "Evidence",
+] as const;
+export type ExecutionItemType = (typeof EXECUTION_ITEM_TYPES)[number];
+
+export const EXECUTION_ITEM_STATUSES = [
+  "Not Started",
+  "In Progress",
+  "Complete",
+  "Blocked",
+  "Passed",
+] as const;
+export type ExecutionItemStatus = (typeof EXECUTION_ITEM_STATUSES)[number];
+
+export const EXECUTION_SIGNATURE_STATUSES = [
+  "Not Required",
+  "Pending",
+  "Partially Signed",
+  "Signed",
+  "Rejected",
+] as const;
+export type ExecutionSignatureStatus =
+  (typeof EXECUTION_SIGNATURE_STATUSES)[number];
+
+export const EXECUTION_APPROVAL_STATUSES = [
+  "Pending",
+  "Approved",
+  "Rejected",
+] as const;
+export type ExecutionApprovalStatus =
+  (typeof EXECUTION_APPROVAL_STATUSES)[number];
+
+export const EXECUTION_TASK_STATUSES = [
+  "Not Started",
+  "In Progress",
+  "Complete",
+  "Blocked",
+] as const;
+export type ExecutionTaskStatus = (typeof EXECUTION_TASK_STATUSES)[number];
+
+export interface ExecutionItem {
+  id: string;
+  linkedLayer2NodeId: string;
+  type: ExecutionItemType;
+  title: string;
+  description: string;
+  required: boolean;
+  status: ExecutionItemStatus;
+  signatureRequired: boolean;
+  approvalRequired: boolean;
+  responsibleRole: string;
+  dueDate: string;
+  notes: string;
+  signatureStatus?: ExecutionSignatureStatus;
+  signers?: string[];
+  approvalStatus?: ExecutionApprovalStatus;
+  taskStatus?: ExecutionTaskStatus;
+}
+
+export interface ExecutionLayer {
+  items: ExecutionItem[];
+}
+
+export const createEmptyExecutionLayer = (): ExecutionLayer => ({
+  items: [],
+});
+
 export interface WorkflowFile {
   graph: WorkflowGraph;
   layout: CanvasLayout;
+  highLevel?: HighLevelWorkflow;
+  execution?: ExecutionLayer;
 }
 
 export type ValidationSeverity = "error" | "warning" | "info";

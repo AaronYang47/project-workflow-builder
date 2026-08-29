@@ -2,13 +2,19 @@
 
 import { PanelBottomOpen } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { cn } from "@/lib/utils";
 
-export function CanvasToolbar() {
+export function CanvasToolbar({ className }: { className?: string }) {
   const togglePanel = useWorkflowStore((state) => state.togglePanel);
   const issues = useWorkflowStore((state) => state.issues);
 
   return (
-    <div className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-lg border bg-background/92 p-1 shadow-sm backdrop-blur">
+    <div
+      className={cn(
+        "flex w-fit items-center gap-1 rounded-lg border bg-background/92 p-1 shadow-sm backdrop-blur",
+        className,
+      )}
+    >
       <button
         type="button"
         onClick={() => togglePanel("validation")}

@@ -19,7 +19,11 @@ export function useProjectIdDraft({
 }: {
   node: DomainNode;
   projectStartNode: DomainNode | undefined;
-  commitTransient: (updater: (file: import("@/types/workflow").WorkflowFile) => import("@/types/workflow").WorkflowFile) => void;
+  commitTransient: (
+    updater: (
+      file: import("@/types/workflow").WorkflowFile,
+    ) => import("@/types/workflow").WorkflowFile,
+  ) => void;
 }) {
   const isProjectStart = node.type === "projectStart";
   const projectStartProjectId = String(
@@ -41,7 +45,7 @@ export function useProjectIdDraft({
     setProjectIdDraft(initialProjectId);
   }
 
-  const projectIdSnapshot = useRef<typeof node | null>(null);
+  const projectIdSnapshotRef = useRef<typeof node | null>(null);
   const projectId = useMemo(
     () => normalizeProjectId(projectIdDraft.trim()),
     [projectIdDraft],
@@ -107,7 +111,7 @@ export function useProjectIdDraft({
     nodeUuid,
     projectIdDraft,
     setProjectIdDraft,
-    projectIdSnapshot,
+    projectIdSnapshotRef,
     projectId,
     parsedYear,
     parsedSeq,

@@ -61,8 +61,9 @@ export const OPPORTUNITY_ROUTE_COLORS: Record<string, string> = {
   "loi-governed": "#2563eb", // P2: Royal Blue
   "csa-pcs": "#0891b2", // P3: Vibrant Cyan / Teal
   "site-feasibility": "#d97706", // P4: Amber
-  "hold-rework": "#ea580c", // P4: Orange
   "nogo-disqualified": "#dc2626", // P5: Bright Red
+  "path-loi": "#7c3aed", // PL: Path LOI
+  "hold-rework": "#ea580c", // Legacy P4 fallback
 };
 
 export function getSemanticEdgeColor(edge: DomainEdge) {
@@ -447,12 +448,6 @@ function EditableEdgeLabel({
   );
   const updateEdge = useWorkflowStore((s) => s.updateEdge);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setDraft(
-      rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel,
-    );
-  }, [rawLabel, displayLabel]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -1013,6 +1008,7 @@ export function SemanticEdge({
       ) : null}
       <EdgeLabelRenderer>
         <EditableEdgeLabel
+          key={`${id}-${domain.label ?? ""}-${displayLabel}`}
           id={id}
           displayLabel={displayLabel}
           rawLabel={domain.label}

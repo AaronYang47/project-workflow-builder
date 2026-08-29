@@ -59,12 +59,15 @@ export function CloudProjectControls() {
   const file = store.file;
   const inFlight = useRef(false);
   const userRef = useRef(user);
-  userRef.current = user;
   const confirmReplaceWorkspace = () =>
     !useWorkflowStore.getState().dirty ||
     window.confirm(
       "This project has unsaved changes. Continue and discard those changes?",
     );
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     void api<{ user: User | null }>("/api/auth/me")

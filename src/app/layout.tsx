@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const industrial = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-industrial",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Project Workflow Builder",
@@ -11,5 +16,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body className={inter.variable}><ThemeProvider attribute="class" defaultTheme="light">{children}</ThemeProvider></body></html>;
+  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="light">{children}</ThemeProvider></body></html>;
 }

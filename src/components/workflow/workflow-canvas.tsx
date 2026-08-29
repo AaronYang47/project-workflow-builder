@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -9,7 +9,6 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
-  SelectionMode,
   useReactFlow,
   type Edge,
   type Node,
@@ -45,6 +44,12 @@ import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
+import { getExecutionSummary } from "@/lib/execution";
+import { HIGH_LEVEL_NODE_CATALOG } from "@/lib/high-level-workflow";
+import {
+  LayerContextMinimap,
+  type ContextMapNode,
+} from "./layer-context-minimap";
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -54,9 +59,44 @@ const nodeTypes = {
 const edgeTypes = { semantic: SemanticEdge };
 const referenceTypes = new Set<WorkflowNodeType>(["terminal"]);
 
-function CanvasInner() {
+type WorkflowCanvasProps = {
+  active?: boolean;
+  focusNodeIds?: string[] | null;
+  onFocusRequestHandled?: () => void;
+  onOpenLayer1Node?: (nodeId: string) => void;
+};
+
+function updateFocusedNode(nodeId?: string, broadcast = false) {
+  const collaboration = useCollaborationStore.getState();
+  collaboration.setFocusedNodeId(nodeId);
+  if (!broadcast) return;
+
+  const localUser = useCollaborationStore.getState().localUser;
+  collaborationManager.broadcast({
+    type: "PRESENCE",
+    senderId: localUser.peerId,
+    profile: {
+      ...localUser,
+      focusedNodeId: nodeId,
+      lastActiveAt: Date.now(),
+    },
+  });
+}
+
+function CanvasInner({
+  active = true,
+  focusNodeIds,
+  onFocusRequestHandled,
+  onOpenLayer1Node,
+}: WorkflowCanvasProps) {
   const wrapper = useRef<HTMLDivElement>(null);
+  const activationCentered = useRef(false);
+  const focusNodeIdsRef = useRef(focusNodeIds);
   const flow = useReactFlow();
+
+  useEffect(() => {
+    focusNodeIdsRef.current = focusNodeIds;
+  }, [focusNodeIds]);
 
   // Subscribe to the full state with shallow comparison to avoid recomputation loops
   const {
@@ -92,95 +132,163 @@ function CanvasInner() {
     [file.graph.nodes, file.graph.edges],
   );
 
-  const modelNodes = useMemo<Node[]>(
-    () => {
-      return file.graph.nodes
-        .map((domain): Node => {
-          const layout = file.layout.nodes[domain.id];
-          const q = search.trim().toLowerCase();
-          const searchMatch =
-            q &&
-            `${domain.title} ${domain.description}`
-              .toLowerCase()
-              .includes(q);
-          const rendererType =
-            domain.type === "phase"
-              ? "phase"
-              : referenceTypes.has(domain.type)
-                ? "reference"
-                : "workflow";
-          return {
-            id: domain.id,
-            type: rendererType,
-            position: { x: layout?.x || 0, y: layout?.y || 0 },
-            width: layout?.width,
-            height: layout?.height,
-            parentId: layout?.parentId,
-            zIndex: domain.type === "phase" ? -1 : layout?.zIndex,
-            selected: selection.nodeIds.includes(domain.id),
-            draggable: true,
-            dragHandle:
-              domain.type === "phase" ? ".phase-drag-handle" : undefined,
-            style:
-              domain.type === "phase" ? { pointerEvents: "none" } : undefined,
+  const layer1Context = useMemo(() => {
+    const highLevel = file.highLevel;
+    if (!highLevel) return { nodes: [] as ContextMapNode[], edges: [], activeLabel: undefined };
+    const selectedLayer2Ids = new Set(selection.nodeIds);
+    for (const selectedId of selection.nodeIds) {
+      let parentId = file.layout.nodes[selectedId]?.parentId;
+      while (parentId && !selectedLayer2Ids.has(parentId)) {
+        selectedLayer2Ids.add(parentId);
+        parentId = file.layout.nodes[parentId]?.parentId;
+      }
+    }
+    const activeLayer1Ids = new Set(
+      highLevel.graph.nodes
+        .filter((node) =>
+          (node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []).some((id) =>
+            selectedLayer2Ids.has(id),
+          ),
+        )
+        .map((node) => node.id),
+    );
+    if (!activeLayer1Ids.size && selection.nodeIds.length) {
+      const positionCache = new Map<string, number>();
+      const absoluteX = (nodeId: string, seen = new Set<string>()): number => {
+        const cached = positionCache.get(nodeId);
+        if (cached !== undefined) return cached;
+        const layout = file.layout.nodes[nodeId];
+        if (!layout || seen.has(nodeId)) return 0;
+        seen.add(nodeId);
+        const x = layout.x + (layout.parentId ? absoluteX(layout.parentId, seen) : 0);
+        positionCache.set(nodeId, x);
+        return x;
+      };
+      const orderedLayer2 = file.graph.nodes
+        .filter((node) => node.type !== "phase")
+        .sort((left, right) => absoluteX(left.id) - absoluteX(right.id));
+      const selectedIndexes = selection.nodeIds.flatMap((id) => {
+        const index = orderedLayer2.findIndex((node) => node.id === id);
+        return index < 0 ? [] : [index];
+      });
+      if (selectedIndexes.length && highLevel.graph.nodes.length) {
+        const averageIndex =
+          selectedIndexes.reduce((sum, index) => sum + index, 0) /
+          selectedIndexes.length;
+        const progress =
+          orderedLayer2.length > 1 ? averageIndex / (orderedLayer2.length - 1) : 0;
+        const fallbackIndex = Math.round(
+          progress * (highLevel.graph.nodes.length - 1),
+        );
+        activeLayer1Ids.add(highLevel.graph.nodes[fallbackIndex].id);
+      }
+    }
+    const nodes: ContextMapNode[] = highLevel.graph.nodes.map((node) => {
+      const layout = highLevel.layout.nodes[node.id];
+      const definition = HIGH_LEVEL_NODE_CATALOG.find((item) => item.type === node.type);
+      return {
+        id: node.id,
+        label: node.title,
+        x: layout?.x ?? 0,
+        y: layout?.y ?? 0,
+        width: node.type === "phase" ? 288 : 208,
+        height: node.type === "phase" ? 128 : 104,
+        color: definition?.color,
+        active: activeLayer1Ids.has(node.id),
+      };
+    });
+    return {
+      nodes,
+      edges: highLevel.graph.edges,
+      activeLabel: highLevel.graph.nodes
+        .filter((node) => activeLayer1Ids.has(node.id))
+        .map((node) => node.title)
+        .join(", ") || undefined,
+    };
+  }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
+
+  const modelNodes = useMemo<Node[]>(() => {
+    return file.graph.nodes
+      .map((domain): Node => {
+        const layout = file.layout.nodes[domain.id];
+        const q = search.trim().toLowerCase();
+        const searchMatch =
+          q &&
+          `${domain.title} ${domain.description}`.toLowerCase().includes(q);
+        const rendererType =
+          domain.type === "phase"
+            ? "phase"
+            : referenceTypes.has(domain.type)
+              ? "reference"
+              : "workflow";
+        return {
+          id: domain.id,
+          type: rendererType,
+          position: { x: layout?.x || 0, y: layout?.y || 0 },
+          width: layout?.width,
+          height: layout?.height,
+          parentId: layout?.parentId,
+          zIndex: domain.type === "phase" ? -1 : layout?.zIndex,
+          selected: selection.nodeIds.includes(domain.id),
+          draggable: true,
+          dragHandle:
+            domain.type === "phase" ? ".phase-drag-handle" : undefined,
+          style:
+            domain.type === "phase" ? { pointerEvents: "none" } : undefined,
             data: {
               domain,
               reached: progress.reachedNodeIds.has(domain.id),
               emphasized: Boolean(searchMatch),
               dimmed: Boolean(q && !searchMatch),
+              executionSummary: getExecutionSummary(
+                domain.id,
+                file.execution?.items,
+              ),
             },
-          };
-        })
-        .sort((a, b) => (a.type === "phase" ? -1 : b.type === "phase" ? 1 : 0));
-    },
-    [
-      file.graph.nodes,
-      file.layout.nodes,
-      search,
-      selection.nodeIds,
-      progress.reachedNodeIds,
-    ],
-  );
+        };
+      })
+      .sort((a, b) => (a.type === "phase" ? -1 : b.type === "phase" ? 1 : 0));
+  }, [
+    file.graph.nodes,
+    file.layout.nodes,
+    search,
+    selection.nodeIds,
+    progress.reachedNodeIds,
+    file.execution?.items,
+  ]);
 
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);
-  const nodeById = useMemo(
-    () => new Map(nodes.map((node) => [node.id, node])),
-    [nodes],
-  );
 
-  const labelObstacles = useMemo<LabelObstacle[]>(
-    () => {
-      const cards = file.graph.nodes
-        .filter((node) => node.type !== "phase")
-        .map((node) => {
-          const layout = file.layout.nodes[node.id];
-          return {
-            id: node.id,
-            x: layout?.x || 0,
-            y: layout?.y || 0,
-            width: Math.max(layout?.width || 270, 270),
-            height: Math.max(layout?.height || 240, 240),
-          };
-        });
+  const labelObstacles = useMemo<LabelObstacle[]>(() => {
+    const cards = file.graph.nodes
+      .filter((node) => node.type !== "phase")
+      .map((node) => {
+        const layout = file.layout.nodes[node.id];
+        return {
+          id: node.id,
+          x: layout?.x || 0,
+          y: layout?.y || 0,
+          width: Math.max(layout?.width || 270, 270),
+          height: Math.max(layout?.height || 240, 240),
+        };
+      });
 
-      const headers = file.graph.nodes
-        .filter((node) => node.type === "phase")
-        .map((node) => {
-          const layout = file.layout.nodes[node.id];
-          return {
-            id: `${node.id}__header`,
-            x: layout?.x || 0,
-            y: layout?.y || 0,
-            width: layout?.width || 720,
-            height: PHASE_HEADER_HEIGHT,
-            kind: "phase-header" as const,
-          };
-        });
+    const headers = file.graph.nodes
+      .filter((node) => node.type === "phase")
+      .map((node) => {
+        const layout = file.layout.nodes[node.id];
+        return {
+          id: `${node.id}__header`,
+          x: layout?.x || 0,
+          y: layout?.y || 0,
+          width: layout?.width || 720,
+          height: PHASE_HEADER_HEIGHT,
+          kind: "phase-header" as const,
+        };
+      });
 
-      return [...cards, ...headers];
-    },
-    [file.graph.nodes, file.layout.nodes],
-  );
+    return [...cards, ...headers];
+  }, [file.graph.nodes, file.layout.nodes]);
 
   const edgeIndexes = useMemo(() => {
     const siblings = new Map<string, DomainEdge[]>();
@@ -197,75 +305,71 @@ function CanvasInner() {
     return { siblings, returnIndex };
   }, [file.graph.edges]);
 
-  const edges = useMemo<Edge[]>(
-    () => {
-      const nodesById = new Map(
-        file.graph.nodes.map((node) => [node.id, node]),
+  const edges = useMemo<Edge[]>(() => {
+    const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
+    return file.graph.edges.map((domain) => {
+      const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
+      const siblingIndex = siblingEdges.findIndex(
+        (edge) => edge.id === domain.id,
       );
-      return file.graph.edges.map((domain) => {
-        const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
-        const siblingIndex = siblingEdges.findIndex(
-          (edge) => edge.id === domain.id,
-        );
-        const returnIndex = edgeIndexes.returnIndex.get(domain.id) ?? -1;
-        const labelHugsPath =
-          returnIndex >= 0 ||
-          domain.sourceHandle === "yes" ||
-          ["success", "approval"].includes(domain.type);
-        const labelLane =
-          returnIndex >= 0
-            ? returnIndex
-            : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
-        const sourceNode = nodesById.get(domain.source);
-        const targetNode = nodesById.get(domain.target);
-        const preGateSales =
-          domain.customFields.workflowSection === "Pre-Gate Sales" ||
-          sourceNode?.metadata.workflowSection === "Pre-Gate Sales" ||
-          targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
-          sourceNode?.type === "projectStart";
-        const active = progress.activeEdgeIds.has(domain.id);
-        const activeColor = getSemanticEdgeColor(domain);
-        return {
-            id: domain.id,
-            type: "semantic",
-            zIndex: 10,
-            source: domain.source,
-            target: domain.target,
-            sourceHandle: domain.sourceHandle,
-            targetHandle: domain.targetHandle,
-            reconnectable: true,
-            selected: selection.edgeId === domain.id,
-            markerEnd:
-              domain.arrowStyle === "none"
-                ? undefined
-                : {
-                    type: MarkerType.ArrowClosed,
-                    color: active ? activeColor : "#94a3b8",
-                  },
-            data: {
-              domain,
-              route: file.layout.edges?.[domain.id]?.points,
-              active,
-              obstacles: labelObstacles,
-              labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
-              labelHugsPath,
-              preGateSales,
-              siblingIndex: Math.max(0, siblingIndex),
-              siblingCount: siblingEdges.length,
-            },
-          };
-      });
-    },
-    [
-      edgeIndexes,
-      file.graph.edges,
-      file.graph.nodes,
-      file.layout.edges,
-      labelObstacles,
-      progress.activeEdgeIds,
-      selection.edgeId,
-    ],
-  );
+      const returnIndex = edgeIndexes.returnIndex.get(domain.id) ?? -1;
+      const labelHugsPath =
+        returnIndex >= 0 ||
+        domain.sourceHandle === "yes" ||
+        ["success", "approval"].includes(domain.type);
+      const labelLane =
+        returnIndex >= 0
+          ? returnIndex
+          : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
+      const sourceNode = nodesById.get(domain.source);
+      const targetNode = nodesById.get(domain.target);
+      const preGateSales =
+        domain.customFields.workflowSection === "Pre-Gate Sales" ||
+        sourceNode?.metadata.workflowSection === "Pre-Gate Sales" ||
+        targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
+        sourceNode?.type === "projectStart";
+      const active = progress.activeEdgeIds.has(domain.id);
+      const activeColor = getSemanticEdgeColor(domain);
+
+      return {
+        id: domain.id,
+        type: "semantic",
+        zIndex: 10,
+        source: domain.source,
+        target: domain.target,
+        sourceHandle: domain.sourceHandle,
+        targetHandle: domain.targetHandle,
+        reconnectable: true,
+        selected: selection.edgeId === domain.id,
+        markerEnd:
+          domain.arrowStyle === "none"
+            ? undefined
+            : {
+                type: MarkerType.ArrowClosed,
+                color: active ? activeColor : "#94a3b8",
+              },
+        data: {
+          domain,
+          route: file.layout.edges?.[domain.id]?.points,
+          active,
+          obstacles: labelObstacles,
+          labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
+          labelHugsPath,
+          preGateSales,
+          siblingIndex: Math.max(0, siblingIndex),
+          siblingCount: siblingEdges.length,
+        },
+      };
+    });
+  }, [
+    edgeIndexes,
+    file.graph.edges,
+    file.graph.nodes,
+    file.layout.edges,
+    labelObstacles,
+    progress.activeEdgeIds,
+    selection.edgeId,
+  ]);
 
   // Hook 1: Connection & reconnection handlers
   const {
@@ -332,7 +436,8 @@ function CanvasInner() {
     [addNode, flow],
   );
 
-  const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(commitLayoutDrag);
+  const { onNodeDragStart, onNodeDragStop } =
+    useNodeDragHandlers(commitLayoutDrag);
 
   // Hook 2: Dynamic DOM Auto-measure for expanding cards & phase boundaries
   useCanvasAutoMeasure(wrapper);
@@ -340,7 +445,156 @@ function CanvasInner() {
   // Hook 3: Global focus, fit, and image export handlers
   useCanvasExport(flow, wrapper);
 
-  const lastNodeInteractionRef = useRef(0);
+  useEffect(() => {
+    if (!active) {
+      activationCentered.current = false;
+      return;
+    }
+    if (activationCentered.current || focusNodeIdsRef.current?.length) return;
+
+    let attempts = 0;
+    let retryTimer: number | undefined;
+    let cancelled = false;
+    const fitWhenReady = () => {
+      if (cancelled) return;
+      const canvasRect = wrapper.current?.getBoundingClientRect();
+      const rootNodes = flow.getNodes().filter((node) => !node.parentId);
+      const ready =
+        flow.viewportInitialized &&
+        Boolean(canvasRect?.width && canvasRect.height) &&
+        rootNodes.length > 0;
+
+      if (!ready) {
+        if (attempts < 40) {
+          attempts += 1;
+          retryTimer = window.setTimeout(fitWhenReady, 50);
+        }
+        return;
+      }
+
+      activationCentered.current = true;
+      void flow.fitView({
+        nodes: rootNodes.map((node) => ({ id: node.id })),
+        padding: FIT_VIEW_PADDING,
+        duration: 350,
+        minZoom: CANVAS_MIN_ZOOM,
+        maxZoom: 1,
+      });
+    };
+
+    retryTimer = window.setTimeout(fitWhenReady, 80);
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [active, flow]);
+
+  useEffect(() => {
+    if (!focusNodeIds?.length) return;
+
+    let attempts = 0;
+    let retryTimer: number | undefined;
+    const retry = () => {
+      if (attempts >= 40) {
+        onFocusRequestHandled?.();
+        return;
+      }
+      attempts += 1;
+      retryTimer = window.setTimeout(focusWhenReady, 50);
+    };
+    const focusWhenReady = () => {
+      const canvasRect = wrapper.current?.getBoundingClientRect();
+      const internalNodes = focusNodeIds.map((id) => flow.getInternalNode(id));
+      const ready =
+        flow.viewportInitialized &&
+        Boolean(canvasRect?.width && canvasRect.height) &&
+        internalNodes.every((node) => node?.measured.width && node.measured.height);
+
+      if (!ready) {
+        retry();
+        return;
+      }
+
+      const validIds = focusNodeIds.filter((id) => flow.getInternalNode(id));
+      if (!validIds.length) {
+        onFocusRequestHandled?.();
+        return;
+      }
+
+      const fitRequest = (() => {
+        if (validIds.length !== 1) {
+          return flow.fitView({
+            nodes: validIds.map((id) => ({ id })),
+            duration: 500,
+            padding: 0.8,
+            maxZoom: 1.25,
+          });
+        }
+
+        const node = flow.getInternalNode(validIds[0]);
+        const width = node?.measured.width ?? 0;
+        const height = node?.measured.height ?? 0;
+        const position = node?.internals.positionAbsolute;
+        if (!node || !width || !height || !position || !canvasRect) {
+          return Promise.resolve(false);
+        }
+
+        const zoom = Math.max(
+          CANVAS_MIN_ZOOM,
+          Math.min(
+            1.25,
+            (canvasRect.width * 0.82) / width,
+            (canvasRect.height * 0.82) / height,
+          ),
+        );
+
+        return flow.setCenter(
+          position.x + width / 2,
+          position.y + height / 2,
+          { duration: 500, zoom },
+        );
+      })();
+      useWorkflowStore.getState().selectNodes(validIds);
+      void fitRequest.then(() => onFocusRequestHandled?.());
+    };
+
+    focusWhenReady();
+    return () => {
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [flow, focusNodeIds, onFocusRequestHandled]);
+
+  useEffect(() => {
+    const onNodePointerDownCapture = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      const target = event.target as Element | null;
+      const nodeElement = target?.closest(".react-flow__node");
+      const nodeId = nodeElement?.getAttribute("data-id");
+      const current = useWorkflowStore.getState().selection;
+      if (nodeId) {
+        // React Flow owns node selection on pointer/click. Updating the
+        // external selection store during its pointerdown phase causes a
+        // controlled-node reconciliation loop when a large card exposes its
+        // resize handles. The onNodeClick/onSelectionChange handlers below
+        // keep the inspector and collaboration focus in sync after React
+        // Flow has committed its own selection.
+        return;
+      }
+
+      if (!target?.closest(".react-flow__pane")) return;
+      if (!current.nodeIds.length && !current.edgeId) return;
+      selectNodes([]);
+      updateFocusedNode(undefined, true);
+    };
+
+    document.addEventListener("pointerdown", onNodePointerDownCapture, true);
+    return () =>
+      document.removeEventListener(
+        "pointerdown",
+        onNodePointerDownCapture,
+        true,
+      );
+  }, [selectNodes]);
 
   return (
     <div
@@ -373,88 +627,13 @@ function CanvasInner() {
             .getState()
             .deleteNodes(deleted.map((node) => node.id))
         }
-        onPaneClick={(event) => {
-          const globalLast =
-            typeof window !== "undefined"
-              ? (window as unknown as { __lastNodeClickTime?: number })
-                  .__lastNodeClickTime || 0
-              : 0;
-          if (
-            Date.now() -
-              Math.max(lastNodeInteractionRef.current, globalLast) <
-            400
-          ) {
-            return;
-          }
-          const target = event?.target as HTMLElement | undefined;
-          if (
-            target &&
-            (target.closest(".react-flow__node") ||
-              target.closest("[data-canvas-node]") ||
-              target.closest(".workflow-node") ||
-              target.closest(".nodrag"))
-          ) {
-            return;
-          }
-          const current = useWorkflowStore.getState().selection;
-          if (current.nodeIds.length || current.edgeId) {
-            selectNodes([]);
-            selectEdge(undefined);
-            useCollaborationStore.getState().setFocusedNodeId(undefined);
-            collaborationManager.broadcast({
-              type: "PRESENCE",
-              senderId: useCollaborationStore.getState().localUser.peerId,
-              profile: {
-                ...useCollaborationStore.getState().localUser,
-                focusedNodeId: undefined,
-                lastActiveAt: Date.now(),
-              },
-            });
-          }
-        }}
         onNodeClick={(_, node) => {
-          lastNodeInteractionRef.current = Date.now();
-          if (typeof window !== "undefined") {
-            (
-              window as unknown as { __lastNodeClickTime?: number }
-            ).__lastNodeClickTime = Date.now();
-          }
           selectNodes([node.id]);
-          selectEdge(undefined);
-          useCollaborationStore.getState().setFocusedNodeId(node.id);
-          collaborationManager.broadcast({
-            type: "PRESENCE",
-            senderId: useCollaborationStore.getState().localUser.peerId,
-            profile: {
-              ...useCollaborationStore.getState().localUser,
-              focusedNodeId: node.id,
-              lastActiveAt: Date.now(),
-            },
-          });
+          updateFocusedNode(node.id, true);
         }}
         onEdgeClick={(_, edge) => {
           selectEdge(edge.id);
-          selectNodes([]);
-          useCollaborationStore.getState().setFocusedNodeId(undefined);
-        }}
-        onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
-          if (selectedNodes.length > 0) {
-            const ids = selectedNodes.map((n) => n.id);
-            const currentSelection = useWorkflowStore.getState().selection;
-            if (
-              currentSelection.nodeIds.length !== ids.length ||
-              !ids.every((id) => currentSelection.nodeIds.includes(id))
-            ) {
-              selectNodes(ids);
-              selectEdge(undefined);
-            }
-          } else if (selectedEdges.length > 0) {
-            const edgeId = selectedEdges[0].id;
-            if (useWorkflowStore.getState().selection.edgeId !== edgeId) {
-              selectEdge(edgeId);
-              selectNodes([]);
-            }
-          }
+          updateFocusedNode();
         }}
         onDoubleClick={quickAdd}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
@@ -468,10 +647,9 @@ function CanvasInner() {
         maxZoom={CANVAS_MAX_ZOOM}
         snapToGrid={file.layout.snapToGrid}
         snapGrid={[file.layout.gridSize, file.layout.gridSize]}
-        selectionOnDrag
         panOnScroll
-        selectionMode={SelectionMode.Partial}
-        multiSelectionKeyCode={["Meta", "Control"]}
+        selectionOnDrag={false}
+        multiSelectionKeyCode={null}
         deleteKeyCode={null}
         className="workflow-flow"
       >
@@ -501,7 +679,27 @@ function CanvasInner() {
         />
       </ReactFlow>
 
-      <CanvasToolbar />
+      <CanvasToolbar className="pointer-events-auto absolute left-2 top-2 z-10 sm:left-4 sm:top-4" />
+      <div className="pointer-events-none absolute right-2 top-2 z-10 max-w-[calc(100%-16px)] sm:right-4 sm:top-4">
+        <LayerContextMinimap
+          level="L1"
+          title="High-Level Process"
+          nodes={layer1Context.nodes}
+          edges={layer1Context.edges}
+          activeLabel={layer1Context.activeLabel}
+          onOpenParent={
+            onOpenLayer1Node && layer1Context.nodes.length
+              ? () => {
+                  const activeNode = layer1Context.nodes.find((node) => node.active);
+                  onOpenLayer1Node(activeNode?.id || layer1Context.nodes[0].id);
+                }
+              : undefined
+          }
+          onOpenNode={onOpenLayer1Node}
+          expandable
+          className="pointer-events-auto w-[min(320px,calc(100vw-16px))] sm:w-[min(940px,calc(100vw-32px))]"
+        />
+      </div>
       <div className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur md:block">
         Double-click canvas to add Node · Drag to pan · Scroll to zoom
       </div>
@@ -509,10 +707,10 @@ function CanvasInner() {
   );
 }
 
-export function WorkflowCanvas() {
+export function WorkflowCanvas(props: WorkflowCanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner {...props} />
     </ReactFlowProvider>
   );
 }

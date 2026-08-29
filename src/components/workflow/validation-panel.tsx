@@ -10,17 +10,25 @@ import {
 } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
 
-export function ValidationPanel() {
+export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boolean }) {
   const { issues, togglePanel, selectNodes, selectEdge } = useWorkflowStore();
+  const selectHighLevelNodes = useWorkflowStore((state) => state.selectHighLevelNodes);
+  const selectHighLevelEdge = useWorkflowStore((state) => state.selectHighLevelEdge);
   const errors = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
   const focus = (nodeId?: string, edgeId?: string) => {
     if (nodeId) {
-      selectNodes([nodeId]);
-      window.dispatchEvent(
-        new CustomEvent("workflow:focus-node", { detail: nodeId }),
-      );
-    } else if (edgeId) selectEdge(edgeId);
+      if (highLevelMode) selectHighLevelNodes([nodeId]);
+      else {
+        selectNodes([nodeId]);
+        window.dispatchEvent(
+          new CustomEvent("workflow:focus-node", { detail: nodeId }),
+        );
+      }
+    } else if (edgeId) {
+      if (highLevelMode) selectHighLevelEdge(edgeId);
+      else selectEdge(edgeId);
+    }
   };
 
   return (

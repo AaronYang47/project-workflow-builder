@@ -320,6 +320,10 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
     },
   ],
 };
+// Opportunity evidence is edited in the Screening Workspace. Keep the legacy
+// V1 fields available to migration code, but do not expose a second editor that
+// can drift from config.opportunity.intake.
+configByType.opportunityValidation = general;
 export const getInspectorSchema = (type: WorkflowNodeType) =>
   [...common, ...(configByType[type] || [])].filter(
     (field, index, all) =>

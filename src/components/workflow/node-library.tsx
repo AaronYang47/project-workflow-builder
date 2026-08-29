@@ -2,32 +2,44 @@
 import { useMemo, useState } from "react";
 import { GripVertical, Search, Shapes } from "lucide-react";
 import { AVAILABLE_NODE_CATALOG } from "@/lib/node-catalog";
+import {
+  HIGH_LEVEL_NODE_CATALOG,
+  type HighLevelNodeDefinition,
+} from "@/lib/high-level-workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type { WorkflowNodeType } from "@/types/workflow";
+import type { HighLevelNodeType, WorkflowNodeType } from "@/types/workflow";
 
-export function NodeLibrary() {
+export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean }) {
   const [query, setQuery] = useState("");
-  const catalog = useMemo(
+  const catalog = useMemo<Array<typeof AVAILABLE_NODE_CATALOG[number] | HighLevelNodeDefinition>>(
     () =>
-      AVAILABLE_NODE_CATALOG.filter((item) =>
+      (highLevelMode ? HIGH_LEVEL_NODE_CATALOG : AVAILABLE_NODE_CATALOG).filter((item) =>
         `${item.label} ${item.description}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [query],
+    [highLevelMode, query],
   );
   const hasProjectStart = useWorkflowStore((state) =>
     state.file.graph.nodes.some((node) => node.type === "projectStart"),
   );
-  const onDragStart = (event: React.DragEvent, type: WorkflowNodeType) => {
-    event.dataTransfer.setData("application/workflow-node", type);
+  const onDragStart = (
+    event: React.DragEvent,
+    type: WorkflowNodeType | HighLevelNodeType,
+  ) => {
+    event.dataTransfer.setData(
+      highLevelMode ? "application/high-level-node" : "application/workflow-node",
+      type,
+    );
     event.dataTransfer.effectAllowed = "move";
   };
   return (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col border-r bg-panel">
+    <aside className="flex h-full w-[248px] max-w-[calc(100vw-16px)] shrink-0 flex-col border-r bg-panel">
       <div className="flex h-12 items-center gap-2 border-b px-3">
         <Shapes className="size-4 text-primary" />
-        <span className="text-sm font-semibold">Nodes</span>
+        <span className="text-sm font-semibold">
+          {highLevelMode ? "High-Level Nodes" : "Nodes"}
+        </span>
       </div>
       <div className="p-3">
         <label className="relative block">
@@ -43,7 +55,7 @@ export function NodeLibrary() {
       <div className="scroll-thin flex-1 space-y-2 overflow-y-auto px-3 pb-5">
         {catalog.map((item) => {
           const Icon = item.icon;
-          const disabled = item.type === "projectStart" && hasProjectStart;
+          const disabled = !highLevelMode && item.type === "projectStart" && hasProjectStart;
           return (
             <button
               type="button"
@@ -52,9 +64,13 @@ export function NodeLibrary() {
               draggable={!disabled}
               onDragStart={(event) => onDragStart(event, item.type)}
               onDoubleClick={() =>
-                useWorkflowStore
-                  .getState()
-                  .addNode(item.type, { x: 420, y: 220 })
+                highLevelMode
+                  ? useWorkflowStore
+                      .getState()
+                      .addHighLevelNode(item.type as HighLevelNodeType, { x: 420, y: 220 })
+                  : useWorkflowStore
+                      .getState()
+                      .addNode(item.type as WorkflowNodeType, { x: 420, y: 220 })
               }
               className="group flex w-full items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2.5 text-left shadow-sm transition hover:border-primary/40 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:shadow-sm"
             >
@@ -69,7 +85,7 @@ export function NodeLibrary() {
                   {item.label}
                 </span>
                 <span className="block whitespace-normal break-words text-xs leading-4 text-muted-foreground">
-                  {disabled ? "Already added to this project" : item.description}
+                {disabled ? "Already added to this project" : item.description}
                 </span>
               </span>
               <GripVertical className="size-3.5 shrink-0 text-muted-foreground/35 group-hover:text-muted-foreground" />
@@ -78,7 +94,9 @@ export function NodeLibrary() {
         })}
       </div>
       <div className="border-t px-3 py-2 text-[11px] leading-4 text-muted-foreground">
-        Drag to canvas · Drop Decision Module onto a Phase
+        {highLevelMode
+          ? "Drag to canvas · High-level process nodes"
+          : "Drag to canvas · Drop Decision Module onto a Phase"}
       </div>
     </aside>
   );

@@ -26,6 +26,8 @@ const COLLAB_ROLES = [
   "Site Coordinator",
 ];
 
+export const DEFAULT_COLLAB_PEER_ID = "local-user";
+
 export function getRandomCollaborator(): Omit<CollaboratorProfile, "peerId"> {
   const role = COLLAB_ROLES[Math.floor(Math.random() * COLLAB_ROLES.length)];
   const num = Math.floor(100 + Math.random() * 900);
@@ -60,19 +62,16 @@ interface CollaborationState {
 export const useCollaborationStore = create<CollaborationState>()(
   persist(
     (set, get) => {
-      const initial = getRandomCollaborator();
-      const peerId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID().slice(0, 8)
-          : `user-${Math.random().toString(36).slice(2, 8)}`;
-
       return {
         roomId: "project-main",
         isConnected: false,
         isHost: false,
         localUser: {
-          peerId,
-          ...initial,
+          peerId: DEFAULT_COLLAB_PEER_ID,
+          name: "Project Architect #101",
+          color: "#3b82f6",
+          avatar: "PA",
+          lastActiveAt: 0,
         },
         remotePeers: {},
         isRemoteApplying: false,
@@ -132,6 +131,7 @@ export const useCollaborationStore = create<CollaborationState>()(
     },
     {
       name: "workflow-collab-user",
+      skipHydration: true,
       partialize: (state) => ({
         localUser: {
           peerId: state.localUser.peerId,

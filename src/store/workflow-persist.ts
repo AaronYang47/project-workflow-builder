@@ -1,15 +1,11 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 
 export const HISTORY_LIMIT = 12;
-const LOCAL_SAVE_DELAY = 600;
-let localSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let pageHideListenerAdded = false;
 const pendingLocalWrites = new Map<string, StorageValue<unknown>>();
 
 const flushLocalWrites = () => {
   if (typeof window === "undefined") return;
-  if (localSaveTimer) clearTimeout(localSaveTimer);
-  localSaveTimer = undefined;
   for (const [key, value] of pendingLocalWrites) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -46,9 +42,14 @@ export const debouncedJSONStorage = <T,>(): PersistStorage<T> => {
     },
     setItem: (key, value) => {
       if (typeof window === "undefined") return;
+      // Persist mutations synchronously. A debounced write could leave the
+      // editor one state behind when the browser navigated or refreshed
+      // between rapid node/input updates, which made the canvas appear to
+      // lose recent work. The document is small enough for localStorage's
+      // synchronous API, and the existing pagehide flush remains a safety
+      // net for any queued write.
       pendingLocalWrites.set(key, value as StorageValue<unknown>);
-      if (localSaveTimer) clearTimeout(localSaveTimer);
-      localSaveTimer = setTimeout(flushLocalWrites, LOCAL_SAVE_DELAY);
+      flushLocalWrites();
     },
     removeItem: (key) => {
       pendingLocalWrites.delete(key);

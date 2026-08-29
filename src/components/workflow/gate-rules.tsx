@@ -263,7 +263,7 @@ export function GateRules({ node }: { node: DomainNode }) {
   };
   return (
     <div
-      className="nowheel absolute"
+      className="absolute"
       style={{
         width: GATE_SIDE_WIDTH,
         height: (metrics.contentHeight ?? metrics.height) + 24,

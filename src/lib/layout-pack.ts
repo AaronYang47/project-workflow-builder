@@ -26,6 +26,20 @@ const GATE_CONNECTOR_GAP = 240;
 const SALES_GAP = 96;
 const OVERLAP_SLOP = 24;
 
+type RoutePoint = { x: number; y: number };
+
+const isBranchEdge = (edge: DomainEdge) => {
+  const sourceHandle = edge.sourceHandle?.toLowerCase() || "";
+  const label = edge.label?.toLowerCase() || "";
+  return (
+    edge.type === "failure" ||
+    edge.type === "hold" ||
+    sourceHandle.includes("no") ||
+    sourceHandle.includes("hold") ||
+    /no.?go|hold|reject|return|archive|rework/.test(label)
+  );
+};
+
 const overlapsY = (a: NodeLayout, b: NodeLayout, slop = OVERLAP_SLOP) =>
   a.y - slop < b.y + b.height && b.y - slop < a.y + a.height;
 const overlapsX = (a: NodeLayout, b: NodeLayout, slop = OVERLAP_SLOP) =>
@@ -44,9 +58,8 @@ function layoutDisplayLabel(file: WorkflowFile, edge: DomainEdge) {
     (edge.sourceHandle?.startsWith("no") ||
       ["rework", "exception", "hold"].includes(edge.type));
   const approved =
-    !preGateSales &&
-    (edge.sourceHandle === "yes" || edge.type === "approval");
-  return approved ? "APPROVED" : denied ? "DENIED" : edge.label ?? "";
+    !preGateSales && (edge.sourceHandle === "yes" || edge.type === "approval");
+  return approved ? "APPROVED" : denied ? "DENIED" : (edge.label ?? "");
 }
 
 function isCorridorEdge(edge: DomainEdge) {
@@ -225,7 +238,13 @@ export function placeSalesIntake(
   const lastSalesId = salesMainline.at(-1);
   const salesToGateGap =
     gateOne && lastSalesId
-      ? gapForLabeledPair(file, lastSalesId, "g1-opportunity", "horizontal", 120)
+      ? gapForLabeledPair(
+          file,
+          lastSalesId,
+          "g1-opportunity",
+          "horizontal",
+          120,
+        )
       : 120;
   let salesX = gateOne
     ? gateOne.x - salesToGateGap - salesWidth
@@ -314,9 +333,7 @@ export function placeEmptyPhases(
     ) + 180;
   for (const phase of phases.filter(
     (item) =>
-      !file.graph.nodes.some(
-        (node) => original[node.id]?.parentId === item.id,
-      ),
+      !file.graph.nodes.some((node) => original[node.id]?.parentId === item.id),
   )) {
     const current = nodes[phase.id];
     nodes[phase.id] = {
@@ -332,28 +349,48 @@ export function placeEmptyPhases(
   }
 }
 
-export function placeNoBranches(nodes: Record<string, NodeLayout>) {
-  const placeNoBranch = (
-    decisionId: string,
-    terminalId: string,
-    offsetX = 0,
-  ) => {
-    const decision = nodes[decisionId];
-    const terminal = nodes[terminalId];
-    if (!decision || !terminal) return;
-    nodes[terminalId] = {
-      ...terminal,
-      x: decision.x + (decision.width - terminal.width) / 2 + offsetX,
-      y: decision.y + decision.height + 96,
-      parentId: undefined,
-    };
-  };
-  placeNoBranch("opportunity-validation", "no-go-archive", -160);
-  placeNoBranch("opportunity-validation", "hold-gap-rework", 160);
-  placeNoBranch("class-d-reality-check", "no-go-archive");
-  placeNoBranch("select-engagement-path", "hold-gap-rework");
-  placeNoBranch("qualified-opportunity", "archive-follow-up");
-  placeNoBranch("budget-fit", "hold-archive");
+export function placeBranchNodes(
+  file: WorkflowFile,
+  nodes: Record<string, NodeLayout>,
+) {
+  const branches = new Map<string, string[]>();
+  for (const edge of file.graph.edges) {
+    if (!isBranchEdge(edge) || !nodes[edge.source] || !nodes[edge.target])
+      continue;
+    const targets = branches.get(edge.source) || [];
+    if (!targets.includes(edge.target)) targets.push(edge.target);
+    branches.set(edge.source, targets);
+  }
+  for (const [sourceId, targets] of branches) {
+    const source = nodes[sourceId];
+    if (!source) continue;
+    const clearance = Math.max(
+      96,
+      ...Object.entries(nodes)
+        .filter(([id]) => id !== sourceId && !targets.includes(id))
+        .filter(
+          ([, layout]) =>
+            layout.x < source.x + source.width + 640 &&
+            layout.x + layout.width > source.x - 640,
+        )
+        .map(([, layout]) => layout.height + 64),
+    );
+    const gap = 72;
+    const width =
+      targets.reduce((total, id) => total + nodes[id].width, 0) +
+      gap * Math.max(0, targets.length - 1);
+    let cursor = source.x + source.width / 2 - width / 2;
+    for (const targetId of targets) {
+      const target = nodes[targetId];
+      nodes[targetId] = {
+        ...target,
+        x: cursor,
+        y: source.y + source.height + clearance,
+        parentId: undefined,
+      };
+      cursor += target.width + gap;
+    }
+  }
 }
 
 function refitPhases(
@@ -494,6 +531,118 @@ export function expandGapsForLabeledEdges(
   );
 }
 
+function segmentIntersectsRect(
+  start: RoutePoint,
+  end: RoutePoint,
+  node: NodeLayout,
+  margin = 8,
+) {
+  const left = node.x - margin;
+  const right = node.x + node.width + margin;
+  const top = node.y - margin;
+  const bottom = node.y + node.height + margin;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+
+  // Liang–Barsky clipping keeps the check correct for both ELK's orthogonal
+  // routes and any diagonal route supplied by a future layout provider.
+  let t0 = 0;
+  let t1 = 1;
+  for (const [p, q] of [
+    [-dx, start.x - left],
+    [dx, right - start.x],
+    [-dy, start.y - top],
+    [dy, bottom - start.y],
+  ]) {
+    if (p === 0) {
+      if (q < 0) return false;
+      continue;
+    }
+    const ratio = q / p;
+    if (p < 0) {
+      if (ratio > t1) return false;
+      if (ratio > t0) t0 = ratio;
+    } else {
+      if (ratio < t0) return false;
+      if (ratio < t1) t1 = ratio;
+    }
+  }
+  return t0 <= t1;
+}
+
+function routeIntersectsNode(
+  points: RoutePoint[],
+  edge: DomainEdge,
+  file: WorkflowFile,
+  nodes: Record<string, NodeLayout>,
+) {
+  for (const candidate of file.graph.nodes) {
+    // Swimlanes are containers around their children, not routing obstacles.
+    // The source and target are intentionally touched by their own endpoints.
+    if (
+      candidate.id === edge.source ||
+      candidate.id === edge.target ||
+      candidate.type === "phase"
+    ) {
+      continue;
+    }
+    const layout = nodes[candidate.id];
+    if (!layout) continue;
+    for (let index = 0; index < points.length - 1; index++) {
+      if (segmentIntersectsRect(points[index], points[index + 1], layout)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function safeReroute(
+  edge: DomainEdge,
+  source: NodeLayout,
+  target: NodeLayout,
+  file: WorkflowFile,
+  nodes: Record<string, NodeLayout>,
+  lane: number,
+): RoutePoint[] {
+  const forward = target.x >= source.x;
+  const sourceEdgeX = forward ? source.x + source.width : source.x;
+  const sourceOutX = sourceEdgeX + (forward ? 48 : -48);
+  const targetEdgeX = forward ? target.x : target.x + target.width;
+  const targetInX = targetEdgeX + (forward ? -48 : 48);
+  const obstacleLayouts = file.graph.nodes
+    .filter(
+      (node) =>
+        node.type !== "phase" &&
+        node.id !== edge.source &&
+        node.id !== edge.target &&
+        nodes[node.id],
+    )
+    .map((node) => nodes[node.id])
+    .filter((layout): layout is NodeLayout => Boolean(layout));
+  const topChannel =
+    Math.min(source.y, target.y, ...obstacleLayouts.map((layout) => layout.y)) -
+    96 -
+    lane * 28;
+  const bottomChannel =
+    Math.max(
+      source.y + source.height,
+      target.y + target.height,
+      ...obstacleLayouts.map((layout) => layout.y + layout.height),
+    ) +
+    96 +
+    lane * 28;
+  const channelY = isBranchEdge(edge) || !forward ? bottomChannel : topChannel;
+  return [
+    { x: sourceEdgeX, y: centerY(source) },
+    { x: sourceOutX, y: centerY(source) },
+    { x: sourceOutX, y: channelY },
+    { x: targetInX, y: channelY },
+    { x: targetInX, y: centerY(target) },
+    { x: targetEdgeX, y: centerY(target) },
+  ];
+}
+
 export function routeRemainingEdges(
   file: WorkflowFile,
   nodes: Record<string, NodeLayout>,
@@ -573,6 +722,23 @@ export function routeRemainingEdges(
       };
     }
   }
+  // ELK routes are calculated before the deterministic packing passes finish.
+  // A pass that moves a node (for example the split Opportunity chain) can
+  // therefore leave an otherwise valid old route running through that node.
+  // Re-check every final route against the final rectangles and give any
+  // obstructed edge a generic outside-the-workflow corridor.
+  let rerouteLane = 0;
+  for (const edge of file.graph.edges) {
+    const current = edges[edge.id];
+    const source = nodes[edge.source];
+    const target = nodes[edge.target];
+    if (!current || !source || !target) continue;
+    if (!routeIntersectsNode(current.points, edge, file, nodes)) continue;
+    edges[edge.id] = {
+      edgeId: edge.id,
+      points: safeReroute(edge, source, target, file, nodes, rerouteLane++),
+    };
+  }
   return edges;
 }
 
@@ -591,12 +757,9 @@ export function normalizeGateHandles(file: WorkflowFile) {
         : edge.sourceHandle || "out";
     const deniedReturn =
       edge.type === "rework" || sourceHandle?.startsWith("no");
-    const preGateSales =
-      edge.customFields.workflowSection === "Pre-Gate Sales";
+    const preGateSales = edge.customFields.workflowSection === "Pre-Gate Sales";
     const targetHandle =
-      deniedReturn && !preGateSales
-        ? "rework-in"
-        : edge.targetHandle || "in";
+      deniedReturn && !preGateSales ? "rework-in" : edge.targetHandle || "in";
     return { ...edge, sourceHandle, targetHandle };
   });
 }

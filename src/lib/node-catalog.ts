@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Activity, AlertTriangle, BookOpenCheck, Bot, Boxes, BriefcaseBusiness, CircleDot, CircleStop, ClipboardCheck, Compass, FileStack, FileText, FolderKanban, GitBranch, Handshake, Landmark, Layers3, ListChecks, MessageSquareText, Network, Repeat2, ShieldCheck, Table2, Tags, Trophy, UsersRound } from "lucide-react";
+import { Activity, AlertTriangle, BookOpenCheck, Bot, Boxes, BriefcaseBusiness, CircleDot, CircleStop, ClipboardCheck, FileStack, FileText, FolderKanban, GitBranch, Handshake, Landmark, Layers3, ListChecks, MessageSquareText, Network, Repeat2, ShieldCheck, Table2, Tags, Target, Trophy, UsersRound } from "lucide-react";
 import type { WorkflowNodeType } from "@/types/workflow";
 
 // Surfaces in the node palette (left-side panel). These are the "primary"
@@ -18,7 +18,7 @@ export interface NodeDefinition { type: WorkflowNodeType; label: string; descrip
 
 export const NODE_CATALOG: NodeDefinition[] = [
   { type: "projectStart", label: "Project Start", description: "Start a project with an editable project number", icon: FolderKanban, color: "#2563a9", category: "Flow", defaultSize: { width: 320, height: 220 } },
-  { type: "opportunityValidation", label: "Opportunity Validation", description: "Validate client, decision makers, scale, budget, fit, and engagement path", icon: Compass, color: "#1f5fa7", category: "Flow", defaultSize: { width: 920, height: 800 } },
+  { type: "opportunityValidation", label: "Opportunity Validation", description: "Validate client, decision makers, scale, budget, fit, and engagement path", icon: Target, color: "#1f5fa7", category: "Flow", defaultSize: { width: 920, height: 800 } },
   { type: "general", label: "Node", description: "Custom stage, name, content, and icon", icon: Boxes, color: "#3f668c", category: "General", defaultSize: { width: 270, height: 168 } },
   { type: "start", label: "Start", description: "Workflow entry point", icon: CircleDot, color: "#16866f", category: "Flow", defaultSize: { width: 210, height: 104 } },
   { type: "end", label: "End", description: "Workflow completion", icon: CircleStop, color: "#64748b", category: "Flow", defaultSize: { width: 210, height: 104 } },

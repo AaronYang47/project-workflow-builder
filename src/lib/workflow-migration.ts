@@ -10,12 +10,17 @@ import {
 import {
   LEGACY_REFERENCE_NODE_TYPES,
   REFERENCE_NODE_TYPES,
+  createEmptyHighLevelWorkflow,
+  createEmptyExecutionLayer,
   type DomainNode,
   type GateRule,
   type NodeLayout,
   type WorkflowFile,
   type WorkflowNodeType,
 } from "@/types/workflow";
+import { normalizeExecutionLayer } from "@/lib/execution";
+import { normalizeLegacyOpportunityConfig } from "@/lib/opportunity-evaluation";
+import { ensureDetailedLifecycleScaffold, createDefaultDetailedLifecycle } from "@/lib/detailed-workflow";
 
 const stageByType: Record<WorkflowNodeType, string> = {
   general: "Stage",
@@ -175,7 +180,7 @@ function migrateGateNode(node: DomainNode): DomainNode {
   const decisionMode =
     node.config.decisionMode ||
     (node.config.gateLabel &&
-    node.config.gateLabel.trim().toUpperCase() !== "GATE"
+    String(node.config.gateLabel).trim().toUpperCase() !== "GATE"
       ? "binary"
       : "approval");
   const customDecisionGate = decisionMode === "binary";
@@ -209,15 +214,17 @@ function migrateGateNode(node: DomainNode): DomainNode {
         ? signature.revisions.map((revision) => {
             const legacy = revision as unknown as { receivedBy?: string };
             return {
-              id: revision.id,
-              revision: revision.revision,
-              receivedDate: revision.receivedDate,
-              department: revision.department || signature.department || "",
+              id: revision.id || `revision-${crypto.randomUUID().slice(0, 8)}`,
+              revision: String(revision.revision || ""),
+              receivedDate: String(revision.receivedDate || ""),
+              department: String(revision.department || signature.department || ""),
               modifiedBy:
-                revision.modifiedBy ||
-                legacy.receivedBy ||
-                signature.signedBy ||
-                "",
+                String(
+                  revision.modifiedBy ||
+                    legacy.receivedBy ||
+                    signature.signedBy ||
+                    "",
+                ),
               status: revision.status,
             };
           })
@@ -239,10 +246,10 @@ function migrateGateNode(node: DomainNode): DomainNode {
       const revisionReady =
         !signature.revisionControlled ||
         Boolean(
-          currentRevision?.revision.trim() &&
-          currentRevision.receivedDate &&
-          currentRevision.department.trim() &&
-          currentRevision.modifiedBy.trim(),
+          String(currentRevision?.revision || "").trim() &&
+          currentRevision?.receivedDate &&
+          String(currentRevision?.department || "").trim() &&
+          String(currentRevision?.modifiedBy || "").trim(),
         );
       return {
         ...signature,
@@ -261,10 +268,10 @@ function migrateGateNode(node: DomainNode): DomainNode {
         (signature) =>
           signature.checked &&
           Boolean(
-            signature.abbreviation.trim() &&
-            signature.fullName.trim() &&
-            signature.department.trim() &&
-            signature.signedBy.trim(),
+            String(signature.abbreviation || "").trim() &&
+            String(signature.fullName || "").trim() &&
+            String(signature.department || "").trim() &&
+            String(signature.signedBy || "").trim(),
           ),
       );
     return {
@@ -375,12 +382,41 @@ function migrateNode(node: DomainNode): DomainNode {
   if (node.type === "gate") return migrateGateNode(node);
   if (node.type === "serviceLegend") return migrateServiceLegendNode(node);
   if (node.type === "opportunityValidation" || node.id === "opportunity-validation") {
+    const opportunity = node.config?.opportunity || {};
+    const intake = normalizeLegacyOpportunityConfig(opportunity);
+    const legacyAnswers = node.customFields || {};
+    // Old Q1–Q8 selections are kept in customFields, but where their meaning is
+    // unambiguous we bring that evidence forward without manufacturing details.
+    if (legacyAnswers.q_dm === "direct") intake.clientAuthority!.decisionAuthorityStatus = "Confirmed";
+    if (legacyAnswers.q_dm === "influencer") intake.clientAuthority!.decisionAuthorityStatus = "Partially Confirmed";
+    if (legacyAnswers.q_dm === "unclear") intake.clientAuthority!.decisionAuthorityStatus = "Unknown";
+    if (legacyAnswers.q_site === "owned") intake.siteLand!.siteStatus = "Owned Site";
+    if (legacyAnswers.q_site === "option") intake.siteLand!.siteStatus = "Option / Conditional Control";
+    if (legacyAnswers.q_site === "searching") intake.siteLand!.siteStatus = "Site Being Searched";
+    if (legacyAnswers.q_design === "lvl0") intake.design!.designMaturity = "No Design";
+    if (legacyAnswers.q_design === "lvl1") intake.design!.designMaturity = "Concept Plans";
+    if (legacyAnswers.q_design === "lvl2") intake.design!.designMaturity = "Preliminary Design";
+    if (legacyAnswers.q_design === "lvl3") intake.design!.designMaturity = "Permit Submission Set";
+    if (legacyAnswers.q_design === "lvl4") intake.design!.designMaturity = "Permit Issued";
+    if (legacyAnswers.q_fit === "high") intake.design!.modularCompatibilityStatus = "Appears Compatible";
+    if (legacyAnswers.q_fit === "moderate") intake.design!.modularCompatibilityStatus = "Partially Compatible";
+    if (legacyAnswers.q_fit === "blocker") intake.design!.modularCompatibilityStatus = "Not Compatible";
+    if (legacyAnswers.q_funding === "secured") intake.budgetFundingTimeline!.fundingStatus = "Fully Secured";
+    if (legacyAnswers.q_funding === "progressing") intake.budgetFundingTimeline!.fundingStatus = "Financing In Process";
+    if (legacyAnswers.q_funding === "speculative") intake.budgetFundingTimeline!.fundingStatus = "Unknown";
+    if (legacyAnswers.q_timeline === "realistic") intake.budgetFundingTimeline!.timelineStatus = "Realistic";
+    if (legacyAnswers.q_timeline === "accelerated") intake.budgetFundingTimeline!.timelineStatus = "Aggressive";
+    if (legacyAnswers.q_timeline === "unfeasible") intake.budgetFundingTimeline!.timelineStatus = "Unrealistic";
     return {
       ...node,
       type: "opportunityValidation",
       config: {
         ...node.config,
-        opportunity: node.config?.opportunity || {},
+        opportunity: {
+          ...opportunity,
+          // Persist the new evidence structure on first open. Legacy fields remain intact.
+          intake,
+        },
       },
     };
   }
@@ -391,7 +427,9 @@ function migrateNode(node: DomainNode): DomainNode {
     type: "general",
     config: {
       ...node.config,
-      stage: node.config.stage?.trim() || stageByType[node.type],
+      stage: /no-go/i.test(node.title)
+        ? "Archive"
+        : node.config.stage?.trim() || stageByType[node.type],
       iconKey: node.config.iconKey || iconByType[node.type],
       outcomes: undefined,
     },
@@ -400,6 +438,43 @@ function migrateNode(node: DomainNode): DomainNode {
 
 export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   const file: WorkflowFile = JSON.parse(JSON.stringify(input));
+  file.highLevel ??= createEmptyHighLevelWorkflow();
+  file.execution = file.execution
+    ? normalizeExecutionLayer(file.execution)
+    : createEmptyExecutionLayer();
+  // Older high-level-only files are upgraded to the current L2 scaffold. This
+  // only fills an empty detailed layer; it never replaces user-authored nodes.
+  if (file.graph.nodes.length === 0 && file.highLevel.graph.nodes.length > 0) {
+    const scaffold = createDefaultDetailedLifecycle(file.highLevel);
+    return {
+      ...file,
+      graph: { ...file.graph, nodes: scaffold.graph.nodes, edges: scaffold.graph.edges },
+      layout: { ...file.layout, nodes: scaffold.layout.nodes, edges: scaffold.layout.edges, viewport: scaffold.layout.viewport },
+      highLevel: scaffold.highLevel,
+    };
+  }
+  const highLevelNodePriority = (node: (typeof file.highLevel.graph.nodes)[number]) =>
+    node.type === "phase" ? 0 : node.type === "primaryGate" ? 1 : 2;
+  const highLevelOwnership = new Map<string, string>();
+  [...file.highLevel.graph.nodes]
+    .sort((left, right) => highLevelNodePriority(left) - highLevelNodePriority(right))
+    .forEach((node) => {
+      for (const linkedId of new Set([
+        ...(node.linkedLayer2NodeIds ?? []),
+        ...(node.linkedDetailedNodeIds ?? []),
+      ])) {
+        if (!highLevelOwnership.has(linkedId)) highLevelOwnership.set(linkedId, node.id);
+      }
+    });
+  file.highLevel.graph.nodes = file.highLevel.graph.nodes.map((node) => ({
+    ...node,
+    linkedLayer2NodeIds: Array.from(
+      new Set([
+        ...(node.linkedLayer2NodeIds ?? []),
+        ...(node.linkedDetailedNodeIds ?? []),
+      ]),
+    ).filter((linkedId) => highLevelOwnership.get(linkedId) === node.id),
+  }));
   let originalNodes = file.layout.nodes;
   const absolute = (id: string) => absoluteLayoutPosition(originalNodes, id);
   const isLegacyGateWorkflow = file.graph.nodes.some(
@@ -424,15 +499,20 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     "budget-fit",
     "hold-archive",
     "engagement-approval",
+    "opportunity-validation",
+    "opportunity-hold",
+    "opportunity-no-go",
+    "hold-gap-rework",
+    "no-go-archive",
   ]);
   const hasLegacyPreGate = file.graph.nodes.some((node) =>
-    legacyPreGateIds.has(node.id),
+    legacyPreGateIds.has(node.id) || node.type === "opportunityValidation",
   );
   if (hasLegacyPreGate) {
     file.graph.nodes = file.graph.nodes.filter(
-      (node) => !legacyPreGateIds.has(node.id),
+      (node) => !legacyPreGateIds.has(node.id) && node.type !== "opportunityValidation",
     );
-    const legacyEdgePrefixes = ["pre-sales-", "opp-"];
+    const legacyEdgePrefixes = ["pre-sales-", "opp-", "lifecycle-opportunity-", "lifecycle-project-start-opportunity", "lifecycle-hold-rework"];
     file.graph.edges = file.graph.edges.filter(
       (edge) =>
         !legacyEdgePrefixes.some((prefix) => edge.id.startsWith(prefix)) &&
@@ -440,51 +520,10 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         !legacyPreGateIds.has(edge.target),
     );
   }
-  if (
-    isLegacyGateWorkflow &&
-    !file.graph.nodes.some((node) => node.id === "opportunity-validation")
-  ) {
-    const gateOne = absolute("g1-opportunity");
-    const injectedLayouts = getPreGateSalesLayouts(gateOne.x - 1200, gateOne.y);
-    file.graph.nodes.push(...PRE_GATE_SALES_NODES);
-    const existingEdgeIds = new Set(file.graph.edges.map((edge) => edge.id));
-    file.graph.edges.push(
-      ...PRE_GATE_SALES_EDGES.filter((edge) => !existingEdgeIds.has(edge.id)),
-    );
-    originalNodes = { ...originalNodes, ...injectedLayouts };
-    file.layout.nodes = originalNodes;
+  for (const id of Array.from(legacyPreGateIds)) {
+    delete originalNodes[id];
   }
-  const canonicalPreGateNodes = new Map(
-    PRE_GATE_SALES_NODES.map((node) => [node.id, node]),
-  );
-  file.graph.nodes = file.graph.nodes.map((node) => {
-    if (!canonicalPreGateNodes.has(node.id)) return node;
-    const canonical = canonicalPreGateNodes.get(node.id)!;
-    return {
-      ...canonical,
-      ...node,
-      type: canonical.type,
-      title: node.title || canonical.title,
-      description: node.description || canonical.description,
-      metadata: { ...canonical.metadata, ...node.metadata },
-      customFields: { ...canonical.customFields, ...node.customFields },
-      config: {
-        ...canonical.config,
-        ...node.config,
-        opportunity: {
-          ...(canonical.config?.opportunity || {}),
-          ...(node.config?.opportunity || {}),
-        },
-      },
-    };
-  });
-  const canonicalPreGateEdges = new Map(
-    PRE_GATE_SALES_EDGES.map((edge) => [edge.id, edge]),
-  );
-  file.graph.edges = file.graph.edges.map((edge) => {
-    const canonical = canonicalPreGateEdges.get(edge.id);
-    return canonical ? { ...edge, ...canonical } : edge;
-  });
+  file.layout.nodes = originalNodes;
   let nodes = file.graph.nodes
     .filter((node) => !removedNodeTypes.has(node.type))
     .map(migrateNode)
@@ -592,9 +631,18 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
           : edge.sourceHandle || "out";
       const deniedReturn =
         edge.type === "rework" || sourceHandle?.startsWith("no");
-      const targetHandle = deniedReturn
+      let targetHandle = deniedReturn
         ? edge.targetHandle || "rework-in"
         : edge.targetHandle || "in";
+      // Opportunity uses a dedicated top re-evaluation handle named
+      // `in-rework`. Normalize the legacy `rework-in` spelling so React Flow
+      // never receives an edge whose target handle does not exist.
+      if (
+        nodeById.get(edge.target)?.type === "opportunityValidation" &&
+        targetHandle === "rework-in"
+      ) {
+        targetHandle = "in-rework";
+      }
       const outcome = source.config.outcomes?.find(
         (item) => item.id === sourceHandle,
       );
@@ -612,9 +660,15 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
             : edge.label,
       };
     });
-  return {
+  const migratedFile = {
     ...file,
     graph: { ...file.graph, nodes, edges },
     layout: { ...file.layout, nodes: layouts, edges: undefined },
   };
+  const hasLifecycleGate = migratedFile.graph.nodes.some(
+    (node) => node.id === "gate-g1-qualified" || /^G1\b/i.test(node.title.trim()),
+  );
+  return Boolean(migratedFile.highLevel?.graph.nodes.length) && !hasLifecycleGate
+    ? ensureDetailedLifecycleScaffold(migratedFile)
+    : migratedFile;
 }

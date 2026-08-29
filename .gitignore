@@ -8,3 +8,5 @@ out
 .cursor
 .env*
 .dev.vars
+.pptx-build
+*.ndjson

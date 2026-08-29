@@ -16,10 +16,52 @@ export function useCanvasExport(
   useEffect(() => {
     const focus = (event: Event) => {
       const id = (event as CustomEvent<string>).detail;
-      flow.fitView({ nodes: [{ id }], duration: 500, padding: 0.8, maxZoom: 1.25 });
+      let attempts = 0;
+      const focusWhenMeasured = () => {
+        if (!flow.viewportInitialized) {
+          if (attempts < 32) {
+            attempts += 1;
+            window.setTimeout(focusWhenMeasured, 50);
+          }
+          return;
+        }
+
+        const canvasRect = wrapper.current?.getBoundingClientRect();
+        if (!canvasRect?.width || !canvasRect.height) {
+          if (attempts < 32) {
+            attempts += 1;
+            window.setTimeout(focusWhenMeasured, 50);
+          }
+          return;
+        }
+
+        const node = flow.getInternalNode(id);
+        if (!node?.measured.width || !node.measured.height) {
+          if (attempts < 32) {
+            attempts += 1;
+            window.setTimeout(focusWhenMeasured, 50);
+          }
+          return;
+        }
+        flow.fitView({ nodes: [{ id }], duration: 500, padding: 0.18, maxZoom: 1.25 });
+      };
+
+      focusWhenMeasured();
+    };
+    const focusMany = (event: Event) => {
+      const ids = (event as CustomEvent<string[]>).detail;
+      const nodes = ids.map((id) => ({ id })).filter((node) =>
+        flow.getNodes().some((current) => current.id === node.id),
+      );
+      if (!nodes.length) return;
+      flow.fitView({ nodes, duration: 500, padding: 0.8, maxZoom: 1.25 });
     };
     window.addEventListener("workflow:focus-node", focus);
-    return () => window.removeEventListener("workflow:focus-node", focus);
+    window.addEventListener("workflow:focus-nodes", focusMany);
+    return () => {
+      window.removeEventListener("workflow:focus-node", focus);
+      window.removeEventListener("workflow:focus-nodes", focusMany);
+    };
   }, [flow]);
 
   // Fit canvas event

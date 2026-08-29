@@ -1,6 +1,12 @@
 "use client";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Settings2, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  Settings2,
+  Trash2,
+} from "lucide-react";
 import {
   getInspectorSchema,
   isInspectorFieldVisible,
@@ -19,6 +25,8 @@ import { readPath, writePath } from "@/lib/object-path";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { HighLevelInspector } from "./high-level-inspector";
+import { getExecutionSummary } from "@/lib/execution";
 
 const applyPromoteToPaid = (node: DomainNode): DomainNode => {
   const promoted = promoteToPaidService(node);
@@ -272,7 +280,11 @@ function OutcomeEditor({
 
 import { useShallow } from "zustand/react/shallow";
 
-export function Inspector() {
+function DetailedInspector({
+  onOpenExecutionView,
+}: {
+  onOpenExecutionView?: (nodeId: string) => void;
+}) {
   const { file, selection, updateNode, updateEdge, deleteSelected } =
     useWorkflowStore(
       useShallow((state) => ({
@@ -287,6 +299,9 @@ export function Inspector() {
     (item) => item.id === selection.nodeIds[0],
   );
   const edge = file.graph.edges.find((item) => item.id === selection.edgeId);
+  const executionSummary = node
+    ? getExecutionSummary(node.id, file.execution?.items)
+    : undefined;
   const schema = useMemo(
     () => (node ? getInspectorSchema(node.type) : []),
     [node],
@@ -300,8 +315,8 @@ export function Inspector() {
     "Decision configuration": true,
   });
   return (
-    <aside className="flex h-full w-[304px] shrink-0 flex-col border-l bg-panel">
-      <div className="flex h-12 items-center gap-2 border-b px-3">
+    <aside className="flex h-full min-h-0 w-[304px] max-w-[calc(100vw-16px)] shrink-0 flex-col border-l bg-panel">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <Settings2 className="size-4 text-primary" />
         <span className="text-sm font-semibold">Inspector</span>
       </div>
@@ -316,11 +331,11 @@ export function Inspector() {
           </p>
         </div>
       ) : node ? (
-        <div className="scroll-thin flex-1 overflow-y-auto">
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="border-b p-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <span
-                className="flex size-9 items-center justify-center rounded-lg text-white"
+                className="flex size-9 shrink-0 aspect-square items-center justify-center rounded-xl text-white shadow-sm"
                 style={{
                   backgroundColor:
                     node.color || getNodeDefinition(node.type).color,
@@ -328,18 +343,64 @@ export function Inspector() {
               >
                 {(() => {
                   const Icon = getNodeDefinition(node.type).icon;
-                  return <Icon className="size-4" />;
+                  return <Icon className="size-5" />;
                 })()}
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{node.title}</p>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              {getNodeDefinition(node.type).label} · {node.id}
+                <p
+                  className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                  title={`${getNodeDefinition(node.type).label} · ${node.id}`}
+                >
+                  {getNodeDefinition(node.type).label} · {node.id}
                 </p>
               </div>
             </div>
           </div>
           <div className="p-4">
+            {onOpenExecutionView ? (
+              <section className="mb-5 rounded-lg border border-primary/20 bg-primary/[0.04] p-3">
+                <div className="flex items-start gap-2">
+                  <ClipboardList className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">L3 · Execution Requirements</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      Documents, approvals, tasks, and evidence for this workflow node.
+                    </p>
+                  </div>
+                </div>
+                {executionSummary?.hasItems ? (
+                  <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+                    {executionSummary.completedCount}/{executionSummary.itemCount} Requirements Complete
+                    <span className="mx-1">·</span>
+                    <span
+                      className={
+                        executionSummary.status === "Blocked"
+                          ? "text-rose-600 dark:text-rose-400"
+                          : executionSummary.status === "Incomplete"
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                      }
+                    >
+                      {executionSummary.status}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    No execution requirements yet.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onOpenExecutionView(node.id)}
+                  style={{ fontSize: "11px", lineHeight: 1.3 }}
+                  className="mt-3 flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[0.68rem] font-semibold leading-snug text-primary transition-colors hover:bg-primary/10"
+                >
+                  <span className="min-w-0">View L3 / Execution Requirements</span>
+                  <ChevronRight className="size-4 shrink-0 text-primary" />
+                </button>
+              </section>
+            ) : null}
             {Array.from(new Set(schema.map((field) => field.section))).map(
               (section) => {
                 const open = openSections[section] ?? true;
@@ -394,7 +455,7 @@ export function Inspector() {
           </div>
         </div>
       ) : edge ? (
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 scroll-thin">
           <div>
             <p className="text-sm font-semibold">Connection</p>
             <p className="mt-1 font-mono text-[11px] text-muted-foreground">
@@ -482,5 +543,19 @@ export function Inspector() {
         </div>
       ) : null}
     </aside>
+  );
+}
+
+export function Inspector({
+  highLevelMode = false,
+  onOpenExecutionView,
+}: {
+  highLevelMode?: boolean;
+  onOpenExecutionView?: (nodeId: string) => void;
+}) {
+  return highLevelMode ? (
+    <HighLevelInspector />
+  ) : (
+    <DetailedInspector onOpenExecutionView={onOpenExecutionView} />
   );
 }

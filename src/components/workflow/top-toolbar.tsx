@@ -10,6 +10,7 @@ import {
   Focus,
   Group,
   ImageDown,
+  Layers,
   LoaderCircle,
   Moon,
   PanelLeftClose,
@@ -52,13 +53,30 @@ function ToolButton({
     </Button>
   );
 }
+
 const saveImage = (format: "png" | "svg") => {
   window.dispatchEvent(
     new CustomEvent("workflow:export", { detail: { format } }),
   );
 };
 
-export function TopToolbar({ openPalette }: { openPalette: () => void }) {
+export function TopToolbar({
+  openPalette,
+  isHighLevelView,
+  onToggleHighLevelView,
+  isExecutionView = false,
+  canOpenExecutionView = false,
+  onOpenExecutionView,
+  onCloseExecutionView,
+}: {
+  openPalette: () => void;
+  isHighLevelView: boolean;
+  onToggleHighLevelView: () => void;
+  isExecutionView?: boolean;
+  canOpenExecutionView?: boolean;
+  onOpenExecutionView?: () => void;
+  onCloseExecutionView?: () => void;
+}) {
   const store = useWorkflowStore();
   const dirty = store.dirty;
   const { theme, setTheme } = useTheme();
@@ -107,9 +125,21 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
     }
   };
   const arrange = async () => {
-    if (arranging) return;
+    if (arranging || isExecutionView) return;
     setArranging(true);
     try {
+      if (isHighLevelView) {
+        useWorkflowStore.getState().autoArrangeHighLevel();
+        window.setTimeout(
+          () => window.dispatchEvent(new Event("workflow:fit-high-level")),
+          120,
+        );
+        window.setTimeout(
+          () => window.dispatchEvent(new Event("workflow:fit-high-level")),
+          520,
+        );
+        return;
+      }
       const arranged = await autoLayout(useWorkflowStore.getState().file);
       useWorkflowStore.getState().commit(() => arranged);
       window.setTimeout(
@@ -135,8 +165,11 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
     }
   };
   return (
-    <header data-workflow-toolbar className="relative z-40 flex h-14 shrink-0 items-center border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)]">
-      <div className="scroll-thin flex h-full min-w-0 flex-1 items-center gap-2 overflow-x-auto px-2">
+    <header
+      data-workflow-toolbar
+      className="relative z-40 grid shrink-0 grid-cols-1 grid-rows-[44px_44px_44px] border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[48px_44px] min-[1800px]:h-14 min-[1800px]:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] min-[1800px]:grid-rows-1"
+    >
+      <div className="scroll-thin col-start-1 row-start-1 flex h-full min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-2 min-[1800px]:col-start-1">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground">
           PW
         </div>
@@ -147,12 +180,12 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ name: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="h-7 w-auto min-w-[100px] max-w-[180px] border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
+            className="block h-7 w-[170px] min-w-[150px] max-w-[180px] shrink-0 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
           />
-          <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:inline">
+          <span className="inline shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {store.file.graph.metadata.status}
           </span>
-          <span className="hidden shrink-0 text-[11px] text-muted-foreground/50 lg:inline">
+          <span className="inline shrink-0 text-[11px] text-muted-foreground/50">
             •
           </span>
           <input
@@ -161,7 +194,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ version: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="h-7 w-16 shrink-0 bg-transparent px-1 text-[11px] text-muted-foreground outline-none focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="block h-7 w-16 shrink-0 bg-transparent px-1 text-[11px] text-muted-foreground outline-none focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           />
           {dirty ? (
             <span
@@ -175,7 +208,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
             </span>
           ) : (
             <span
-              className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 lg:flex dark:text-emerald-300"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300"
               role="status"
               aria-live="polite"
               title="All changes saved"
@@ -186,7 +219,8 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
           )}
         </div>
       </div>
-      <div className="mx-1.5 h-6 w-px bg-border/60" />
+      <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1800px]:col-span-1 min-[1800px]:col-start-2 min-[1800px]:row-start-1 min-[1800px]:justify-center min-[1800px]:border-t-0">
+      <div className="mx-1.5 hidden h-6 w-px shrink-0 bg-border/60 min-[1800px]:block" />
       <div className="flex shrink-0 items-center gap-1">
         <ToolButton
           label="Undo (⌘Z)"
@@ -205,7 +239,11 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
       </div>
       <div className="mx-1.5 h-6 w-px bg-border/60" />
       <div className="flex shrink-0 items-center gap-1">
-        <ToolButton label="Validate workflow" onClick={store.validate}>
+        <ToolButton
+          label={isHighLevelView ? "Validate High-Level workflow" : "Validate workflow"}
+          onClick={isHighLevelView ? store.validateHighLevel : store.validate}
+          disabled={isExecutionView}
+        >
           <CheckCircle2 className="size-4" />
         </ToolButton>
         <Button
@@ -214,7 +252,7 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
           variant="outline"
           size="sm"
           onClick={arrange}
-          disabled={arranging}
+          disabled={arranging || isExecutionView}
           className="h-8 shrink-0 px-2.5 text-xs"
         >
           <span className={arranging ? "animate-spin" : ""}>
@@ -226,27 +264,110 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
           </span>
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
+        <div
+          className="flex h-8 shrink-0 items-center rounded-md border bg-muted/35 p-0.5"
+          aria-label="Workflow view level"
+          role="group"
+        >
+          <Button
+            title="Show the high-level project process"
+            aria-label="L1 · High Level"
+            aria-pressed={isHighLevelView && !isExecutionView}
+            variant="ghost"
+            size="sm"
+            onClick={
+              isHighLevelView
+                ? undefined
+                : isExecutionView
+                  ? () => {
+                      onCloseExecutionView?.();
+                      onToggleHighLevelView();
+                    }
+                  : onToggleHighLevelView
+            }
+            className={`h-7 rounded px-2 text-[11px] font-semibold ${
+              isHighLevelView && !isExecutionView
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
+            }`}
+          >
+            <Layers className="mr-1 size-3.5" />
+            L1 · High Level
+          </Button>
+          <Button
+            title="Show the detailed workflow"
+            aria-label="L2 · Detailed Workflow"
+            aria-pressed={!isHighLevelView && !isExecutionView}
+            variant="ghost"
+            size="sm"
+            onClick={
+              isHighLevelView
+                ? onToggleHighLevelView
+                : isExecutionView
+                  ? onCloseExecutionView
+                  : undefined
+            }
+            className={`h-7 rounded px-2 text-[11px] font-semibold ${
+              !isHighLevelView && !isExecutionView
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
+            }`}
+          >
+            L2 · Detailed Workflow
+          </Button>
+          <Button
+            title={
+              isExecutionView
+                ? "Execution requirements for the selected workflow node"
+                : canOpenExecutionView
+                  ? "Show execution requirements for the selected workflow node"
+                  : "Select a workflow node to open Execution View"
+            }
+            aria-label="L3 · Execution View"
+            aria-pressed={isExecutionView}
+            variant="ghost"
+            size="sm"
+            disabled={!isExecutionView && !canOpenExecutionView}
+            onClick={isExecutionView ? undefined : onOpenExecutionView}
+            className={`h-7 rounded px-2 text-[11px] font-semibold ${
+              isExecutionView
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
+            }`}
+          >
+            L3 · Execution View
+          </Button>
+        </div>
         <ToolButton
           label="Group selected"
           onClick={store.groupSelected}
-          disabled={!store.selection.nodeIds.length}
+          disabled={
+            isHighLevelView ||
+            isExecutionView ||
+            !store.selection.nodeIds.length
+          }
         >
           <Group className="size-4" />
         </ToolButton>
         <ToolButton
           label="Zoom to fit"
-          onClick={() => window.dispatchEvent(new Event("workflow:fit"))}
+          disabled={isExecutionView}
+          onClick={() =>
+            window.dispatchEvent(
+              new Event(isHighLevelView ? "workflow:fit-high-level" : "workflow:fit"),
+            )
+          }
         >
           <Focus className="size-4" />
         </ToolButton>
       </div>
-      <div className="mx-2 h-6 w-px bg-border/60" />
+      <div className="mx-2 h-6 w-px shrink-0 bg-border/60" />
       <div className="flex shrink-0 items-center gap-2.5 mr-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={openPalette}
-          className="hidden h-8 gap-2 border border-border/80 text-muted-foreground lg:flex"
+          className="flex h-8 shrink-0 gap-2 border border-border/80 text-muted-foreground"
           aria-label="Search nodes and commands"
         >
           <Search className="size-3.5" />
@@ -255,7 +376,8 @@ export function TopToolbar({ openPalette }: { openPalette: () => void }) {
         </Button>
         <CollaboratorPresence />
       </div>
-      <div className="ml-auto flex shrink-0 items-center pl-2">
+      </div>
+      <div className="scroll-thin col-start-1 row-start-3 flex h-full min-w-0 items-center justify-start overflow-x-auto border-t pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0 min-[1800px]:col-start-3 min-[1800px]:justify-end">
         <ToolButton
           label="Export Excel"
           onClick={() => {

@@ -1,55 +1,587 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
 import {
-  AlertOctagon,
   AlertTriangle,
-  Award,
-  BadgeCheck,
-  Building,
   Building2,
-  Calendar,
-  Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
-  Clock,
-  Compass,
-  DollarSign,
-  FileCheck,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  Hourglass,
-  Info,
+  CircleAlert,
+  FileSearch,
   Landmark,
-  Layers,
-  Lock,
   MapPin,
-  Maximize2,
-  Percent,
+  Plus,
   RefreshCcw,
-  Scale,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
-  Tag,
-  Timer,
-  TrendingUp,
-  UserCheck,
+  Route,
+  Target,
+  Trash2,
+  UserRoundCheck,
   Users,
-  XCircle,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useWorkflowStore } from "@/store/workflow-store";
-import type { DomainNode, OpportunityValidationConfig } from "@/types/workflow";
-import { ComponentNoteButton } from "./component-note-button";
 import {
   evaluateOpportunity,
+  evaluationSnapshot,
   getOpportunityConfig,
-  type QuestionnaireAnswers,
 } from "@/lib/opportunity-evaluation";
+import {
+  opportunityHandleIsActive,
+  opportunityRouteLabels,
+} from "@/lib/opportunity-routing";
+import { useWorkflowStore } from "@/store/workflow-store";
+import type {
+  DomainNode,
+  OpportunityIntake,
+  OpportunityTeamMember,
+  OpportunityValidationConfig,
+} from "@/types/workflow";
+import { ComponentNoteButton } from "./component-note-button";
+
+const clientTypes = [
+  "Individual",
+  "Corporation",
+  "Partnership",
+  "Joint Venture",
+  "Developer",
+  "General Contractor",
+  "Municipality",
+  "Government",
+  "Government Agency",
+  "Institution",
+  "Non-Profit",
+  "Committee / Board",
+  "Other",
+];
+const decisionRoles = [
+  "Final Decision Maker",
+  "Financial Approver",
+  "Technical Approver",
+  "Project Lead",
+  "Owner / Partner",
+  "Board / Committee",
+  "Consultant",
+  "Influencer",
+  "Other",
+];
+const siteStatuses = [
+  "Confirmed Site / Address",
+  "Owned Site",
+  "Controlled / Under Agreement",
+  "Option / Conditional Control",
+  "Candidate Site Identified",
+  "Multiple Candidate Sites",
+  "Municipality / Client Has Available Land but Site Not Assigned",
+  "Site Being Searched",
+  "No Site Identified",
+  "Unknown",
+];
+const designMaturity = [
+  "No Design",
+  "Verbal Concept",
+  "Sketch / Massing",
+  "Concept Plans",
+  "Preliminary Design",
+  "Developed Design",
+  "Permit Submission Set",
+  "Permit Issued",
+  "Construction Documents",
+  "IFC / Construction Ready",
+  "Other",
+];
+const modularStatuses = [
+  "Not Reviewed",
+  "Appears Compatible",
+  "Requires Technical Review",
+  "Partially Compatible",
+  "Major Rework Likely",
+  "Not Compatible",
+  "Unknown",
+];
+const teamRoles = [
+  "Architect",
+  "Structural Engineer",
+  "Mechanical Engineer",
+  "Electrical Engineer",
+  "Civil Engineer",
+  "Geotechnical",
+  "General Contractor",
+  "Construction Manager",
+  "Project Manager",
+  "Quantity Surveyor",
+  "Municipality",
+  "Owner Representative",
+  "Financing Contact",
+  "Other",
+];
+const yesNoUnknown = ["Yes", "No", "Unknown"];
+const projectTypes = [
+  "Multi-Family Residential",
+  "Hospitality / Hotel",
+  "Student Housing",
+  "Seniors Housing",
+  "Workforce Housing",
+  "Institutional",
+  "Commercial",
+  "Mixed-Use",
+  "Other",
+];
+const routeLabels = opportunityRouteLabels;
+const handleIsActive = opportunityHandleIsActive;
+const screeningSteps = [
+  { key: "client", label: "Client", title: "Client & Decision Authority" },
+  { key: "project", label: "Project", title: "Project Definition" },
+  { key: "site", label: "Site", title: "Site & Land" },
+  { key: "design", label: "Design", title: "Design & Modular Compatibility" },
+  { key: "budget", label: "Commercial", title: "Budget / Funding / Timeline" },
+  { key: "team", label: "Team", title: "Team & Commitment" },
+];
+const opportunitySectionNodes = [
+  {
+    key: "client",
+    title: "Client & Authority",
+    description: "Confirm the client and approval path.",
+    color: "#2563a9",
+    iconKey: "person",
+  },
+  {
+    key: "project",
+    title: "Project Definition",
+    description: "Capture project type and scale.",
+    color: "#397d91",
+    iconKey: "building",
+  },
+  {
+    key: "site",
+    title: "Site & Land",
+    description: "Record site status and control.",
+    color: "#177a77",
+    iconKey: "flag",
+  },
+  {
+    key: "design",
+    title: "Design & Modular",
+    description: "Assess design maturity and compatibility.",
+    color: "#7657b5",
+    iconKey: "document",
+  },
+  {
+    key: "commercial",
+    title: "Commercial Fit",
+    description: "Compare budget, funding and timing.",
+    color: "#9a5c24",
+    iconKey: "activity",
+  },
+  {
+    key: "team",
+    title: "Team & Commitment",
+    description: "Confirm client engagement signals.",
+    color: "#52734d",
+    iconKey: "users",
+  },
+] as const;
+
+const INTAKE_PRESETS: Array<{
+  id: string;
+  name: string;
+  description: string;
+  intake: OpportunityIntake;
+}> = [
+  {
+    id: "municipality-land-no-design",
+    name: "Municipality (Land Available, No Design)",
+    description: "City has land inventory, needs consultation to establish design basis. Route: Consultation / CSA.",
+    intake: {
+      clientAuthority: {
+        clientName: "City of Kelowna Housing Authority",
+        clientType: "Municipality",
+        primaryContactName: "Sarah Jenkins",
+        primaryContactRole: "Director of Community Development",
+        decisionAuthorityStatus: "Partially Confirmed",
+        finalDecisionAuthorityIdentified: "Yes",
+        requiredDecisionPartiesIdentified: "Yes",
+        approvalPath: "City Council approval required for land allocation and contracts over $1M",
+        clientRelationship: "Standard",
+        stakeholders: [
+          {
+            id: "s-1",
+            name: "Sarah Jenkins",
+            role: "Director of Community Development",
+            organization: "City of Kelowna",
+            email: "sjenkins@kelowna.ca",
+            decisionRole: "Project Lead",
+          },
+          {
+            id: "s-2",
+            name: "Mayor & City Council",
+            role: "Municipal Governance",
+            organization: "City of Kelowna",
+            decisionRole: "Board / Committee",
+          },
+        ],
+      },
+      projectDefinition: {
+        projectName: "Civic Affordable Housing",
+        projectType: "Multi-Family Residential",
+        storeys: "4",
+        grossFloorArea: "32000",
+        unitsRoomsBeds: "40 units",
+      },
+      siteLand: {
+        siteStatus: "Municipality / Client Has Available Land but Site Not Assigned",
+        municipality: "Kelowna",
+        province: "BC",
+        candidateSiteCount: "3",
+        siteControlNotes: "City owns 3 candidate parcels; allocation pending council review.",
+        zoningKnown: "Unknown",
+        servicingKnown: "Yes",
+        accessKnown: "Yes",
+      },
+      design: {
+        designMaturity: "No Design",
+        modularCompatibilityStatus: "Appears Compatible",
+        reviewedBy: "Sales Preliminary",
+      },
+      budgetFundingTimeline: {
+        clientBudgetProvided: "Yes",
+        clientBudgetAmount: "8800000",
+        budgetBasis: "Total Project Target",
+        classDAvailable: "No",
+        fundingStatus: "Government Funding / Grant Pending",
+        timelineStatus: "Realistic",
+      },
+      teamCommitment: {
+        members: [
+          {
+            id: "m-1",
+            name: "Sarah Jenkins",
+            company: "City of Kelowna",
+            role: "Project Manager",
+            status: "Engaged",
+          },
+        ],
+      },
+    },
+  },
+  {
+    id: "permit-issued-incompatible",
+    name: "Permit Issued (Incompatible Modular Grid)",
+    description: "Conventional design with permit issued, but structural grid and cantilevers fail modular review. Demonstrates Design Maturity vs Modular Fit separation.",
+    intake: {
+      clientAuthority: {
+        clientName: "Pinnacle Urban Properties",
+        clientType: "Corporation",
+        primaryContactName: "David Vance",
+        primaryContactRole: "Managing Partner",
+        decisionAuthorityStatus: "Confirmed",
+        finalDecisionAuthorityIdentified: "Yes",
+        requiredDecisionPartiesIdentified: "Yes",
+        approvalPath: "David Vance has sole signing authority",
+        clientRelationship: "Returning",
+        stakeholders: [
+          {
+            id: "s-1",
+            name: "David Vance",
+            role: "Managing Partner",
+            organization: "Pinnacle Urban Properties",
+            email: "dvance@pinnacle.com",
+            decisionRole: "Final Decision Maker",
+          },
+        ],
+      },
+      projectDefinition: {
+        projectName: "The Landmark Residences",
+        projectType: "Multi-Family Residential",
+        storeys: "5",
+        grossFloorArea: "45000",
+        unitsRoomsBeds: "52 units",
+      },
+      siteLand: {
+        siteStatus: "Confirmed Site / Address",
+        siteAddress: "1250 Water Street",
+        municipality: "Kelowna",
+        province: "BC",
+        zoningKnown: "Yes",
+        servicingKnown: "Yes",
+        accessKnown: "Yes",
+      },
+      design: {
+        designMaturity: "Permit Issued",
+        drawingPackageAvailable: "Yes",
+        architectIdentified: "Yes",
+        modularCompatibilityStatus: "Major Rework Likely",
+        reviewedBy: "Engineering",
+        geometryModularFriendly: "No",
+        transportableGeometryLikelyFeasible: "No",
+        structuralConceptCompatible: "No",
+        majorDesignConversionLikely: "Yes",
+        viableCorrectivePath: "Unknown",
+        designNotes: "Permit approved for cast-in-place post-tension slab. Long spans and corner cantilevers require substantial conversion effort.",
+      },
+      budgetFundingTimeline: {
+        clientBudgetProvided: "Yes",
+        clientBudgetAmount: "14500000",
+        classDAvailable: "No",
+        fundingStatus: "Commercial Loan In Process",
+        timelineStatus: "Aggressive",
+      },
+      teamCommitment: {
+        members: [
+          {
+            id: "m-1",
+            name: "Studio Nine Architects",
+            company: "Studio Nine",
+            role: "Architect",
+            status: "Engaged",
+          },
+        ],
+      },
+    },
+  },
+  {
+    id: "developer-pcs-ready",
+    name: "Strategic Developer (PCS / Class D Ready)",
+    description: "Confirmed decision maker, preliminary modular design, confirmed site, ready for PCS / Class D reality check.",
+    intake: {
+      clientAuthority: {
+        clientName: "Highline Development Corp",
+        clientType: "Corporation",
+        primaryContactName: "Elena Rostova",
+        primaryContactRole: "VP Development",
+        decisionAuthorityStatus: "Confirmed",
+        finalDecisionAuthorityIdentified: "Yes",
+        requiredDecisionPartiesIdentified: "Yes",
+        approvalPath: "Investment Committee approved; Elena Rostova executes agreements",
+        clientRelationship: "Strategic",
+        stakeholders: [
+          {
+            id: "s-1",
+            name: "Elena Rostova",
+            role: "VP Development",
+            organization: "Highline Development Corp",
+            email: "elena@highline.ca",
+            decisionRole: "Final Decision Maker",
+          },
+        ],
+      },
+      projectDefinition: {
+        projectName: "Highline Commons",
+        projectType: "Multi-Family Residential",
+        storeys: "4",
+        grossFloorArea: "28000",
+        unitsRoomsBeds: "36 units",
+      },
+      siteLand: {
+        siteStatus: "Confirmed Site / Address",
+        siteAddress: "880 Industrial Way",
+        municipality: "Kelowna",
+        province: "BC",
+        zoningKnown: "Yes",
+        servicingKnown: "Yes",
+        accessKnown: "Yes",
+      },
+      design: {
+        designMaturity: "Preliminary Design",
+        drawingPackageAvailable: "Yes",
+        modularCompatibilityStatus: "Appears Compatible",
+        reviewedBy: "Technical",
+        geometryModularFriendly: "Yes",
+        transportableGeometryLikelyFeasible: "Yes",
+        structuralConceptCompatible: "Yes",
+      },
+      budgetFundingTimeline: {
+        clientBudgetProvided: "Yes",
+        clientBudgetAmount: "9500000",
+        classDAvailable: "Yes",
+        classDAmount: "9200000",
+        fundingStatus: "Fully Secured",
+        timelineStatus: "Realistic",
+      },
+      teamCommitment: {
+        members: [
+          {
+            id: "m-1",
+            name: "Kasian Architecture",
+            company: "Kasian",
+            role: "Architect",
+            status: "Engaged",
+          },
+          {
+            id: "m-2",
+            name: "Equilibrium Engineering",
+            company: "Equilibrium",
+            role: "Structural Engineer",
+            status: "Engaged",
+          },
+        ],
+      },
+    },
+  },
+];
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  if (label === "Project Type") {
+    const options =
+      value && !projectTypes.includes(value)
+        ? [value, ...projectTypes]
+        : projectTypes;
+    return (
+      <SelectField
+        label={label}
+        value={value}
+        options={options}
+        onChange={onChange}
+      />
+    );
+  }
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value || ""}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+      />
+    </label>
+  );
+}
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={value || ""}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+      >
+        <option value="">Select…</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+function StatusBadge({ status }: { status: string }) {
+  const normalized = status.toUpperCase();
+  const style =
+    normalized.includes("NO-GO") ||
+    normalized === "BLOCKED" ||
+    normalized === "NOT_ELIGIBLE"
+      ? "bg-red-500/10 text-red-700 border-red-500/30"
+      : normalized.includes("HOLD") ||
+          normalized.includes("ACTION") ||
+          normalized.includes("PARTIAL") ||
+          normalized.includes("CONDITIONALLY")
+        ? "bg-amber-500/10 text-amber-700 border-amber-500/30"
+        : normalized.includes("READY") ||
+            normalized === "ELIGIBLE" ||
+            normalized === "COMPLETE"
+          ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+          : normalized.includes("NOT_YET")
+            ? "bg-slate-500/10 text-slate-600 border-slate-400/30"
+            : "bg-slate-500/10 text-slate-700 border-slate-500/30";
+  const fullLabel = status.replaceAll("_", " ");
+  const label =
+    status === "NOT_YET_ELIGIBLE"
+      ? "NOT YET"
+      : status === "CONDITIONALLY_ELIGIBLE"
+        ? "CONDITIONAL"
+        : status === "TECHNICAL REVIEW REQUIRED"
+          ? "TECH REVIEW"
+          : status === "ACTION REQUIRED"
+            ? "ACTION"
+            : fullLabel;
+  return (
+    <span
+      title={fullLabel}
+      className={cn(
+        "inline-flex max-w-[122px] shrink-0 items-center justify-center rounded-full border px-1.5 py-0.5 text-center text-[8px] font-bold uppercase leading-tight tracking-wide",
+        style,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+function Section({
+  title,
+  subtitle,
+  icon: Icon,
+  status,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: typeof Users;
+  status: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      data-opportunity-section={title}
+      className="scroll-mt-3 overflow-hidden rounded-xl border bg-card"
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40"
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-3.5" />
+        </span>
+        <span className="min-w-0 flex-1 truncate">
+          <span className="text-xs font-bold text-foreground">{title}</span>
+          <span className="ml-1.5 text-[10px] text-muted-foreground">
+            · {subtitle}
+          </span>
+        </span>
+        <StatusBadge status={status} />
+        {open ? (
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        )}
+      </button>
+      {open && <div className="border-t px-3 py-3">{children}</div>}
+    </section>
+  );
+}
 
 function OpportunityNodeComponent({
   node,
@@ -59,170 +591,354 @@ function OpportunityNodeComponent({
   selected: boolean;
 }) {
   const updateNode = useWorkflowStore((state) => state.updateNode);
-  const [activeSection, setActiveSection] = useState<number>(0);
-  const [showLogicGuide, setShowLogicGuide] = useState<boolean>(false);
-  const [showLoiDrawer, setShowLoiDrawer] = useState<boolean>(false);
-
-  const opp = useMemo(() => getOpportunityConfig(node), [node.config.opportunity]);
-  const customFields = node.customFields || {};
-
-  const scoreBreakdown = useMemo(() => evaluateOpportunity(node), [node]);
-  const { answers, variance, benchmarkCost, budgetNum, area, costPerSqFt } =
-    scoreBreakdown;
-  const autoBudgetLevel = answers.budgetLevel;
-
-  const savePatch = (
-    oppPatch: Partial<OpportunityValidationConfig>,
-    answerPatch?: Partial<QuestionnaireAnswers>,
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    client: true,
+    project: true,
+  });
+  // Keep the complete evidence model visible by default. Optional values remain
+  // optional, but users should not have to discover hidden prompts before they
+  // can review or complete an Opportunity screen.
+  const [advanced, setAdvanced] = useState<Record<string, boolean>>({
+    project: true,
+    site: true,
+    design: true,
+    budget: true,
+  });
+  const opp = useMemo(() => getOpportunityConfig(node), [node]);
+  const result = useMemo(() => evaluateOpportunity(node), [node]);
+  const intake = opp.intake!;
+  const updateIntake = (
+    mutate: (current: OpportunityIntake) => OpportunityIntake,
   ) => {
-    const nextOpp = { ...opp, ...oppPatch };
-    const nextCustom = { ...customFields };
-    if (answerPatch) {
-      if (answerPatch.dmLevel) nextCustom.q_dm = answerPatch.dmLevel;
-      if (answerPatch.scaleLevel) nextCustom.q_scale = answerPatch.scaleLevel;
-      if (answerPatch.siteLevel) nextCustom.q_site = answerPatch.siteLevel;
-      if (answerPatch.designLevel) nextCustom.q_design = answerPatch.designLevel;
-      if (answerPatch.budgetLevel) nextCustom.q_budget = answerPatch.budgetLevel;
-      if (answerPatch.fundingLevel) nextCustom.q_funding = answerPatch.fundingLevel;
-      if (answerPatch.timelineLevel) nextCustom.q_timeline = answerPatch.timelineLevel;
-      if (answerPatch.consultantLevel) nextCustom.q_consultants = answerPatch.consultantLevel;
-      if (answerPatch.fitLevel) nextCustom.q_fit = answerPatch.fitLevel;
-      if (answerPatch.clientTier) nextCustom.q_client_tier = answerPatch.clientTier;
-      if (answerPatch.commitmentLevel) nextCustom.q_commitment = answerPatch.commitmentLevel;
-    }
+    const nextIntake = mutate(intake);
+    const candidate = {
+      ...node,
+      config: { ...node.config, opportunity: { ...opp, intake: nextIntake } },
+    };
+    const evaluation = evaluateOpportunity(candidate);
     updateNode(node.id, {
-      customFields: nextCustom,
       config: {
         ...node.config,
-        opportunity: nextOpp,
+        opportunity: {
+          ...opp,
+          intake: nextIntake,
+          evaluation: evaluationSnapshot(evaluation),
+        },
       },
     });
   };
-
-  const outcome = scoreBreakdown.recommendedOutcome;
-
-  // Fully dynamic theme color matching P1-P5 Grade
-  const dynamicThemeColor = useMemo(() => {
-    if (scoreBreakdown.grade === "P1") return "#10b981"; // Emerald
-    if (scoreBreakdown.grade === "P2") return "#2563eb"; // Royal Blue
-    if (scoreBreakdown.grade === "P3") return "#0891b2"; // Vibrant Cyan / Teal
-    if (scoreBreakdown.grade === "P4") return "#f59e0b"; // P4: Amber
-    return "#dc2626"; // P5: Bright Red
-  }, [scoreBreakdown.grade]);
-
-  const color = dynamicThemeColor;
-
-  // Score color scheme based on points and grade
-  const scoreStyle = useMemo(() => {
-    if (scoreBreakdown.grade === "P1" || scoreBreakdown.totalScore >= 85) {
-      return {
-        text: "text-emerald-600 dark:text-emerald-400",
-        bg: "bg-emerald-500/15 dark:bg-emerald-500/25",
-        border: "border-emerald-500/40",
-        badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
-        solid: "bg-emerald-600 text-white",
-      };
+  const splitIntoEvidenceNodes = () => {
+    const store = useWorkflowStore.getState();
+    const existingChildren = store.file.graph.nodes.filter(
+      (item) =>
+        item.config.opportunityParentId === node.id &&
+        item.config.opportunitySection,
+    );
+    // Keep the action idempotent when a previous split was interrupted or a
+    // persisted workflow already contains the section nodes.
+    if (existingChildren.length >= opportunitySectionNodes.length) {
+      const firstSectionId = opportunitySectionNodes
+        .map(
+          (section) =>
+            existingChildren.find(
+              (item) => item.config.opportunitySection === section.key,
+            )?.id,
+        )
+        .find(Boolean);
+      if (firstSectionId) {
+        const incomingIds = new Set(
+          store.file.graph.edges
+            .filter(
+              (edge) => edge.target === node.id && edge.source !== node.id,
+            )
+            .map((edge) => edge.id),
+        );
+        store.commit((file) => ({
+          ...file,
+          graph: {
+            ...file.graph,
+            edges: file.graph.edges.map((edge) =>
+              incomingIds.has(edge.id)
+                ? { ...edge, target: firstSectionId, targetHandle: "in" }
+                : edge,
+            ),
+          },
+        }));
+      }
+      store.updateNode(node.id, {
+        config: {
+          ...node.config,
+          opportunityRole: "decisionHub",
+          opportunitySectionNodeIds: existingChildren.map((item) => item.id),
+        },
+      });
+      return;
     }
-    if (scoreBreakdown.grade === "P2" || scoreBreakdown.totalScore >= 70) {
-      return {
-        text: "text-blue-600 dark:text-blue-400",
-        bg: "bg-blue-500/15 dark:bg-blue-500/25",
-        border: "border-blue-500/40",
-        badge: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40",
-        solid: "bg-blue-600 text-white",
-      };
-    }
-    if (scoreBreakdown.grade === "P3" || scoreBreakdown.totalScore >= 55) {
-      return {
-        text: "text-cyan-600 dark:text-cyan-400",
-        bg: "bg-cyan-500/15 dark:bg-cyan-500/25",
-        border: "border-cyan-500/40",
-        badge: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/40",
-        solid: "bg-cyan-600 text-white",
-      };
-    }
-    if (scoreBreakdown.grade === "P4" || scoreBreakdown.totalScore >= 35) {
-      return {
-        text: "text-amber-600 dark:text-amber-400",
-        bg: "bg-amber-500/15 dark:bg-amber-500/25",
-        border: "border-amber-500/40",
-        badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
-        solid: "bg-amber-600 text-white",
-      };
-    }
-    return {
-      text: "text-red-600 dark:text-red-400",
-      bg: "bg-red-500/15 dark:bg-red-500/25",
-      border: "border-red-500/40",
-      badge: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40",
-      solid: "bg-red-600 text-white",
-    };
-  }, [scoreBreakdown]);
-
-  const questions = [
-    {
-      id: "dm",
-      title: "1. Decision Maker & Client Profile",
-      subtitle: "Verify budget authority, signing power, and client relationship tier",
-      icon: Users,
-    },
-    {
-      id: "scale",
-      title: "2. Project Definition & Scale",
-      subtitle: "Establish typology, location, storeys, area (sq.ft.), and unit mix",
-      icon: Scale,
-    },
-    {
-      id: "site",
-      title: "3. Site & Land Readiness",
-      subtitle: "Verify property ownership, municipal servicing, and access constraints",
-      icon: MapPin,
-    },
-    {
-      id: "design",
-      title: "4. Design & Plans Maturity",
-      subtitle: "Classify architectural design maturity from Level 0 (idea) to Level 4 (permit issued)",
-      icon: FileText,
-    },
-    {
-      id: "budget",
-      title: "5. Budget & Class D Reality Check",
-      subtitle: "Benchmark Cost (Area × $/sq.ft.) vs Client Target Budget comparison",
-      icon: Landmark,
-    },
-    {
-      id: "financing",
-      title: "6. Financing & Target Timeline",
-      subtitle: "Funding structure (equity/loan/grant) and target occupancy schedule",
-      icon: Clock,
-    },
-    {
-      id: "fit",
-      title: "7. Consultants & Modular Fit",
-      subtitle: "Highway transport clearances, crane staging, and modular grid repeatability",
-      icon: Layers,
-    },
-    {
-      id: "commitment",
-      title: "8. Client Commitment & LOI Governance",
-      subtitle: "Governed LOI scope, time caps, review points, and conversion triggers",
-      icon: FileCheck,
-    },
-  ];
+    const incomingEdges = store.file.graph.edges.filter(
+      (edge) => edge.target === node.id,
+    );
+    const incomingEdgeIds = new Set(incomingEdges.map((edge) => edge.id));
+    const sectionIds: string[] = [];
+    opportunitySectionNodes.forEach((section, index) => {
+      const id = store.addNode("general", {
+        x: 420 + (index % 3) * 420,
+        y: 180 + Math.floor(index / 3) * 320,
+      });
+      sectionIds.push(id);
+      store.updateNode(id, {
+        title: section.title,
+        description: section.description,
+        color: section.color,
+        config: {
+          stage: section.title,
+          iconKey: section.iconKey,
+          opportunitySection: section.key,
+          opportunityParentId: node.id,
+        },
+      });
+      // Detailed evidence nodes need enough room to expose the same fields as
+      // the integrated Opportunity card; their inner pane remains scrollable.
+      store.updateLayout(id, { width: 420, height: 460 }, false);
+    });
+    // Preserve the workflow entry point: every edge that previously entered
+    // Opportunity now enters the first evidence section, while the final
+    // section continues into the Decision Hub.
+    // Rewire all pre-existing inputs in one commit. Doing this atomically
+    // prevents rapid successive store updates from restoring the old direct
+    // Project Start → Opportunity connection during Auto Arrange.
+    store.commit((file) => ({
+      ...file,
+      graph: {
+        ...file.graph,
+        edges: file.graph.edges.map((edge) =>
+          incomingEdgeIds.has(edge.id)
+            ? { ...edge, target: sectionIds[0], targetHandle: "in" }
+            : edge,
+        ),
+      },
+    }));
+    sectionIds.forEach((source, index) => {
+      const target =
+        index === sectionIds.length - 1 ? node.id : sectionIds[index + 1];
+      store.addEdge({
+        id: `opportunity-section-${crypto.randomUUID().slice(0, 8)}`,
+        type: "normal",
+        source,
+        target,
+        sourceHandle: "out",
+        targetHandle: "in",
+        lineStyle: "solid",
+        arrowStyle: "arrow",
+        customFields: {},
+        label:
+          index === sectionIds.length - 1 ? "Evidence complete" : undefined,
+      });
+    });
+    store.updateNode(node.id, {
+      config: {
+        ...node.config,
+        opportunityRole: "decisionHub",
+        opportunitySectionNodeIds: sectionIds,
+      },
+    });
+  };
+  const patch = (
+    section: keyof OpportunityIntake,
+    values: Record<string, unknown>,
+  ) =>
+    updateIntake(
+      (current) =>
+        ({
+          ...current,
+          [section]: { ...(current[section] || {}), ...values },
+        }) as OpportunityIntake,
+    );
+  const toggle = (key: string) =>
+    setOpen((current) => ({ ...current, [key]: !current[key] }));
+  const focusSection = (key: string, title: string) => {
+    setOpen((current) => ({ ...current, [key]: true }));
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-opportunity-section="${title}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  };
+  const client = intake.clientAuthority || {};
+  const project = intake.projectDefinition || {};
+  const site = intake.siteLand || {};
+  const design = intake.design || {};
+  const budget = intake.budgetFundingTimeline || {};
+  const team = intake.teamCommitment || {};
+  const sectionStatus = (section: string) => {
+    if (
+      section === "client" &&
+      result.rules.some((rule) => rule.id === "decision-authority-unknown")
+    )
+      return "Blocked";
+    if (
+      section === "design" &&
+      result.eligibility.find((item) => item.key === "TECHNICAL_REVIEW")
+        ?.status === "CONDITIONALLY_ELIGIBLE"
+    )
+      return "Technical Review Required";
+    if (
+      section === "project" &&
+      result.rules.some((rule) => rule.id === "project-scale-missing")
+    )
+      return "Action Required";
+    if (
+      section === "budget" &&
+      result.rules.some(
+        (rule) =>
+          rule.category === "CONDITIONAL" &&
+          ["client-budget-missing", "budget-alignment-gap"].includes(rule.id),
+      )
+    )
+      return "Action Required";
+    if (section === "client")
+      return client.decisionAuthorityStatus === "Confirmed" &&
+        client.requiredDecisionPartiesIdentified === "Yes" &&
+        Boolean(client.clientName && client.primaryContactName)
+        ? "Complete"
+        : "Partial";
+    if (section === "project")
+      return project.storeys && project.grossFloorArea ? "Complete" : "Partial";
+    if (section === "site")
+      return [
+        "Owned Site",
+        "Confirmed Site / Address",
+        "Controlled / Under Agreement",
+      ].includes(site.siteStatus || "")
+        ? "Complete"
+        : ["No Site Identified", "Site Being Searched", "Unknown"].includes(
+              site.siteStatus || "",
+            )
+          ? "Action Required"
+          : "Partial";
+    if (section === "design")
+      return design.designMaturity === "No Design"
+        ? "Partial"
+        : design.modularCompatibilityStatus === "Appears Compatible" &&
+            Boolean(design.designMaturity)
+          ? "Complete"
+          : "Partial";
+    if (section === "budget")
+      return result.budget.alignment === "Within Expected Range" &&
+        Boolean(budget.fundingStatus) &&
+        budget.timelineStatus === "Realistic"
+        ? "Complete"
+        : "Partial";
+    if (section === "team")
+      return (team.members || []).some(
+        (person) => person.status === "Engaged",
+      ) && Object.values(team).filter((value) => value === "Yes").length >= 4
+        ? "Complete"
+        : "Partial";
+    return "Partial";
+  };
+  const readySectionCount = screeningSteps.filter(
+    (step) => sectionStatus(step.key) === "Complete",
+  ).length;
+  const actionSectionCount = screeningSteps.filter((step) =>
+    ["Blocked", "Action Required", "Technical Review Required"].includes(
+      sectionStatus(step.key),
+    ),
+  ).length;
+  const formattedTime = opp.evaluation?.evaluatedAt
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(opp.evaluation.evaluatedAt))
+    : "Auto-evaluates on every update";
+  const addStakeholder = () =>
+    updateIntake((current) => ({
+      ...current,
+      clientAuthority: {
+        ...(current.clientAuthority || {}),
+        stakeholders: [
+          ...(current.clientAuthority?.stakeholders || []),
+          { id: crypto.randomUUID(), decisionRole: "Influencer" },
+        ],
+      },
+    }));
+  const updateStakeholder = (id: string, values: Record<string, unknown>) =>
+    updateIntake((current) => ({
+      ...current,
+      clientAuthority: {
+        ...(current.clientAuthority || {}),
+        stakeholders: (current.clientAuthority?.stakeholders || []).map(
+          (person) => (person.id === id ? { ...person, ...values } : person),
+        ),
+      },
+    }));
+  const deleteStakeholder = (id: string) =>
+    updateIntake((current) => ({
+      ...current,
+      clientAuthority: {
+        ...(current.clientAuthority || {}),
+        stakeholders: (current.clientAuthority?.stakeholders || []).filter(
+          (person) => person.id !== id,
+        ),
+      },
+    }));
+  const addMember = () =>
+    updateIntake((current) => ({
+      ...current,
+      teamCommitment: {
+        ...(current.teamCommitment || {}),
+        members: [
+          ...(current.teamCommitment?.members || []),
+          { id: crypto.randomUUID(), status: "TBD" },
+        ],
+      },
+    }));
+  const updateMember = (id: string, values: Partial<OpportunityTeamMember>) =>
+    updateIntake((current) => ({
+      ...current,
+      teamCommitment: {
+        ...(current.teamCommitment || {}),
+        members: (current.teamCommitment?.members || []).map((person) =>
+          person.id === id ? { ...person, ...values } : person,
+        ),
+      },
+    }));
+  const deleteMember = (id: string) =>
+    updateIntake((current) => ({
+      ...current,
+      teamCommitment: {
+        ...(current.teamCommitment || {}),
+        members: (current.teamCommitment?.members || []).filter(
+          (person) => person.id !== id,
+        ),
+      },
+    }));
+  const handleScrollableWheel = (event: React.WheelEvent<HTMLElement>) => {
+    const element = event.currentTarget;
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.deltaY === 0 ||
+      element.scrollHeight <= element.clientHeight
+    )
+      return;
+    // Keep the wheel inside the scroll container even at its edges. Otherwise
+    // React Flow receives the leftover wheel event and starts moving/zooming
+    // the canvas when the user simply meant to keep scrolling this column.
+    event.stopPropagation();
+  };
 
   return (
     <div className="relative h-full w-full overflow-visible">
       <div
         data-canvas-node
         className={cn(
-          "workflow-node group flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-[0_8px_30px_rgba(15,23,42,0.14)] transition duration-200",
-          selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+          "workflow-node flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-[0_8px_30px_rgba(15,23,42,0.14)]",
+          selected && "ring-2 ring-primary/80",
         )}
-        style={{ borderColor: `${color}65` }}
       >
         <NodeResizer
-          minWidth={900}
-          minHeight={780}
+          minWidth={980}
+          minHeight={820}
           isVisible={selected}
           onResizeEnd={(_, params) =>
             useWorkflowStore
@@ -236,1426 +952,1387 @@ function OpportunityNodeComponent({
           lineClassName="!border-primary"
           handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
         />
-
-        {/* --- Card Header --- */}
-        <div
+        <header
           data-node-header
-          className="nowheel flex items-center justify-between border-b px-4 py-3 cursor-grab active:cursor-grabbing bg-gradient-to-r from-primary/10 via-primary/5 to-transparent gap-3"
+          className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 cursor-grab active:cursor-grabbing"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
-              style={{ backgroundColor: color }}
-            >
-              <Compass className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Opportunity Validation & Client Scoring Engine
-                </span>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
-                    outcome === "pass-p1-p2"
-                      ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
-                      : outcome === "loi-governed"
-                        ? "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400"
-                        : outcome === "csa-pcs"
-                          ? "bg-cyan-500/15 text-cyan-600 border-cyan-500/30 dark:text-cyan-400"
-                          : outcome === "site-feasibility"
-                            ? "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400"
-                            : outcome === "hold-rework"
-                              ? "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
-                              : "bg-red-500/15 text-red-600 border-red-500/30 dark:text-red-400",
-                  )}
-                >
-                  {outcome === "pass-p1-p2"
-                    ? "GATE 1 PASSED (P1)"
-                    : outcome === "loi-governed"
-                      ? "PROCEED TO PCS (P2)"
-                      : outcome === "csa-pcs"
-                        ? "PROCEED TO CSA (P3)"
-                        : outcome === "site-feasibility"
-                          ? "SITE FEASIBILITY LOOP (P4)"
-                          : outcome === "hold-rework"
-                            ? "HOLD · REWORK LOOP (P4)"
-                            : "NO-GO DISQUALIFIED (P5)"}
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-foreground truncate">
-                {opp.companyName ? `${opp.companyName} · ` : ""}
-                {node.title || "Opportunity Qualification & Commercial Baseline"}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Target className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Opportunity Evidence Intake
+              </p>
+              <h3 className="truncate text-sm font-bold">
+                {client.clientName ||
+                  client.primaryContactName ||
+                  node.title ||
+                  "New opportunity"}
+                {project.projectName ? ` · ${project.projectName}` : ""}
               </h3>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowLogicGuide((v) => !v)}
-              className="flex items-center gap-1 rounded-lg border bg-background/80 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition"
-              title="View Scoring & Classification Logic Rules"
-            >
-              <Info className="size-3.5 text-primary" />
-              <span>Logic Rules</span>
-            </button>
-            <div
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold shadow-xs border transition-colors",
-                scoreStyle.badge,
-              )}
-            >
-              <Sparkles className={cn("size-3.5", scoreStyle.text)} />
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="hidden items-center gap-2 text-[10px] text-muted-foreground xl:flex">
               <span>
-                {scoreBreakdown.grade} · {scoreBreakdown.totalScore}/100
+                Route{" "}
+                <strong className="text-foreground">
+                  {routeLabels[result.recommendedRoute]}
+                </strong>
+              </span>
+              <span>
+                Score{" "}
+                <strong className="text-foreground">
+                  {result.totalScore}/100
+                </strong>
+              </span>
+              <span>
+                Updated{" "}
+                <strong className="text-foreground">
+                  {opp.evaluation?.evaluatedAt
+                    ? new Intl.DateTimeFormat(undefined, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      }).format(new Date(opp.evaluation.evaluatedAt))
+                    : "Now"}
+                </strong>
               </span>
             </div>
+            <StatusBadge status={result.overallStatus} />
             <ComponentNoteButton
               nodeId={node.id}
               noteKey="main"
-              label={node.title || "Opportunity Validation"}
+              label={node.title || "Opportunity Evidence Intake"}
             />
           </div>
-        </div>
-
-        {/* --- Main Body: 2-Column Split (Left Questionnaire / Right AI Rating Dashboard) --- */}
-        <div className="nodrag nowheel flex flex-1 min-h-0 overflow-hidden divide-x divide-border/60">
-          {/* LEFT: Assessment Questionnaire */}
-          <div className="flex-1 flex flex-col min-w-0 bg-background">
-            {/* Step Navigation Bar */}
-            <div className="flex items-center gap-1 border-b bg-muted/30 px-3 py-1.5 overflow-x-auto scroll-thin">
-              {questions.map((q, idx) => {
-                const Icon = q.icon;
-                const isActive = activeSection === idx;
-                return (
-                  <button
-                    type="button"
-                    key={q.id}
-                    onClick={() => setActiveSection(idx)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition shrink-0",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="size-3" />
-                    <span>Q{idx + 1}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Question Content Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs scroll-thin">
-              {/* Q1: Decision Maker & Client Tier */}
-              {activeSection === 0 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Users className="size-4 text-primary" />
-                      Q1. Client Profile, Decision Maker & Client Relationship Tier
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Verify commercial signing authority and classify whether client qualifies for Strategic LOI fast-tracking.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Company Name</label>
-                      <input
-                        type="text"
-                        value={opp.companyName || ""}
-                        onChange={(e) => savePatch({ companyName: e.target.value })}
-                        placeholder="e.g. Apex Developments Ltd."
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Primary Contact & Title</label>
-                      <input
-                        type="text"
-                        value={opp.contactPerson || ""}
-                        onChange={(e) => savePatch({ contactPerson: e.target.value })}
-                        placeholder="e.g. Marcus Vance, VP Development"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Client Relationship Tier</label>
-                      <select
-                        value={answers.clientTier}
-                        onChange={(e) =>
-                          savePatch(
-                            {
-                              clientTierType: e.target
-                                .value as OpportunityValidationConfig["clientTierType"],
-                            },
-                            { clientTier: e.target.value as QuestionnaireAnswers["clientTier"] },
-                          )
-                        }
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-semibold text-primary"
-                      >
-                        <option value="Standard">Standard Lead (Requires Paid CSA/PCS)</option>
-                        <option value="Returning">Returning Client (LOI Allowed)</option>
-                        <option value="Trusted">Trusted Partner (LOI Allowed)</option>
-                        <option value="Strategic">Strategic Account (LOI Allowed)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Contact Email / Phone</label>
-                      <input
-                        type="text"
-                        value={opp.contactEmail || ""}
-                        onChange={(e) => savePatch({ contactEmail: e.target.value })}
-                        placeholder="Email / Phone"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Decision Authority Choice Cards */}
-                  <div className="space-y-2 pt-1">
-                    <label className="text-[11px] font-bold text-foreground">
-                      Decision Authority Assessment (Mandatory Hard Requirement):
-                    </label>
-                    <div className="space-y-1.5">
-                      {[
-                        {
-                          val: "direct",
-                          title: "Direct Decision Maker (Authorized Signing Officer)",
-                          desc: "Direct access to officer with autonomous budget signing and agreement authority (+18 pts)",
-                          badge: "Mandatory Passed",
-                        },
-                        {
-                          val: "influencer",
-                          title: "Project Representative / Manager (DM Known)",
-                          desc: "Decision maker identified but review must proceed via internal management chain (+9 pts)",
-                          badge: "Conditional Follow-up",
-                        },
-                        {
-                          val: "unclear",
-                          title: "Unclear Authority / No Access to Decision Maker",
-                          desc: "Contact lacks decision authority or commercial mandate (0 pts, Fatal Red Flag)",
-                          badge: "Hard Blocker",
-                        },
-                      ].map((opt) => (
-                        <button
-                          type="button"
-                          key={opt.val}
-                          onClick={() =>
-                            savePatch(
-                              { decisionMakerConfirmed: opt.val === "direct" },
-                              { dmLevel: opt.val as QuestionnaireAnswers["dmLevel"] },
-                            )
-                          }
-                          className={cn(
-                            "w-full rounded-xl border p-2.5 text-left transition flex items-start justify-between gap-3",
-                            answers.dmLevel === opt.val
-                              ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                              : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                          )}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                              {answers.dmLevel === opt.val ? (
-                                <CheckCircle2 className="size-3.5 text-primary" />
-                              ) : (
-                                <div className="size-3.5 rounded-full border border-muted-foreground/40" />
-                              )}
-                              {opt.title}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 pl-5">
-                              {opt.desc}
-                            </p>
-                          </div>
-                          <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md bg-background border shrink-0">
-                            {opt.badge}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Q2: Project Definition & Scale */}
-              {activeSection === 1 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Scale className="size-4 text-primary" />
-                      Q2. Project Definition & Geometric Scale
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Capture building typology, storeys, area, and unit mix to calculate Class D rough cost baseline.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Project Typology / Intent</label>
-                      <input
-                        type="text"
-                        value={opp.projectIntent ?? ""}
-                        onChange={(e) => savePatch({ projectIntent: e.target.value })}
-                        placeholder="e.g. 4-Storey Multi-Family Rental"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Project Location / City</label>
-                      <input
-                        type="text"
-                        value={opp.projectLocation ?? ""}
-                        onChange={(e) => savePatch({ projectLocation: e.target.value })}
-                        placeholder="e.g. Kelowna, BC"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Storeys</label>
-                      <input
-                        type="text"
-                        value={opp.storeys ?? ""}
-                        onChange={(e) => savePatch({ storeys: e.target.value })}
-                        placeholder="e.g. 4"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Total Gross Floor Area (sq.ft.)</label>
-                      <input
-                        type="text"
-                        value={opp.grossFloorArea ?? ""}
-                        onChange={(e) => savePatch({ grossFloorArea: e.target.value })}
-                        placeholder="e.g. 28000"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Unit / Module Count</label>
-                      <input
-                        type="text"
-                        value={opp.unitCount ?? ""}
-                        onChange={(e) => savePatch({ unitCount: e.target.value })}
-                        placeholder="e.g. 36"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    <label className="text-[11px] font-bold text-foreground">
-                      Scale Definition Maturity:
-                    </label>
-                    <div className="space-y-1.5">
-                      {[
-                        {
-                          val: "defined",
-                          title: "Full Scale Defined (Ready for Class D Benchmark)",
-                          desc: "Storeys, gross floor area, and unit count are confirmed (+14 pts)",
-                        },
-                        {
-                          val: "rough",
-                          title: "Approximate Concept Scale Only",
-                          desc: "Approximate footprint or rough unit mix only; requires refinement (+7 pts)",
-                        },
-                        {
-                          val: "none",
-                          title: "Scale Unknown / Undefined",
-                          desc: "No dimensions available; cannot run financial benchmarking (0 pts)",
-                        },
-                      ].map((opt) => (
-                        <button
-                          type="button"
-                          key={opt.val}
-                          onClick={() =>
-                            savePatch(
-                              {},
-                              { scaleLevel: opt.val as QuestionnaireAnswers["scaleLevel"] },
-                            )
-                          }
-                          className={cn(
-                            "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                            answers.scaleLevel === opt.val
-                              ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                              : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                          )}
-                        >
-                          {answers.scaleLevel === opt.val ? (
-                            <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                          ) : (
-                            <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                          )}
-                          <div>
-                            <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Q3: Site Readiness */}
-              {activeSection === 2 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <MapPin className="size-4 text-primary" />
-                      Q3. Site & Land Readiness Status
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Confirm property title, municipal servicing, and road access.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Site Address / Parcel PIN</label>
-                      <input
-                        type="text"
-                        value={opp.siteAddress || ""}
-                        onChange={(e) => savePatch({ siteAddress: e.target.value })}
-                        placeholder="e.g. 1080 Enterprise Way"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Servicing & Access Constraints</label>
-                      <input
-                        type="text"
-                        value={opp.siteConstraints || ""}
-                        onChange={(e) => savePatch({ siteConstraints: e.target.value })}
-                        placeholder="e.g. Municipal water at lot line, crane pad ready"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    <label className="text-[11px] font-bold text-foreground">Property Ownership & Readiness:</label>
-                    <div className="space-y-1.5">
-                      {[
-                        {
-                          val: "owned",
-                          title: "Owned Land (Project-Ready / Clear Servicing)",
-                          desc: "Property is owned or fully controlled; municipal servicing & zoning verified (+14 pts)",
-                        },
-                        {
-                          val: "option",
-                          title: "Under Option / Binding Purchase Contract",
-                          desc: "Under binding purchase agreement with closing contingencies (+9 pts)",
-                        },
-                        {
-                          val: "searching",
-                          title: "Searching for Site / Unresolved (Routes to Site Feasibility)",
-                          desc: "Site selection in progress; routes to dedicated Site Feasibility Loop (+2 pts)",
-                        },
-                      ].map((opt) => (
-                        <button
-                          type="button"
-                          key={opt.val}
-                          onClick={() =>
-                            savePatch(
-                              {
-                                siteStatus:
-                                  opt.val === "owned"
-                                    ? "Owned"
-                                    : opt.val === "option"
-                                      ? "Under Option"
-                                      : "Searching",
-                              },
-                              { siteLevel: opt.val as QuestionnaireAnswers["siteLevel"] },
-                            )
-                          }
-                          className={cn(
-                            "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                            answers.siteLevel === opt.val
-                              ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                              : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                          )}
-                        >
-                          {answers.siteLevel === opt.val ? (
-                            <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                          ) : (
-                            <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                          )}
-                          <div>
-                            <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Q4: Design Readiness */}
-              {activeSection === 3 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <FileText className="size-4 text-primary" />
-                      Q4. Design & Plans Maturity Level
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Classify architectural drawings across Levels 0 to 4 to establish scope and Owner Type.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    {[
-                      {
-                        val: "lvl4",
-                        title: "Level 4: Permit Issued (Drawings Approved)",
-                        desc: "Official building permit issued; ready for modular fabrication review (+14 pts, Permit-Ready)",
-                      },
-                      {
-                        val: "lvl3",
-                        title: "Level 3: Permit Set Submitted",
-                        desc: "Complete architectural & engineering drawings submitted for municipal review (+12 pts)",
-                      },
-                      {
-                        val: "lvl2",
-                        title: "Level 2: Preliminary Architectural Scheme",
-                        desc: "Floor plans and elevations available; requires modular grid split (+8 pts, Design-Needed)",
-                      },
-                      {
-                        val: "lvl1",
-                        title: "Level 1: Concept / Sketches Only",
-                        desc: "Concept sketches only; requires CSA for architectural modularization (+5 pts, Design-Needed)",
-                      },
-                      {
-                        val: "lvl0",
-                        title: "Level 0: No Plans (Idea Only)",
-                        desc: "No drawings; requires full architectural design & pre-construction package (+1 pt, Concept-Stage)",
-                      },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.val}
-                        onClick={() => {
-                          const mapStage: Record<string, OpportunityValidationConfig["designStage"]> = {
-                            lvl4: "Level 4: Permit Issued",
-                            lvl3: "Level 3: Permit Set",
-                            lvl2: "Level 2: Preliminary",
-                            lvl1: "Level 1: Concept",
-                            lvl0: "Level 0: No Plans",
-                          };
-                          savePatch(
-                            { designStage: mapStage[opt.val] },
-                            { designLevel: opt.val as QuestionnaireAnswers["designLevel"] },
-                          );
-                        }}
-                        className={cn(
-                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.designLevel === opt.val
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                        )}
-                      >
-                        {answers.designLevel === opt.val ? (
-                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Q5: Budget & Class D Reality Check */}
-              {activeSection === 4 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Landmark className="size-4 text-primary" />
-                      Q5. Budget Basis & Class D Reality Check
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Benchmark estimated cost against client target budget to verify economic feasibility.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Client Target Budget ($)</label>
-                      <input
-                        type="text"
-                        value={opp.clientBudget ?? ""}
-                        onChange={(e) => savePatch({ clientBudget: e.target.value })}
-                        placeholder="e.g. 9800000"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Target Cost Baseline ($/sq.ft.)</label>
-                      <input
-                        type="text"
-                        value={opp.targetCostPerSqFt ?? ""}
-                        onChange={(e) => savePatch({ targetCostPerSqFt: e.target.value })}
-                        placeholder="e.g. 350"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Live Benchmark Calculator Card */}
-                  <div className="rounded-xl border bg-muted/40 p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span>Class D Reality Benchmark Comparison</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {area.toLocaleString()} sq.ft. @ ${costPerSqFt}/sq.ft.
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-lg bg-background p-2 border">
-                        <div className="text-[10px] text-muted-foreground">Estimated Benchmark</div>
-                        <div className="text-sm font-bold mt-0.5">${benchmarkCost.toLocaleString()}</div>
-                      </div>
-                      <div className="rounded-lg bg-background p-2 border">
-                        <div className="text-[10px] text-muted-foreground">Client Target Budget</div>
-                        <div className="text-sm font-bold mt-0.5">${budgetNum.toLocaleString()}</div>
-                      </div>
-                      <div className={cn(
-                        "rounded-lg p-2 border",
-                        variance <= 10
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
-                          : variance <= 25
-                            ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
-                            : "bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-300"
-                      )}>
-                        <div className="text-[10px] font-bold">Variance</div>
-                        <div className="text-sm font-bold mt-0.5">{variance > 0 ? `+${variance.toFixed(1)}%` : `${variance.toFixed(1)}%`}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-foreground">
-                        Budget Reality Fit Evaluation:
-                      </label>
-                      <span className="text-[10px] font-semibold text-primary">
-                        Auto-Evaluated from Inputs
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {[
-                        {
-                          val: "aligned",
-                          title: "Realistic Budget Fit (Within ±10%)",
-                          desc: "Client budget aligns with Class D cost benchmark; commercial model is sound (+15 pts)",
-                          activeClass:
-                            "border-emerald-500 bg-emerald-500/15 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/40 shadow-xs",
-                          icon: CheckCircle2,
-                          iconColor: "text-emerald-600 dark:text-emerald-400",
-                          badge: "Auto: Aligned",
-                          badgeClass:
-                            "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
-                        },
-                        {
-                          val: "manageable",
-                          title: "Manageable Variance (10% to 25% Gap)",
-                          desc: "Client open to value engineering and spec calibration during pre-construction (+8 pts)",
-                          activeClass:
-                            "border-amber-500 bg-amber-500/15 text-amber-950 dark:text-amber-100 ring-2 ring-amber-500/40 shadow-xs",
-                          icon: AlertTriangle,
-                          iconColor: "text-amber-600 dark:text-amber-400",
-                          badge: "Auto: 10-25% Gap",
-                          badgeClass:
-                            "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40",
-                        },
-                        {
-                          val: "disconnect",
-                          title: "Severe Budget Disconnect (>25% Gap)",
-                          desc: "Budget is disconnected from market reality and client rejects calibration (-15 pts, Hard Blocker)",
-                          activeClass:
-                            "border-red-500 bg-red-500/15 text-red-950 dark:text-red-100 ring-2 ring-red-500/40 shadow-xs",
-                          icon: AlertOctagon,
-                          iconColor: "text-red-600 dark:text-red-400",
-                          badge: "Auto: Fatal Blocker",
-                          badgeClass:
-                            "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40",
-                        },
-                      ].map((opt) => {
-                        const isSelected = autoBudgetLevel === opt.val;
-                        const Icon = opt.icon;
-                        return (
-                          <div
-                            key={opt.val}
-                            className={cn(
-                              "w-full rounded-xl border p-2.5 text-left transition-all duration-200 flex items-start justify-between gap-3 cursor-default select-none",
-                              isSelected
-                                ? opt.activeClass
-                                : "border-border/60 bg-card/40 text-muted-foreground/60 opacity-45",
-                            )}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="font-bold text-xs flex items-center gap-1.5">
-                                <Icon
-                                  className={cn(
-                                    "size-4 shrink-0",
-                                    isSelected ? opt.iconColor : "text-muted-foreground/40",
-                                  )}
-                                />
-                                <span className={isSelected ? "text-foreground font-bold" : ""}>
-                                  {opt.title}
-                                </span>
-                              </div>
-                              <p className="text-[11px] mt-0.5 pl-5 opacity-90 leading-snug">
-                                {opt.desc}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider animate-in fade-in",
-                                  opt.badgeClass,
-                                )}
-                              >
-                                {opt.badge}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Q6: Financing & Timeline */}
-              {activeSection === 5 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Clock className="size-4 text-primary" />
-                      Q6. Financing Structure & Target Timeline
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Confirm funding commitment and verify whether schedule requires accelerated fast-track processing.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Funding Source</label>
-                      <select
-                        value={opp.fundingSource || "Commercial Loan"}
-                        onChange={(e) =>
-                          savePatch({
-                            fundingSource: e.target
-                              .value as OpportunityValidationConfig["fundingSource"],
-                          })
-                        }
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      >
-                        <option value="Equity">Equity (Private / Developer)</option>
-                        <option value="Commercial Loan">Commercial Development Loan</option>
-                        <option value="Government Grant">Government Grant / Program</option>
-                        <option value="Financing Program">Financing Facility</option>
-                        <option value="TBD">TBD (Pending)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Target Occupancy Timeline</label>
-                      <input
-                        type="text"
-                        value={opp.targetTimeline || ""}
-                        onChange={(e) => savePatch({ targetTimeline: e.target.value })}
-                        placeholder="e.g. 14-16 months to occupancy"
-                        className="mt-1 w-full rounded-md border bg-card px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-[11px] font-bold text-foreground">Timeline Feasibility:</label>
-                    {[
-                      {
-                        val: "realistic",
-                        title: "Standard Realistic Schedule (>12 Months)",
-                        desc: "Adequate window for design, municipal permitting, and plant production (+4 pts)",
-                      },
-                      {
-                        val: "accelerated",
-                        title: "Accelerated Schedule (8–12 Months) [Risk Tag]",
-                        desc: "Requires fast-track engineering parallelization and pre-reserved manufacturing slot (+2 pts)",
-                      },
-                      {
-                        val: "unfeasible",
-                        title: "Highly Constrained / Expedited (<8 Months)",
-                        desc: "Occupancy deadline is highly constrained; requires phased delivery and overtime production (+0 pts)",
-                      },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.val}
-                        onClick={() =>
-                          savePatch(
-                            {},
-                            { timelineLevel: opt.val as QuestionnaireAnswers["timelineLevel"] },
-                          )
-                        }
-                        className={cn(
-                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.timelineLevel === opt.val
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                        )}
-                      >
-                        {answers.timelineLevel === opt.val ? (
-                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Q7: Consultants & Modular Fit */}
-              {activeSection === 6 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Layers className="size-4 text-primary" />
-                      Q7. External Consultants & Modular Feasibility Fit
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Verify architectural/engineering consultants and screen for volumetric transportation limits.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {[
-                      {
-                        val: "high",
-                        title: "High Modular Suitability (Clear Logistics)",
-                        desc: "Regular grid, standard module transport envelopes, clear site crane access (+6 pts)",
-                      },
-                      {
-                        val: "moderate",
-                        title: "Moderate Suitability (Minor Adjustments Required)",
-                        desc: "Custom non-standard modules or unique crane rigging required (+3 pts)",
-                      },
-                      {
-                        val: "blocker",
-                        title: "Fatal Modular Blocker (Site/Geometry Incompatible)",
-                        desc: "Site road inaccessible for wide loads, or building geometry cannot be modularized (-20 pts, Hard Blocker)",
-                      },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.val}
-                        onClick={() =>
-                          savePatch(
-                            { modularFitPassed: opt.val !== "blocker" },
-                            { fitLevel: opt.val as QuestionnaireAnswers["fitLevel"] },
-                          )
-                        }
-                        className={cn(
-                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.fitLevel === opt.val
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                        )}
-                      >
-                        {answers.fitLevel === opt.val ? (
-                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Q8: Client Commitment & Governed LOI Path */}
-              {activeSection === 7 && (
-                <div className="space-y-3.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <FileCheck className="size-4 text-primary" />
-                      Q8. Client Commitment & Governed LOI Controls
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Define the commercial instrument. LOI is restricted to Strategic/Trusted clients with strict scope & hour caps.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    {[
-                      {
-                        val: "paid_contract",
-                        title: "Executed Paid Agreement (CSA / PCS / Fee Paid)",
-                        desc: "Standard commercial contract executed with pre-construction retainer (+5 pts)",
-                      },
-                      {
-                        val: "loi_governed",
-                        title: "Governed LOI (Strategic / Returning Client Path Only)",
-                        desc: "Letter of Interest for early validation. Capped at 21 days / 20 engineering hours with mandatory conversion trigger (+4 pts)",
-                      },
-                      {
-                        val: "verbal_interest",
-                        title: "Verbal Interest / Exploration Phase",
-                        desc: "Early dialogue; requires conversion to paid CSA/PCS prior to detailed engineering (+1 pt)",
-                      },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.val}
-                        onClick={() =>
-                          savePatch(
-                            {},
-                            { commitmentLevel: opt.val as QuestionnaireAnswers["commitmentLevel"] },
-                          )
-                        }
-                        className={cn(
-                          "w-full rounded-xl border p-2.5 text-left transition flex items-start gap-2.5",
-                          answers.commitmentLevel === opt.val
-                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                            : "border-border bg-card hover:border-primary/40 text-muted-foreground",
-                        )}
-                      >
-                        {answers.commitmentLevel === opt.val ? (
-                          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                        ) : (
-                          <div className="size-4 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <div className="font-bold text-xs text-foreground">{opt.title}</div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* LOI Governance Specific Rules Card */}
-                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold text-purple-700 dark:text-purple-300">
-                      <span className="flex items-center gap-1.5">
-                        <Timer className="size-4" />
-                        Strict LOI Governance & Anti-Free-Work Controls
-                      </span>
-                      <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
-                        Customizable Cap
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
-                        <label className="text-[10px] font-semibold text-muted-foreground">Time Limit (Calendar Days)</label>
-                        <div className="flex items-center gap-1 mt-1">
-                          <input
-                            type="text"
-                            value={opp.loiConfig?.maxDays ?? "21"}
-                            onChange={(e) =>
-                              savePatch({
-                                loiConfig: {
-                                  ...(opp.loiConfig || {}),
-                                  maxDays: Number(e.target.value) || 0,
-                                },
-                              })
-                            }
-                            placeholder="21"
-                            className="w-full rounded-md border bg-card px-2 py-1 text-xs font-bold text-foreground outline-none focus:border-purple-500 font-mono"
-                          />
-                          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Days</span>
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-background p-2 border border-purple-200 dark:border-purple-900/50">
-                        <label className="text-[10px] font-semibold text-muted-foreground">Engineering Hour Cap (Max)</label>
-                        <div className="flex items-center gap-1 mt-1">
-                          <input
-                            type="text"
-                            value={opp.loiConfig?.maxHours ?? "20"}
-                            onChange={(e) =>
-                              savePatch({
-                                loiConfig: {
-                                  ...(opp.loiConfig || {}),
-                                  maxHours: Number(e.target.value) || 0,
-                                },
-                              })
-                            }
-                            placeholder="20"
-                            className="w-full rounded-md border bg-card px-2 py-1 text-xs font-bold text-foreground outline-none focus:border-purple-500 font-mono"
-                          />
-                          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Hours</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div>
-                        <label className="text-[10px] font-semibold text-muted-foreground">Review Milestone Date</label>
-                        <input
-                          type="date"
-                          value={opp.loiConfig?.reviewDate ?? ""}
-                          onChange={(e) =>
-                            savePatch({
-                              loiConfig: {
-                                ...(opp.loiConfig || {}),
-                                reviewDate: e.target.value,
-                              },
-                            })
-                          }
-                          className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-semibold text-muted-foreground">Governed Scope Boundary</label>
-                        <input
-                          type="text"
-                          value={
-                            opp.loiConfig?.scopeSummary ??
-                            "Limited geometry fit check & Class D benchmarking only"
-                          }
-                          onChange={(e) =>
-                            savePatch({
-                              loiConfig: {
-                                ...(opp.loiConfig || {}),
-                                scopeSummary: e.target.value,
-                              },
-                            })
-                          }
-                          placeholder="e.g. Fit check & Class D benchmarking only"
-                          className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground">Mandatory Conversion Trigger to Paid CSA / PCS</label>
-                      <input
-                        type="text"
-                        value={
-                          opp.loiConfig?.conversionTrigger ??
-                          "Delivery of Class D cost model or expiration of day cap -> Mandatory convert to paid CSA ($15k–$35k) or PCS ($50k+)"
-                        }
-                        onChange={(e) =>
-                          savePatch({
-                            loiConfig: {
-                              ...(opp.loiConfig || {}),
-                              conversionTrigger: e.target.value,
-                            },
-                          })
-                        }
-                        placeholder="Conversion trigger description"
-                        className="mt-1 w-full rounded-md border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-purple-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Logic Guide Modal/Drawer */}
-              {showLogicGuide && (
-                <div className="rounded-xl border border-primary/40 bg-primary/5 p-3.5 space-y-3 mt-4 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-primary flex items-center gap-1.5">
-                      <ShieldCheck className="size-4" />
-                      Automated Scoring, P1-P5 Grading & Routing Logic
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowLogicGuide(false)}
-                      className="text-[10px] text-muted-foreground hover:text-foreground font-semibold"
-                    >
-                      Close ✕
-                    </button>
-                  </div>
-                  <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
-                    <p>
-                      <strong>1. Score Formula (0-100 pts):</strong> Q1 Decision Maker (18) + Q2 Scale (14) + Q3 Site (14) + Q4 Design (14) + Q5 Budget (15) + Q6 Financing/Timeline (10) + Q7 Fit (10) + Q8 Commitment (5).
-                    </p>
-                    <p>
-                      <strong>2. P1–P5 Grades:</strong> P1 (90-100 pts) · P2 (75-89 pts) · P3 (60-74 pts) · P4 (40-59 pts) · P5 (&lt;40 pts or Fatal Hard Blocker).
-                    </p>
-                    <p>
-                      <strong>3. LOI Rule:</strong> Only allowed for Returning / Trusted / Strategic clients (P2/P3 grade). Must have a 21-day / 20-hour cap with mandatory conversion trigger to CSA/PCS.
-                    </p>
-                    <p>
-                      <strong>4. Mandatory Hard Gate:</strong> If any Mandatory requirement fails (No DM, Budget disconnect &gt;25%, Non-modular geometry, Unfeasible timeline), system forces <em>HOLD</em> or <em>NO-GO</em>.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Stepper Control */}
-            <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-2.5">
-              <button
-                type="button"
-                disabled={activeSection === 0}
-                onClick={() => setActiveSection((s) => Math.max(0, s - 1))}
-                className="px-3 py-1 text-xs font-semibold rounded-md border bg-background hover:bg-muted disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                Question {activeSection + 1} of {questions.length}
+        </header>
+        <div
+          data-opportunity-score
+          className="flex shrink-0 items-center justify-between gap-3 border-b bg-muted/25 px-4 py-2"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Management Quality Indicator
+            </span>
+            <strong className="text-xl leading-none">
+              {result.totalScore}
+              <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">
+                / 100
               </span>
-              <button
-                type="button"
-                disabled={activeSection === questions.length - 1}
-                onClick={() => setActiveSection((s) => Math.min(questions.length - 1, s + 1))}
-                className="px-3 py-1 text-xs font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-              >
-                Next Step
-              </button>
-            </div>
+            </strong>
+            <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+              {result.scoreGrade}
+            </span>
+            <span className="hidden text-[10px] text-muted-foreground lg:inline">
+              (Hard Rules & Eligibility dictate Route)
+            </span>
           </div>
-
-          {/* RIGHT: AI Rating & Recommendation Dashboard */}
-          <div className="w-[340px] shrink-0 flex flex-col bg-muted/15 p-3.5 space-y-3 overflow-y-auto scroll-thin pb-8">
-            {/* Score & P1-P5 Grade Circular Banner */}
-            <div className="rounded-xl border bg-card p-3 shadow-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Opportunity Grade
-                </span>
-                <span className="text-[9px] font-mono text-muted-foreground">0–100 Engine</span>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div
-                  className={cn(
-                    "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border transition-colors",
-                    scoreStyle.bg,
-                    scoreStyle.border,
-                    scoreStyle.text,
-                  )}
-                >
-                  <span className="text-base font-extrabold leading-none">{scoreBreakdown.totalScore}</span>
-                  <span className="text-[7px] font-bold uppercase leading-none mt-0.5">Score</span>
-                </div>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className={cn("text-[11px] font-bold rounded-md px-2 py-0.5 border block text-left leading-tight break-words", scoreBreakdown.gradeColor)}>
-                    {scoreBreakdown.gradeLabel}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 leading-snug break-words">
-                    {scoreBreakdown.gradeDesc}
+          <div className="hidden min-w-0 truncate text-[9px] text-muted-foreground md:block">
+            Authority {result.scoreBreakdown.authority} · Scale{" "}
+            {result.scoreBreakdown.project} · Site {result.scoreBreakdown.site}{" "}
+            · Design {result.scoreBreakdown.design} · Modular{" "}
+            {result.scoreBreakdown.modular} · Budget{" "}
+            {result.scoreBreakdown.budget} · Funding{" "}
+            {result.scoreBreakdown.fundingTimeline} · Team{" "}
+            {result.scoreBreakdown.teamCommitment}
+          </div>
+        </div>
+        {!node.config.opportunityRole && (
+          <button
+            type="button"
+            onClick={splitIntoEvidenceNodes}
+            className="mx-3 mb-2 inline-flex items-center gap-1 self-start rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/10"
+          >
+            Split into 6 nodes
+          </button>
+        )}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_330px] divide-x overflow-hidden">
+          <main
+            onWheelCapture={handleScrollableWheel}
+            className="nodrag min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-background p-3 scroll-thin"
+          >
+            <div className="mb-3 rounded-xl border bg-muted/30 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold">
+                    Sales Quick Intake{" "}
+                    <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                      · Evidence first. All prompts are available for review;
+                      conditional fields appear when relevant.
+                    </span>
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {readySectionCount}/6 evidence areas complete
+                    {actionSectionCount > 0
+                      ? ` · ${actionSectionCount} need attention`
+                      : " · No immediate gaps"}{" "}
+                    · Changes re-evaluate automatically
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const evaluation = evaluateOpportunity(node);
+                    updateNode(node.id, {
+                      config: {
+                        ...node.config,
+                        opportunity: {
+                          ...opp,
+                          evaluation: evaluationSnapshot(evaluation),
+                        },
+                      },
+                    });
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-background px-2 py-1 text-[10px] font-semibold hover:bg-muted"
+                >
+                  <RefreshCcw className="size-3" />
+                  Re-evaluate
+                </button>
               </div>
-            </div>
-
-            {/* Risk Tags Bar */}
-            {scoreBreakdown.dynamicRiskTags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {scoreBreakdown.dynamicRiskTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300"
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-background">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{
+                    width: `${Math.round((readySectionCount / screeningSteps.length) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
+                <span className="text-[10px] font-semibold text-muted-foreground mr-1">
+                  JF Presets:
+                </span>
+                {INTAKE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => updateIntake(() => preset.intake)}
+                    title={preset.description}
+                    className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-[10px] font-medium text-foreground transition-colors hover:bg-muted"
                   >
-                    <AlertTriangle className="size-2.5" />
-                    {tag}
-                  </span>
+                    <span>{preset.name}</span>
+                  </button>
                 ))}
-              </div>
-            )}
-
-            {/* Auto-Assigned Owner Type */}
-            <div className="rounded-xl border bg-card p-2.5 space-y-1 shadow-xs">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Identified Owner Type</span>
-                <Tag className="size-3 text-primary" />
-              </div>
-              <div className="font-bold text-xs text-foreground">
-                {scoreBreakdown.autoOwnerType}
-              </div>
-              <div className="text-[10px] text-muted-foreground truncate">
-                Client Tier: <strong className="text-foreground">{answers.clientTier}</strong>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateIntake(() => ({
+                      clientAuthority: {
+                        decisionAuthorityStatus: "Unknown",
+                        clientRelationship: "Standard",
+                        stakeholders: [],
+                      },
+                      projectDefinition: {},
+                      siteLand: { siteStatus: "Unknown" },
+                      design: {
+                        designMaturity: "No Design",
+                        modularCompatibilityStatus: "Not Reviewed",
+                        reviewedBy: "Not Reviewed",
+                      },
+                      budgetFundingTimeline: {
+                        clientBudgetProvided: "Unknown",
+                        classDAvailable: "Unknown",
+                        fundingStatus: "Unknown",
+                        timelineStatus: "Unknown",
+                      },
+                      teamCommitment: { members: [] },
+                    }))
+                  }
+                  className="inline-flex items-center gap-1 rounded border border-dashed bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <span>Reset to Blank</span>
+                </button>
               </div>
             </div>
-
-            {/* Governed LOI Status Pill (If Strategic) */}
-            {scoreBreakdown.isStrategicOrTrusted && (
-              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2.5 space-y-1">
-                <div className="text-[10px] font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between">
-                  <span>Governed LOI Eligible</span>
-                  <Timer className="size-3" />
-                </div>
-                <div className="text-[10px] text-purple-800 dark:text-purple-200">
-                  Cap: <strong>21 Days / 20 Hours</strong> &rarr; Convert to CSA/PCS
-                </div>
-              </div>
-            )}
-
-            {/* Missing Info & Actionable Next Steps */}
-            <div className="rounded-xl border bg-card p-2.5 space-y-1.5 shadow-xs">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Gaps & Next Actions</span>
-                <ShieldCheck className="size-3 text-primary" />
-              </div>
-              {scoreBreakdown.gaps.length === 0 ? (
-                <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1.5 py-1">
-                  <BadgeCheck className="size-4 shrink-0" />
-                  All core pillars validated & controlled
-                </div>
-              ) : (
-                <div className="space-y-1.5 max-h-32 overflow-y-auto scroll-thin pr-1">
-                  {scoreBreakdown.gaps.map((g, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "rounded-lg p-2 text-[10px] border leading-tight",
-                        g.severity === "error"
-                          ? "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300"
-                          : g.severity === "warning"
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
-                            : "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300",
-                      )}
+            <div className="space-y-2.5">
+              <div
+                data-screening-nav
+                className="mb-3 flex items-center gap-1 overflow-x-auto rounded-xl border bg-card/70 p-1.5 scroll-thin"
+              >
+                {screeningSteps.map((step, index) => {
+                  const status = sectionStatus(step.key);
+                  const tone =
+                    status === "Complete"
+                      ? "bg-emerald-500"
+                      : status.includes("Blocked") || status.includes("Action")
+                        ? "bg-rose-500"
+                        : status.includes("Technical")
+                          ? "bg-violet-500"
+                          : "bg-amber-500";
+                  return (
+                    <button
+                      key={step.key}
+                      type="button"
+                      onClick={() => focusSection(step.key, step.title)}
+                      aria-label={`Open ${step.label} screening section`}
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                      <div className="font-bold flex items-center gap-1">
-                        {g.severity === "error" ? (
-                          <AlertOctagon className="size-3 shrink-0" />
-                        ) : (
-                          <AlertTriangle className="size-3 shrink-0" />
+                      <span
+                        className={cn(
+                          "flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
+                          tone,
                         )}
-                        {g.label}
+                      >
+                        {index + 1}
+                      </span>
+                      <span>{step.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <Section
+                title="Client & Decision Authority"
+                subtitle="Verifiable identity, contact and approval evidence"
+                icon={Users}
+                status={sectionStatus("client")}
+                open={Boolean(open.client)}
+                onToggle={() => toggle("client")}
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field
+                    label="Client / Organization Name"
+                    value={client.clientName}
+                    onChange={(value) =>
+                      patch("clientAuthority", { clientName: value })
+                    }
+                  />
+                  <SelectField
+                    label="Client Type"
+                    value={client.clientType}
+                    options={clientTypes}
+                    onChange={(value) =>
+                      patch("clientAuthority", { clientType: value })
+                    }
+                  />
+                  <Field
+                    label="Primary Contact Name"
+                    value={client.primaryContactName}
+                    onChange={(value) =>
+                      patch("clientAuthority", { primaryContactName: value })
+                    }
+                  />
+                  <Field
+                    label="Primary Contact Role"
+                    value={client.primaryContactRole}
+                    onChange={(value) =>
+                      patch("clientAuthority", { primaryContactRole: value })
+                    }
+                  />
+                  <Field
+                    label="Email"
+                    value={client.email}
+                    onChange={(value) =>
+                      patch("clientAuthority", { email: value })
+                    }
+                    type="email"
+                  />
+                  <Field
+                    label="Phone"
+                    value={client.phone}
+                    onChange={(value) =>
+                      patch("clientAuthority", { phone: value })
+                    }
+                  />
+                  <SelectField
+                    label="Decision Authority Status"
+                    value={client.decisionAuthorityStatus}
+                    options={["Confirmed", "Partially Confirmed", "Unknown"]}
+                    onChange={(value) =>
+                      patch("clientAuthority", {
+                        decisionAuthorityStatus: value,
+                      })
+                    }
+                  />
+                  <SelectField
+                    label="Client Relationship"
+                    value={client.clientRelationship}
+                    options={["Standard", "Returning", "Trusted", "Strategic"]}
+                    onChange={(value) =>
+                      patch("clientAuthority", { clientRelationship: value })
+                    }
+                  />
+                </div>
+                <div className="mt-3 rounded-lg bg-muted/45 p-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <SelectField
+                      label="Final decision authority identified?"
+                      value={client.finalDecisionAuthorityIdentified}
+                      options={yesNoUnknown}
+                      onChange={(value) =>
+                        patch("clientAuthority", {
+                          finalDecisionAuthorityIdentified: value,
+                        })
+                      }
+                    />
+                    <SelectField
+                      label="All required parties identified?"
+                      value={client.requiredDecisionPartiesIdentified}
+                      options={yesNoUnknown}
+                      onChange={(value) =>
+                        patch("clientAuthority", {
+                          requiredDecisionPartiesIdentified: value,
+                        })
+                      }
+                    />
+                    <Field
+                      label="Authority / Approval Path"
+                      value={client.approvalPath}
+                      onChange={(value) =>
+                        patch("clientAuthority", { approvalPath: value })
+                      }
+                      placeholder="e.g. Partner approval then board"
+                    />
+                    <Field
+                      label="Notes"
+                      value={client.notes}
+                      onChange={(value) =>
+                        patch("clientAuthority", { notes: value })
+                      }
+                      placeholder="Verifiable facts only"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      Stakeholders
+                    </p>
+                    <button
+                      type="button"
+                      onClick={addStakeholder}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-primary"
+                    >
+                      <Plus className="size-3" />
+                      Add Stakeholder
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(client.stakeholders || []).map((person) => (
+                      <div
+                        key={person.id}
+                        className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 rounded-lg border p-2"
+                      >
+                        <Field
+                          label="Name"
+                          value={person.name}
+                          onChange={(value) =>
+                            updateStakeholder(person.id, { name: value })
+                          }
+                        />
+                        <Field
+                          label="Role / Title"
+                          value={person.role}
+                          onChange={(value) =>
+                            updateStakeholder(person.id, { role: value })
+                          }
+                        />
+                        <Field
+                          label="Organization"
+                          value={person.organization}
+                          onChange={(value) =>
+                            updateStakeholder(person.id, {
+                              organization: value,
+                            })
+                          }
+                        />
+                        <SelectField
+                          label="Decision Role"
+                          value={person.decisionRole}
+                          options={decisionRoles}
+                          onChange={(value) =>
+                            updateStakeholder(person.id, {
+                              decisionRole: value,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => deleteStakeholder(person.id)}
+                          className="mt-5 rounded-md p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
+                          aria-label="Delete stakeholder"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                        <div className="col-span-2">
+                          <Field
+                            label="Email"
+                            value={person.email}
+                            onChange={(value) =>
+                              updateStakeholder(person.id, { email: value })
+                            }
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Field
+                            label="Phone"
+                            value={person.phone}
+                            onChange={(value) =>
+                              updateStakeholder(person.id, { phone: value })
+                            }
+                          />
+                        </div>
                       </div>
-                      <div className="mt-0.5 opacity-90 pl-3.5 leading-snug">{g.action}</div>
+                    ))}
+                    {!(client.stakeholders || []).length && (
+                      <div className="rounded-lg border border-dashed bg-muted/25 p-2.5 text-[10px] leading-relaxed text-muted-foreground">
+                        No additional stakeholders recorded. Add the final
+                        decision maker, financial approver, technical approver,
+                        board, or other required party so each person’s role and
+                        contact evidence is explicit.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Section>
+              <Section
+                title="Project Definition"
+                subtitle="Early Class D needs Storeys and approximate GFA"
+                icon={Building2}
+                status={sectionStatus("project")}
+                open={Boolean(open.project)}
+                onToggle={() => toggle("project")}
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field
+                    label="Project Name"
+                    value={project.projectName}
+                    onChange={(value) =>
+                      patch("projectDefinition", { projectName: value })
+                    }
+                  />
+                  <Field
+                    label="Project Type"
+                    value={project.projectType}
+                    onChange={(value) =>
+                      patch("projectDefinition", { projectType: value })
+                    }
+                  />
+                  <Field
+                    label="Number of Buildings"
+                    value={project.buildingCount}
+                    onChange={(value) =>
+                      patch("projectDefinition", { buildingCount: value })
+                    }
+                  />
+                  <Field
+                    label="Number of Storeys"
+                    value={project.storeys}
+                    onChange={(value) =>
+                      patch("projectDefinition", { storeys: value })
+                    }
+                  />
+                  <Field
+                    label="Approximate GFA"
+                    value={project.grossFloorArea}
+                    onChange={(value) =>
+                      patch("projectDefinition", { grossFloorArea: value })
+                    }
+                    placeholder="sq ft or m²"
+                  />
+                  <Field
+                    label="Approx. Units / Rooms / Beds"
+                    value={project.unitsRoomsBeds}
+                    onChange={(value) =>
+                      patch("projectDefinition", { unitsRoomsBeds: value })
+                    }
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdvanced((current) => ({
+                      ...current,
+                      project: !current.project,
+                    }))
+                  }
+                  className="mt-3 text-[10px] font-bold text-primary"
+                >
+                  {advanced.project
+                    ? "Hide optional inputs"
+                    : "Show optional inputs"}
+                </button>
+                {advanced.project && (
+                  <div className="mt-2 grid grid-cols-2 gap-2.5">
+                    <Field
+                      label="Known Building Dimensions"
+                      value={project.buildingDimensions}
+                      onChange={(value) =>
+                        patch("projectDefinition", {
+                          buildingDimensions: value,
+                        })
+                      }
+                    />
+                    <Field
+                      label="Estimated Module Count (optional)"
+                      value={project.estimatedModuleCount}
+                      onChange={(value) =>
+                        patch("projectDefinition", {
+                          estimatedModuleCount: value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </Section>
+              <Section
+                title="Site & Land"
+                subtitle="Record real site conditions without forcing a placeholder address"
+                icon={MapPin}
+                status={sectionStatus("site")}
+                open={Boolean(open.site)}
+                onToggle={() => toggle("site")}
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <SelectField
+                    label="Site Status"
+                    value={site.siteStatus}
+                    options={siteStatuses}
+                    onChange={(value) =>
+                      patch("siteLand", { siteStatus: value })
+                    }
+                  />
+                  {[
+                    "Confirmed Site / Address",
+                    "Owned Site",
+                    "Controlled / Under Agreement",
+                    "Option / Conditional Control",
+                    "Candidate Site Identified",
+                  ].includes(site.siteStatus || "") && (
+                    <Field
+                      label="Site Address"
+                      value={site.siteAddress}
+                      onChange={(value) =>
+                        patch("siteLand", { siteAddress: value })
+                      }
+                    />
+                  )}
+                  <Field
+                    label="Municipality"
+                    value={site.municipality}
+                    onChange={(value) =>
+                      patch("siteLand", { municipality: value })
+                    }
+                  />
+                  <Field
+                    label="Province"
+                    value={site.province}
+                    onChange={(value) => patch("siteLand", { province: value })}
+                  />
+                  {site.siteStatus === "Multiple Candidate Sites" && (
+                    <Field
+                      label="Number of Candidate Sites"
+                      value={site.candidateSiteCount}
+                      onChange={(value) =>
+                        patch("siteLand", { candidateSiteCount: value })
+                      }
+                    />
+                  )}
+                  <Field
+                    label="Site Owner"
+                    value={site.siteOwner}
+                    onChange={(value) =>
+                      patch("siteLand", { siteOwner: value })
+                    }
+                  />
+                  <Field
+                    label="Site Control Notes"
+                    value={site.siteControlNotes}
+                    onChange={(value) =>
+                      patch("siteLand", { siteControlNotes: value })
+                    }
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdvanced((current) => ({
+                      ...current,
+                      site: !current.site,
+                    }))
+                  }
+                  className="mt-3 text-[10px] font-bold text-primary"
+                >
+                  {advanced.site
+                    ? "Hide site review"
+                    : "Show high-level site review"}
+                </button>
+                {advanced.site && (
+                  <div className="mt-2 grid grid-cols-3 gap-2.5 rounded-lg bg-muted/45 p-2.5">
+                    {[
+                      ["Zoning Known?", "zoningKnown"],
+                      ["Servicing Known?", "servicingKnown"],
+                      ["Access Known?", "accessKnown"],
+                      ["Foundation Concept Known?", "foundationConceptKnown"],
+                      [
+                        "Crane / Setting Access Known?",
+                        "craneSettingAccessKnown",
+                      ],
+                      [
+                        "Transportation Constraints Known?",
+                        "transportationConstraintsKnown",
+                      ],
+                    ].map(([label, key]) => (
+                      <SelectField
+                        key={key}
+                        label={label}
+                        value={site[key as keyof typeof site] as string}
+                        options={yesNoUnknown}
+                        onChange={(value) =>
+                          patch("siteLand", { [key]: value })
+                        }
+                      />
+                    ))}
+                    <SelectField
+                      label="Fatal constraint resolvable?"
+                      value={site.fatalConstraintResolvable}
+                      options={yesNoUnknown}
+                      onChange={(value) =>
+                        patch("siteLand", { fatalConstraintResolvable: value })
+                      }
+                    />
+                    <label className="mt-5 flex items-center gap-2 text-[10px] font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(site.fatalConstraintConfirmed)}
+                        onChange={(event) =>
+                          patch("siteLand", {
+                            fatalConstraintConfirmed: event.target.checked,
+                          })
+                        }
+                      />
+                      Confirmed fatal site / transport constraint
+                    </label>
+                  </div>
+                )}
+              </Section>
+              <Section
+                title="Design & Modular Compatibility"
+                subtitle="Design maturity and modular compatibility are intentionally separate"
+                icon={FileSearch}
+                status={sectionStatus("design")}
+                open={Boolean(open.design)}
+                onToggle={() => toggle("design")}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-2.5">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                      Design Maturity
+                    </p>
+                    <div className="space-y-2">
+                      <SelectField
+                        label="Design Maturity"
+                        value={design.designMaturity}
+                        options={designMaturity}
+                        onChange={(value) =>
+                          patch("design", { designMaturity: value })
+                        }
+                      />
+                      <SelectField
+                        label="Drawing Package Available"
+                        value={design.drawingPackageAvailable}
+                        options={yesNoUnknown}
+                        onChange={(value) =>
+                          patch("design", { drawingPackageAvailable: value })
+                        }
+                      />
+                      <SelectField
+                        label="Architect Identified"
+                        value={design.architectIdentified}
+                        options={yesNoUnknown}
+                        onChange={(value) =>
+                          patch("design", { architectIdentified: value })
+                        }
+                      />
+                      <Field
+                        label="Drawing Revision"
+                        value={design.drawingRevision}
+                        onChange={(value) =>
+                          patch("design", { drawingRevision: value })
+                        }
+                      />
+                      <Field
+                        label="Drawing Date"
+                        value={design.drawingDate}
+                        type="date"
+                        onChange={(value) =>
+                          patch("design", { drawingDate: value })
+                        }
+                      />
+                      <Field
+                        label="Design Notes"
+                        value={design.designNotes}
+                        placeholder="Evidence, assumptions, or open items"
+                        onChange={(value) =>
+                          patch("design", { designNotes: value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-2.5">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                      Modular Compatibility
+                    </p>
+                    <div className="space-y-2">
+                      <SelectField
+                        label="Modular Compatibility Status"
+                        value={design.modularCompatibilityStatus}
+                        options={modularStatuses}
+                        onChange={(value) =>
+                          patch("design", { modularCompatibilityStatus: value })
+                        }
+                      />
+                      <SelectField
+                        label="Reviewed By"
+                        value={design.reviewedBy}
+                        options={[
+                          "Sales Preliminary",
+                          "Technical",
+                          "Engineering",
+                          "Not Reviewed",
+                        ]}
+                        onChange={(value) =>
+                          patch("design", { reviewedBy: value })
+                        }
+                      />
+                      {design.modularCompatibilityStatus ===
+                        "Not Compatible" && (
+                        <SelectField
+                          label="Viable Corrective Path?"
+                          value={design.viableCorrectivePath}
+                          options={yesNoUnknown}
+                          onChange={(value) =>
+                            patch("design", { viableCorrectivePath: value })
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdvanced((current) => ({
+                      ...current,
+                      design: !current.design,
+                    }))
+                  }
+                  className="mt-3 text-[10px] font-bold text-primary"
+                >
+                  {advanced.design
+                    ? "Hide technical prompts"
+                    : "Show technical prompts"}
+                </button>
+                {advanced.design && (
+                  <div className="mt-2 grid grid-cols-3 gap-2.5 rounded-lg bg-muted/45 p-2.5">
+                    {[
+                      ["Geometry modular-friendly?", "geometryModularFriendly"],
+                      [
+                        "Transportable geometry likely feasible?",
+                        "transportableGeometryLikelyFeasible",
+                      ],
+                      [
+                        "Site access appears feasible?",
+                        "siteAccessLikelyFeasible",
+                      ],
+                      [
+                        "Crane / setting concept feasible?",
+                        "craneSettingConceptFeasible",
+                      ],
+                      [
+                        "Structural concept compatible?",
+                        "structuralConceptCompatible",
+                      ],
+                      [
+                        "Major design conversion likely required?",
+                        "majorDesignConversionLikely",
+                      ],
+                    ].map(([label, key]) => (
+                      <SelectField
+                        key={key}
+                        label={label}
+                        value={design[key as keyof typeof design] as string}
+                        options={[...yesNoUnknown, "Technical Review Required"]}
+                        onChange={(value) => patch("design", { [key]: value })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </Section>
+              <Section
+                title="Budget / Funding / Timeline"
+                subtitle="Compare real client evidence to Class D only when both exist"
+                icon={Landmark}
+                status={sectionStatus("budget")}
+                open={Boolean(open.budget)}
+                onToggle={() => toggle("budget")}
+              >
+                <div className="grid grid-cols-3 gap-2.5">
+                  <SelectField
+                    label="Client Budget Provided?"
+                    value={budget.clientBudgetProvided}
+                    options={yesNoUnknown}
+                    onChange={(value) =>
+                      patch("budgetFundingTimeline", {
+                        clientBudgetProvided: value,
+                      })
+                    }
+                  />
+                  {budget.clientBudgetProvided === "Yes" && (
+                    <>
+                      <Field
+                        label="Client Budget Amount"
+                        value={budget.clientBudgetAmount}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", {
+                            clientBudgetAmount: value,
+                          })
+                        }
+                      />
+                      <Field
+                        label="Client Budget Range — Low"
+                        value={budget.clientBudgetRangeLow}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", {
+                            clientBudgetRangeLow: value,
+                          })
+                        }
+                      />
+                      <Field
+                        label="Client Budget Range — High"
+                        value={budget.clientBudgetRangeHigh}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", {
+                            clientBudgetRangeHigh: value,
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  <SelectField
+                    label="Budget Basis"
+                    value={budget.budgetBasis}
+                    options={[
+                      "Modules Only",
+                      "Construction",
+                      "Site Work",
+                      "Soft Costs",
+                      "Total Project",
+                      "Unknown",
+                      "Other",
+                    ]}
+                    onChange={(value) =>
+                      patch("budgetFundingTimeline", { budgetBasis: value })
+                    }
+                  />
+                  <SelectField
+                    label="Class D Available?"
+                    value={budget.classDAvailable}
+                    options={yesNoUnknown}
+                    onChange={(value) =>
+                      patch("budgetFundingTimeline", { classDAvailable: value })
+                    }
+                  />
+                  {budget.classDAvailable === "Yes" && (
+                    <>
+                      <Field
+                        label="Class D Amount"
+                        value={budget.classDAmount}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", {
+                            classDAmount: value,
+                          })
+                        }
+                      />
+                      <Field
+                        label="Class D Date"
+                        value={budget.classDDate}
+                        type="date"
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", { classDDate: value })
+                        }
+                      />
+                      <Field
+                        label="Class D Revision"
+                        value={budget.classDRevision}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", {
+                            classDRevision: value,
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  <SelectField
+                    label="Funding Status"
+                    value={budget.fundingStatus}
+                    options={[
+                      "Fully Secured",
+                      "Partially Secured",
+                      "Financing Approved",
+                      "Financing In Process",
+                      "Grant Funding",
+                      "Government Funding",
+                      "Equity",
+                      "Loan",
+                      "Mixed Funding",
+                      "Funding Strategy Identified",
+                      "Not Secured",
+                      "Unknown",
+                    ]}
+                    onChange={(value) =>
+                      patch("budgetFundingTimeline", { fundingStatus: value })
+                    }
+                  />
+                  <SelectField
+                    label="Timeline Status"
+                    value={budget.timelineStatus}
+                    options={[
+                      "Realistic",
+                      "Aggressive",
+                      "Unrealistic",
+                      "Unknown",
+                      "Requires Review",
+                    ]}
+                    onChange={(value) =>
+                      patch("budgetFundingTimeline", { timelineStatus: value })
+                    }
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-2.5 text-[10px]">
+                  <div>
+                    <span className="block text-muted-foreground">
+                      Client Budget
+                    </span>
+                    <strong>
+                      {result.budget.clientBudget
+                        ? result.budget.clientBudget.toLocaleString()
+                        : "Not available"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="block text-muted-foreground">
+                      Class D Benchmark
+                    </span>
+                    <strong>
+                      {result.budget.classD
+                        ? result.budget.classD.toLocaleString()
+                        : "Class D Not Available"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="block text-muted-foreground">
+                      Variance / Alignment
+                    </span>
+                    <strong>
+                      {result.budget.variance === undefined
+                        ? result.budget.alignment
+                        : `${result.budget.variance.toFixed(1)}% · ${result.budget.alignment}`}
+                    </strong>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdvanced((current) => ({
+                      ...current,
+                      budget: !current.budget,
+                    }))
+                  }
+                  className="mt-3 text-[10px] font-bold text-primary"
+                >
+                  {advanced.budget
+                    ? "Hide schedule inputs"
+                    : "Show schedule inputs"}
+                </button>
+                {advanced.budget && (
+                  <div className="mt-2 grid grid-cols-3 gap-2.5">
+                    {[
+                      ["Target Design Start", "targetDesignStart"],
+                      ["Target Permit", "targetPermit"],
+                      ["Target Construction Start", "targetConstructionStart"],
+                      ["Target Production", "targetProduction"],
+                      ["Target Delivery", "targetDelivery"],
+                      ["Target Occupancy", "targetOccupancy"],
+                    ].map(([label, key]) => (
+                      <Field
+                        key={key}
+                        label={label}
+                        type="date"
+                        value={budget[key as keyof typeof budget] as string}
+                        onChange={(value) =>
+                          patch("budgetFundingTimeline", { [key]: value })
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </Section>
+              <Section
+                title="Team & Commitment"
+                subtitle="People and evidence, not subjective seriousness scores"
+                icon={UserRoundCheck}
+                status={sectionStatus("team")}
+                open={Boolean(open.team)}
+                onToggle={() => toggle("team")}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Project Team Members
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addMember}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-primary"
+                  >
+                    <Plus className="size-3" />
+                    Add Team Member
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(team.members || []).map((person) => (
+                    <div
+                      key={person.id}
+                      className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 rounded-lg border p-2"
+                    >
+                      <Field
+                        label="Name"
+                        value={person.name}
+                        onChange={(value) =>
+                          updateMember(person.id, { name: value })
+                        }
+                      />
+                      <Field
+                        label="Company"
+                        value={person.company}
+                        onChange={(value) =>
+                          updateMember(person.id, { company: value })
+                        }
+                      />
+                      <SelectField
+                        label="Role"
+                        value={person.role}
+                        options={teamRoles}
+                        onChange={(value) =>
+                          updateMember(person.id, {
+                            role: value as OpportunityTeamMember["role"],
+                          })
+                        }
+                      />
+                      <SelectField
+                        label="Status"
+                        value={person.status}
+                        options={[
+                          "Engaged",
+                          "Proposed",
+                          "TBD",
+                          "Not Required",
+                          "Unknown",
+                        ]}
+                        onChange={(value) =>
+                          updateMember(person.id, {
+                            status: value as OpportunityTeamMember["status"],
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteMember(person.id)}
+                        className="mt-5 rounded-md p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
+                        aria-label="Delete team member"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
-              )}
+                <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-lg bg-muted/45 p-2.5">
+                  {[
+                    ["Client attended meetings?", "clientAttendedMeetings"],
+                    ["Client provided documents?", "clientProvidedDocuments"],
+                    ["Client provided budget?", "clientProvidedBudget"],
+                    [
+                      "Client assigned project contact?",
+                      "clientAssignedProjectContact",
+                    ],
+                    ["Client engaged consultants?", "clientEngagedConsultants"],
+                    [
+                      "Client requested formal next step?",
+                      "clientRequestedFormalNextStep",
+                    ],
+                    [
+                      "Client accepted paid early work?",
+                      "clientAcceptedPaidEarlyWork",
+                    ],
+                    [
+                      "Client responds to information requests?",
+                      "clientRespondsToRequests",
+                    ],
+                  ].map(([label, key]) => (
+                    <SelectField
+                      key={key}
+                      label={label}
+                      value={team[key as keyof typeof team] as string}
+                      options={yesNoUnknown}
+                      onChange={(value) =>
+                        patch("teamCommitment", { [key]: value })
+                      }
+                    />
+                  ))}
+                </div>
+              </Section>
             </div>
-
-            {/* Recommended Engagement Path */}
-            <div className="rounded-xl border bg-card p-2.5 space-y-1 shadow-xs">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Recommended Path</span>
-                <FileCheck2 className="size-3 text-primary" />
+          </main>
+          <aside
+            onWheelCapture={handleScrollableWheel}
+            className="nodrag min-h-0 overflow-y-auto overscroll-contain bg-muted/20 p-3 scroll-thin"
+          >
+            <div className="space-y-3">
+              <div className="rounded-xl border bg-card p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Overall Status
+                </p>
+                <div className="mt-1.5">
+                  <StatusBadge status={result.overallStatus} />
+                </div>
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Commercial Engagement:{" "}
+                  <strong className="text-foreground">
+                    {result.commercialEngagement}
+                  </strong>
+                </p>
               </div>
-              <div className="text-xs font-bold text-primary">
-                {scoreBreakdown.autoPath}
-              </div>
-            </div>
-
-            {/* Automated Dynamic Output Route Indicator */}
-            <div className="rounded-xl border bg-card p-3 space-y-2 shadow-xs">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>Active Output Route</span>
-                <span className="text-[10px] font-bold text-primary flex items-center gap-1">
-                  <Zap className="size-3" /> Auto-Selected
-                </span>
-              </div>
-              <div
-                className={cn(
-                  "rounded-lg p-2.5 text-xs font-bold border flex items-center justify-between shadow-xs transition-colors",
-                  outcome === "pass-p1-p2"
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
-                    : outcome === "loi-governed"
-                      ? "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300"
-                      : outcome === "csa-pcs"
-                        ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300"
-                        : outcome === "site-feasibility"
-                          ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
-                          : outcome === "hold-rework"
-                            ? "bg-orange-500/15 border-orange-500/40 text-orange-700 dark:text-orange-300"
-                            : "bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-300",
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  <Route className="size-3.5" />
+                  Recommended Next Step
+                </div>
+                <p className="mt-1.5 text-sm font-extrabold">
+                  {routeLabels[result.recommendedRoute]}
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                  {result.routeReason}
+                </p>
+                {result.otherEligibleRoutes.length > 0 && (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    Other eligible routes:{" "}
+                    <strong className="text-foreground">
+                      {result.otherEligibleRoutes
+                        .map((route) => routeLabels[route])
+                        .join(" · ")}
+                    </strong>
+                  </p>
                 )}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "size-2.5 rounded-full animate-pulse",
-                      outcome === "pass-p1-p2"
-                        ? "bg-emerald-500"
-                        : outcome === "loi-governed"
-                          ? "bg-blue-500"
-                          : outcome === "csa-pcs"
-                            ? "bg-cyan-500"
-                            : outcome === "site-feasibility"
-                              ? "bg-amber-500"
-                              : outcome === "hold-rework"
-                                ? "bg-orange-500"
-                                : "bg-red-500",
+              </div>
+              <SummaryList title="Eligible For" icon={CheckCircle2}>
+                {result.eligibility.map((item) => (
+                  <div
+                    key={item.key}
+                    className="rounded-lg border border-border/70 bg-background/50 p-2"
+                  >
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                      <span className="min-w-0 text-[10px] font-semibold leading-tight">
+                        {item.label}
+                      </span>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    {item.reasons.length > 0 && (
+                      <p className="mt-1 text-[9px] leading-snug text-muted-foreground">
+                        {item.reasons.join(" ")}
+                      </p>
                     )}
-                  />
-                  <span>
-                    {outcome === "pass-p1-p2"
-                      ? "GATE 1 PASSED (P1)"
-                      : outcome === "loi-governed"
-                        ? "PROCEED TO PCS (P2)"
-                        : outcome === "csa-pcs"
-                          ? "PROCEED TO CSA (P3)"
-                          : outcome === "site-feasibility"
-                            ? "SITE FEASIBILITY LOOP (P4)"
-                            : outcome === "hold-rework"
-                              ? "HOLD · REWORK LOOP (P4)"
-                              : "NO-GO · DISQUALIFIED (P5)"}
+                  </div>
+                ))}
+              </SummaryList>
+              {result.rules.filter((rule) => rule.category === "HARD").length >
+                0 && (
+                <SummaryList title="Blocking Issues" icon={CircleAlert}>
+                  {result.rules
+                    .filter((rule) => rule.category === "HARD")
+                    .map((rule) => (
+                      <div
+                        key={rule.id}
+                        className="rounded-md border border-red-500/25 bg-red-500/5 p-2 text-[10px]"
+                      >
+                        <strong className="block text-red-700">
+                          {rule.name}
+                        </strong>
+                        <span className="text-muted-foreground">
+                          {rule.message}
+                        </span>
+                      </div>
+                    ))}
+                </SummaryList>
+              )}
+              <SummaryList title="Required Next Actions" icon={ChevronRight}>
+                {result.requiredActions.length ? (
+                  <ol className="space-y-1.5 pl-4 text-[10px] text-foreground">
+                    {result.requiredActions.map((action) => (
+                      <li key={action} className="list-decimal pl-0.5">
+                        {action}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-[10px] text-emerald-700">
+                    No immediate evidence action is required.
+                  </p>
+                )}
+              </SummaryList>
+              {result.riskFlags.length > 0 && (
+                <SummaryList title="Risk Flags" icon={AlertTriangle}>
+                  {result.riskFlags.map((flag) => (
+                    <div
+                      key={flag}
+                      className="flex items-center gap-1.5 text-[10px] text-amber-800"
+                    >
+                      <AlertTriangle className="size-3 shrink-0" />
+                      {flag}
+                    </div>
+                  ))}
+                </SummaryList>
+              )}
+              <div className="rounded-xl border bg-card p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Opportunity Score
+                </p>
+                <div className="mt-1 flex items-end gap-2">
+                  <strong className="text-2xl leading-none">
+                    {result.totalScore}
+                  </strong>
+                  <span className="pb-0.5 text-xs text-muted-foreground">
+                    / 100 · {result.scoreGrade}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono opacity-80 uppercase">
-                  {outcome === "loi-governed" ? "p2-pcs" : outcome === "csa-pcs" ? "p3-csa" : outcome}
-                </span>
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  Management indicator only. It cannot override a Hard Rule,
+                  Overall Status, or route.
+                </p>
               </div>
-              <div className="text-[10px] text-muted-foreground leading-snug">
-                {outcome === "pass-p1-p2"
-                  ? "Direct fast-track release into Stage 1 & Gate 1 (P1 Validated)."
-                  : outcome === "loi-governed"
-                    ? "Directs workflow into Pre-Construction PCS Consultation (P2 Qualified)."
-                    : outcome === "csa-pcs"
-                      ? "Directs workflow into Pre-Construction CSA Modular Design Assist (P3)."
-                      : outcome === "site-feasibility"
-                        ? "Routes to municipal servicing & zoning feasibility loop (P4)."
-                        : outcome === "hold-rework"
-                          ? "Holds workflow and loops back for commercial strategy recalibration."
-                          : "Terminates flow and directs project to disqualification archive (P5)."}
-              </div>
+              <p className="text-center text-[9px] text-muted-foreground">
+                Last evaluated: {formattedTime}
+              </p>
             </div>
-          </div>
+          </aside>
         </div>
-
-        {/* --- Card Footer Status Bar --- */}
-        <div className="border-t bg-muted/40 px-4 py-2 text-[11px] flex items-center justify-between text-muted-foreground">
-          <span>
-            Grade: <strong className={cn("font-bold", scoreStyle.text)}>{scoreBreakdown.grade} ({scoreBreakdown.totalScore}/100)</strong> · Owner:{" "}
-            <strong className="text-foreground">{scoreBreakdown.autoOwnerType}</strong> · Path:{" "}
-            <strong className="text-foreground">{scoreBreakdown.autoPath}</strong>
-          </span>
-          <span className="font-semibold text-primary">
-            {outcome === "pass-p1-p2"
-              ? "Gate 1 Passed — Validated Opportunity"
-              : outcome === "csa-pcs"
-                ? "Route to Paid Consultation (CSA/PCS)"
-                : outcome === "loi-governed"
-                  ? "Route to Strategic Governed LOI"
-                  : outcome === "site-feasibility"
-                    ? "Route to Site Discovery Loop"
-                    : outcome === "hold-rework"
-                      ? "Opportunity on HOLD (Rework Loop)"
-                      : "Opportunity Disqualified / Closed"}
-          </span>
-        </div>
+        <footer className="border-t bg-muted/35 px-4 py-2 text-[10px] text-muted-foreground">
+          Evidence → Rules → Eligibility → Route → Score → Overall Status →
+          Required Next Actions · L2 screening only; G1 remains separately
+          governed.
+        </footer>
       </div>
-
-      {/* --- ALL HANDLES PLACED AT OUTER CONTAINER LEVEL FOR 100% UNRESTRICTED SNAPPING --- */}
-
-      {/* Top Input / Receiver Handle for NO-GO / Strategy Re-entry */}
       <Handle
         type="target"
         position={Position.Top}
         id="in-rework"
         style={{ left: "50%" }}
-        title="NO-GO · Strategy Re-entry / Loopback"
-        className="!top-[-8px] !z-50 !size-4 !border-2 !border-background !bg-rose-600 hover:!bg-red-500 transition hover:!scale-125 cursor-crosshair shadow-md"
+        title="Re-evaluate opportunity"
+        className="!top-[-8px] !z-50 !size-4 !border-2 !border-background !bg-amber-500"
       />
-
-      {/* Left Main Input Handle */}
       <Handle
         type="target"
         position={Position.Left}
         id="in"
         title="Main Input"
-        className="!left-[-8px] !z-50 !size-4 !border-2 !border-background !bg-primary transition hover:!scale-125 cursor-crosshair shadow-md"
+        className="!left-[-8px] !z-50 !size-4 !border-2 !border-background !bg-primary"
       />
-
-      {/* 1. Gate 1 Passed (P1/P2 Fast-Track) */}
       <Handle
         type="source"
         position={Position.Right}
         id="pass-p1-p2"
-        style={{ top: "16%" }}
-        title="Gate 1 Passed — Validated Opportunity (P1/P2 Fast-Track)"
+        style={{ top: "12%" }}
+        title="P1 · Gate 1 passed"
         className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "pass-p1-p2"
-            ? "!bg-emerald-500 ring-2 ring-emerald-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "pass-p1-p2")
+            ? "!bg-emerald-500"
+            : "!bg-emerald-500/55",
         )}
       />
-
-      {/* 2. PROCEED TO PCS / STAGE 1 (Top 32% - P2 Royal Blue) */}
       <Handle
         type="source"
         position={Position.Right}
         id="loi-governed"
-        style={{ top: "32%" }}
-        title="Proceed to PCS / Stage 1 Pre-Construction (P2)"
+        style={{ top: "28%" }}
+        title="P2 · Strong qualified"
         className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "loi-governed"
-            ? "!bg-blue-500 ring-2 ring-blue-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "loi-governed")
+            ? "!bg-blue-500"
+            : "!bg-blue-500/55",
         )}
       />
-
-      {/* 3. Paid CSA / PCS Workstream (Top 48% - P3 Cyan) */}
       <Handle
         type="source"
         position={Position.Right}
         id="csa-pcs"
-        style={{ top: "48%" }}
-        title="Paid CSA / PCS Pre-Construction Consultation"
+        style={{ top: "44%" }}
+        title="P3 · CSA / PCS route"
         className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "csa-pcs"
-            ? "!bg-cyan-500 ring-2 ring-cyan-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "csa-pcs")
+            ? "!bg-cyan-500"
+            : "!bg-cyan-500/55",
         )}
       />
-
-      {/* 4. Site Feasibility & Due Diligence Loop */}
       <Handle
         type="source"
         position={Position.Right}
         id="site-feasibility"
-        style={{ top: "64%" }}
-        title="Site Feasibility & Due Diligence Loop"
+        style={{ top: "60%" }}
+        title="P4 · Site feasibility / technical hold"
         className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "site-feasibility"
-            ? "!bg-amber-500 ring-2 ring-amber-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "site-feasibility")
+            ? "!bg-amber-500"
+            : "!bg-amber-500/55",
         )}
       />
-
-      {/* 5. NO-GO · Disqualified Archive Outlet */}
       <Handle
         type="source"
         position={Position.Right}
         id="nogo-disqualified"
-        style={{ top: "80%" }}
-        title="NO-GO · Disqualified Archive"
+        style={{ top: "76%" }}
+        title="P5 · No-Go / disqualified"
         className={cn(
-          "!right-[-8px] !z-50 !size-4 !border-2 !border-background transition hover:!scale-125 cursor-crosshair shadow-md",
-          outcome === "nogo-disqualified"
-            ? "!bg-red-500 ring-2 ring-red-500/40 animate-pulse"
-            : "!bg-muted-foreground/40",
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "nogo-disqualified")
+            ? "!bg-red-500"
+            : "!bg-red-500/55",
+        )}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="path-loi"
+        style={{ top: "92%" }}
+        title="PI · Governed LOI"
+        className={cn(
+          "!right-0 !z-50 !size-4 !border-2 !border-background",
+          handleIsActive(result, "path-loi")
+            ? "!bg-violet-500"
+            : "!bg-violet-500/55",
         )}
       />
     </div>
   );
 }
-
+function SummaryList({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof CheckCircle2;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border bg-card p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Icon className="size-3.5 text-primary" />
+        {title}
+      </p>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
 export const OpportunityNode = memo(OpportunityNodeComponent);

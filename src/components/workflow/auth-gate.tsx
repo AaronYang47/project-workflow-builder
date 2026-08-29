@@ -47,7 +47,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (AUTH_BYPASS) {
       const workflow = useWorkflowStore.getState();
       if (workflow.workspaceOwnerId !== DEV_USER.id) {
-        workflow.resetWorkspace(DEV_USER.id);
+        useWorkflowStore.setState({ workspaceOwnerId: DEV_USER.id });
       }
       return;
     }

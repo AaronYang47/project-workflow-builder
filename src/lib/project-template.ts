@@ -1,6 +1,11 @@
-import type { WorkflowFile } from "@/types/workflow";
+import {
+  createEmptyExecutionLayer,
+  type WorkflowFile,
+} from "@/types/workflow";
 import { clone } from "@/lib/clone";
 import { buildProjectId, currentYearSuffix, legacyJobNumberFromProjectId } from "@/lib/project-id";
+import { createDefaultHighLevelProcess } from "@/lib/high-level-workflow";
+import { createDefaultDetailedLifecycle } from "@/lib/detailed-workflow";
 
 export const createProjectWorkflow = (
   name: string,
@@ -14,6 +19,23 @@ export const createProjectWorkflow = (
     : digits.length === 3
       ? buildProjectId(digits, "L", yy)
       : "";
+  const detailed = createDefaultDetailedLifecycle(createDefaultHighLevelProcess());
+  const nodes = detailed.graph.nodes.map((node) =>
+    node.id === "project-start"
+      ? {
+          ...node,
+          conditions: [
+            { id: "project-id-required", label: "Project ID is entered", required: true, checked: Boolean(projectId), locked: true },
+          ],
+          customFields: {
+            ...node.customFields,
+            projectId,
+            legacyJobNumber: legacyJobNumberFromProjectId(projectId),
+            nodeUuid: crypto.randomUUID(),
+          },
+        }
+      : node,
+  );
   return {
     graph: {
       schemaVersion: 1,
@@ -25,45 +47,19 @@ export const createProjectWorkflow = (
         updatedAt: now,
         notes: "",
       },
-      nodes: [
-        {
-          id: "project-start",
-          type: "projectStart",
-          title: "Project Start",
-          description: "Start the project and establish its project record.",
-          color: "#2563a9",
-          metadata: {},
-          conditions: [
-            { id: "project-id-required", label: "Project ID is entered", required: true, checked: Boolean(projectId), locked: true },
-          ],
-          documents: [],
-          criteria: [],
-          customFields: {
-            projectId,
-            legacyJobNumber: legacyJobNumberFromProjectId(projectId),
-            nodeUuid: crypto.randomUUID(),
-          },
-          config: { stage: "Project", iconKey: "building", serviceType: "Standard", buildingCode: "", moduleCode: "" },
-        },
-      ],
-      edges: [],
+      nodes,
+      edges: detailed.graph.edges,
       rules: [],
     },
     layout: {
-      nodes: {
-        "project-start": {
-          nodeId: "project-start",
-          x: 220,
-          y: 180,
-          width: 320,
-          height: 384,
-        },
-      },
-      edges: {},
-      viewport: { x: 0, y: 0, zoom: 1 },
+      nodes: detailed.layout.nodes,
+      edges: detailed.layout.edges,
+      viewport: detailed.layout.viewport,
       snapToGrid: true,
       gridSize: 16,
     },
+    highLevel: detailed.highLevel,
+    execution: createEmptyExecutionLayer(),
   };
 };
 

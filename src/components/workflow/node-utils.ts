@@ -12,6 +12,7 @@ import {
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode, WorkflowNodeType } from "@/types/workflow";
 import type { GateCompletionState } from "@/lib/workflow-progress";
+import type { ExecutionSummary } from "@/lib/execution";
 
 export type WorkflowFlowNode = Node<
   {
@@ -19,6 +20,7 @@ export type WorkflowFlowNode = Node<
     emphasized?: boolean;
     dimmed?: boolean;
     reached?: boolean;
+    executionSummary?: ExecutionSummary;
   },
   "workflow"
 >;

@@ -243,19 +243,20 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
         const evalResult = evaluateOpportunity(source);
         const currentOutcome = evalResult.recommendedOutcome;
         const handle = edge.sourceHandle || "pass-p1-p2";
+        const legacyAliases: Record<string, string[]> = {
+          "class-d": ["class-d", "pass-p1-p2", "pass"],
+          "consultation-csa": ["consultation-csa", "csa-pcs"],
+          pcs: ["pcs", "csa-pcs"],
+          "governed-loi": ["governed-loi", "path-loi", "loi-governed"],
+          "technical-review": ["technical-review", "site-feasibility"],
+          "site-feasibility": ["site-feasibility", "hold-rework", "hold"],
+          "nogo-disqualified": ["nogo-disqualified", "nogo", "in-rework"],
+        };
         allowed = Boolean(
-          handle === currentOutcome ||
-            (currentOutcome === "pass-p1-p2" &&
-              (handle === "pass-p1-p2" || handle === "pass")) ||
-            (currentOutcome === "hold-rework" &&
-              (handle === "hold-rework" || handle === "hold")) ||
+          (legacyAliases[currentOutcome] || [currentOutcome]).includes(handle) ||
             (currentOutcome === "nogo-disqualified" &&
-              (handle === "nogo-disqualified" ||
-                handle === "nogo" ||
-                handle === "in-rework" ||
-                edge.label?.toLowerCase().includes("no-go") ||
-                edge.label?.toLowerCase().includes("nogo") ||
-                edge.label?.toLowerCase().includes("rework"))),
+              (edge.label?.toLowerCase().includes("no-go") ||
+                edge.label?.toLowerCase().includes("nogo"))),
         );
       }
       if (!allowed) continue;

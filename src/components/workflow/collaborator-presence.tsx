@@ -3,9 +3,14 @@
 import { useEffect, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Check, Copy, Link2, Sparkles, Users, User } from "lucide-react";
-import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  DEFAULT_COLLAB_PEER_ID,
+  getRandomCollaborator,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { Button } from "@/components/ui/button";
+import { useCurrentTime } from "@/lib/use-current-time";
 
 const PRESET_COLORS = [
   "#10b981", // Emerald
@@ -23,18 +28,57 @@ export function CollaboratorPresence() {
     useCollaborationStore();
   const [copied, setCopied] = useState(false);
   const [editingName, setEditingName] = useState(localUser.name);
+  const now = useCurrentTime();
 
   // Initialize room from URL query on mount
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomParam = urlParams.get("room") || "project-main";
-    setRoomId(roomParam);
-    collaborationManager.initRoom(roomParam);
+    let cancelled = false;
+
+    const initializeCollaboration = async () => {
+      await useCollaborationStore.persist.rehydrate();
+      if (cancelled) return;
+
+      const state = useCollaborationStore.getState();
+      if (state.localUser.peerId === DEFAULT_COLLAB_PEER_ID) {
+        const generated = getRandomCollaborator();
+        state.setLocalUser({
+          peerId:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID().slice(0, 8)
+              : DEFAULT_COLLAB_PEER_ID,
+          ...generated,
+        });
+      }
+
+      const roomParam =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("room") ||
+            "project-main"
+          : "project-main";
+      setRoomId(roomParam);
+
+      // Keep the mobile browser focused on the workflow editor. WebRTC mesh
+      // setup opens several relay connections and can exhaust WebKit's page
+      // process on smaller devices before the first frame is painted.
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia("(max-width: 767px)").matches
+      ) {
+        state.setIsConnected(false);
+        return;
+      }
+
+      collaborationManager.initRoom(roomParam);
+    };
+
+    void initializeCollaboration();
+    return () => {
+      cancelled = true;
+    };
   }, [setRoomId]);
 
   const peersList = Object.values(remotePeers).filter(
-    (p) => Date.now() - p.lastActiveAt < 30000,
+    (p) => now - p.lastActiveAt < 30000,
   );
   const totalUsers = 1 + peersList.length;
 
