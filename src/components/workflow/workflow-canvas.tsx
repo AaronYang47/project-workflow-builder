@@ -31,7 +31,11 @@ import {
   CANVAS_MAX_ZOOM,
   FIT_VIEW_PADDING,
 } from "@/lib/flow-helpers";
-import { PHASE_HEADER_HEIGHT, getAdaptiveNodeSize } from "@/lib/node-layout";
+import {
+  PHASE_HEADER_HEIGHT,
+  getAdaptiveNodeSize,
+  getL1FallbackColor,
+} from "@/lib/node-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
@@ -228,31 +232,6 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
   "stage 08": "#d97706",
   "stage 09": "#475569",
 };
-
-function getL1FallbackColor(title: string, index: number): string {
-  const t = title.toLowerCase();
-  if (t.includes("initial") || t.includes("start")) return "#10b981";
-  if (t.includes("qualification") || t.includes("opportunity")) return "#059669";
-  if (t.includes("g1") || t.includes("commercial")) return "#06b6d4";
-  if (t.includes("g2") || t.includes("technical")) return "#0284c7";
-  if (t.includes("g3") || t.includes("production")) return "#2563eb";
-  if (t.includes("g4") || t.includes("factory")) return "#7c3aed";
-  if (t.includes("g5") || t.includes("warranty")) return "#9333ea";
-  if (t.includes("commissioning")) return "#d97706";
-  if (t.includes("close")) return "#475569";
-  const palette = [
-    "#10b981",
-    "#059669",
-    "#06b6d4",
-    "#0284c7",
-    "#2563eb",
-    "#7c3aed",
-    "#9333ea",
-    "#d97706",
-    "#475569",
-  ];
-  return palette[index % palette.length];
-}
 
   const modelNodes = useMemo<Node[]>(() => {
     const highLevelNodes = file.highLevel?.graph.nodes || [];

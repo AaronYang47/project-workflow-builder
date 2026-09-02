@@ -5,7 +5,7 @@ import type {
   WorkflowNodeType,
 } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
-import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { getAdaptiveNodeSize, getL1FallbackColor } from "@/lib/node-layout";
 import { absoluteLayoutPosition } from "@/lib/layout-geometry";
 import {
   expandGapsForLabeledEdges,
@@ -141,20 +141,88 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       };
   }
 
-  const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
-  const gateNodes = file.graph.nodes.filter((n) => n.type === "gate");
-  const phaseNodes = file.graph.nodes.filter((n) => n.type === "phase");
+  // 1. Ensure Phase container exists for every L1 phase that contains L2 steps!
+  const highLevelNodes = file.highLevel?.graph.nodes || [];
+  const updatedGraphNodes = [...file.graph.nodes];
+  const existingPhases = updatedGraphNodes.filter((n) => n.type === "phase");
+
+  for (let index = 0; index < highLevelNodes.length; index++) {
+    const hl = highLevelNodes[index];
+    const linkedIds = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
+    if (!linkedIds.length) continue;
+
+    let phase = existingPhases.find(
+      (node) =>
+        node.title.trim().toLowerCase() === hl.title.trim().toLowerCase() ||
+        linkedIds.some((id) => original[id]?.parentId === node.id),
+    );
+
+    const phaseColor =
+      hl.backgroundColor && hl.backgroundColor !== "transparent"
+        ? hl.backgroundColor
+        : getL1FallbackColor(hl.title, index);
+
+    const phaseId = phase?.id || `phase-${hl.id}`;
+    if (!phase) {
+      const newPhase = {
+        id: phaseId,
+        type: "phase" as const,
+        title: hl.title,
+        description: hl.description || `Phase frame covering ${hl.title} steps`,
+        color: phaseColor,
+        config: { stage: hl.title },
+        conditions: [],
+        documents: [],
+        criteria: [],
+        customFields: {},
+        metadata: { workflowSection: hl.title },
+      };
+      phase = newPhase;
+      updatedGraphNodes.push(newPhase);
+      nodes[phaseId] = {
+        nodeId: phaseId,
+        x: 0,
+        y: 0,
+        width: 420,
+        height: 280,
+        zIndex: 0,
+      };
+    } else {
+      phase.color = phaseColor;
+    }
+
+    // Automatically box all L2 steps belonging to this L1 phase into this Phase!
+    for (const stepId of linkedIds) {
+      if (!original[stepId]?.parentId) {
+        original[stepId] = { ...original[stepId], parentId: phaseId };
+      }
+      const parentId = original[stepId]?.parentId;
+      if (parentId && parentId !== phaseId) {
+        const parentNode = updatedGraphNodes.find((n) => n.id === parentId);
+        if (parentNode?.type === "gate") {
+          original[parentNode.id] = {
+            ...original[parentNode.id],
+            parentId: phaseId,
+          };
+        }
+      }
+    }
+  }
+
+  const nodeMap = new Map(updatedGraphNodes.map((n) => [n.id, n]));
+  const gateNodes = updatedGraphNodes.filter((n) => n.type === "gate");
+  const phaseNodes = updatedGraphNodes.filter((n) => n.type === "phase");
 
   // 1. Position all GATE containers (aligned at top with Phase, wrapping their steps)
   for (const gate of gateNodes) {
-    let gateChildren = file.graph.nodes
+    let gateChildren = updatedGraphNodes
       .filter((node) => original[node.id]?.parentId === gate.id)
       .map((node) => nodes[node.id])
       .filter(Boolean);
 
     const parentPhaseId = original[gate.id]?.parentId;
     if (gateChildren.length === 0 && parentPhaseId) {
-      const phaseSteps = file.graph.nodes
+      const phaseSteps = updatedGraphNodes
         .filter(
           (node) =>
             original[node.id]?.parentId === parentPhaseId &&
@@ -202,30 +270,9 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }
   }
 
-  // Automatically link steps belonging to the phase's matched L1 phase
-  const highLevelNodes = file.highLevel?.graph.nodes || [];
-  for (const phase of phaseNodes) {
-    const matchedL1 = highLevelNodes.find(
-      (hl) =>
-        hl.title.trim().toLowerCase() === phase.title.trim().toLowerCase() ||
-        (hl.linkedLayer2NodeIds ?? []).some(
-          (id) => original[id]?.parentId === phase.id,
-        ),
-    );
-    if (matchedL1) {
-      const linkedIds =
-        matchedL1.linkedLayer2NodeIds ?? matchedL1.linkedDetailedNodeIds ?? [];
-      for (const id of linkedIds) {
-        if (!original[id]?.parentId) {
-          original[id] = { ...original[id], parentId: phase.id };
-        }
-      }
-    }
-  }
-
   // 2. Position all PHASE containers (enclosing both steps and nested gates)
   for (const phase of phaseNodes) {
-    const memberNodes = file.graph.nodes
+    const memberNodes = updatedGraphNodes
       .filter((node) => {
         if (node.id === phase.id) return false;
         const pId = original[node.id]?.parentId;
@@ -289,10 +336,18 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
 
   return {
     ...file,
-    graph: { ...file.graph, edges: normalizeGateHandles(file) },
+    graph: {
+      ...file.graph,
+      nodes: updatedGraphNodes,
+      edges: normalizeGateHandles(file),
+    },
     layout: {
       ...file.layout,
-      nodes: restoreChildCoordinates(file, original, nodes),
+      nodes: restoreChildCoordinates(
+        { ...file, graph: { ...file.graph, nodes: updatedGraphNodes } },
+        original,
+        nodes,
+      ),
       // Preserve original connection lines: do not mutate or reroute them over containers!
       edges: file.layout.edges,
       viewport: file.layout.viewport,
