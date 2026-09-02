@@ -1258,11 +1258,11 @@ export function PyramidLocationWidget({
               </p>
             ) : (
               <div
-                className="absolute left-0 top-0 origin-top-left will-change-transform"
+                className="absolute left-0 top-0 origin-top-left will-change-transform [transform-style:preserve-3d] [backface-visibility:hidden]"
                 style={{
                   width: diagram.width,
                   height: diagram.height,
-                  transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+                  transform: `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.zoom})`,
                 }}
                 role="img"
                 aria-label="L1 to L2 process locator diagram"
@@ -1300,7 +1300,7 @@ export function PyramidLocationWidget({
                   width={diagram.width}
                   height={diagram.height}
                   viewBox={`0 0 ${diagram.width} ${diagram.height}`}
-                  className="absolute inset-0 overflow-visible"
+                  className="pointer-events-none absolute inset-0 overflow-visible [contain:paint]"
                 >
                   <defs>
                     <marker
@@ -1371,14 +1371,16 @@ export function PyramidLocationWidget({
                     key={`${card.layer}-${card.id}`}
                     type="button"
                     onClick={() => openCard(card)}
-                    className={`absolute flex cursor-pointer flex-col justify-center rounded-[3px] border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${statusTone(card.status, card.layer)} ${
-                      card.breathe ? `pyramid-breathe pyramid-breathe-${card.layer.toLowerCase()}` : "overflow-hidden"
+                    className={`absolute flex cursor-pointer flex-col justify-center rounded-[3px] border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 [transform:translateZ(0)] [backface-visibility:hidden] ${statusTone(card.status, card.layer)} ${
+                      card.breathe
+                        ? `pyramid-breathe pyramid-breathe-${card.layer.toLowerCase()} transition-none`
+                        : "transition-shadow hover:shadow-md hover:ring-1 hover:ring-sky-500/40 overflow-hidden"
                     }`}
                     style={{
-                      left: card.x,
-                      top: card.y,
-                      width: card.width,
-                      height: card.height,
+                      left: Math.round(card.x),
+                      top: Math.round(card.y),
+                      width: Math.round(card.width),
+                      height: Math.round(card.height),
                     }}
                     title={`Open ${card.layer} · ${card.label}`}
                   >

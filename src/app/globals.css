@@ -324,72 +324,48 @@ button:disabled { cursor: not-allowed; }
 
 .pyramid-breathe {
   overflow: visible;
-  will-change: box-shadow, border-color, background-color;
+  transition: none !important;
+  will-change: box-shadow, border-color;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 .pyramid-breathe-l1 {
-  animation: pyramid-breathe-l1 4.6s ease-in-out infinite;
+  animation: pyramid-breathe-l1 4s ease-in-out infinite;
 }
 .pyramid-breathe-l2 {
-  animation: pyramid-breathe-l2 4.8s ease-in-out 0.45s infinite;
+  animation: pyramid-breathe-l2 4s ease-in-out 0.4s infinite;
 }
 .pyramid-breathe-l3 {
-  animation: pyramid-breathe-l3 5s ease-in-out 0.9s infinite;
+  animation: pyramid-breathe-l3 4s ease-in-out 0.8s infinite;
 }
 @keyframes pyramid-breathe-l1 {
   0%, 100% {
-    border-color: rgb(21 154 117 / 42%);
-    background-color: rgb(16 185 129 / 10%);
-    box-shadow:
-      inset 0 0 0 1px rgb(21 154 117 / 8%),
-      0 0 0 1px rgb(21 154 117 / 16%),
-      0 0 14px rgb(21 154 117 / 18%);
+    border-color: rgb(21 154 117 / 50%);
+    box-shadow: 0 0 0 1px rgb(21 154 117 / 20%), 0 0 8px rgb(21 154 117 / 15%);
   }
   50% {
-    border-color: rgb(52 211 153 / 88%);
-    background-color: rgb(16 185 129 / 22%);
-    box-shadow:
-      inset 0 0 18px rgb(16 185 129 / 16%),
-      0 0 0 2px rgb(52 211 153 / 38%),
-      0 0 22px rgb(16 185 129 / 42%),
-      0 0 42px rgb(52 211 153 / 22%);
+    border-color: rgb(52 211 153 / 90%);
+    box-shadow: 0 0 0 2px rgb(52 211 153 / 40%), 0 0 16px rgb(52 211 153 / 30%);
   }
 }
 @keyframes pyramid-breathe-l2 {
   0%, 100% {
-    border-color: rgb(14 165 233 / 42%);
-    background-color: rgb(14 165 233 / 12%);
-    box-shadow:
-      inset 0 0 0 1px rgb(14 165 233 / 8%),
-      0 0 0 1px rgb(14 165 233 / 16%),
-      0 0 14px rgb(56 189 248 / 18%);
+    border-color: rgb(14 165 233 / 50%);
+    box-shadow: 0 0 0 1px rgb(14 165 233 / 20%), 0 0 8px rgb(14 165 233 / 15%);
   }
   50% {
-    border-color: rgb(56 189 248 / 88%);
-    background-color: rgb(14 165 233 / 24%);
-    box-shadow:
-      inset 0 0 18px rgb(14 165 233 / 16%),
-      0 0 0 2px rgb(56 189 248 / 38%),
-      0 0 22px rgb(14 165 233 / 42%),
-      0 0 42px rgb(125 211 252 / 22%);
+    border-color: rgb(56 189 248 / 90%);
+    box-shadow: 0 0 0 2px rgb(56 189 248 / 40%), 0 0 16px rgb(56 189 248 / 30%);
   }
 }
 @keyframes pyramid-breathe-l3 {
   0%, 100% {
-    border-color: rgb(139 92 246 / 42%);
-    background-color: rgb(139 92 246 / 16%);
-    box-shadow:
-      inset 0 0 0 1px rgb(139 92 246 / 10%),
-      0 0 0 1px rgb(139 92 246 / 18%),
-      0 0 14px rgb(167 139 250 / 20%);
+    border-color: rgb(139 92 246 / 50%);
+    box-shadow: 0 0 0 1px rgb(139 92 246 / 20%), 0 0 8px rgb(139 92 246 / 15%);
   }
   50% {
     border-color: rgb(167 139 250 / 90%);
-    background-color: rgb(139 92 246 / 30%);
-    box-shadow:
-      inset 0 0 18px rgb(139 92 246 / 20%),
-      0 0 0 2px rgb(167 139 250 / 40%),
-      0 0 24px rgb(139 92 246 / 48%),
-      0 0 44px rgb(196 181 253 / 24%);
+    box-shadow: 0 0 0 2px rgb(167 139 250 / 40%), 0 0 16px rgb(167 139 250 / 30%);
   }
 }
 
