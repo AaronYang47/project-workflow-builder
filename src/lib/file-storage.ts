@@ -114,6 +114,18 @@ export function saveUploadedFile(file: UploadedFileRecord): void {
   window.dispatchEvent(new CustomEvent("workflow:uploaded-files-changed", { detail: file }));
 }
 
+export function deleteUploadedFile(fileId: string): void {
+  if (typeof window === "undefined") return;
+  const current = getUploadedFiles();
+  const updated = current.filter((item) => item.id !== fileId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  window.dispatchEvent(
+    new CustomEvent("workflow:uploaded-files-changed", {
+      detail: { id: fileId, action: "deleted" },
+    }),
+  );
+}
+
 export async function uploadFileToR2(
   file: File,
   meta: {
