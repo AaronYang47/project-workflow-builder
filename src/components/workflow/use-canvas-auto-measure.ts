@@ -121,35 +121,61 @@ export function useCanvasAutoMeasure(
             }
           });
 
-        // 4. Adapt Phase Container sizes to envelope all child nodes
-        for (const phase of current.graph.nodes.filter(
-          (node) => node.type === "phase",
+        // 4. Adapt Phase & Gate Container sizes to envelope all member nodes (including Gate and Steps)
+        for (const container of current.graph.nodes.filter(
+          (node) => node.type === "phase" || node.type === "gate",
         )) {
-          const children = Object.values(current.layout.nodes).filter(
-            (layout) => layout.parentId === phase.id,
+          const isPhase = container.type === "phase";
+          const memberLayouts = Object.values(current.layout.nodes).filter(
+            (layout) => {
+              if (layout.nodeId === container.id) return false;
+              if (layout.parentId === container.id) return true;
+              if (
+                isPhase &&
+                layout.parentId &&
+                current.layout.nodes[layout.parentId]?.parentId === container.id
+              ) {
+                return true;
+              }
+              return false;
+            },
           );
-          if (!children.length) continue;
+          if (!memberLayouts.length) continue;
+
+          const containerLayout = current.layout.nodes[container.id];
+          if (!containerLayout) continue;
+
+          const maxMemberRight = Math.max(
+            ...memberLayouts.map((l) => {
+              const w = patches[l.nodeId]?.width ?? l.width ?? 280;
+              return l.x + w;
+            }),
+          );
+
+          const maxMemberBottom = Math.max(
+            ...memberLayouts.map((l) => {
+              const h = patches[l.nodeId]?.height ?? l.height ?? 360;
+              return l.y + h;
+            }),
+          );
+
+          const padX = isPhase ? 36 : 24;
+          const padBottom = isPhase ? 48 : 36;
 
           const targetWidth = Math.max(
-            420,
-            ...children.map((layout) => layout.x + layout.width + 42),
+            isPhase ? 380 : 340,
+            maxMemberRight - containerLayout.x + padX,
           );
           const targetHeight = Math.max(
-            260,
-            ...children.map(
-              (layout) =>
-                layout.y +
-                (patches[layout.nodeId]?.height ?? layout.height) +
-                42,
-            ),
+            isPhase ? 280 : 240,
+            maxMemberBottom - containerLayout.y + padBottom,
           );
-          const phaseLayout = current.layout.nodes[phase.id];
+
           if (
-            !phaseLayout ||
-            Math.abs(targetWidth - phaseLayout.width) > 2 ||
-            Math.abs(targetHeight - phaseLayout.height) > 2
+            Math.abs(targetWidth - containerLayout.width) > 4 ||
+            Math.abs(targetHeight - containerLayout.height) > 4
           ) {
-            patches[phase.id] = {
+            patches[container.id] = {
               width: targetWidth,
               height: targetHeight,
             };
