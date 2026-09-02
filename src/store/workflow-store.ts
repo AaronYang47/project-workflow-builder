@@ -864,7 +864,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           const isPhase =
             nextFile.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
           const PAD_X = 36;
-          const PAD_TOP = isPhase && containsGate ? 190 : 110;
+          const PAD_TOP = isPhase && containsGate ? 330 : 176;
           const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
 
           nextFile.layout.nodes[phaseId] = {
@@ -923,7 +923,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         const isPhase =
           file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
         const PAD_X = 36;
-        const PAD_TOP = isPhase && containsGate ? 190 : 110;
+        const PAD_TOP = isPhase && containsGate ? 330 : 176;
         const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
 
         const nextFile = clone(file);

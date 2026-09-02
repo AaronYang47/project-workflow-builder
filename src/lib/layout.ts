@@ -188,7 +188,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 24;
-      const GATE_PAD_TOP = 110;
+      const GATE_PAD_TOP = 176;
       const PAD_BOTTOM = 44;
 
       nodes[gate.id] = {
@@ -237,7 +237,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
 
       const PAD_X = 36;
       // When phase wraps an inner Gate, place phase header cleanly above the Gate header to eliminate overlap
-      const PHASE_PAD_TOP = containsGate ? 190 : 110;
+      const PHASE_PAD_TOP = containsGate ? 330 : 176;
       const PAD_BOTTOM = containsGate ? 56 : 48;
       const phaseY = COMMON_STEP_Y - PHASE_PAD_TOP;
 

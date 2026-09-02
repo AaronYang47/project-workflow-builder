@@ -688,6 +688,12 @@ export function SemanticEdge({
         const crossedObstacles = cards.filter(
           (item) => item.x <= right && item.x + item.width >= left,
         );
+        const intermediateObstacles = crossedObstacles.filter(
+          (obs) => obs.id !== domain.source && obs.id !== domain.target,
+        );
+        if (intermediateObstacles.length === 0 && targetLeft >= sourceRight - 10) {
+          return undefined;
+        }
         // Centered escape and approach in gaps between obstacles, with strict directional clamping
         let safeApproachX = targetLeft - 24;
         let safeEscapeX = sourceRight + 24;

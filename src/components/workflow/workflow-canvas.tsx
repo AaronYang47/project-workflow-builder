@@ -609,7 +609,7 @@ function getL1FallbackColor(title: string, index: number): string {
           const maxY = Math.max(...boundsList.map((b) => b.y + b.height));
 
           const PAD_X = 40;
-          const PAD_TOP = 136;
+          const PAD_TOP = 176;
           const PAD_BOTTOM = 52;
 
           const phaseInfo = getPhaseInfo(targetNode);
