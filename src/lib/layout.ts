@@ -88,19 +88,19 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }),
   );
 
-  const phaseIds = new Set(
+  const containerIds = new Set(
     file.graph.nodes
-      .filter((node) => node.type === "phase")
+      .filter((node) => node.type === "phase" || node.type === "gate")
       .map((node) => node.id),
   );
-  const isPhaseChild = (id: string) => {
+  const isContainerChild = (id: string) => {
     const parentId = original[id]?.parentId;
-    return Boolean(parentId && phaseIds.has(parentId));
+    return Boolean(parentId && containerIds.has(parentId));
   };
   const mainNodes = file.graph.nodes.filter((node) => {
-    if (node.type === "phase") return false;
+    if (node.type === "phase" || node.type === "gate") return false;
     if (legacyAuxiliaryTypes.has(node.type)) return false;
-    if (isDecorativeReference(node.type) && !isPhaseChild(node.id))
+    if (isDecorativeReference(node.type) && !isContainerChild(node.id))
       return false;
     return true;
   });
@@ -140,30 +140,51 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       };
   }
 
+  // Auto-fit all Gate and Phase container bounds around their children
+  const containers = file.graph.nodes.filter(
+    (n) => n.type === "gate" || n.type === "phase",
+  );
+  const sortedContainers = [...containers].sort((a, b) =>
+    a.type === "gate" ? -1 : 1,
+  );
+  for (const container of sortedContainers) {
+    const children = file.graph.nodes
+      .filter((node) => original[node.id]?.parentId === container.id)
+      .map((node) => nodes[node.id])
+      .filter(Boolean);
+    if (!children.length) continue;
+
+    const minX = Math.min(...children.map((c) => c.x));
+    const maxX = Math.max(...children.map((c) => c.x + (c.width || 270)));
+    const minY = Math.min(...children.map((c) => c.y));
+    const maxY = Math.max(...children.map((c) => c.y + (c.height || 220)));
+
+    const PAD_X = 40;
+    const PAD_TOP = 136;
+    const PAD_BOTTOM = 44;
+
+    nodes[container.id] = {
+      ...nodes[container.id],
+      x: minX - PAD_X,
+      y: minY - PAD_TOP,
+      width: Math.max(360, maxX - minX + PAD_X * 2),
+      height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
+      zIndex: 0,
+    };
+  }
+
   const phases = file.graph.nodes.filter((node) => node.type === "phase");
-  const { groupBottom, projectStartNode, projectStartLayout } = packPhases(
-    file,
-    original,
-    nodes,
-    phases,
+  const groupBottom = Math.max(
+    ...Object.values(nodes).map((n) => n.y + (n.height || 200)),
+    300,
   );
-  placeProjectStart(
-    file,
-    nodes,
-    phases,
-    mainNodes,
-    projectStartNode,
-    projectStartLayout,
-  );
-  placeEmptyPhases(file, original, nodes, phases, phaseIds);
-  placeBranchNodes(file, nodes);
   const packedBottom = expandGapsForLabeledEdges(file, original, nodes, phases);
   const layoutBottom = Math.max(groupBottom, packedBottom);
   placeDecorativeReferences(
     file,
     nodes,
     layoutBottom,
-    isPhaseChild,
+    isContainerChild,
     isDecorativeReference,
     legacyAuxiliaryTypes,
   );

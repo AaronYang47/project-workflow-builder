@@ -106,10 +106,8 @@ export function restoreChildCoordinates(
     if (!parentId || !nodes[parentId]) continue;
     rendered[node.id] = {
       ...nodes[node.id],
-      x: nodes[node.id].x - nodes[parentId].x,
-      y: nodes[node.id].y - nodes[parentId].y,
       parentId,
-      zIndex: 1,
+      zIndex: 10,
     };
   }
   return rendered;
