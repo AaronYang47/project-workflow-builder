@@ -14,11 +14,12 @@ export async function onRequestPost(context: {
       return Response.json({ ok: false, error: "No file provided" }, { status: 400 });
     }
 
-    const fileName = (file as File).name;
+    const rawFileName = (file as File).name;
+    const fileName = rawFileName.replace(/^r2-\d+(-[a-z0-9]+)?-/, "");
     const fileSize = (file as File).size;
     const fileType = (file as File).type || "application/octet-stream";
 
-    const key = `${category}/${id}-${fileName}`;
+    const key = `${category}/${fileName}`;
     let r2Url: string | undefined;
 
     if (context.env.R2_BUCKET) {
@@ -27,8 +28,8 @@ export async function onRequestPost(context: {
           contentType: fileType,
         },
         customMetadata: {
-          id,
-          title,
+          id: fileName,
+          title: title || fileName,
           description,
           category,
           fileName,
@@ -39,13 +40,13 @@ export async function onRequestPost(context: {
 
     return Response.json({
       ok: true,
-      id,
+      id: fileName,
       key,
       fileName,
       fileSize,
       fileType,
       category,
-      title,
+      title: title || fileName,
       description,
       url: r2Url,
     });

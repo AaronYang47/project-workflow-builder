@@ -135,7 +135,8 @@ export async function uploadFileToR2(
     reader.readAsDataURL(file);
   });
 
-  const recordId = `r2-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const cleanName = file.name.replace(/^r2-\d+(-[a-z0-9]+)?-/, "");
+  const recordId = cleanName;
   let r2Url: string | undefined;
   let remoteKey: string | undefined;
 
@@ -145,7 +146,10 @@ export async function uploadFileToR2(
     formData.append("file", file);
     formData.append("id", recordId);
     formData.append("category", meta.category);
-    formData.append("title", meta.title);
+    formData.append(
+      "title",
+      (meta.title || cleanName).replace(/^r2-\d+(-[a-z0-9]+)?-/, ""),
+    );
     formData.append("description", meta.description);
 
     const response = await fetch("/api/files/upload", {
@@ -168,11 +172,14 @@ export async function uploadFileToR2(
   const record: UploadedFileRecord = {
     id: recordId,
     key: remoteKey,
-    fileName: file.name,
+    fileName: cleanName,
     fileSize: file.size,
     fileType: file.type || "application/octet-stream",
     category: meta.category,
-    title: meta.title.trim() || file.name,
+    title:
+      (meta.title || cleanName)
+        .replace(/^r2-\d+(-[a-z0-9]+)?-/, "")
+        .trim() || cleanName,
     description: meta.description.trim(),
     uploadedAt: new Date().toISOString(),
     url: r2Url,

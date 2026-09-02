@@ -33,9 +33,15 @@ export async function onRequestGet(context: {
         | "legal"
         | "customer"
         | "supporting";
-      const fileName = meta.fileName || keyParts.slice(1).join("/") || obj.key;
-      const id = meta.id || obj.key;
-      const title = meta.title || fileName;
+      const rawFileName =
+        meta.fileName || keyParts.slice(1).join("/") || obj.key;
+      const fileName = rawFileName.replace(/^r2-\d+(-[a-z0-9]+)?-/, "");
+
+      const rawTitle = meta.title || fileName;
+      const title = rawTitle.replace(/^r2-\d+(-[a-z0-9]+)?-/, "");
+
+      const rawId = meta.id || obj.key;
+      const id = rawId.replace(/^r2-\d+(-[a-z0-9]+)?-/, "");
       const description = meta.description || "";
       const uploadedAt = obj.uploaded
         ? new Date(obj.uploaded).toISOString()

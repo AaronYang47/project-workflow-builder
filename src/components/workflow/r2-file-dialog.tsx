@@ -72,9 +72,7 @@ export function R2FileDialog({
     if (file) {
       setSelectedFile(file);
       if (!title) {
-        // Auto-fill title from clean filename
-        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-        setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+        setTitle(file.name);
       }
     }
   };
