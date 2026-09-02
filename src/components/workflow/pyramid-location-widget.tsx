@@ -20,14 +20,16 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { isReferenceNodeType, type DomainNode, type ExecutionItem, type HighLevelNode } from "@/types/workflow";
 
-type Layer = "L1" | "L2";
-type ViewLayer = Layer | "L3";
+type Layer = "L1" | "L2" | "L3";
+type ViewLayer = Layer;
 
 type PyramidCard = {
   id: string;
   layer: Layer;
   label: string;
   subtitle: string;
+  nodeId?: string;
+  conditionId?: string;
 };
 
 type FlowStatus = "open" | "current" | "blocked" | "locked";
@@ -56,6 +58,10 @@ const L2_GAP = 64;
 const V_GAP = 96;
 const L1_ACTION_GAP = 8;
 const L1_ACTION_H = 28;
+const L2_ACTION_GAP = 8;
+const L2_ACTION_H = 26;
+const L3_STACK_GAP = 10;
+const L3_GAP = 18;
 const PAD = 28;
 const LAYER_RAIL = 134;
 const CORNER = 10;
@@ -223,6 +229,7 @@ function linkedIds(node: HighLevelNode) {
 
 type L2Branch = {
   l2: PyramidCard;
+  l3: PyramidCard[];
 };
 
 function isWorkflowL2(node: DomainNode) {
@@ -257,15 +264,56 @@ function branchForLayer2(
   nodes: DomainNode[],
 ): L2Branch {
   const node = nodes.find((item) => item.id === layer2Id);
+  const l2Card: PyramidCard = node
+    ? l2CardFromNode(node)
+    : {
+        id: layer2Id,
+        layer: "L2",
+        label: layer2Id.replace(/[-_]/g, " "),
+        subtitle: "L2 node",
+      };
+
+  let l3Cards: PyramidCard[] = [];
+  if (node && node.conditions && node.conditions.length > 0) {
+    l3Cards = node.conditions.map((c, i) => ({
+      id: `${node.id}-${c.id || `c-${i}`}`,
+      layer: "L3" as const,
+      label: c.label?.trim() || `Condition ${i + 1}`,
+      subtitle: c.checked
+        ? "Condition Passed"
+        : c.description?.trim() || (c.required ? "Required Form" : "Optional Form"),
+      nodeId: node.id,
+      conditionId: c.id,
+    }));
+  } else if (node) {
+    l3Cards = [
+      {
+        id: `${node.id}-legal`,
+        layer: "L3" as const,
+        label: "Legal Documents",
+        subtitle: "Contracts, deeds & permits",
+        nodeId: node.id,
+      },
+      {
+        id: `${node.id}-customer`,
+        layer: "L3" as const,
+        label: "Customer Information",
+        subtitle: "Specs & authorizations",
+        nodeId: node.id,
+      },
+      {
+        id: `${node.id}-supporting`,
+        layer: "L3" as const,
+        label: "Supporting Documents",
+        subtitle: "Drawings & calculations",
+        nodeId: node.id,
+      },
+    ];
+  }
+
   return {
-    l2: node
-      ? l2CardFromNode(node)
-      : {
-          id: layer2Id,
-          layer: "L2",
-          label: layer2Id.replace(/[-_]/g, " "),
-          subtitle: "L2 node",
-        },
+    l2: l2Card,
+    l3: l3Cards,
   };
 }
 
@@ -378,17 +426,18 @@ function routeDown(
   const y2 = to.y;
   const stubX = from.x + from.width / 2;
   const destX = to.x + to.width / 2;
+  const startY = y1 + exitInset;
   const channelY = Math.min(
     y2 - 18,
-    y1 + exitInset + 26 + sourceBand * CHANNEL,
+    startY + 26 + sourceBand * CHANNEL,
   );
-  const r = Math.min(CORNER, Math.abs(destX - stubX) / 2, (channelY - y1) / 2, (y2 - channelY) / 2);
+  const r = Math.min(CORNER, Math.abs(destX - stubX) / 2, (channelY - startY) / 2, (y2 - channelY) / 2);
   if (Math.abs(stubX - destX) < 2 || r < 2) {
-    return `M ${destX} ${y1} L ${destX} ${y2}`;
+    return `M ${destX} ${startY} L ${destX} ${y2}`;
   }
   const dir = Math.sign(destX - stubX);
   return [
-    `M ${stubX} ${y1}`,
+    `M ${stubX} ${startY}`,
     `L ${stubX} ${channelY - r}`,
     `Q ${stubX} ${channelY} ${stubX + dir * r} ${channelY}`,
     `L ${destX - dir * r} ${channelY}`,
@@ -472,7 +521,9 @@ function assignEdgePaths(cards: PositionedCard[], edges: PyramidEdge[]) {
         const exitInset =
           edge.from.layer === "L1" && edge.to.layer === "L2"
             ? L1_ACTION_GAP + L1_ACTION_H
-            : 0;
+            : edge.from.layer === "L2" && edge.to.layer === "L3"
+              ? L2_ACTION_GAP + L2_ACTION_H
+              : 0;
         edge.path = routeDown(edge.from, edge.to, sourceBand, exitInset);
       }
     });
@@ -496,6 +547,9 @@ function statusTone(status: FlowStatus, layer: Layer) {
   }
   if (status === "blocked") {
     return "border-slate-300 bg-white text-muted-foreground dark:border-slate-500 dark:bg-card";
+  }
+  if (layer === "L3") {
+    return "border-violet-500/55 bg-violet-500/15 text-foreground dark:border-violet-400/50 dark:bg-violet-950/25";
   }
   if (layer === "L2") {
     return "border-sky-500/55 bg-sky-500/15 text-foreground";
@@ -549,6 +603,12 @@ export function PyramidLocationWidget({
   const collapsedL1SeedRef = useRef(
     new Set(highLevelNodes.map((node) => node.id)),
   );
+  const [collapsedL2Ids, setCollapsedL2Ids] = useState<Set<string>>(
+    () => new Set(nodes.map((node) => node.id)),
+  );
+  const collapsedL2SeedRef = useRef(
+    new Set(nodes.map((node) => node.id)),
+  );
   const [dock, setDock] = useState<DockCorner>(readDockCorner);
   const [dockPos, setDockPos] = useState<{ x: number; y: number } | null>(null);
   const [dockDragging, setDockDragging] = useState(false);
@@ -601,6 +661,19 @@ export function PyramidLocationWidget({
       return next;
     });
     collapsedL1SeedRef.current = groupIds;
+
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    setCollapsedL2Ids((current) => {
+      const next = new Set(current);
+      for (const id of nodeIds) {
+        if (!collapsedL2SeedRef.current.has(id)) next.add(id);
+      }
+      for (const id of next) {
+        if (!nodeIds.has(id)) next.delete(id);
+      }
+      return next;
+    });
+    collapsedL2SeedRef.current = nodeIds;
   }, [executionItems, highLevelEdges, highLevelNodes, layer2Edges, nodes]);
 
   const applyCamera = useCallback((nextCamera: Camera) => {
@@ -826,6 +899,10 @@ export function PyramidLocationWidget({
       l1: { ...group.l1, ...measureCard(group.l1) },
       l2: group.l2.map((branch) => ({
         l2: { ...branch.l2, ...measureCard(branch.l2) },
+        l3: (branch.l3 || []).map((l3Card) => ({
+          ...l3Card,
+          ...measureCard(l3Card),
+        })),
       })),
     }));
     const l1Height = Math.max(48, ...sized.map((group) => group.l1.height));
@@ -900,6 +977,17 @@ export function PyramidLocationWidget({
       ];
     });
 
+    const l2Actions: {
+      id: string;
+      label: string;
+      x: number;
+      y: number;
+      width: number;
+      count: number;
+    }[] = [];
+
+    let maxL3Bottom = l2Y + l2Height;
+
     layerX = l2Start;
     l2Items.forEach(({ branch, groupIndex, isFirstInGroup }) => {
       const l1Card = l1Cards[groupIndex];
@@ -911,7 +999,7 @@ export function PyramidLocationWidget({
         y: l2Y,
         width: branch.l2.width,
         height: l2Height,
-        current: branch.l2.id === focusLayer2Id && viewLayer !== "L1",
+        current: branch.l2.id === focusLayer2Id && viewLayer === "L2",
         breathe: false,
         status: l2Status,
       };
@@ -926,6 +1014,82 @@ export function PyramidLocationWidget({
           path: "",
         });
       }
+
+      if (branch.l3 && branch.l3.length > 0) {
+        l2Actions.push({
+          id: l2Card.id,
+          label: l2Card.label,
+          x: l2Card.x,
+          y: l2Card.y + l2Card.height + L2_ACTION_GAP,
+          width: l2Card.width,
+          count: branch.l3.length,
+        });
+
+        const isL2Expanded = !collapsedL2Ids.has(l2Card.id);
+        if (isL2Expanded) {
+          let currL3Y = l2Card.y + l2Card.height + L2_ACTION_GAP + L2_ACTION_H + L3_GAP;
+          let prevL3Card: PositionedCard | null = null;
+
+          branch.l3.forEach((l3Item, l3Idx) => {
+            const l3Width = Math.min(l2Card.width, l3Item.width);
+            const l3X = l2Card.x + (l2Card.width - l3Width) / 2;
+            const l3Height = l3Item.height;
+
+            const domainNode = nodes.find((n) => n.id === branch.l2.id);
+            const condition = domainNode?.conditions?.find((c) => c.id === l3Item.conditionId);
+            const isPassed = condition?.checked;
+            const l3Status: FlowStatus = isPassed
+              ? "open"
+              : l2Card.status === "open" || l2Card.status === "current"
+                ? "open"
+                : "locked";
+
+            const isCurrentL3 = Boolean(
+              (viewLayer === "L3" && executionNodeId === branch.l2.id && l3Idx === 0) ||
+              (viewLayer === "L3" && l3Item.conditionId && condition?.id === l3Item.conditionId && executionNodeId === branch.l2.id)
+            );
+
+            const l3Card: PositionedCard = {
+              ...l3Item,
+              x: l3X,
+              y: currL3Y,
+              width: l3Width,
+              height: l3Height,
+              current: isCurrentL3,
+              breathe: false,
+              status: l3Status,
+            };
+            cards.push(l3Card);
+
+            if (l3Idx === 0) {
+              edges.push({
+                id: `${l2Card.id}->${l3Card.id}`,
+                from: l2Card,
+                to: l3Card,
+                direction: "down",
+                flowing: edgeFlows(l2Card.status, l3Card.status),
+                path: "",
+              });
+            } else if (prevL3Card) {
+              edges.push({
+                id: `${prevL3Card.id}->${l3Card.id}`,
+                from: prevL3Card,
+                to: l3Card,
+                direction: "down",
+                flowing: edgeFlows(prevL3Card.status, l3Card.status),
+                path: "",
+              });
+            }
+
+            prevL3Card = l3Card;
+            currL3Y += l3Height + L3_STACK_GAP;
+            if (currL3Y > maxL3Bottom) {
+              maxL3Bottom = currL3Y;
+            }
+          });
+        }
+      }
+
       layerX += branch.l2.width + L2_GAP;
     });
 
@@ -972,6 +1136,7 @@ export function PyramidLocationWidget({
 
     for (const card of cards) card.x += LAYER_RAIL;
     for (const action of l1Actions) action.x += LAYER_RAIL;
+    for (const action of l2Actions) action.x += LAYER_RAIL;
 
     assignEdgePaths(cards, edges);
 
@@ -990,21 +1155,32 @@ export function PyramidLocationWidget({
           (card.status === "current" || card.status === "open"),
       )?.id ||
       focusLayer2Id;
+    const hereL3 =
+      cards.find((card) => card.layer === "L3" && card.status === "current")?.id ||
+      (viewLayer === "L3" && executionNodeId
+        ? cards.find((card) => card.layer === "L3" && card.nodeId === executionNodeId)?.id
+        : undefined);
+
     for (const card of cards) {
       card.breathe =
         (card.layer === "L1" && card.id === hereL1) ||
-        (card.layer === "L2" && card.id === hereL2);
+        (card.layer === "L2" && card.id === hereL2) ||
+        (card.layer === "L3" && card.id === hereL3);
     }
 
     const width = Math.max(
       360,
       cards.reduce((max, card) => Math.max(max, card.x + card.width), 0) + PAD,
     );
-    const height = l2Y + l2Height + PAD;
+    const height = Math.max(l2Y + l2Height + PAD, maxL3Bottom + PAD);
 
     const stopCard =
       cards.find((card) => card.status === "blocked") ||
       cards.find((card) => card.status === "current");
+
+    const l3Cards = cards.filter((c) => c.layer === "L3");
+    const minL3Y = l3Cards.length > 0 ? Math.min(...l3Cards.map((c) => c.y)) : l2Y + l2Height + 40;
+    const maxL3Y = l3Cards.length > 0 ? Math.max(...l3Cards.map((c) => c.y + c.height)) : minL3Y + 44;
 
     const layerBands = [
       {
@@ -1023,12 +1199,21 @@ export function PyramidLocationWidget({
         dot: "bg-sky-500",
         text: "text-sky-700 dark:text-sky-300",
       },
+      {
+        id: "L3" as const,
+        title: "Execution Layer",
+        y: minL3Y,
+        height: Math.max(44, maxL3Y - minL3Y),
+        dot: "bg-violet-500",
+        text: "text-violet-700 dark:text-violet-300",
+      },
     ];
 
     return {
       cards,
       edges,
       l1Actions,
+      l2Actions,
       layerBands,
       width,
       height,
@@ -1045,6 +1230,8 @@ export function PyramidLocationWidget({
     focusLayer2Id,
     viewLayer,
     collapsedL1Ids,
+    collapsedL2Ids,
+    executionNodeId,
     operations,
   ]);
 
@@ -1192,6 +1379,13 @@ export function PyramidLocationWidget({
     } else if (card.layer === "L2") {
       if (!nodes.some((node) => node.id === card.id)) return;
       onFocusLayer2?.(card.id);
+    } else if (card.layer === "L3") {
+      const targetNodeId = card.nodeId || card.id;
+      window.dispatchEvent(
+        new CustomEvent("workflow:open-execution", {
+          detail: { nodeId: targetNodeId, conditionId: card.conditionId },
+        }),
+      );
     }
     setOpen(false);
   };
@@ -1257,6 +1451,9 @@ export function PyramidLocationWidget({
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-[2px] bg-sky-500" /> L2 Detailed Workflow
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-[2px] bg-violet-500" /> L3 Execution Layer
             </span>
             <span className="ml-auto font-sans text-[10px] font-semibold normal-case tracking-normal text-slate-500">
               Scroll to zoom · Drag to pan · Click a node
@@ -1489,6 +1686,68 @@ export function PyramidLocationWidget({
                             expanded
                               ? "border-sky-300/50 bg-sky-500/30"
                               : "border-slate-500 bg-slate-800"
+                          }`}
+                        >
+                          {action.count}
+                        </span>
+                        <ChevronDown
+                          className={`size-3 transition ${expanded ? "rotate-180" : ""}`}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
+                {diagram.l2Actions.map((action) => {
+                  const expanded = !collapsedL2Ids.has(action.id);
+                  return (
+                    <button
+                      key={`l3-open-${action.id}`}
+                      type="button"
+                      data-process-locator-l3-toggle={action.id}
+                      aria-expanded={expanded}
+                      aria-label={
+                        expanded
+                          ? `Hide ${action.count} L3 nodes for ${action.label}`
+                          : `View ${action.count} L3 nodes for ${action.label}`
+                      }
+                      title={`${expanded ? "Hide" : "View"} L3 nodes for ${action.label}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCollapsedL2Ids((current) => {
+                          const next = new Set(current);
+                          if (next.has(action.id)) {
+                            next.delete(action.id);
+                          } else {
+                            next.add(action.id);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`absolute flex items-center justify-between gap-1.5 rounded-[3px] border px-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] shadow-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                        expanded
+                          ? "border-violet-400 bg-[#32234c] text-violet-100"
+                          : "border-slate-500/80 bg-[#1e2937] text-slate-100 hover:border-violet-400/80 hover:bg-[#282138]"
+                      }`}
+                      style={{
+                        left: action.x,
+                        top: action.y,
+                        width: action.width,
+                        height: L2_ACTION_H,
+                      }}
+                    >
+                      <span className="flex min-w-0 items-center gap-1">
+                        <Layers className="size-3 shrink-0 text-violet-300" />
+                        <span className="truncate">
+                          {expanded ? "Hide L3 Nodes" : "View L3 Nodes"}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <span
+                          className={`rounded-[2px] border px-1 py-px tracking-[0.08em] ${
+                            expanded
+                              ? "border-violet-300/50 bg-violet-500/30 text-violet-100"
+                              : "border-slate-500 bg-slate-800 text-slate-300"
                           }`}
                         >
                           {action.count}

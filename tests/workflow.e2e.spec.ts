@@ -130,7 +130,23 @@ test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation"
       await l2Toggles.nth(index).click();
     }
   }
-  await expect(dialog.locator("[data-process-locator-l3-toggle]")).toHaveCount(0);
+
+  // Verify L3 toggle buttons are present on L2 nodes and start collapsed
+  const l3Toggles = dialog.locator("[data-process-locator-l3-toggle]");
+  expect(await l3Toggles.count()).toBeGreaterThan(0);
+  expect(
+    await l3Toggles.evaluateAll((elements) =>
+      elements.every((element) => element.getAttribute("aria-expanded") === "false"),
+    ),
+  ).toBe(true);
+
+  // Expand the first L3 toggle
+  await l3Toggles.first().click();
+  expect(await l3Toggles.first().getAttribute("aria-expanded")).toBe("true");
+
+  // Verify L3 cards are displayed
+  const l3Cards = dialog.locator('button[title^="Open L3 ·"]');
+  expect(await l3Cards.count()).toBeGreaterThan(0);
 });
 
 test("L1 zooms with an ordinary mouse wheel", async ({ page }) => {
