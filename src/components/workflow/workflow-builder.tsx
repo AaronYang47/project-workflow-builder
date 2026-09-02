@@ -300,6 +300,7 @@ export default function WorkflowBuilder() {
                 onSelectCondition={(conditionId) => setExecutionConditionId(conditionId)}
                 onBack={closeExecutionView}
                 onFocusNode={focusLayer2Node}
+                onOpenLayer1Node={openLayer1Context}
               />
             ) : null}
             {!leftOpen && !isExecutionView ? (

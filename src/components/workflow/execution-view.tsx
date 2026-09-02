@@ -295,6 +295,7 @@ export function ExecutionView({
   onSelectCondition,
   onBack,
   onFocusNode,
+  onOpenLayer1Node,
 }: {
   nodeId: string;
   focusItemId?: string | null;
@@ -302,6 +303,7 @@ export function ExecutionView({
   onSelectCondition?: (conditionId: string) => void;
   onBack: () => void;
   onFocusNode?: (nodeId: string) => void;
+  onOpenLayer1Node?: (nodeId: string) => void;
 }) {
   const file = useWorkflowStore((state) => state.file);
   const updateNode = useWorkflowStore((state) => state.updateNode);
@@ -553,6 +555,19 @@ export function ExecutionView({
     });
   };
 
+  const handleNavigateToL1 = () => {
+    if (owningL1Node?.id) {
+      if (onOpenLayer1Node) {
+        onOpenLayer1Node(owningL1Node.id);
+      } else {
+        useWorkflowStore.getState().selectHighLevelNodes([owningL1Node.id]);
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
+
 
   if (!node) {
     return (
@@ -601,34 +616,48 @@ export function ExecutionView({
             Back to L2
           </Button>
           <div className="min-w-0 border-l pl-3">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span
+            <div className="flex items-center gap-1.5 flex-wrap text-xs">
+              <button
+                type="button"
+                onClick={handleNavigateToL1}
+                title={`Navigate to L1 · ${l1Title}`}
                 className={cn(
-                  "font-mono text-xs font-bold transition-colors",
+                  "inline-flex items-center gap-1 font-sans text-xs font-semibold hover:underline cursor-pointer transition-colors p-0 m-0 bg-transparent border-0",
                   !l1Color && "text-emerald-600 dark:text-emerald-400",
                 )}
                 style={l1Color ? { color: l1Color } : undefined}
               >
-                L1 <span>{l1Title}</span>
-              </span>
-              <span className="font-mono text-xs font-bold text-muted-foreground/60">&gt;</span>
+                <span>L1</span>
+                <span>{l1Title}</span>
+              </button>
+
+              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">&gt;</span>
+
               <button
                 type="button"
                 onClick={onBack}
                 title="Back to L2 Detailed Workflow"
                 className={cn(
-                  "font-mono text-xs font-bold hover:underline cursor-pointer transition-colors",
+                  "inline-flex items-center gap-1 font-sans text-xs font-semibold hover:underline cursor-pointer transition-colors p-0 m-0 bg-transparent border-0",
                   !l2Color && "text-sky-600 dark:text-sky-400",
                 )}
                 style={l2Color ? { color: l2Color } : undefined}
               >
-                L2 <span>{l2Title}</span>
+                <span>L2</span>
+                <span>{l2Title}</span>
               </button>
-              <span className="font-mono text-xs font-bold text-muted-foreground/60">&gt;</span>
-              <h1 className="font-mono text-xs font-bold text-violet-600 dark:text-violet-400 truncate">
-                L3 <span>{l3Title}</span>
+
+              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">&gt;</span>
+
+              <h1
+                className="inline-flex items-center gap-1 font-sans text-xs font-semibold text-violet-600 dark:text-violet-400 truncate p-0 m-0"
+                title={`L3 ${l3Title}`}
+              >
+                <span>L3</span>
+                <span>{l3Title}</span>
               </h1>
-              <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+
+              <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground font-sans">
                 Required files
               </span>
             </div>
