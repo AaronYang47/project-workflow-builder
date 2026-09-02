@@ -120,9 +120,9 @@ function AddDocumentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="relative flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl border bg-card shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between border-b px-5 py-3.5 bg-muted/20">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div className="relative flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-slate-300/90 dark:border-slate-700 bg-card shadow-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 bg-muted/30">
           <div className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Plus className="size-4" />
@@ -140,7 +140,7 @@ function AddDocumentModal({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
           >
             <X className="size-4" />
           </button>
@@ -159,8 +159,8 @@ function AddDocumentModal({
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
                   isRequired
-                    ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted",
+                    ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/40 shadow-xs"
+                    : "border-slate-200 dark:border-slate-800 bg-background text-muted-foreground hover:bg-muted",
                 )}
               >
                 <span className="size-2 rounded-full bg-amber-500" />
@@ -172,8 +172,8 @@ function AddDocumentModal({
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
                   !isRequired
-                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted",
+                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 shadow-xs"
+                    : "border-slate-200 dark:border-slate-800 bg-background text-muted-foreground hover:bg-muted",
                 )}
               >
                 <span className="size-2 rounded-full bg-slate-400" />
@@ -188,11 +188,11 @@ function AddDocumentModal({
               Select Attached File from R2 Library
             </label>
             {availableFiles.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-center text-xs text-muted-foreground bg-muted/10">
                 No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload Forms&quot; in the title.
               </div>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto scroll-thin pr-1">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2 space-y-2 max-h-52 overflow-y-auto scroll-thin bg-muted/10">
                 {availableFiles.map((file) => (
                   <div
                     key={file.id}
@@ -200,8 +200,8 @@ function AddDocumentModal({
                     className={cn(
                       "flex items-start gap-3 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
                       selectedFileId === file.id
-                        ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40 shadow-xs"
-                        : "border-border bg-background hover:border-primary/30",
+                        ? "border-primary bg-primary/[0.08] ring-1 ring-primary/50 shadow-xs"
+                        : "border-slate-200 dark:border-slate-800 bg-background hover:border-primary/40",
                     )}
                   >
                     <input
@@ -235,8 +235,8 @@ function AddDocumentModal({
                   className={cn(
                     "flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
                     selectedFileId === "custom"
-                      ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40 shadow-xs"
-                      : "border-border bg-background hover:border-primary/30",
+                      ? "border-primary bg-primary/[0.08] ring-1 ring-primary/50 shadow-xs"
+                      : "border-slate-200 dark:border-slate-800 bg-background hover:border-primary/40",
                   )}
                 >
                   <input
@@ -256,7 +256,7 @@ function AddDocumentModal({
 
           {/* Form Title */}
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
               Display Title in L3 <span className="text-destructive">*</span>
             </label>
             <input
@@ -264,20 +264,20 @@ function AddDocumentModal({
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
               placeholder="e.g. Master Services Agreement 2026"
-              className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background px-3.5 py-2.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t px-5 py-3 bg-muted/10">
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 px-5 py-3 bg-muted/20">
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
             Cancel
           </Button>
           <Button
             size="sm"
             onClick={handleSubmit}
             disabled={!customTitle.trim()}
-            className="h-8 text-xs font-bold gap-1"
+            className="h-8 text-xs font-bold gap-1 cursor-pointer"
           >
             <Plus className="size-3.5" />
             Add to L3 List
@@ -753,8 +753,8 @@ export function ExecutionView({
           {/* ============================================================ */}
           {/* Box 1 (Left): Legal Documents                                */}
           {/* ============================================================ */}
-          <div className="flex flex-col rounded-xl border bg-card/70 backdrop-blur-xs shadow-xs overflow-hidden">
-            <header className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
+          <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
+            <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
               <div className="flex items-center gap-2.5">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
                   <Scale className="size-4" />
@@ -929,8 +929,8 @@ export function ExecutionView({
           {/* ============================================================ */}
           {/* Box 2 (Center): Customer Information (Form/Doc List)         */}
           {/* ============================================================ */}
-          <div className="flex flex-col rounded-xl border bg-card/70 backdrop-blur-xs shadow-xs overflow-hidden">
-            <header className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
+          <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
+            <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
               <div className="flex items-center gap-2.5">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
                   <Building2 className="size-4" />
@@ -1065,8 +1065,8 @@ export function ExecutionView({
           {/* ============================================================ */}
           {/* Box 3 (Right): Supporting Documents                          */}
           {/* ============================================================ */}
-          <div className="flex flex-col rounded-xl border bg-card/70 backdrop-blur-xs shadow-xs overflow-hidden">
-            <header className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
+          <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
+            <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
               <div className="flex items-center gap-2.5">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <FolderArchive className="size-4" />
