@@ -551,7 +551,7 @@ function PhaseStepsManager({
             </span>
           </div>
           <span className="shrink-0 text-[10px] text-muted-foreground ml-2">
-            不可跨 Phase 选择
+            Same Phase only
           </span>
         </div>
       ) : null}
