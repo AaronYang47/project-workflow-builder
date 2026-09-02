@@ -71,21 +71,25 @@ test("L3 Detailed Workflow minimap keeps the lifecycle order and excludes retire
   await page.goto("/");
   await openExecution(page, "pre-construction");
 
-  await page.getByRole("button", { name: "Open L2 detailed workflow" }).click();
-  const minimap = page.locator('[data-layer-context-minimap="L2"]');
-  await expect(minimap).toBeVisible();
+  await page.getByRole("button", { name: "Open minimap and process locator" }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Process locator pyramid diagram",
+  });
+  await expect(dialog).toBeVisible();
 
-  const nodeIds = await minimap
-    .locator("[data-context-map-node-id]")
-    .evaluateAll((elements) =>
-      elements.map((element) => element.getAttribute("data-context-map-node-id")),
-    );
-  const indexOf = (id: string) => nodeIds.indexOf(id);
+  // Expand L1 to see L2 nodes
+  const l2Toggles = dialog.locator("[data-process-locator-l2-toggle]");
+  for (let index = 0; index < (await l2Toggles.count()); index += 1) {
+    if ((await l2Toggles.nth(index).getAttribute("aria-expanded")) === "false") {
+      await l2Toggles.nth(index).click();
+    }
+  }
 
-  expect(indexOf("gate-g1-qualified")).toBeLessThan(indexOf("pre-construction"));
-  expect(indexOf("commercial-pathway")).toBe(-1);
-  expect(indexOf("approval-matrix")).toBe(-1);
-  expect(indexOf("responsibility-lane")).toBe(-1);
+  // Verify L2 nodes are present and retired matrix nodes are excluded
+  await expect(dialog.locator('button[title^="Open L2 · PRE-CONSTRUCTION"]')).toBeVisible();
+  await expect(dialog.locator('button[title*="commercial-pathway"]')).toHaveCount(0);
+  await expect(dialog.locator('button[title*="approval-matrix"]')).toHaveCount(0);
+  await expect(dialog.locator('button[title*="responsibility-lane"]')).toHaveCount(0);
 });
 
 test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation", async ({

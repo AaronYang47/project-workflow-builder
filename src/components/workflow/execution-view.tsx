@@ -11,7 +11,6 @@ import {
   FileCheck2,
   FileText,
   FolderArchive,
-  Layers3,
   Plus,
   Scale,
   Trash2,
@@ -32,11 +31,6 @@ import { nodeReleaseReady } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import {
-  LayerContextMinimap,
-  type ContextMapNode,
-} from "./layer-context-minimap";
-import { DetailedWorkflowDialog } from "./detailed-workflow-dialog";
 import {
   type UploadedFileRecord,
   getUploadedFiles,
@@ -314,7 +308,6 @@ export function ExecutionView({
   const updateExecutionItem = useWorkflowStore(
     (state) => state.updateExecutionItem,
   );
-  const [l2ContextOpen, setL2ContextOpen] = useState(false);
   const [addModalCategory, setAddModalCategory] = useState<
     "legal" | "customer" | "supporting" | null
   >(null);
@@ -517,69 +510,6 @@ export function ExecutionView({
     });
   };
 
-  const layer2ContextNodes = useMemo<ContextMapNode[]>(() => {
-    const positionCache = new Map<string, { x: number; y: number }>();
-    const resolvePosition = (
-      id: string,
-      seen = new Set<string>(),
-    ): { x: number; y: number } => {
-      const cached = positionCache.get(id);
-      if (cached) return cached;
-      const layout = file.layout.nodes[id];
-      if (!layout || seen.has(id)) return { x: 0, y: 0 };
-      seen.add(id);
-      const parent = layout.parentId
-        ? resolvePosition(layout.parentId, seen)
-        : { x: 0, y: 0 };
-      const position = { x: parent.x + layout.x, y: parent.y + layout.y };
-      positionCache.set(id, position);
-      return position;
-    };
-
-    const rawNodes = file.graph.nodes
-      .map((workflowNode, graphIndex) => {
-        const position = resolvePosition(workflowNode.id);
-        const supportingSourceXs = isReferenceNodeType(workflowNode.type)
-          ? file.graph.edges
-              .filter((edge) => edge.target === workflowNode.id)
-              .map((edge) => resolvePosition(edge.source).x)
-          : [];
-        return {
-          id: workflowNode.id,
-          label: workflowNode.title,
-          rawX: position.x,
-          orderX: supportingSourceXs.length
-            ? Math.max(...supportingSourceXs) + 0.5
-            : position.x,
-          graphIndex,
-          width: 180,
-          height: 96,
-          color:
-            workflowNode.color || getNodeDefinition(workflowNode.type).color,
-          active: workflowNode.id === nodeId,
-          container: workflowNode.type === "phase",
-          type: workflowNode.type,
-        };
-      })
-      .sort(
-        (a, b) =>
-          a.orderX - b.orderX || a.rawX - b.rawX || a.graphIndex - b.graphIndex,
-      );
-    return rawNodes.map((workflowNode, index) => {
-      return {
-        id: workflowNode.id,
-        label: workflowNode.label,
-        x: index * (workflowNode.width + 40),
-        y: 100 - workflowNode.height / 2,
-        width: workflowNode.width,
-        height: workflowNode.height,
-        color: workflowNode.color,
-        active: workflowNode.active,
-        container: workflowNode.container,
-        type: workflowNode.type,
-      };
-    });
-  }, [file.graph.edges, file.graph.nodes, file.layout.nodes, nodeId]);
 
   if (!node) {
     return (
@@ -670,17 +600,6 @@ export function ExecutionView({
           >
             {summary.completedCount}/{summary.itemCount} Checked · {summary.status}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setL2ContextOpen(true)}
-            aria-label="Open L2 detailed workflow"
-            title="Open L2 detailed workflow"
-            className="h-8 gap-1.5 text-xs font-medium"
-          >
-            <Layers3 className="size-3.5 text-primary" />
-            L2 Minimap
-          </Button>
         </div>
       </header>
 
@@ -1209,31 +1128,6 @@ export function ExecutionView({
           <span>L3 · Execution Layer</span> · R2 Document Sync
         </p>
       </footer>
-
-      {/* L2 Minimap Dialog */}
-      <DetailedWorkflowDialog
-        open={l2ContextOpen}
-        onOpenChange={setL2ContextOpen}
-      >
-        <div className="h-full overflow-auto bg-canvas p-4">
-          <LayerContextMinimap
-            level="L2"
-            title="Detailed Workflow"
-            nodes={layer2ContextNodes}
-            edges={file.graph.edges}
-            activeLabel={node.title}
-            onOpenParent={onBack}
-            onOpenNode={(targetNodeId) => {
-              if (!targetNodeId) return;
-              useWorkflowStore.getState().selectNodes([targetNodeId]);
-              setL2ContextOpen(false);
-              onFocusNode?.(targetNodeId);
-            }}
-            expandable
-            className="w-full"
-          />
-        </div>
-      </DetailedWorkflowDialog>
 
       {/* Add Document Modal */}
       <AddDocumentModal
