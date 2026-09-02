@@ -841,9 +841,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           const minY = Math.min(...memberNodes.map((m) => m.y));
           const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
 
-          const PAD_X = 36;
-          const PAD_TOP = 88;
-          const PAD_BOTTOM = 36;
+          const PAD_X = 40;
+          const PAD_TOP = 136;
+          const PAD_BOTTOM = 44;
 
           nextFile.layout.nodes[phaseId] = {
             ...nextFile.layout.nodes[phaseId],
@@ -877,9 +877,9 @@ export const useWorkflowStore = create<WorkflowState>()(
         const minY = Math.min(...memberNodes.map((m) => m.y));
         const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
 
-        const PAD_X = 36;
-        const PAD_TOP = 88;
-        const PAD_BOTTOM = 36;
+        const PAD_X = 40;
+        const PAD_TOP = 136;
+        const PAD_BOTTOM = 44;
 
         const nextFile = clone(file);
         nextFile.layout.nodes[phaseId] = {

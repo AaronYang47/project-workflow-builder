@@ -216,12 +216,52 @@ function CanvasInner({
     };
   }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
 
+const DEFAULT_STAGE_COLORS: Record<string, string> = {
+  "stage 00": "#10b981",
+  "stage 01": "#059669",
+  "stage 02": "#0284c7",
+  "stage 03": "#2563eb",
+  "stage 04": "#7c3aed",
+  "stage 05": "#9333ea",
+  "stage 06": "#c026d3",
+  "stage 07": "#db2777",
+  "stage 08": "#d97706",
+  "stage 09": "#475569",
+};
+
+function getL1FallbackColor(title: string, index: number): string {
+  const t = title.toLowerCase();
+  if (t.includes("initial") || t.includes("start")) return "#10b981";
+  if (t.includes("qualification") || t.includes("opportunity")) return "#059669";
+  if (t.includes("g1") || t.includes("commercial")) return "#06b6d4";
+  if (t.includes("g2") || t.includes("technical")) return "#0284c7";
+  if (t.includes("g3") || t.includes("production")) return "#2563eb";
+  if (t.includes("g4") || t.includes("factory")) return "#7c3aed";
+  if (t.includes("g5") || t.includes("warranty")) return "#9333ea";
+  if (t.includes("commissioning")) return "#d97706";
+  if (t.includes("close")) return "#475569";
+  const palette = [
+    "#10b981",
+    "#059669",
+    "#06b6d4",
+    "#0284c7",
+    "#2563eb",
+    "#7c3aed",
+    "#9333ea",
+    "#d97706",
+    "#475569",
+  ];
+  return palette[index % palette.length];
+}
+
   const modelNodes = useMemo<Node[]>(() => {
     const highLevelNodes = file.highLevel?.graph.nodes || [];
     const l1PhaseColorByL2NodeId = new Map<string, string>();
-    for (const hlNode of highLevelNodes) {
-      const color = hlNode.backgroundColor;
-      if (!color || color === "transparent") continue;
+    highLevelNodes.forEach((hlNode, index) => {
+      const color =
+        hlNode.backgroundColor && hlNode.backgroundColor !== "transparent"
+          ? hlNode.backgroundColor
+          : getL1FallbackColor(hlNode.title, index);
       const linkedIds =
         hlNode.linkedLayer2NodeIds ?? hlNode.linkedDetailedNodeIds ?? [];
       for (const linkedId of linkedIds) {
@@ -229,7 +269,7 @@ function CanvasInner({
           l1PhaseColorByL2NodeId.set(linkedId, color);
         }
       }
-    }
+    });
 
     return file.graph.nodes
       .map((domain): Node => {
@@ -245,10 +285,14 @@ function CanvasInner({
             : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
               ? "reference"
             : "workflow";
+        const stageKey = (domain.config?.stage || "").toLowerCase();
+        const stageFallback = DEFAULT_STAGE_COLORS[stageKey];
         const phaseColor =
           domain.color ||
           (l1PhaseColorByL2NodeId.get(domain.id) ??
-            (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined));
+            (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined)) ||
+          stageFallback ||
+          "#0d9488";
         return {
           id: domain.id,
           type: rendererType,
@@ -256,7 +300,7 @@ function CanvasInner({
           width: layout?.width,
           height: layout?.height,
           parentId: undefined,
-          zIndex: isContainer ? -1 : layout?.zIndex,
+          zIndex: isContainer ? 0 : 10,
           selected: selection.nodeIds.includes(domain.id),
           draggable: true,
           dragHandle: isContainer ? ".phase-drag-handle" : undefined,

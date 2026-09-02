@@ -400,12 +400,18 @@ function PhaseStepsManager({
   const label = isGate ? "Gate" : "Phase";
   const candidates = useMemo(() => {
     return allNodes
-      .filter(
-        (n) =>
-          n.id !== phaseNode.id &&
-          n.type !== "phase" &&
-          (isGate ? n.type !== "gate" : true),
-      )
+      .filter((n) => {
+        if (n.id === phaseNode.id) return false;
+        if (n.type === "phase") return false;
+        if (isGate && n.type === "gate") return false;
+        const currentParent = nodeLayouts[n.id]?.parentId;
+        // Already in this container: include
+        if (currentParent === phaseNode.id) return true;
+        // Belong to another container: exclude
+        if (currentParent) return false;
+        // Independent step or independent gate: include
+        return true;
+      })
       .filter((n) =>
         query.trim()
           ? `${n.title} ${n.config?.stage || ""} ${n.type}`
@@ -444,7 +450,7 @@ function PhaseStepsManager({
               Included Steps {isGate ? "in Gate" : "in Phase"}
             </h3>
             <p className="text-[10px] text-muted-foreground">
-              Select which steps belong to this {label}
+              Select independent steps {isGate ? "" : "& gates"} for this {label}
             </p>
           </div>
         </div>
@@ -476,18 +482,18 @@ function PhaseStepsManager({
       <div className="space-y-1.5 max-h-60 overflow-y-auto scroll-thin pr-1">
         {candidates.length === 0 ? (
           <div className="py-4 text-center text-xs text-muted-foreground">
-            No steps available to include.
+            No independent steps available to include.
           </div>
         ) : (
           candidates.map((node) => {
             const isIncluded = nodeLayouts[node.id]?.parentId === phaseNode.id;
-            const isOtherPhase =
-              Boolean(nodeLayouts[node.id]?.parentId) && !isIncluded;
             const isGate = node.type === "gate";
 
             return (
               <div
                 key={node.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleNodeInPhase(phaseNode.id, node.id)}
                 className={cn(
                   "flex items-center gap-2.5 rounded-lg border p-2 text-xs transition-colors cursor-pointer select-none",
@@ -499,8 +505,8 @@ function PhaseStepsManager({
                 <input
                   type="checkbox"
                   checked={isIncluded}
-                  onChange={() => toggleNodeInPhase(phaseNode.id, node.id)}
-                  className="size-3.5 rounded accent-primary cursor-pointer"
+                  readOnly
+                  className="size-3.5 rounded accent-primary pointer-events-none"
                 />
                 <span
                   className={cn(
@@ -522,11 +528,6 @@ function PhaseStepsManager({
                     </p>
                   ) : null}
                 </div>
-                {isOtherPhase ? (
-                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium shrink-0">
-                    in other phase
-                  </span>
-                ) : null}
               </div>
             );
           })

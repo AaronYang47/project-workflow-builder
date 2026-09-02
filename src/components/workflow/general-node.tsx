@@ -85,7 +85,9 @@ export function GeneralNode({
       ? (node.config.iconKey as keyof typeof iconOptions)
       : "activity";
   const Icon = iconOptions[iconKey];
-  const color = node.color || getNodeDefinition("general").color;
+  const effectiveColor =
+    phaseColor || node.color || getNodeDefinition("general").color;
+  const color = effectiveColor;
   const conditions = node.conditions || [];
   const statusReady = reached && nodeReleaseReady(
     node,
@@ -96,7 +98,7 @@ export function GeneralNode({
   const focusedInspectorField = useWorkflowStore(
     (state) => state.focusedInspectorField,
   );
-  const nodeColor = useMemo(() => getNodeColor(phaseColor), [phaseColor]);
+  const nodeColor = useMemo(() => getNodeColor(effectiveColor), [effectiveColor]);
   const [draggingConditionIndex, setDraggingConditionIndex] = useState<number | null>(null);
   const [dragOverConditionIndex, setDragOverConditionIndex] = useState<number | null>(null);
   const [dragTargetConditionIndex, setDragTargetConditionIndex] = useState<number | null>(null);
@@ -167,8 +169,12 @@ export function GeneralNode({
             data-node-header
             className="flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
             style={{
-              backgroundColor: nodeColor ? nodeColor.badge : `${color}0d`,
-              borderColor: nodeColor ? nodeColor.border : undefined,
+              backgroundColor: nodeColor
+                ? `color-mix(in srgb, rgb(${nodeColor.tint}) 16%, transparent)`
+                : `${color}18`,
+              borderColor: nodeColor
+                ? `color-mix(in srgb, rgb(${nodeColor.tint}) 30%, transparent)`
+                : `${color}33`,
             }}
           >
             <label

@@ -32,17 +32,18 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   return (
     <div
       data-canvas-node
+      data-container-node="true"
       data-testid={isGate ? "gate-card" : "phase-card"}
       data-selected={selected || undefined}
       className={cn(
-        "l2-node-card h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
-        isGate ? "l2-gate-container" : "l2-phase-card",
+        "h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
+        isGate ? "l2-gate-container border-dashed" : "l2-phase-card",
         selected &&
           "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
       style={{
-        borderColor: `${color}77`,
-        backgroundColor: `${color}06`,
+        borderColor: isGate ? `${color}99` : `${color}77`,
+        backgroundColor: `${color}04`,
       }}
     >
       <div className="pointer-events-auto">

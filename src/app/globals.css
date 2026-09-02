@@ -711,3 +711,14 @@ button:disabled { cursor: not-allowed; }
     animation: none !important;
   }
 }
+
+/* Container frames (Phase, Gate) must strictly stay behind step cards, even when selected */
+.react-flow__node:has([data-container-node="true"]) {
+  z-index: 0 !important;
+}
+.react-flow__node:not(:has([data-container-node="true"])) {
+  z-index: 10;
+}
+.react-flow__node:not(:has([data-container-node="true"])).selected {
+  z-index: 20 !important;
+}
