@@ -556,13 +556,22 @@ export function ExecutionView({
   };
 
   const handleNavigateToL1 = () => {
-    if (owningL1Node?.id) {
+    const l1Id = owningL1Node?.id || highLevelNodes[0]?.id;
+    if (l1Id) {
       if (onOpenLayer1Node) {
-        onOpenLayer1Node(owningL1Node.id);
+        onOpenLayer1Node(l1Id);
       } else {
-        useWorkflowStore.getState().selectHighLevelNodes([owningL1Node.id]);
+        useWorkflowStore.getState().selectHighLevelNodes([l1Id]);
         onBack();
       }
+    } else {
+      onBack();
+    }
+  };
+
+  const handleNavigateToL2 = () => {
+    if (node?.id && onFocusNode) {
+      onFocusNode(node.id);
     } else {
       onBack();
     }
@@ -608,7 +617,7 @@ export function ExecutionView({
           <Button
             variant="outline"
             size="sm"
-            onClick={onBack}
+            onClick={handleNavigateToL2}
             aria-label="Back to L2 Detailed Workflow"
             className="h-8 gap-1.5 text-xs font-semibold"
           >
@@ -635,7 +644,7 @@ export function ExecutionView({
 
               <button
                 type="button"
-                onClick={onBack}
+                onClick={handleNavigateToL2}
                 title="Back to L2 Detailed Workflow"
                 className={cn(
                   "inline-flex items-center gap-1 font-sans text-xs font-semibold hover:underline cursor-pointer transition-colors p-0 m-0 bg-transparent border-0",
