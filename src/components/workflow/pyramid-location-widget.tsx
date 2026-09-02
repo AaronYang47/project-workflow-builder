@@ -1412,6 +1412,7 @@ export function PyramidLocationWidget({
   };
 
   const [exportingPdf, setExportingPdf] = useState(false);
+  const pendingAutoExportRef = useRef(false);
 
   const exportDiagramToPdf = useCallback(async () => {
     if (exportingPdf) return;
@@ -1422,8 +1423,8 @@ export function PyramidLocationWidget({
       setCollapsedL1Ids(new Set());
       setCollapsedL2Ids(new Set());
 
-      // Wait 150ms for layout update
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      // Wait 200ms for layout update
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const el = canvasLayerRef.current;
       if (!el) {
@@ -1466,21 +1467,41 @@ export function PyramidLocationWidget({
     }
   }, [diagram.width, diagram.height, exportingPdf]);
 
+  // Handle auto-export when triggered from top toolbar
   useEffect(() => {
     const handleExport = (event: Event) => {
       const custom = event as CustomEvent<{ format: string }>;
       if (custom.detail?.format === "l3-pdf") {
+        pendingAutoExportRef.current = true;
         setOpen(true);
         setCollapsedL1Ids(new Set());
         setCollapsedL2Ids(new Set());
-        setTimeout(() => {
-          void exportDiagramToPdf();
-        }, 250);
       }
     };
     window.addEventListener("workflow:export", handleExport);
     return () => window.removeEventListener("workflow:export", handleExport);
-  }, [exportDiagramToPdf]);
+  }, []);
+
+  // Trigger export once modal is open and diagram is fully expanded
+  useEffect(() => {
+    if (!pendingAutoExportRef.current) return;
+    if (!open) return;
+    if (collapsedL1Ids.size > 0 || collapsedL2Ids.size > 0) return;
+    if (!canvasLayerRef.current || !diagram.width || !diagram.height) return;
+
+    pendingAutoExportRef.current = false;
+    const timer = window.setTimeout(() => {
+      void exportDiagramToPdf();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    open,
+    collapsedL1Ids.size,
+    collapsedL2Ids.size,
+    diagram.width,
+    diagram.height,
+    exportDiagramToPdf,
+  ]);
 
   return (
     <div className="pointer-events-none" aria-live="polite">
