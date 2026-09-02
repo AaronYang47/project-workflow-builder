@@ -59,24 +59,24 @@ export function ProjectIdBadge({
             ? "border-white/30 bg-white/15 text-white"
             : "border-white/20 bg-white/10 text-white/70"
           : ready
-            ? "border-primary/30 bg-primary/10 text-primary"
+            ? "border-border/80 bg-background/85 text-foreground shadow-2xs backdrop-blur-xs dark:border-white/20 dark:bg-black/40 dark:text-white"
             : "border-border bg-muted/40 text-muted-foreground",
         className,
       )}
     >
-      <span className={cn(idSize, "whitespace-nowrap")}>
+      <span className={cn(idSize, "whitespace-nowrap font-bold text-foreground dark:text-white")}>
         {ready ? displayedId : "L-—"}
       </span>
       <span
         className={cn(
-          "rounded font-bold tracking-tight",
+          "rounded font-semibold tracking-tight",
           legacySize,
           onDark
             ? ready
-              ? "bg-emerald-500/30 text-emerald-50"
+              ? "bg-white/20 text-white"
               : "bg-white/15 text-white/70"
             : ready
-              ? "bg-emerald-500/15 text-emerald-700"
+              ? "bg-slate-200/70 text-slate-700 dark:bg-white/15 dark:text-slate-100"
               : "bg-background text-muted-foreground",
         )}
       >
