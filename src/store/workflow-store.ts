@@ -833,7 +833,11 @@ export const useWorkflowStore = create<WorkflowState>()(
         }
 
         const memberNodes = Object.values(nextFile.layout.nodes).filter(
-          (l) => l.parentId === phaseId,
+          (l) => {
+            if (l.parentId === phaseId) return true;
+            if (l.parentId && nextFile.layout.nodes[l.parentId]?.parentId === phaseId) return true;
+            return false;
+          },
         );
         if (memberNodes.length > 0) {
           const nodeMap = new Map(nextFile.graph.nodes.map((n) => [n.id, n]));
@@ -882,7 +886,11 @@ export const useWorkflowStore = create<WorkflowState>()(
         if (!phaseLayout) return;
 
         const memberNodes = Object.values(file.layout.nodes).filter(
-          (l) => l.parentId === phaseId,
+          (l) => {
+            if (l.parentId === phaseId) return true;
+            if (l.parentId && file.layout.nodes[l.parentId]?.parentId === phaseId) return true;
+            return false;
+          },
         );
         if (memberNodes.length === 0) return;
 

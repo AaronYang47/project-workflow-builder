@@ -128,62 +128,123 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     })),
   };
   const result = await elk.layout(graph);
+  const COMMON_STEP_Y = 220;
   for (const node of result.children || []) {
     const current = nodes[node.id];
     if (current)
       nodes[node.id] = {
         ...current,
         x: rounded(node.x),
-        y: rounded(node.y),
+        y: COMMON_STEP_Y,
         width: rounded(node.width) || current.width,
         height: rounded(node.height) || current.height,
       };
   }
 
-  // Auto-fit all Gate and Phase container bounds around their children
-  const containers = file.graph.nodes.filter(
-    (n) => n.type === "gate" || n.type === "phase",
-  );
-  const sortedContainers = [...containers].sort((a, b) =>
-    a.type === "gate" ? -1 : 1,
-  );
-  for (const container of sortedContainers) {
-    const children = file.graph.nodes
-      .filter((node) => original[node.id]?.parentId === container.id)
+  const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
+  const gateNodes = file.graph.nodes.filter((n) => n.type === "gate");
+  const phaseNodes = file.graph.nodes.filter((n) => n.type === "phase");
+
+  // 1. Position all GATE containers (aligned at top with Phase, wrapping their steps)
+  for (const gate of gateNodes) {
+    let gateChildren = file.graph.nodes
+      .filter((node) => original[node.id]?.parentId === gate.id)
       .map((node) => nodes[node.id])
       .filter(Boolean);
-    if (!children.length) continue;
 
-    const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
-    const minX = Math.min(...children.map((c) => c.x));
-    const maxX = Math.max(
-      ...children.map((c) => {
-        const domain = nodeMap.get(c.nodeId);
-        const w = c.width || (domain ? getAdaptiveNodeSize(domain, c).width : 280);
-        return c.x + w;
-      }),
-    );
-    const minY = Math.min(...children.map((c) => c.y));
-    const maxY = Math.max(
-      ...children.map((c) => {
-        const domain = nodeMap.get(c.nodeId);
-        const h = c.height || (domain ? getAdaptiveNodeSize(domain, c).height : 360);
-        return c.y + h;
-      }),
-    );
+    const parentPhaseId = original[gate.id]?.parentId;
+    if (gateChildren.length === 0 && parentPhaseId) {
+      const phaseSteps = file.graph.nodes
+        .filter(
+          (node) =>
+            original[node.id]?.parentId === parentPhaseId &&
+            node.type !== "gate" &&
+            node.type !== "phase",
+        )
+        .map((node) => nodes[node.id])
+        .filter(Boolean)
+        .sort((a, b) => a.x - b.x);
 
-    const PAD_X = 40;
-    const PAD_TOP = 136;
-    const PAD_BOTTOM = 52;
+      if (phaseSteps.length > 0) {
+        gateChildren = [phaseSteps[phaseSteps.length - 1]];
+      }
+    }
 
-    nodes[container.id] = {
-      ...nodes[container.id],
-      x: minX - PAD_X,
-      y: minY - PAD_TOP,
-      width: Math.max(380, maxX - minX + PAD_X * 2),
-      height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
-      zIndex: 0,
-    };
+    if (gateChildren.length > 0) {
+      const minX = Math.min(...gateChildren.map((c) => c.x));
+      const maxX = Math.max(
+        ...gateChildren.map((c) => {
+          const domain = nodeMap.get(c.nodeId);
+          const w = c.width || (domain ? getAdaptiveNodeSize(domain, c).width : 280);
+          return c.x + w;
+        }),
+      );
+      const maxY = Math.max(
+        ...gateChildren.map((c) => {
+          const domain = nodeMap.get(c.nodeId);
+          const h = c.height || (domain ? getAdaptiveNodeSize(domain, c).height : 360);
+          return c.y + h;
+        }),
+      );
+
+      const PAD_X = 24;
+      const PAD_TOP = 136;
+      const PAD_BOTTOM = 52;
+
+      nodes[gate.id] = {
+        ...nodes[gate.id],
+        x: minX - PAD_X,
+        y: COMMON_STEP_Y - PAD_TOP,
+        width: Math.max(340, maxX - minX + PAD_X * 2),
+        height: Math.max(240, maxY - COMMON_STEP_Y + PAD_TOP + PAD_BOTTOM),
+        zIndex: 1,
+      };
+    }
+  }
+
+  // 2. Position all PHASE containers (enclosing both steps and nested gates)
+  for (const phase of phaseNodes) {
+    const memberNodes = file.graph.nodes
+      .filter((node) => {
+        if (node.id === phase.id) return false;
+        const pId = original[node.id]?.parentId;
+        if (pId === phase.id) return true;
+        if (pId && original[pId]?.parentId === phase.id) return true;
+        return false;
+      })
+      .map((node) => nodes[node.id])
+      .filter(Boolean);
+
+    if (memberNodes.length > 0) {
+      const minX = Math.min(...memberNodes.map((c) => c.x));
+      const maxX = Math.max(
+        ...memberNodes.map((c) => {
+          const domain = nodeMap.get(c.nodeId);
+          const w = c.width || (domain ? getAdaptiveNodeSize(domain, c).width : 280);
+          return c.x + w;
+        }),
+      );
+      const maxY = Math.max(
+        ...memberNodes.map((c) => {
+          const domain = nodeMap.get(c.nodeId);
+          const h = c.height || (domain ? getAdaptiveNodeSize(domain, c).height : 360);
+          return c.y + h;
+        }),
+      );
+
+      const PAD_X = 40;
+      const PAD_TOP = 136;
+      const PAD_BOTTOM = 52;
+
+      nodes[phase.id] = {
+        ...nodes[phase.id],
+        x: minX - PAD_X,
+        y: COMMON_STEP_Y - PAD_TOP,
+        width: Math.max(380, maxX - minX + PAD_X * 2),
+        height: Math.max(240, maxY - COMMON_STEP_Y + PAD_TOP + PAD_BOTTOM),
+        zIndex: 0,
+      };
+    }
   }
 
   const phases = file.graph.nodes.filter((node) => node.type === "phase");
