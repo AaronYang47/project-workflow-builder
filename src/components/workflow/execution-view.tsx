@@ -170,7 +170,7 @@ function AddDocumentModal({
                 )}
               >
                 <span className="size-2 rounded-full bg-amber-500" />
-                Required (Blocks Release)
+                Required
               </button>
               <button
                 type="button"
@@ -183,7 +183,7 @@ function AddDocumentModal({
                 )}
               >
                 <span className="size-2 rounded-full bg-slate-400" />
-                Optional (Non-Blocking)
+                Optional
               </button>
             </div>
           </div>
