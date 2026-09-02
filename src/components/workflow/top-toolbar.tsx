@@ -273,48 +273,6 @@ export function TopToolbar({
           </span>
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
-        {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
-          <Button
-            title="Clear all L2 nodes"
-            aria-label="Clear L2 Nodes"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              store.showConfirmClear({
-                title: "Clear L2 Detailed Workflow",
-                message:
-                  "Are you sure you want to clear all L2 workflow nodes? All nodes, connections, and layouts on the detailed canvas will be removed.",
-                confirmLabel: "Clear L2 Workflow",
-                onConfirm: store.clearDetailedNodes,
-              });
-            }}
-            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="size-3.5 mr-1" />
-            Clear L2
-          </Button>
-        )}
-        {isExecutionView && (store.file.execution?.items.length || 0) > 0 && (
-          <Button
-            title="Clear all L3 execution requirements"
-            aria-label="Clear L3 Requirements"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              store.showConfirmClear({
-                title: "Clear L3 Execution Requirements",
-                message:
-                  "Are you sure you want to clear all L3 execution requirements across all workflow nodes? This action cannot be undone.",
-                confirmLabel: "Clear L3 Requirements",
-                onConfirm: () => store.clearExecutionItems(),
-              });
-            }}
-            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="size-3.5 mr-1" />
-            Clear L3
-          </Button>
-        )}
         <div
           className="flex h-8 shrink-0 items-center rounded-md border bg-muted/35 p-0.5"
           aria-label="Workflow view level"
@@ -411,6 +369,48 @@ export function TopToolbar({
           >
             <Trash2 className="mr-1 size-3.5" />
             Clear L1
+          </Button>
+        )}
+        {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
+          <Button
+            title="Clear all L2 nodes"
+            aria-label="Clear L2 Nodes"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              store.showConfirmClear({
+                title: "Clear L2 Detailed Workflow",
+                message:
+                  "Are you sure you want to clear all L2 workflow nodes? All nodes, connections, and layouts on the detailed canvas will be removed.",
+                confirmLabel: "Clear L2 Workflow",
+                onConfirm: store.clearDetailedNodes,
+              });
+            }}
+            className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-1 size-3.5" />
+            Clear L2
+          </Button>
+        )}
+        {isExecutionView && (store.file.execution?.items.length || 0) > 0 && (
+          <Button
+            title="Clear all L3 execution requirements"
+            aria-label="Clear L3 Requirements"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              store.showConfirmClear({
+                title: "Clear L3 Execution Requirements",
+                message:
+                  "Are you sure you want to clear all L3 execution requirements across all workflow nodes? This action cannot be undone.",
+                confirmLabel: "Clear L3 Requirements",
+                onConfirm: () => store.clearExecutionItems(),
+              });
+            }}
+            className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-1 size-3.5" />
+            Clear L3
           </Button>
         )}
         <ToolButton
