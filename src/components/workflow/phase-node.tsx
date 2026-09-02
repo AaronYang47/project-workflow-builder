@@ -64,9 +64,12 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
       </div>
       <div
         data-phase-header
-        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+        className={cn(
+          "phase-drag-handle pointer-events-auto relative z-10 flex cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b shadow-sm backdrop-blur active:cursor-grabbing",
+          isGate ? "min-h-20 px-4 py-2.5" : "min-h-24 px-5 py-3",
+        )}
         style={{
-          backgroundColor: isGate ? "rgba(15, 23, 42, 0.95)" : `${color}25`,
+          backgroundColor: isGate ? `${color}25` : `${color}25`,
           borderBottomColor: `${color}40`,
         }}
       >
@@ -101,22 +104,28 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           <textarea
             aria-label="Phase title"
             defaultValue={node.title}
-            rows={rowsFor(node.title, 38)}
+            rows={rowsFor(node.title, isGate ? 24 : 38)}
             onBlur={(event) =>
               updateNode(node.id, {
                 title: event.target.value.trim() || node.title,
               })
             }
-            className="nodrag mt-0.5 min-h-8 w-full resize-none overflow-hidden bg-transparent text-2xl font-black uppercase leading-7 tracking-[0.06em] outline-none"
+            className={cn(
+              "nodrag mt-0.5 w-full resize-none overflow-hidden bg-transparent font-black uppercase tracking-[0.06em] outline-none",
+              isGate ? "text-base leading-5 min-h-5" : "text-2xl leading-7 min-h-8",
+            )}
           />
           <textarea
             aria-label="Phase description"
             defaultValue={node.description}
-            rows={rowsFor(node.description, 72)}
+            rows={rowsFor(node.description, isGate ? 48 : 72)}
             onBlur={(event) =>
               updateNode(node.id, { description: event.target.value.trim() })
             }
-            className="nodrag mt-0.5 min-h-6 w-full resize-none overflow-hidden bg-transparent text-sm font-medium leading-6 text-muted-foreground outline-none"
+            className={cn(
+              "nodrag mt-0.5 w-full resize-none overflow-hidden bg-transparent font-medium text-muted-foreground outline-none",
+              isGate ? "text-xs leading-4 min-h-4 line-clamp-2" : "text-sm leading-6 min-h-6",
+            )}
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-2">

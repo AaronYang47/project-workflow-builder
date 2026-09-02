@@ -656,7 +656,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
 
           const containsGate = gatesToInclude.length > 0;
           const PAD_X = 36;
-          const PAD_TOP = containsGate ? 330 : 176;
+          const PAD_TOP = containsGate ? 360 : 180;
           const PAD_BOTTOM = containsGate ? 40 : 48;
 
           const phaseInfo = getPhaseInfo(targetNode);

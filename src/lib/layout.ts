@@ -256,7 +256,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 24;
-      const GATE_PAD_TOP = 176;
+      const GATE_PAD_TOP = 200;
       const PAD_BOTTOM = 44;
 
       nodes[gate.id] = {
@@ -318,7 +318,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 36;
-      const PHASE_PAD_TOP = containsGate ? 330 : 176;
+      const PHASE_PAD_TOP = containsGate ? 360 : 180;
       const phaseY = COMMON_STEP_Y - PHASE_PAD_TOP;
       // Guarantee Phase extends at least 40px below the bottom of any member, including Gate!
       const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);

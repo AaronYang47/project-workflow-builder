@@ -921,7 +921,7 @@ export const useWorkflowStore = create<WorkflowState>()(
 
           const containsGate = members.some((m) => nodeMap.get(m.nodeId)?.type === "gate");
           const padX = isTargetPhase ? 36 : 24;
-          const padTop = isTargetPhase ? (containsGate ? 330 : 176) : 176;
+          const padTop = isTargetPhase ? (containsGate ? 360 : 180) : 200;
           const padBottom = isTargetPhase ? (containsGate ? 40 : 48) : 44;
           const cY = minY - padTop;
           const cBottom = maxMemberBottom + padBottom;
@@ -1006,8 +1006,8 @@ export const useWorkflowStore = create<WorkflowState>()(
         );
         const isPhase =
           file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
-        const PAD_X = 36;
-        const PAD_TOP = isPhase && containsGate ? 330 : 176;
+        const PAD_X = isPhase ? 36 : 24;
+        const PAD_TOP = isPhase ? (containsGate ? 360 : 180) : 200;
         const phaseY = minY - PAD_TOP;
         const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
 
