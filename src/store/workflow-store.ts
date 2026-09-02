@@ -747,12 +747,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           for (const childId of childIds) {
             const childLayout = nextFile.layout.nodes[childId];
             if (childLayout) {
-              const relX = Math.max(36, childLayout.x - phaseProps.x);
-              const relY = Math.max(110, childLayout.y - phaseProps.y);
-              childLayout.x = relX;
-              childLayout.y = relY;
               childLayout.parentId = id;
-              childLayout.zIndex = 1;
             }
           }
 
@@ -781,9 +776,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       addGateUnderNode: (gateProps) => {
         const id = `gate-${crypto.randomUUID().slice(0, 8)}`;
         const gateNode = createDomainNode("gate", id);
-        if (gateProps.title) {
-          gateNode.title = gateProps.title;
-        }
+        gateNode.title = gateProps.title || "Gate";
         if (gateProps.color) {
           gateNode.color = gateProps.color;
           if (gateNode.config) {
@@ -794,7 +787,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           gateNode.config.stage = gateProps.stage;
         }
         const width = gateProps.width || 620;
-        const height = gateProps.height || 268;
+        const height = gateProps.height || 260;
 
         set((state) => {
           const nextFile = clone(state.file);
@@ -805,6 +798,7 @@ export const useWorkflowStore = create<WorkflowState>()(
             y: gateProps.y,
             width,
             height,
+            zIndex: -1,
           };
           return {
             past: appendHistory(state.past, state.file),
@@ -827,44 +821,37 @@ export const useWorkflowStore = create<WorkflowState>()(
         const nextFile = clone(file);
 
         if (isCurrentlyInside) {
-          const absX = phaseLayout.x + nodeLayout.x;
-          const absY = phaseLayout.y + nodeLayout.y;
           nextFile.layout.nodes[nodeId] = {
             ...nodeLayout,
-            x: absX,
-            y: absY,
             parentId: undefined,
-            zIndex: undefined,
           };
         } else {
-          let absX = nodeLayout.x;
-          let absY = nodeLayout.y;
-          if (nodeLayout.parentId && nextFile.layout.nodes[nodeLayout.parentId]) {
-            absX += nextFile.layout.nodes[nodeLayout.parentId].x;
-            absY += nextFile.layout.nodes[nodeLayout.parentId].y;
-          }
-
-          const relX = Math.max(36, absX - phaseLayout.x);
-          const relY = Math.max(110, absY - phaseLayout.y);
           nextFile.layout.nodes[nodeId] = {
             ...nodeLayout,
-            x: relX,
-            y: relY,
             parentId: phaseId,
-            zIndex: 1,
           };
+        }
 
-          const nodeW = nodeLayout.width || 270;
-          const nodeH = nodeLayout.height || 220;
-          const neededW = relX + nodeW + 40;
-          const neededH = relY + nodeH + 40;
-          if (neededW > phaseLayout.width || neededH > phaseLayout.height) {
-            nextFile.layout.nodes[phaseId] = {
-              ...phaseLayout,
-              width: Math.max(phaseLayout.width, neededW),
-              height: Math.max(phaseLayout.height, neededH),
-            };
-          }
+        const memberNodes = Object.values(nextFile.layout.nodes).filter(
+          (l) => l.parentId === phaseId,
+        );
+        if (memberNodes.length > 0) {
+          const minX = Math.min(...memberNodes.map((m) => m.x));
+          const maxX = Math.max(...memberNodes.map((m) => m.x + (m.width || 270)));
+          const minY = Math.min(...memberNodes.map((m) => m.y));
+          const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
+
+          const PAD_X = 36;
+          const PAD_TOP = 88;
+          const PAD_BOTTOM = 36;
+
+          nextFile.layout.nodes[phaseId] = {
+            ...nextFile.layout.nodes[phaseId],
+            x: minX - PAD_X,
+            y: minY - PAD_TOP,
+            width: Math.max(360, maxX - minX + PAD_X * 2),
+            height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
+          };
         }
 
         set({
@@ -880,22 +867,27 @@ export const useWorkflowStore = create<WorkflowState>()(
         const phaseLayout = file.layout.nodes[phaseId];
         if (!phaseLayout) return;
 
-        const children = Object.values(file.layout.nodes).filter(
+        const memberNodes = Object.values(file.layout.nodes).filter(
           (l) => l.parentId === phaseId,
         );
-        if (children.length === 0) return;
+        if (memberNodes.length === 0) return;
 
-        const maxX = Math.max(...children.map((c) => c.x + (c.width || 270)));
-        const maxY = Math.max(...children.map((c) => c.y + (c.height || 220)));
+        const minX = Math.min(...memberNodes.map((m) => m.x));
+        const maxX = Math.max(...memberNodes.map((m) => m.x + (m.width || 270)));
+        const minY = Math.min(...memberNodes.map((m) => m.y));
+        const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
 
-        const PAD_X = 40;
-        const PAD_BOTTOM = 40;
+        const PAD_X = 36;
+        const PAD_TOP = 88;
+        const PAD_BOTTOM = 36;
 
         const nextFile = clone(file);
         nextFile.layout.nodes[phaseId] = {
           ...phaseLayout,
-          width: Math.max(420, maxX + PAD_X),
-          height: Math.max(260, maxY + PAD_BOTTOM),
+          x: minX - PAD_X,
+          y: minY - PAD_TOP,
+          width: Math.max(360, maxX - minX + PAD_X * 2),
+          height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
         };
 
         set({

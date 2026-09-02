@@ -396,9 +396,16 @@ function PhaseStepsManager({
   fitPhaseToChildren: (phaseId: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const isGate = phaseNode.type === "gate";
+  const label = isGate ? "Gate" : "Phase";
   const candidates = useMemo(() => {
     return allNodes
-      .filter((n) => n.id !== phaseNode.id && n.type !== "phase")
+      .filter(
+        (n) =>
+          n.id !== phaseNode.id &&
+          n.type !== "phase" &&
+          (isGate ? n.type !== "gate" : true),
+      )
       .filter((n) =>
         query.trim()
           ? `${n.title} ${n.config?.stage || ""} ${n.type}`
@@ -413,7 +420,7 @@ function PhaseStepsManager({
         if (!aIncluded && bIncluded) return 1;
         return 0;
       });
-  }, [allNodes, phaseNode.id, nodeLayouts, query]);
+  }, [allNodes, phaseNode.id, isGate, nodeLayouts, query]);
 
   const includedCount = allNodes.filter(
     (n) => nodeLayouts[n.id]?.parentId === phaseNode.id,
@@ -425,16 +432,19 @@ function PhaseStepsManager({
         <div className="flex items-center gap-2">
           <span
             className="flex size-6 items-center justify-center rounded-md text-white text-[10px] font-bold"
-            style={{ backgroundColor: phaseNode.color || "#0d9488" }}
+            style={{
+              backgroundColor:
+                phaseNode.color || (isGate ? "#7c3aed" : "#0d9488"),
+            }}
           >
             {includedCount}
           </span>
           <div>
             <h3 className="text-xs font-bold text-foreground">
-              Included Steps & Gates
+              Included Steps {isGate ? "in Gate" : "in Phase"}
             </h3>
             <p className="text-[10px] text-muted-foreground">
-              Select which steps belong to this Phase
+              Select which steps belong to this {label}
             </p>
           </div>
         </div>
@@ -442,7 +452,7 @@ function PhaseStepsManager({
           <button
             type="button"
             onClick={() => fitPhaseToChildren(phaseNode.id)}
-            title="Auto-fit Phase frame to encompass all included steps"
+            title={`Auto-fit ${label} frame to encompass all included steps`}
             className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-background px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer shadow-2xs"
           >
             <Maximize2 className="size-3 text-primary" />
@@ -675,7 +685,7 @@ function DetailedInspector({
                 </button>
               </section>
             ) : null}
-            {node && node.type === "phase" ? (
+            {node && (node.type === "phase" || node.type === "gate") ? (
               <PhaseStepsManager
                 phaseNode={node}
                 allNodes={file.graph.nodes}
@@ -744,12 +754,6 @@ function DetailedInspector({
                 },
               )
             }
-            {node.type === "gate" ? (
-              <OutcomeEditor
-                node={node}
-                update={(next) => updateNode(node.id, next)}
-              />
-            ) : null}
           </div>
         </div>
       ) : edge ? (

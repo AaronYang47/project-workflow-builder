@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { NodeResizer, type Node, type NodeProps } from "@xyflow/react";
-import { ChevronDown, GripVertical, Layers3 } from "lucide-react";
+import { ChevronDown, GripVertical, Layers3, ShieldCheck } from "lucide-react";
 import type { DomainNode } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { ComponentNoteButton } from "./component-note-button";
@@ -10,12 +10,13 @@ import { ProjectIdBadge } from "./project-id-badge";
 
 import { cn } from "@/lib/utils";
 
-export type PhaseFlowNode = Node<{ domain: DomainNode }, "phase">;
+export type PhaseFlowNode = Node<{ domain: DomainNode; phaseColor?: string }, "phase">;
 const rowsFor = (value: string, characters: number) =>
   Math.max(1, Math.ceil(value.length / characters));
 
 function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   const node = data.domain;
+  const isGate = node.type === "gate";
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
   const childCount = useWorkflowStore(
@@ -24,14 +25,18 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
         (l) => l.parentId === node.id,
       ).length,
   );
-  const color = node.color || (data as { phaseColor?: string })?.phaseColor || "#0d9488";
+  const defaultColor = isGate ? "#7c3aed" : "#0d9488";
+  const color = node.color || data.phaseColor || (data as { phaseColor?: string })?.phaseColor || defaultColor;
+  const Icon = isGate ? ShieldCheck : Layers3;
 
   return (
     <div
       data-canvas-node
+      data-testid={isGate ? "gate-card" : "phase-card"}
       data-selected={selected || undefined}
       className={cn(
-        "l2-node-card l2-phase-card h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
+        "l2-node-card h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
+        isGate ? "l2-gate-container" : "l2-phase-card",
         selected &&
           "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
@@ -42,8 +47,8 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
     >
       <div className="pointer-events-auto">
         <NodeResizer
-          minWidth={420}
-          minHeight={260}
+          minWidth={isGate ? 360 : 420}
+          minHeight={isGate ? 180 : 260}
           isVisible={selected}
           onResizeEnd={(_, params) =>
             updateLayout(
@@ -68,7 +73,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           className="flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
           style={{ backgroundColor: color }}
         >
-          <Layers3 className="size-5" />
+          <Icon className="size-5" />
         </span>
         <label className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -76,7 +81,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
               className="block text-xs font-black uppercase tracking-[0.16em]"
               style={{ color }}
             >
-              Phase
+              {isGate ? "Gate" : "Phase"}
             </span>
             {childCount > 0 ? (
               <span

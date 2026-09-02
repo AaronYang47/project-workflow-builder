@@ -24,7 +24,13 @@ export function useNodeDragHandlers(
   const flow = useReactFlow();
   const onNodeDragStart: OnNodeDrag = useCallback((_, node) => {
     const current = useWorkflowStore.getState();
-    if (node.type === "phase") {
+    const domain = current.file.graph.nodes.find((n) => n.id === node.id);
+    const isContainer =
+      domain?.type === "phase" ||
+      domain?.type === "gate" ||
+      node.type === "phase";
+
+    if (isContainer) {
       if (
         current.selection.nodeIds.length !== 1 ||
         current.selection.nodeIds[0] !== node.id
@@ -32,7 +38,12 @@ export function useNodeDragHandlers(
         current.selectNodes([node.id]);
       }
     }
-    const ids = new Set([...current.selection.nodeIds, node.id]);
+    const childIds = isContainer
+      ? Object.values(current.file.layout.nodes)
+          .filter((l) => l.parentId === node.id)
+          .map((l) => l.nodeId)
+      : [];
+    const ids = new Set([...current.selection.nodeIds, node.id, ...childIds]);
     const before: Record<string, NodeLayout> = {};
     ids.forEach((id) => {
       const layout = current.file.layout.nodes[id];
@@ -53,7 +64,25 @@ export function useNodeDragHandlers(
       const domain = useWorkflowStore
         .getState()
         .file.graph.nodes.find((node) => node.id === draggedNode.id);
-      if (domain && domain.type !== "phase") {
+
+      if (domain && (domain.type === "phase" || domain.type === "gate")) {
+        const start = before[draggedNode.id];
+        if (start) {
+          const dx = draggedNode.position.x - start.x;
+          const dy = draggedNode.position.y - start.y;
+          if (dx !== 0 || dy !== 0) {
+            const children = Object.values(
+              useWorkflowStore.getState().file.layout.nodes,
+            ).filter((l) => l.parentId === draggedNode.id);
+            for (const child of children) {
+              patches[child.nodeId] = {
+                x: child.x + dx,
+                y: child.y + dy,
+              };
+            }
+          }
+        }
+      } else if (domain) {
         const lookup = (id: string) =>
           flowNodes.find((item) => item.id === id);
         const absolute = resolveAbsolutePosition(draggedNode, lookup);
@@ -65,31 +94,29 @@ export function useNodeDragHandlers(
             absolute.y +
             (draggedNode.measured?.height ?? draggedNode.height ?? 0) / 2,
         };
-        const targetPhase = flowNodes.find(
-          (node) =>
-            node.type === "phase" &&
-            center.x >= node.position.x &&
-            center.x <=
-              node.position.x +
-                (node.measured?.width ?? node.width ?? 0) &&
-            center.y >= node.position.y &&
-            center.y <=
-              node.position.y +
-                (node.measured?.height ?? node.height ?? 0),
-        );
-        if (targetPhase && draggedNode.parentId !== targetPhase.id) {
+        const targetContainer = flowNodes.find((n) => {
+          const dType = (n.data as { domain?: { type?: string } })?.domain?.type ?? n.type;
+          if (dType !== "phase" && dType !== "gate") return false;
+          const w = n.measured?.width ?? n.width ?? 0;
+          const h = n.measured?.height ?? n.height ?? 0;
+          return (
+            center.x >= n.position.x &&
+            center.x <= n.position.x + w &&
+            center.y >= n.position.y &&
+            center.y <= n.position.y + h
+          );
+        });
+
+        const currentParentId = useWorkflowStore.getState().file.layout.nodes[draggedNode.id]?.parentId;
+        if (targetContainer && currentParentId !== targetContainer.id) {
           patches[draggedNode.id] = {
-            x: Math.max(24, absolute.x - targetPhase.position.x),
-            y: Math.max(112, absolute.y - targetPhase.position.y),
-            parentId: targetPhase.id,
-            zIndex: 1,
+            ...patches[draggedNode.id],
+            parentId: targetContainer.id,
           };
-        } else if (!targetPhase && draggedNode.parentId) {
+        } else if (!targetContainer && currentParentId) {
           patches[draggedNode.id] = {
-            x: absolute.x,
-            y: absolute.y,
+            ...patches[draggedNode.id],
             parentId: undefined,
-            zIndex: undefined,
           };
         }
       }

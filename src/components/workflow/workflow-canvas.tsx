@@ -238,45 +238,49 @@ function CanvasInner({
         const searchMatch =
           q &&
           `${domain.title} ${domain.description}`.toLowerCase().includes(q);
+        const isContainer = domain.type === "phase" || domain.type === "gate";
         const rendererType =
-          domain.type === "phase"
+          isContainer
             ? "phase"
-              : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
-                ? "reference"
-              : "workflow";
+            : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
+              ? "reference"
+            : "workflow";
         const phaseColor =
-          l1PhaseColorByL2NodeId.get(domain.id) ??
-          (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined);
+          domain.color ||
+          (l1PhaseColorByL2NodeId.get(domain.id) ??
+            (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined));
         return {
           id: domain.id,
           type: rendererType,
           position: { x: layout?.x || 0, y: layout?.y || 0 },
           width: layout?.width,
           height: layout?.height,
-          parentId: layout?.parentId,
-          zIndex: domain.type === "phase" ? -1 : layout?.zIndex,
+          parentId: undefined,
+          zIndex: isContainer ? -1 : layout?.zIndex,
           selected: selection.nodeIds.includes(domain.id),
           draggable: true,
-          dragHandle:
-            domain.type === "phase" ? ".phase-drag-handle" : undefined,
-          style:
-            domain.type === "phase" ? { pointerEvents: "none" } : undefined,
-            data: {
-              domain,
-              reached: progress.reachedNodeIds.has(domain.id),
-              emphasized: Boolean(searchMatch),
-              dimmed: Boolean(q && !searchMatch),
-              phaseColor,
-              executionSummary: getExecutionSummary(
-                domain.id,
-                file.execution?.items,
-                file.operations,
-                { checklistOnly: true },
-              ),
-            },
+          dragHandle: isContainer ? ".phase-drag-handle" : undefined,
+          style: isContainer ? { pointerEvents: "none" } : undefined,
+          data: {
+            domain,
+            reached: progress.reachedNodeIds.has(domain.id),
+            emphasized: Boolean(searchMatch),
+            dimmed: Boolean(q && !searchMatch),
+            phaseColor,
+            executionSummary: getExecutionSummary(
+              domain.id,
+              file.execution?.items,
+              file.operations,
+              { checklistOnly: true },
+            ),
+          },
         };
       })
-      .sort((a, b) => (a.type === "phase" ? -1 : b.type === "phase" ? 1 : 0));
+      .sort((a, b) => {
+        const aIsContainer = a.type === "phase";
+        const bIsContainer = b.type === "phase";
+        return aIsContainer ? -1 : bIsContainer ? 1 : 0;
+      });
   }, [
     file.graph.nodes,
     file.layout.nodes,
@@ -595,15 +599,15 @@ function CanvasInner({
 
         if (targetPhase) {
           const pl = file.layout.nodes[targetPhase.id]!;
-          const gateWidth = 620;
-          const gateX = pl.x + Math.max(0, (pl.width - gateWidth) / 2);
-          const gateY = pl.y + pl.height + 40;
+          const gateWidth = pl.width || 620;
+          const gateX = pl.x;
+          const gateY = pl.y + pl.height + 28;
 
           addGateUnderNode({
             x: gateX,
             y: gateY,
             width: gateWidth,
-            height: 268,
+            height: 220,
             title: `${targetPhase.title} · Gate`,
             color: targetPhase.color || "#7c3aed",
             stage: targetPhase.title,
