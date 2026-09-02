@@ -1,6 +1,18 @@
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { clone } from "@/lib/clone";
+import { createDefaultMatrixReference, matrixKindForNode } from "@/lib/matrix-config";
 import type { DomainNode, WorkflowNodeType } from "@/types/workflow";
+
+export function createDefaultTerminalConditions(): DomainNode["conditions"] {
+  return [
+    {
+      id: "project-completion-recorded",
+      label: "Project completion and warranty are recorded",
+      required: true,
+      checked: false,
+    },
+  ];
+}
 
 const referenceDefaults: Partial<
   Record<WorkflowNodeType, DomainNode["config"]["reference"]>
@@ -12,6 +24,7 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
   const def = getNodeDefinition(type);
   const gate = type === "gate";
   const projectStart = type === "projectStart";
+  const matrixKind = matrixKindForNode({ type });
   return {
     id,
     type,
@@ -25,6 +38,8 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
     metadata: {},
     conditions: projectStart
       ? [{ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true }]
+      : type === "terminal"
+        ? createDefaultTerminalConditions()
       : [],
     documents: [],
     criteria: [],
@@ -37,80 +52,6 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       : {},
     config: projectStart
       ? { serviceType: "Standard", buildingCode: "", moduleCode: "" }
-      : type === "opportunityValidation"
-        ? {
-            stage: "Opportunity Validation",
-            iconKey: "check",
-            outcomes: [
-              {
-                id: "pass-p1-p2",
-                label: "P1 · Gate 1 Passed",
-                edgeType: "success",
-                color: "#16866f",
-                enabled: true,
-              },
-              {
-                id: "loi-governed",
-                label: "P2 · Strong Qualified",
-                edgeType: "normal",
-                color: "#2563eb",
-                enabled: true,
-              },
-              {
-                id: "csa-pcs",
-                label: "P3 · CSA / PCS",
-                edgeType: "normal",
-                color: "#0891b2",
-                enabled: true,
-              },
-              {
-                id: "site-feasibility",
-                label: "P4 · Site Feasibility",
-                edgeType: "hold",
-                color: "#d97706",
-                enabled: true,
-              },
-              {
-                id: "nogo-disqualified",
-                label: "P5 · No-Go / Disqualified",
-                edgeType: "failure",
-                color: "#dc2626",
-                enabled: true,
-              },
-              {
-                id: "path-loi",
-                label: "PL · Path LOI",
-                edgeType: "normal",
-                color: "#7c3aed",
-                enabled: true,
-              },
-            ],
-            opportunity: {
-              intake: {
-                clientAuthority: {
-                  decisionAuthorityStatus: "Unknown",
-                  finalDecisionAuthorityIdentified: "Unknown",
-                  requiredDecisionPartiesIdentified: "Unknown",
-                  clientRelationship: "Standard",
-                  stakeholders: [],
-                },
-                projectDefinition: {},
-                siteLand: { siteStatus: "Unknown" },
-                design: {
-                  designMaturity: "No Design",
-                  modularCompatibilityStatus: "Not Reviewed",
-                  reviewedBy: "Not Reviewed",
-                },
-                budgetFundingTimeline: {
-                  clientBudgetProvided: "Unknown",
-                  classDAvailable: "Unknown",
-                  fundingStatus: "Unknown",
-                  timelineStatus: "Unknown",
-                },
-                teamCommitment: { members: [] },
-              },
-            },
-          }
       : gate
         ? {
           gateLabel: "DECISION",
@@ -161,6 +102,13 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
         }
       : type === "phase"
         ? { locked: false }
+        : matrixKind
+          ? {
+              stage: "Governance",
+              iconKey: "document",
+              matrixKind,
+              reference: createDefaultMatrixReference(matrixKind),
+            }
         : referenceDefaults[type]
           ? { reference: clone(referenceDefaults[type]!) }
           : { stage: "Stage", iconKey: "activity" },

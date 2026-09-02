@@ -21,6 +21,7 @@ export type WorkflowFlowNode = Node<
     dimmed?: boolean;
     reached?: boolean;
     executionSummary?: ExecutionSummary;
+    phaseColor?: string;
   },
   "workflow"
 >;

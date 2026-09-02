@@ -6,6 +6,7 @@ import {
   type WorkflowNodeType,
 } from "@/types/workflow";
 import { readPath } from "@/lib/object-path";
+import { getProfabForm } from "@/lib/profab-forms";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   document: ["title"],
@@ -63,6 +64,61 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
       });
     ids.add(node.id);
   }
+  for (const highLevelNode of file.highLevel?.graph.nodes || []) {
+    const linkedLayer2NodeIds = new Set([
+      ...(highLevelNode.linkedLayer2NodeIds || []),
+      ...(highLevelNode.linkedDetailedNodeIds || []),
+    ]);
+    for (const linkedId of linkedLayer2NodeIds) {
+      if (ids.has(linkedId)) continue;
+      issues.push({
+        id: `broken-l1-l2-${highLevelNode.id}-${linkedId}`,
+        severity: "error",
+        code: "BROKEN_L1_L2_REFERENCE",
+        message: `L1 “${highLevelNode.title}” references missing L2 node “${linkedId}”`,
+      });
+    }
+  }
+  const executionItems = file.execution?.items || [];
+  const executionItemIds = new Set(executionItems.map((item) => item.id));
+  for (const item of executionItems) {
+    if (!ids.has(item.linkedLayer2NodeId)) {
+      issues.push({
+        id: `broken-l3-l2-${item.id}-${item.linkedLayer2NodeId}`,
+        severity: "error",
+        code: "BROKEN_L3_L2_REFERENCE",
+        message: `${item.catalogId ? "Controlled L3 record" : "L3 item"} “${item.title}” references missing L2 node “${item.linkedLayer2NodeId}”`,
+      });
+      continue;
+    }
+    const controlledForm = getProfabForm(item);
+    if (
+      controlledForm &&
+      ids.has(controlledForm.linkedLayer2NodeId) &&
+      item.linkedLayer2NodeId !== controlledForm.linkedLayer2NodeId
+    ) {
+      issues.push({
+        id: `noncanonical-controlled-form-${item.id}-${item.linkedLayer2NodeId}`,
+        severity: "error",
+        code: "NONCANONICAL_CONTROLLED_FORM_LINK",
+        message: `Controlled L3 record “${item.title}” must remain linked to canonical L2 node “${controlledForm.linkedLayer2NodeId}”`,
+        nodeId: item.linkedLayer2NodeId,
+      });
+    }
+  }
+  for (const node of nodes) {
+    node.conditions.forEach((condition, index) => {
+      const linkedId = condition.linkedExecutionItemId;
+      if (!linkedId || executionItemIds.has(linkedId)) return;
+      issues.push({
+        id: `broken-l2-l3-${node.id}-${condition.id || index}-${linkedId}`,
+        severity: "error",
+        code: "BROKEN_L2_L3_REFERENCE",
+        message: `L2 condition in “${node.title}” references missing L3 item “${linkedId}”`,
+        nodeId: node.id,
+      });
+    });
+  }
   const edgeIds = new Set<string>();
   for (const edge of edges) {
     if (edgeIds.has(edge.id))
@@ -80,6 +136,17 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
         severity: "error",
         code: "BROKEN_REFERENCE",
         message: `Connection “${edge.label || edge.id}” references a missing node`,
+        edgeId: edge.id,
+      });
+    if (
+      edge.condition?.linkedExecutionItemId &&
+      !executionItemIds.has(edge.condition.linkedExecutionItemId)
+    )
+      issues.push({
+        id: `broken-l2-l3-edge-${edge.id}-${edge.condition.linkedExecutionItemId}`,
+        severity: "error",
+        code: "BROKEN_L2_L3_REFERENCE",
+        message: `L2 connection “${edge.label || edge.id}” references missing L3 item “${edge.condition.linkedExecutionItemId}”`,
         edgeId: edge.id,
       });
     const source = nodes.find((node) => node.id === edge.source);

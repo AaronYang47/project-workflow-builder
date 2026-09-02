@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "playwright test",
+    "test:rules": "playwright test tests/cross-layer-integrity.spec.ts",
+    "test:e2e": "playwright test tests/workflow.e2e.spec.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "latest",
@@ -39,6 +42,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "playwright": "^1.62.1",
     "tailwindcss": "latest",
     "typescript": "latest",
     "wrangler": "^4.123.0"

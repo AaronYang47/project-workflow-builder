@@ -5,9 +5,6 @@ import type { NodeProps } from "@xyflow/react";
 import { useNodeScrollContainment } from "@/lib/use-node-scroll-containment";
 import { GateNode } from "./gate-node";
 import { GeneralNode } from "./general-node";
-import { OpportunityNode } from "./opportunity-node";
-import { OpportunityDecisionNode } from "./opportunity-decision-node";
-import { OpportunitySectionNode } from "./opportunity-section-node";
 import type { WorkflowFlowNode } from "./node-utils";
 
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
@@ -35,7 +32,7 @@ function ExecutionSummaryBadge({ summary }: { summary?: ExecutionSummary }) {
   return (
     <div
       aria-label={`Execution status: ${message}`}
-      className={`pointer-events-none absolute bottom-2 right-2 z-30 flex max-w-[calc(100%-16px)] items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold shadow-sm backdrop-blur-sm ${tone}`}
+      className={`pointer-events-none absolute right-2 top-[calc(100%+38px)] z-30 flex max-w-[calc(100%-16px)] items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold shadow-sm backdrop-blur-sm ${tone}`}
     >
       <Icon className="size-3 shrink-0" />
       <span className="truncate">
@@ -63,13 +60,7 @@ function WorkflowNodeComponent({
 
   const inner =
     node.type === "gate" ? (
-      <GateNode node={node} selected={selected} />
-    ) : node.config.opportunitySection ? (
-      <OpportunitySectionNode node={node} selected={selected} />
-    ) : node.type === "opportunityValidation" && node.config.opportunityRole === "decisionHub" ? (
-      <OpportunityDecisionNode node={node} selected={selected} />
-    ) : node.type === "opportunityValidation" ? (
-      <OpportunityNode node={node} selected={selected} />
+      <GateNode node={node} selected={selected} phaseColor={data.phaseColor} />
     ) : (
       <GeneralNode
         node={node}
@@ -77,6 +68,7 @@ function WorkflowNodeComponent({
         emphasized={data.emphasized}
         dimmed={data.dimmed}
         reached={data.reached}
+        phaseColor={data.phaseColor}
       />
     );
 

@@ -5,16 +5,17 @@ import { persist } from "zustand/middleware";
 import { clone } from "@/lib/clone";
 import { createDomainNode } from "@/lib/create-domain-node";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
-import { DEMO_WORKFLOW } from "@/lib/demo";
-import { createProjectWorkflow } from "@/lib/project-template";
+import { createEmptyWorkspace, createProjectWorkflow } from "@/lib/project-template";
 import { validateWorkflow } from "@/lib/validation";
 import { migrateWorkflowFile } from "@/lib/workflow-migration";
 import {
   autoArrangeHighLevel,
-  createDefaultHighLevelProcess,
   createHighLevelNode,
+  isDefaultHighLevelProcess,
+  isLegacyDefaultHighLevelFamily,
   validateHighLevelWorkflow,
 } from "@/lib/high-level-workflow";
+import { DETAILED_LIFECYCLE_IDS } from "@/lib/detailed-workflow";
 import { createExecutionItem } from "@/lib/execution";
 import { createEmptyExecutionLayer } from "@/types/workflow";
 import {
@@ -36,6 +37,21 @@ import {
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import type { SyncMessage } from "@/lib/collaboration/collaboration-types";
+import {
+  appendOperationsAudit,
+  calculateClassD,
+  classifyClientPath,
+  convertClientToProject,
+  createEstimateVersion,
+  evaluatePaymentRelease,
+  normalizeProjectOperations,
+  roleCanApprove,
+  scheduleWarranty,
+} from "@/lib/project-operations";
+import type {
+  ApprovalRole,
+  ProjectOperations,
+} from "@/types/project-operations";
 import type {
   DomainEdge,
   DomainNode,
@@ -106,6 +122,128 @@ function normalizeHighLevelLayer2Links(
   return Array.from(new Set(linkedIds)).filter((linkedId) => !alreadyClaimed.has(linkedId));
 }
 
+function isBlankWorkflow(file: WorkflowFile) {
+  return (
+    file.graph.nodes.length === 0 &&
+    file.graph.edges.length === 0 &&
+    (file.highLevel?.graph.nodes.length ?? 0) === 0
+  );
+}
+
+function clearDefaultWorkflow(file: WorkflowFile) {
+  const blank = createEmptyWorkspace();
+  return {
+    ...blank,
+    graph: { ...blank.graph, metadata: file.graph.metadata },
+    operations: file.operations,
+  };
+}
+
+function isSeededDetailedWorkflow(file: WorkflowFile) {
+  const ids = new Set(DETAILED_LIFECYCLE_IDS);
+  const hasNoNamedProject = file.graph.metadata.name.trim().length === 0;
+  const hasNoHighLevelNodes = (file.highLevel?.graph.nodes.length ?? 0) === 0;
+  return (
+    file.graph.nodes.length >= 4 &&
+    file.graph.nodes.every((node) => ids.has(node.id as (typeof DETAILED_LIFECYCLE_IDS)[number])) &&
+    hasNoNamedProject &&
+    hasNoHighLevelNodes
+  );
+}
+
+function removePrimaryGates(file: WorkflowFile) {
+  const highLevel = file.highLevel;
+  if (!highLevel) return { file, removed: false };
+  const removedIds = new Set(
+    highLevel.graph.nodes
+      .filter((node) => node.type === "primaryGate")
+      .map((node) => node.id),
+  );
+  if (!removedIds.size) return { file, removed: false };
+
+  const nodes = highLevel.graph.nodes.filter((node) => !removedIds.has(node.id));
+  const edges = highLevel.graph.edges.filter(
+    (edge) => !removedIds.has(edge.source) && !removedIds.has(edge.target),
+  );
+  const layoutNodes = Object.fromEntries(
+    Object.entries(highLevel.layout.nodes).filter(([nodeId]) => !removedIds.has(nodeId)),
+  );
+  return {
+    file: {
+      ...file,
+      highLevel: {
+        ...highLevel,
+        graph: { nodes, edges },
+        layout: { ...highLevel.layout, nodes: layoutNodes },
+      },
+    },
+    removed: true,
+  };
+}
+
+function normalizeLoadedWorkflow(file: WorkflowFile) {
+  if (
+    isDefaultHighLevelProcess(file.highLevel) ||
+    isLegacyDefaultHighLevelFamily(file.highLevel)
+  ) {
+    return { file: clearDefaultWorkflow(file), clearedDefault: true };
+  }
+  if (isBlankWorkflow(file)) return { file, clearedDefault: false };
+  // A current project may intentionally contain only user-authored L1 nodes
+  // while its detailed layer is still empty. Do not let the legacy migration
+  // scaffold L2 for that document and then classify it as a default workflow.
+  if (file.graph.nodes.length === 0 && (file.highLevel?.graph.nodes.length ?? 0) > 0) {
+    const sanitized = removePrimaryGates(file);
+    return { file: sanitized.file, clearedDefault: sanitized.removed };
+  }
+  const migrated = migrateWorkflowFile(file);
+  if (isSeededDetailedWorkflow(migrated)) {
+    return { file: clearDefaultWorkflow(migrated), clearedDefault: true };
+  }
+  const sanitized = removePrimaryGates(migrated);
+  return { file: sanitized.file, clearedDefault: sanitized.removed };
+}
+
+function withOperationalIdentity(file: WorkflowFile, operations: ProjectOperations) {
+  const identity = operations.identity;
+  return {
+    ...file,
+    graph: {
+      ...file.graph,
+      metadata: {
+        ...file.graph.metadata,
+        updatedAt: operations.updatedAt,
+      },
+      nodes: file.graph.nodes.map((node) =>
+        node.type === "projectStart"
+          ? {
+              ...node,
+              conditions: [
+                {
+                  id: "client-id-required",
+                  label: "Client / Lead ID is created",
+                  required: true,
+                  checked: Boolean(identity.clientId),
+                  locked: true,
+                },
+              ],
+              customFields: {
+                ...node.customFields,
+                clientId: identity.clientId,
+                leadId: identity.leadId,
+                projectId: identity.projectNumber,
+                legacyJobNumber: typeof identity.legacyJobNumber === "string"
+                  ? identity.legacyJobNumber
+                  : "",
+              },
+            }
+          : node,
+      ),
+    },
+    operations,
+  };
+}
+
 export type ConfirmClearNotice = {
   title: string;
   message: string;
@@ -113,9 +251,13 @@ export type ConfirmClearNotice = {
   onConfirm: () => void;
 };
 
+export type AuthUser = { id: string; email: string; name: string };
+
 export interface WorkflowState {
   file: WorkflowFile;
   workspaceOwnerId: string;
+  authUser?: AuthUser | null;
+  setAuthUser: (user: AuthUser | null) => void;
   activeProjectId?: string;
   dirty: boolean;
   lastSavedAt?: string;
@@ -160,6 +302,11 @@ export interface WorkflowState {
     parentId?: string,
   ) => string;
   updateNode: (id: string, patch: Partial<DomainNode>) => void;
+  deleteNodeCondition: (
+    nodeId: string,
+    conditionId?: string,
+    conditionIndex?: number,
+  ) => void;
   deleteNodes: (ids: string[]) => void;
   deleteSelected: () => void;
   showActionBlocked: (
@@ -196,7 +343,6 @@ export interface WorkflowState {
     patches: Record<string, Partial<HighLevelNodeLayout>>,
     before: Record<string, HighLevelNodeLayout>,
   ) => void;
-  createDefaultHighLevelProcess: () => void;
   autoArrangeHighLevel: () => void;
   validateHighLevel: () => void;
   addExecutionItem: (
@@ -205,6 +351,40 @@ export interface WorkflowState {
   ) => string;
   updateExecutionItem: (id: string, patch: Partial<ExecutionItem>) => void;
   deleteExecutionItem: (id: string) => void;
+  updateOperations: (
+    updater: (operations: ProjectOperations) => ProjectOperations,
+    audit?: {
+      actor?: string;
+      actorRole?: ApprovalRole | "System";
+      action: string;
+      entityType?: string;
+      entityId?: string;
+      summary: string;
+    },
+  ) => void;
+  classifyOperationsClient: (actor: string) => void;
+  releasePaymentGate: (actor: string, role: ApprovalRole) => string | undefined;
+  approveOperationsRequest: (
+    requestId: string,
+    actor: string,
+    role: ApprovalRole,
+    approve: boolean,
+  ) => string | undefined;
+  convertClientRecord: (input: {
+    sequence: number;
+    actor: string;
+    gateDecisionId: string;
+    buildingCount?: number;
+    modulesPerBuilding?: number;
+  }) => string;
+  recalculateClassD: (actor: string, sourceRevision: string) => number;
+  startWarranty: (input: {
+    dayZeroDate: string;
+    durationMonths: number;
+    owner: string;
+    triggerEvidence: string;
+    actor: string;
+  }) => string | undefined;
   validate: () => void;
   togglePanel: (panel: "left" | "right" | "validation") => void;
   setSearch: (value: string) => void;
@@ -213,8 +393,10 @@ export interface WorkflowState {
 export const useWorkflowStore = create<WorkflowState>()(
   persist(
     (set, get) => ({
-      file: clone(DEMO_WORKFLOW),
+      file: createEmptyWorkspace(),
       workspaceOwnerId: "dev-bypass",
+      authUser: null,
+      setAuthUser: (authUser) => set({ authUser }),
       activeProjectId: undefined,
       past: [],
       future: [],
@@ -232,9 +414,14 @@ export const useWorkflowStore = create<WorkflowState>()(
       setHydrated: () =>
         set((state) => {
           try {
+            const normalized = normalizeLoadedWorkflow(state.file);
             return {
               hydrated: true,
-              file: migrateWorkflowFile(state.file),
+              // Keep a new/cleared workspace genuinely empty. The migration
+              // fallback adds Project Start for older workflow files, but it
+              // must not recreate content in the blank starting state.
+              file: normalized.file,
+              dirty: state.dirty || normalized.clearedDefault,
             };
           } catch {
             // A malformed legacy field must never discard the user's entire
@@ -265,27 +452,33 @@ export const useWorkflowStore = create<WorkflowState>()(
           dirty: true,
         })),
       replaceFile: (file) =>
-        set({
-          file: migrateWorkflowFile(file),
+        set(() => {
+          const normalized = normalizeLoadedWorkflow(file);
+          return {
+          file: normalized.file,
           activeProjectId: undefined,
           past: [],
           future: [],
           dirty: true,
           selection: { nodeIds: [] },
+          };
         }),
       loadProject: (file, activeProjectId, workspaceOwnerId) =>
-        set({
-          file: migrateWorkflowFile(file),
+        set(() => {
+          const normalized = normalizeLoadedWorkflow(file);
+          return {
+          file: normalized.file,
           workspaceOwnerId,
           activeProjectId,
           past: [],
           future: [],
-          dirty: false,
+          dirty: normalized.clearedDefault,
           selection: { nodeIds: [] },
+          };
         }),
       resetWorkspace: (workspaceOwnerId) =>
         set({
-          file: clone(DEMO_WORKFLOW),
+          file: createEmptyWorkspace(),
           workspaceOwnerId: workspaceOwnerId ?? "dev-bypass",
           activeProjectId: undefined,
           past: [],
@@ -293,8 +486,12 @@ export const useWorkflowStore = create<WorkflowState>()(
           dirty: false,
           lastSavedAt: undefined,
           selection: { nodeIds: [] },
+          highLevelSelection: { nodeIds: [] },
+          focusedInspectorField: undefined,
+          search: "",
           issues: [],
           validationOpen: false,
+          deleteBlocked: undefined,
         }),
       clearDetailedNodes: () =>
         set((state) => {
@@ -360,8 +557,11 @@ export const useWorkflowStore = create<WorkflowState>()(
         set((state) => {
           const execution = state.file.execution || createEmptyExecutionLayer();
           const items = nodeId
-            ? execution.items.filter((item) => item.linkedLayer2NodeId !== nodeId)
-            : [];
+            ? execution.items.filter(
+                (item) =>
+                  item.linkedLayer2NodeId !== nodeId || Boolean(item.catalogId),
+              )
+            : execution.items.filter((item) => Boolean(item.catalogId));
           return {
             past: appendHistory(state.past, state.file),
             file: {
@@ -445,6 +645,12 @@ export const useWorkflowStore = create<WorkflowState>()(
       setFocusedInspectorField: (focusedInspectorField) =>
         set({ focusedInspectorField }),
       addNode: (type, position, parentId) => {
+        // These are canonical/retired lifecycle surfaces, not user-addable
+        // palette nodes. Keep the guard for stale drag/command events from
+        // older sessions after their palette entries have been removed.
+        if (type === "approvalMatrix" || type === "responsibilityLane") {
+          return "";
+        }
         if (type === "projectStart") {
           const existing = get().file.graph.nodes.find(
             (node) => node.type === "projectStart",
@@ -500,6 +706,56 @@ export const useWorkflowStore = create<WorkflowState>()(
           senderId,
           nodeId: id,
           patch,
+          timestamp: Date.now(),
+        }));
+      },
+      deleteNodeCondition: (nodeId, conditionId, conditionIndex) => {
+        let deleted = false;
+        let nextConditions: DomainNode["conditions"] = [];
+        let linkedExecutionItemId: string | undefined;
+        get().commit((file) => {
+          const node = file.graph.nodes.find((item) => item.id === nodeId);
+          if (!node) return file;
+          const index = conditionId
+            ? node.conditions.findIndex((condition) => condition.id === conditionId)
+            : conditionIndex ?? -1;
+          const condition = node.conditions[index];
+          if (!condition || condition.locked) return file;
+
+          deleted = true;
+          nextConditions = node.conditions.filter((_, itemIndex) => itemIndex !== index);
+          linkedExecutionItemId = condition.linkedExecutionItemId;
+          let nextFile = patchNode(file, nodeId, { conditions: nextConditions });
+
+          // A release condition can create a local L3 requirement when its
+          // form is opened. Remove that orphan with the condition, while
+          // preserving any catalog-controlled ProFab record.
+          if (linkedExecutionItemId && nextFile.execution) {
+            const linkedItem = nextFile.execution.items.find(
+              (item) => item.id === linkedExecutionItemId,
+            );
+            if (linkedItem && !linkedItem.catalogId) {
+              nextFile = {
+                ...nextFile,
+                execution: {
+                  ...nextFile.execution,
+                  items: nextFile.execution.items.filter(
+                    (item) => item.id !== linkedExecutionItemId,
+                  ),
+                },
+              };
+            }
+          }
+          return nextFile;
+        });
+        if (!deleted) return;
+
+        set({ focusedInspectorField: undefined });
+        broadcastIfLocal((senderId) => ({
+          type: "PATCH_NODE",
+          senderId,
+          nodeId,
+          patch: { conditions: nextConditions },
           timestamp: Date.now(),
         }));
       },
@@ -751,6 +1007,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           };
         }),
       addHighLevelNode: (type, position) => {
+        // Primary Gates are no longer part of the L1 authoring model. Keep
+        // this guard for stale drag/drop or command events from old sessions.
+        if (type === "primaryGate") return "";
         const id = `high-level-${type}-${crypto.randomUUID().slice(0, 8)}`;
         const node = createHighLevelNode(type, id);
         set((state) => {
@@ -938,18 +1197,6 @@ export const useWorkflowStore = create<WorkflowState>()(
             dirty: true,
           };
         }),
-      createDefaultHighLevelProcess: () =>
-        set((state) => {
-          const highLevel = state.file.highLevel;
-          if (highLevel?.graph.nodes.length) return state;
-          const next = createDefaultHighLevelProcess();
-          return {
-            past: appendHistory(state.past, state.file),
-            file: { ...state.file, highLevel: next },
-            future: [],
-            dirty: true,
-          };
-        }),
       autoArrangeHighLevel: () =>
         set((state) => {
           if (!state.file.highLevel?.graph.nodes.length) return state;
@@ -1025,7 +1272,8 @@ export const useWorkflowStore = create<WorkflowState>()(
       deleteExecutionItem: (id) =>
         set((state) => {
           const execution = state.file.execution;
-          if (!execution?.items.some((item) => item.id === id)) return state;
+          const target = execution?.items.find((item) => item.id === id);
+          if (!execution || !target || target.catalogId) return state;
           return {
             past: appendHistory(state.past, state.file),
             file: {
@@ -1039,6 +1287,260 @@ export const useWorkflowStore = create<WorkflowState>()(
             dirty: true,
           };
         }),
+      updateOperations: (updater, audit) => {
+        get().commit((file) => {
+          const current = normalizeProjectOperations(
+            file.operations,
+            file.graph.metadata.name,
+            String(
+              file.graph.nodes.find((node) => node.type === "projectStart")
+                ?.customFields.legacyJobNumber || "",
+            ),
+          );
+          let operations = updater(clone(current));
+          operations = {
+            ...operations,
+            updatedAt: new Date().toISOString(),
+          };
+          if (audit) {
+            operations = appendOperationsAudit(operations, {
+              actor: audit.actor || "Unknown",
+              actorRole: audit.actorRole || "System",
+              action: audit.action,
+              entityType: audit.entityType || "ProjectOperations",
+              entityId: audit.entityId || operations.identity.projectNumber || operations.identity.clientId,
+              summary: audit.summary,
+            });
+          }
+          return withOperationalIdentity(file, operations);
+        });
+      },
+      classifyOperationsClient: (actor) => {
+        const operations = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        const classification = classifyClientPath(operations);
+        get().updateOperations(
+          (current) => ({
+            ...current,
+            clientPath: {
+              ...current.clientPath,
+              clientType: classification.type,
+              selectedSubGates: classification.subGates,
+              classificationReason: classification.reason,
+              classifiedAt: new Date().toISOString(),
+              classifiedBy: actor,
+            },
+          }),
+          {
+            actor,
+            actorRole: "Coordinator",
+            action: "CLASSIFY_CLIENT_PATH",
+            entityType: "ClientPath",
+            entityId: operations.identity.clientId,
+            summary: `${classification.type} selected with ${classification.subGates.length} fixed sub-gates.`,
+          },
+        );
+      },
+      releasePaymentGate: (actor, role) => {
+        const operations = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        const evaluation = evaluatePaymentRelease(operations);
+        if (!evaluation.ready) return evaluation.reasons.join(" ");
+        if (!roleCanApprove(role, "Finance", "Payment Release")) {
+          return `${role} is not authorized to release a payment gate.`;
+        }
+        const timestamp = new Date().toISOString();
+        get().updateOperations(
+          (current) => ({
+            ...current,
+            commercial: {
+              ...current.commercial,
+              paymentRelease: {
+                ...current.commercial.paymentRelease,
+                status: "Released",
+                releasedAt: timestamp,
+                releasedBy: actor,
+                approverRole: role,
+                reasons: [],
+              },
+            },
+            approvals: {
+              ...current.approvals,
+              requests: [
+                ...current.approvals.requests,
+                {
+                  id: `approval-payment-${crypto.randomUUID()}`,
+                  kind: "Payment Release",
+                  reference: current.commercial.paymentRelease.id,
+                  amount: current.commercial.receipts.reduce((sum, receipt) => sum + receipt.amount, 0),
+                  contractPercent: current.commercial.contractValue > 0
+                    ? current.commercial.receipts.reduce((sum, receipt) => sum + receipt.amount, 0) / current.commercial.contractValue * 100
+                    : 0,
+                  cumulativeCreditAmount: 0,
+                  requiredRole: "Finance",
+                  requestedBy: actor,
+                  requestedAt: timestamp,
+                  status: "Approved",
+                  decidedBy: actor,
+                  decidedByRole: role,
+                  decidedAt: timestamp,
+                  evidence: current.commercial.paymentRelease.evidence,
+                  reason: "Invoice and verified receipt evidence satisfied the payment release gate.",
+                },
+              ],
+            },
+          }),
+          {
+            actor,
+            actorRole: role,
+            action: "RELEASE_PAYMENT_GATE",
+            entityType: "PaymentRelease",
+            entityId: operations.commercial.paymentRelease.id,
+            summary: `Payment release authorized by ${role}.`,
+          },
+        );
+        return undefined;
+      },
+      approveOperationsRequest: (requestId, actor, role, approve) => {
+        const operations = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        const request = operations.approvals.requests.find((item) => item.id === requestId);
+        if (!request) return "Approval request was not found.";
+        if (request.status !== "Pending") return "Only a pending request can be decided.";
+        if (!roleCanApprove(role, request.requiredRole, request.kind)) {
+          return `${role} cannot decide a request requiring ${request.requiredRole}.`;
+        }
+        const timestamp = new Date().toISOString();
+        get().updateOperations(
+          (current) => ({
+            ...current,
+            approvals: {
+              ...current.approvals,
+              requests: current.approvals.requests.map((item) =>
+                item.id === requestId
+                  ? {
+                      ...item,
+                      status: approve ? "Approved" : "Rejected",
+                      decidedBy: actor,
+                      decidedByRole: role,
+                      decidedAt: timestamp,
+                    }
+                  : item,
+              ),
+            },
+          }),
+          {
+            actor,
+            actorRole: role,
+            action: approve ? "APPROVE_REQUEST" : "REJECT_REQUEST",
+            entityType: "ApprovalRequest",
+            entityId: requestId,
+            summary: `${request.kind} ${request.reference || request.id} ${approve ? "approved" : "rejected"} by ${role}.`,
+          },
+        );
+        return undefined;
+      },
+      convertClientRecord: ({
+        sequence,
+        actor,
+        gateDecisionId,
+        buildingCount = 1,
+        modulesPerBuilding = 0,
+      }) => {
+        const current = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        try {
+          const converted = convertClientToProject(
+            current,
+            sequence,
+            actor,
+            gateDecisionId,
+            buildingCount,
+            modulesPerBuilding,
+          );
+          get().updateOperations(() => converted);
+          return converted.identity.projectNumber;
+        } catch (error) {
+          return error instanceof Error ? error.message : "Client-to-project conversion failed.";
+        }
+      },
+      recalculateClassD: (actor, sourceRevision) => {
+        const current = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        const amount = calculateClassD(current);
+        const version = createEstimateVersion(
+          current,
+          "D",
+          amount,
+          actor,
+          sourceRevision,
+        );
+        get().updateOperations(
+          (operations) => ({
+            ...operations,
+            estimating: {
+              ...operations.estimating,
+              calculatedClassDAmount: amount,
+              versions: [
+                ...operations.estimating.versions.map((item) =>
+                  item.estimateClass === "D" && item.status === "Draft"
+                    ? { ...item, status: "Superseded" as const }
+                    : item,
+                ),
+                version,
+              ],
+            },
+          }),
+          {
+            actor,
+            actorRole: "Estimator",
+            action: "CALCULATE_CLASS_D",
+            entityType: "EstimateVersion",
+            entityId: version.id,
+            summary: `Class D v${version.version} calculated at ${amount.toFixed(2)} ${current.commercial.currency}.`,
+          },
+        );
+        return amount;
+      },
+      startWarranty: ({ dayZeroDate, durationMonths, owner, triggerEvidence, actor }) => {
+        const current = normalizeProjectOperations(
+          get().file.operations,
+          get().file.graph.metadata.name,
+        );
+        try {
+          const scheduled = scheduleWarranty(
+            current,
+            dayZeroDate,
+            durationMonths,
+            owner,
+            triggerEvidence,
+          );
+          get().updateOperations(
+            () => scheduled,
+            {
+              actor,
+              actorRole: "Project Manager",
+              action: "START_WARRANTY_DAY_ZERO",
+              entityType: "Warranty",
+              entityId: scheduled.identity.projectNumber || scheduled.identity.clientId,
+              summary: `Warranty started ${dayZeroDate}; ${durationMonths} months with 30/60/90-day follow-ups.`,
+            },
+          );
+          return undefined;
+        } catch (error) {
+          return error instanceof Error ? error.message : "Warranty could not be started.";
+        }
+      },
       validate: () => {
         const issues = validateWorkflow(get().file);
         set({ issues, validationOpen: true });
@@ -1058,7 +1560,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setSearch: (search) => set({ search }),
     }),
     {
-      name: "project-workflow-builder:v40-unclipped-opportunity-steps",
+      name: "project-workflow-builder:v43-no-default-workspace",
       storage: debouncedJSONStorage(),
       partialize: (state) => ({
         file: state.file,

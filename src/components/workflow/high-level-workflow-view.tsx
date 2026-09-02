@@ -6,7 +6,6 @@ import {
   BackgroundVariant,
   Controls,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -17,8 +16,8 @@ import {
 import { CheckCircle2, CircleDot, Layers3, Milestone } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { createEmptyHighLevelWorkflow } from "@/types/workflow";
-import type { HighLevelNode } from "@/types/workflow";
-import { orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import type { HighLevelEdge, HighLevelNode } from "@/types/workflow";
+import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { HighLevelNode as HighLevelNodeComponent, type HighLevelFlowNode } from "./high-level-node";
@@ -37,18 +36,21 @@ const emptyHighLevel = createEmptyHighLevelWorkflow();
 
 function LifecycleOverview({
   nodes,
+  edges,
   selectedNodeId,
   onFocusNode,
 }: {
   nodes: HighLevelNode[];
+  edges: HighLevelEdge[];
   selectedNodeId?: string;
   onFocusNode: (nodeId: string) => void;
 }) {
+  const orderedNodes = useMemo(() => orderHighLevelNodes(nodes, edges), [nodes, edges]);
   const [overviewOpen, setOverviewOpen] = useState(true);
   const [localSelectedNodeId, setLocalSelectedNodeId] = useState(selectedNodeId);
   const activeNodeId = selectedNodeId || localSelectedNodeId;
-  const selected = nodes.find((node) => node.id === activeNodeId) || nodes[0];
-  const gateCount = nodes.filter((node) => node.type === "primaryGate").length;
+  const selected = orderedNodes.find((node) => node.id === activeNodeId) || orderedNodes[0];
+  const gateCount = orderedNodes.filter((node) => node.type === "primaryGate").length;
   const Icon = selected?.type === "primaryGate" ? Milestone : selected?.type === "start" ? CircleDot : selected?.type === "end" ? CheckCircle2 : Layers3;
 
   return (
@@ -80,7 +82,7 @@ function LifecycleOverview({
         <>
           <div className="scroll-thin overflow-x-auto border-t px-2 py-2">
             <div className="flex min-w-max items-center gap-1">
-              {nodes.map((node, index) => {
+              {orderedNodes.map((node, index) => {
                 const isSelected = node.id === activeNodeId;
                 const isGate = node.type === "primaryGate";
                 const isBoundary = node.type === "start" || node.type === "end";
@@ -149,7 +151,6 @@ function HighLevelCanvasInner({
     addHighLevelEdge,
     deleteHighLevelNodes,
     deleteHighLevelEdge,
-    createDefaultHighLevelProcess,
   } = useWorkflowStore(
     useShallow((state) => ({
       file: state.file,
@@ -161,7 +162,6 @@ function HighLevelCanvasInner({
       addHighLevelEdge: state.addHighLevelEdge,
       deleteHighLevelNodes: state.deleteHighLevelNodes,
       deleteHighLevelEdge: state.deleteHighLevelEdge,
-      createDefaultHighLevelProcess: state.createDefaultHighLevelProcess,
     })),
   );
   const flow = useReactFlow();
@@ -220,7 +220,7 @@ function HighLevelCanvasInner({
           node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds,
           file.graph.nodes,
         );
-        const width = node.type === "phase" ? 288 : 208;
+        const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
         return {
           id: node.id,
           type: node.type,
@@ -230,6 +230,8 @@ function HighLevelCanvasInner({
           data: {
             title: node.title,
             description: node.description,
+            code: node.code,
+            backgroundColor: node.backgroundColor,
             type: node.type,
             linkedDetailedNodeIds: node.linkedDetailedNodeIds,
             linkedLayer2Nodes: linkedLayer2NodeIds.flatMap((nodeId) => {
@@ -439,7 +441,9 @@ function HighLevelCanvasInner({
         onMoveEnd={(_, viewport) => setHighLevelViewport(viewport)}
         minZoom={0.08}
         maxZoom={2}
-        panOnScroll
+        zoomOnScroll
+        zoomActivationKeyCode={null}
+        panOnScroll={false}
         selectionOnDrag={false}
         nodesDraggable
         nodesConnectable
@@ -454,16 +458,9 @@ function HighLevelCanvasInner({
           size={1.2}
           color="var(--grid-dot)"
         />
-        <MiniMap
-          pannable
-          zoomable
-          position="bottom-right"
-          className="workflow-minimap !m-0 !rounded-xl !border !bg-background/95"
-          maskColor="rgba(71,85,105,.12)"
-        />
         <Controls
           position="bottom-left"
-          className="!left-4 !bottom-4 !m-0 !overflow-hidden !rounded-lg !border !shadow-sm"
+          className="!left-4 !bottom-20 !m-0 !overflow-hidden !rounded-lg !border !shadow-sm"
           showInteractive={false}
         />
       </ReactFlow>
@@ -471,23 +468,17 @@ function HighLevelCanvasInner({
         <div className="pointer-events-none absolute inset-x-4 top-4 z-20">
           <LifecycleOverview
             nodes={highLevel.graph.nodes}
+            edges={highLevel.graph.edges}
             selectedNodeId={highLevelSelection.nodeIds[0]}
             onFocusNode={focusHighLevelNode}
           />
         </div>
       ) : null}
       {nodes.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <p className="text-xs text-muted-foreground/70">
-            Add high-level phases and primary gates to begin.
+            Drag a node from the library to begin.
           </p>
-          <button
-            type="button"
-            className="pointer-events-auto rounded-md border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted"
-            onClick={createDefaultHighLevelProcess}
-          >
-            Create Default High-Level Process
-          </button>
         </div>
       ) : null}
     </section>

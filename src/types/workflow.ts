@@ -1,7 +1,6 @@
 export const NODE_TYPES = [
   "general",
   "projectStart",
-  "opportunityValidation",
   "start",
   "end",
   "phase",
@@ -160,6 +159,8 @@ export interface Condition {
   required?: boolean;
   checked?: boolean;
   locked?: boolean;
+  /** The L3 form that supplies evidence for this release condition. */
+  linkedExecutionItemId?: string;
   expression?: string;
   description?: string;
 }
@@ -211,332 +212,41 @@ export interface DomainNode {
     buildingCode?: string;
     moduleCode?: string;
     paidServiceType?: unknown;
-    /** Optional role for the decomposed Opportunity screening workspace. */
-    opportunityRole?: "decisionHub";
-    /** Optional evidence area rendered by an Opportunity section node. */
-    opportunitySection?: "client" | "project" | "site" | "design" | "commercial" | "team";
-    opportunityParentId?: string;
-    /** Stable child ids created by the reversible Opportunity split action. */
-    opportunitySectionNodeIds?: string[];
-    opportunity?: OpportunityValidationConfig;
   };
 }
 
-export interface OpportunityValidationConfig {
-  /** Stable child ids created by the reversible Opportunity split action. */
-  opportunitySectionNodeIds?: string[];
-  /**
-   * The structured intake is the source of truth for the screening workspace.
-   * The fields below it are retained solely to open older persisted workflows safely.
-   */
-  intake?: OpportunityIntake;
-  evaluation?: OpportunityEvaluationSnapshot;
+export const EDITABLE_FORM_FIELD_TYPES = [
+  "text",
+  "textarea",
+  "date",
+  "number",
+  "select",
+  "checkbox",
+] as const;
+export type EditableFormFieldType = (typeof EDITABLE_FORM_FIELD_TYPES)[number];
 
-  /** Per-workflow business settings. Undefined values use the deterministic defaults. */
-  businessRules?: OpportunityBusinessRuleConfig;
-
-  // Legacy V1 questionnaire fields — intentionally retained for migration compatibility.
-  companyName?: string;
-  contactPerson?: string;
-  leadSource?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  decisionMakerName?: string;
-  decisionMakerRole?: string;
-  decisionMakerConfirmed?: boolean;
-  decisionMakerNotes?: string;
-
-  clientTierType?: "Standard" | "Returning" | "Trusted" | "Strategic";
-
-  projectIntent?: string;
-  projectLocation?: string;
-  storeys?: number | string;
-  grossFloorArea?: number | string;
-  unitCount?: number | string;
-
-  siteStatus?: "Owned" | "Under Option" | "Searching" | "Unresolved";
-  siteAddress?: string;
-  siteConstraints?: string;
-  designStage?:
-    | "Level 0: No Plans"
-    | "Level 1: Concept"
-    | "Level 2: Preliminary"
-    | "Level 3: Permit Set"
-    | "Level 4: Permit Issued";
-
-  clientBudget?: string;
-  budgetScope?: "Turnkey Total" | "Modular Scope Only";
-  targetCostPerSqFt?: string;
-  fundingSource?:
-    | "Equity"
-    | "Commercial Loan"
-    | "Government Grant"
-    | "Financing Program"
-    | "TBD";
-  fundingSecured?: boolean;
-  targetTimeline?: string;
-
-  consultantsInfo?: string;
-  modularFitPassed?: boolean;
-  realityCheckStatus?: "passed" | "failed" | "pending";
-
-  opportunityScore?: number;
-  opportunityGrade?: "P1" | "P2" | "P3" | "P4" | "P5";
-
-  ownerType?:
-    | "Project-Ready"
-    | "Design-Needed"
-    | "Site-Unresolved"
-    | "Concept-Stage"
-    | "Permit-Ready";
-  gapMitigationNotes?: string;
-
-  riskTags?: Array<
-    | "Financing-Dependent"
-    | "Accelerated-Schedule"
-    | "Non-Standard-Grid"
-    | "Zoning-Unconfirmed"
-    | "High-Cost-Variance"
-  >;
-
-  loiConfig?: {
-    scopeSummary?: string;
-    maxDays?: number;
-    maxHours?: number;
-    reviewDate?: string;
-    conversionTrigger?: string;
-    isConvertedToPaid?: boolean;
-  };
-
-  gateConditions?: Array<{
-    id: string;
-    label: string;
-    type: "Mandatory" | "Conditional" | "Optional";
-    satisfied: boolean;
-    note?: string;
-  }>;
-
-  hardGateOverride?: boolean;
-
-  engagementPath?:
-    | "CSA"
-    | "PCS"
-    | "LOI"
-    | "Paid Feasibility"
-    | "Direct Technical Review"
-    | "Decline / No-Go";
-  engagementStatus?: "Draft" | "Out for Signature" | "Executed";
-
-  decisionOutcome?:
-    | "pass-p1-p2"
-    | "csa-pcs"
-    | "loi-governed"
-    | "path-loi"
-    | "class-d"
-    | "consultation-csa"
-    | "pcs"
-    | "governed-loi"
-    | "technical-review"
-    | "site-feasibility"
-    | "hold-rework"
-    | "nogo-disqualified"
-    | "draft"
-    | "pass"
-    | "hold"
-    | "nogo";
-}
-
-export type KnownStatus = "Yes" | "No" | "Unknown";
-
-export interface OpportunityStakeholder {
+/** A user-editable field definition used by custom L3 forms. */
+export interface EditableFormField {
   id: string;
-  name?: string;
-  role?: string;
-  organization?: string;
-  email?: string;
-  phone?: string;
-  decisionRole?:
-    | "Final Decision Maker"
-    | "Financial Approver"
-    | "Technical Approver"
-    | "Project Lead"
-    | "Owner / Partner"
-    | "Board / Committee"
-    | "Consultant"
-    | "Influencer"
-    | "Other";
-}
-
-export interface OpportunityTeamMember {
-  id: string;
-  name?: string;
-  company?: string;
-  role?:
-    | "Architect"
-    | "Structural Engineer"
-    | "Mechanical Engineer"
-    | "Electrical Engineer"
-    | "Civil Engineer"
-    | "Geotechnical"
-    | "General Contractor"
-    | "Construction Manager"
-    | "Project Manager"
-    | "Quantity Surveyor"
-    | "Municipality"
-    | "Owner Representative"
-    | "Financing Contact"
-    | "Other";
-  email?: string;
-  phone?: string;
-  status?: "Engaged" | "Proposed" | "TBD" | "Not Required" | "Unknown";
-}
-
-export interface OpportunityIntake {
-  clientAuthority?: {
-    clientName?: string;
-    clientType?: string;
-    primaryContactName?: string;
-    primaryContactRole?: string;
-    email?: string;
-    phone?: string;
-    decisionAuthorityStatus?: "Confirmed" | "Partially Confirmed" | "Unknown";
-    finalDecisionAuthorityIdentified?: KnownStatus;
-    requiredDecisionPartiesIdentified?: KnownStatus;
-    approvalPath?: string;
-    notes?: string;
-    clientRelationship?: "Standard" | "Returning" | "Trusted" | "Strategic";
-    stakeholders?: OpportunityStakeholder[];
-  };
-  projectDefinition?: {
-    projectName?: string;
-    projectType?: string;
-    buildingCount?: string;
-    storeys?: string;
-    grossFloorArea?: string;
-    unitsRoomsBeds?: string;
-    buildingDimensions?: string;
-    estimatedModuleCount?: string;
-  };
-  siteLand?: {
-    siteStatus?: string;
-    siteAddress?: string;
-    municipality?: string;
-    province?: string;
-    candidateSiteCount?: string;
-    siteOwner?: string;
-    siteControlNotes?: string;
-    zoningKnown?: KnownStatus;
-    servicingKnown?: KnownStatus;
-    accessKnown?: KnownStatus;
-    foundationConceptKnown?: KnownStatus;
-    craneSettingAccessKnown?: KnownStatus;
-    transportationConstraintsKnown?: KnownStatus;
-    fatalConstraintConfirmed?: boolean;
-    fatalConstraintResolvable?: KnownStatus;
-  };
-  design?: {
-    designMaturity?: string;
-    drawingPackageAvailable?: KnownStatus;
-    drawingRevision?: string;
-    drawingDate?: string;
-    architectIdentified?: KnownStatus;
-    designNotes?: string;
-    modularCompatibilityStatus?: string;
-    reviewedBy?: "Sales Preliminary" | "Technical" | "Engineering" | "Not Reviewed";
-    geometryModularFriendly?: KnownStatus | "Technical Review Required";
-    transportableGeometryLikelyFeasible?: KnownStatus | "Technical Review Required";
-    siteAccessLikelyFeasible?: KnownStatus | "Technical Review Required";
-    craneSettingConceptFeasible?: KnownStatus | "Technical Review Required";
-    structuralConceptCompatible?: KnownStatus | "Technical Review Required";
-    majorDesignConversionLikely?: KnownStatus | "Technical Review Required";
-    viableCorrectivePath?: KnownStatus;
-  };
-  budgetFundingTimeline?: {
-    clientBudgetProvided?: KnownStatus;
-    clientBudgetAmount?: string;
-    clientBudgetRangeLow?: string;
-    clientBudgetRangeHigh?: string;
-    budgetBasis?: string;
-    classDAvailable?: KnownStatus;
-    classDAmount?: string;
-    classDDate?: string;
-    classDRevision?: string;
-    fundingStatus?: string;
-    targetDesignStart?: string;
-    targetPermit?: string;
-    targetConstructionStart?: string;
-    targetProduction?: string;
-    targetDelivery?: string;
-    targetOccupancy?: string;
-    timelineStatus?: "Realistic" | "Aggressive" | "Unrealistic" | "Unknown" | "Requires Review";
-  };
-  teamCommitment?: {
-    members?: OpportunityTeamMember[];
-    clientAttendedMeetings?: KnownStatus;
-    clientProvidedDocuments?: KnownStatus;
-    clientProvidedBudget?: KnownStatus;
-    clientAssignedProjectContact?: KnownStatus;
-    clientEngagedConsultants?: KnownStatus;
-    clientRequestedFormalNextStep?: KnownStatus;
-    clientAcceptedPaidEarlyWork?: KnownStatus;
-    clientRespondsToRequests?: KnownStatus;
-  };
-}
-
-export interface OpportunityBusinessRuleConfig {
-  scoreWeights?: Partial<Record<"authority" | "project" | "site" | "design" | "modular" | "budget" | "fundingTimeline" | "teamCommitment", number>>;
-  scoreGradeThresholds?: { strong?: number; moderate?: number; weak?: number };
-  budgetAlignmentTolerancePercent?: number;
-  governedLoiAllowed?: boolean;
-  commercialEngagement?: "Complete" | "Incomplete" | "Blocked";
-}
-
-export interface OpportunityEvaluationSnapshot {
-  rules?: OpportunityRuleResult[];
-  eligibility?: OpportunityEligibility[];
-  recommendedRoute?: OpportunityRoute;
-  otherEligibleRoutes?: OpportunityRoute[];
-  score?: { value: number; grade: "Strong" | "Moderate" | "Weak" | "High Risk"; breakdown: Record<string, number> };
-  overallStatus?: OpportunityOverallStatus;
-  requiredActions?: string[];
-  riskFlags?: string[];
-  evaluatedAt?: string;
-}
-
-export type OpportunityRuleCategory = "HARD" | "CONDITIONAL" | "RISK";
-export type OpportunityRuleSeverity = "HOLD" | "BLOCK" | "NO_GO" | "WARNING" | "ACTION" | "INFO";
-export interface OpportunityRuleDefinition {
-  id: string;
-  name: string;
-  category: OpportunityRuleCategory;
-  severity: OpportunityRuleSeverity;
-  condition: string;
-  outcome: string;
-  message: string;
-  recommendedAction?: string;
-  enabled: boolean;
-}
-export interface OpportunityRuleResult {
-  id: string;
-  name: string;
-  category: OpportunityRuleCategory;
-  severity: OpportunityRuleSeverity;
-  /** Stable, human-readable condition that produced this result. */
-  condition?: string;
-  outcome: string;
-  message: string;
-  recommendedAction?: string;
-  enabled?: boolean;
-}
-export type OpportunityEligibilityStatus = "ELIGIBLE" | "CONDITIONALLY_ELIGIBLE" | "NOT_YET_ELIGIBLE" | "NOT_ELIGIBLE";
-export interface OpportunityEligibility {
-  key: "CLASS_D" | "CONSULTATION_CSA" | "PCS" | "GOVERNED_LOI" | "TECHNICAL_REVIEW" | "TECHNICAL_HANDOFF" | "PRE_CONSTRUCTION" | "HOLD";
   label: string;
-  status: OpportunityEligibilityStatus;
-  reasons: string[];
+  type: EditableFormFieldType;
+  required: boolean;
+  section: string;
+  placeholder?: string;
+  help?: string;
+  options?: string[];
 }
-export type OpportunityRoute = "CLASS_D" | "CONSULTATION_CSA" | "PCS" | "GOVERNED_LOI" | "TECHNICAL_REVIEW" | "HOLD_PREQUALIFICATION" | "NO_GO_ARCHIVE";
-export type OpportunityOverallStatus = "NO-GO" | "HOLD" | "BLOCKED" | "TECHNICAL REVIEW REQUIRED" | "ACTION REQUIRED" | "READY";
+
+/** Per-execution-item overrides layered over the controlled ProFab register. */
+export interface ExecutionFormOverrides {
+  title?: string;
+  description?: string;
+  /** Existing fields are overridden by id; unknown ids are appended. */
+  fields?: EditableFormField[];
+  /** Controlled fields can be explicitly removed for this execution item. */
+  removedFieldIds?: string[];
+}
+
 
 export interface ComponentNotePost {
   id: string;
@@ -618,6 +328,10 @@ export interface HighLevelNode {
   type: HighLevelNodeType;
   title: string;
   description: string;
+  /** Optional user-defined badge shown on the High-Level node. */
+  code?: string;
+  /** Optional glass tint, stored as a hex value or the transparent preset. */
+  backgroundColor?: string;
   linkedDetailedNodeIds?: string[];
   linkedLayer2NodeIds?: string[];
 }
@@ -704,6 +418,36 @@ export const EXECUTION_TASK_STATUSES = [
 ] as const;
 export type ExecutionTaskStatus = (typeof EXECUTION_TASK_STATUSES)[number];
 
+export const EXECUTION_APPLICABILITY = [
+  "Required",
+  "Conditional",
+  "Triggered",
+  "Optional",
+  "Supporting",
+  "Not Applicable",
+] as const;
+export type ExecutionApplicability =
+  (typeof EXECUTION_APPLICABILITY)[number];
+
+export const EXECUTION_APPLICABILITY_DETERMINATIONS = [
+  "Pending",
+  "Applicable",
+  "Not Applicable",
+] as const;
+export type ExecutionApplicabilityDetermination =
+  (typeof EXECUTION_APPLICABILITY_DETERMINATIONS)[number];
+
+export type ExecutionFormValue = string | boolean;
+
+export interface ExecutionFormSnapshot {
+  capturedAt: string;
+  authorizationState: "Executed" | "Approved" | "Executed & Approved";
+  documentRevision: string;
+  /** Materialized values include canonical operational bindings and computed
+   * fields, so the signed/approved record can be compared with later edits. */
+  values: Record<string, ExecutionFormValue>;
+}
+
 export interface ExecutionItem {
   id: string;
   linkedLayer2NodeId: string;
@@ -721,6 +465,31 @@ export interface ExecutionItem {
   signers?: string[];
   approvalStatus?: ExecutionApprovalStatus;
   taskStatus?: ExecutionTaskStatus;
+  /** Stable controlled-document identifier from the ProFab form register. */
+  catalogId?: string;
+  /** Controlled index number, for example 2.10 or 5.11. */
+  documentNumber?: string;
+  documentCode?: string;
+  documentRevision?: string;
+  documentLanguage?: "English" | "French" | "Bilingual";
+  sourceReference?: string;
+  sourceAvailability?: "Included" | "Index Only" | "Supplemental";
+  applicability?: ExecutionApplicability;
+  applicabilityDetermination?: ExecutionApplicabilityDetermination;
+  applicabilityReason?: string;
+  formValues?: Record<string, ExecutionFormValue>;
+  /** Local form customizations layered over the controlled form register. */
+  formOverrides?: ExecutionFormOverrides;
+  formSnapshot?: ExecutionFormSnapshot;
+  /** A controlled snapshot becomes stale when a bound operational value or
+   * local form value changes after execution/approval. */
+  formStale?: boolean;
+  formStaleFieldIds?: string[];
+  /**
+   * File-only completion used by L2 nodes. These nodes do not expose an
+   * editable L3 form; checking the required file is their completion action.
+   */
+  checklistComplete?: boolean;
 }
 
 export interface ExecutionLayer {
@@ -736,6 +505,7 @@ export interface WorkflowFile {
   layout: CanvasLayout;
   highLevel?: HighLevelWorkflow;
   execution?: ExecutionLayer;
+  operations?: import("@/types/project-operations").ProjectOperations;
 }
 
 export type ValidationSeverity = "error" | "warning" | "info";

@@ -11,10 +11,10 @@ const industrial = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Project Workflow Builder",
-  description: "A professional visual workflow modeling environment",
+  title: "Falcon Workflow System",
+  description: "Industrial workflow modeling and gate governance",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="light">{children}</ThemeProvider></body></html>;
+  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="dark">{children}</ThemeProvider></body></html>;
 }

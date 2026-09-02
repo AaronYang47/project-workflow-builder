@@ -74,8 +74,7 @@ export function useCanvasAutoMeasure(
               !id ||
               !layout ||
               !domain ||
-              domain.type === "gate" ||
-              domain.type === "opportunityValidation"
+              domain.type === "gate"
             ) {
               return;
             }
@@ -105,8 +104,7 @@ export function useCanvasAutoMeasure(
               !id ||
               !layout ||
               !domain ||
-              domain.type === "gate" ||
-              domain.type === "opportunityValidation"
+              domain.type === "gate"
             ) {
               return;
             }

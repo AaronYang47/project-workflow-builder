@@ -13,7 +13,10 @@ import {
   PROJECT_ID_PATTERN,
 } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
-import { evaluateOpportunity } from "@/lib/opportunity-evaluation";
+import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
+import type { ExecutionItem } from "@/types/workflow";
+import { operationsGateStatus } from "@/lib/project-operations";
+import type { ProjectOperations } from "@/types/project-operations";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
@@ -21,6 +24,18 @@ export const COMPUTED_CONDITION_IDS = new Set([
   "project-id-required",
   "paid-building-required",
   "paid-module-required",
+]);
+
+const OPERATIONAL_GATE_NODE_IDS = new Set([
+  "gate-g1-qualified",
+  "gate-g2-technical-commitment",
+  "production-readiness",
+  "gate-g3-production-authorization",
+  "gate-g4-factory-release",
+  "delivery-project-completion",
+  "gate-g5-warranty-start",
+  "commissioning-warranty",
+  "close-out",
 ]);
 
 export const requirementApplies = (item: { requirementType?: string }) =>
@@ -103,13 +118,30 @@ export function conditionIsSatisfied(
   condition: Condition,
   node: DomainNode,
   projectStart?: DomainNode,
+  executionItems?: ExecutionItem[],
+  operations?: ProjectOperations,
 ) {
+  if (condition.linkedExecutionItemId && executionItems) {
+    const linkedItem = executionItems.find(
+      (item) => item.id === condition.linkedExecutionItemId,
+    );
+    return Boolean(
+        linkedItem &&
+        executionItemProgress(linkedItem, operations, {
+          checklistOnly: true,
+        }) === "complete",
+    );
+  }
   const source = computedConditionSource(node, projectStart);
   const projectId = String(
     source.customFields.projectId || source.customFields.projectNumber || "",
   ).trim();
   if (condition.id === "project-id-required") {
-    return PROJECT_ID_PATTERN.test(projectId);
+    return Boolean(
+      operations?.identity?.clientId ||
+        operations?.identity?.leadId ||
+        PROJECT_ID_PATTERN.test(projectId),
+    );
   }
   if (condition.id === "paid-building-required") {
     return BUILDING_PATTERN.test(String(source.config.buildingCode || ""));
@@ -124,22 +156,38 @@ export function conditionDisplaySatisfied(
   condition: Condition,
   node: DomainNode,
   projectStart?: DomainNode,
+  executionItems?: ExecutionItem[],
+  operations?: ProjectOperations,
 ) {
   if (condition.id && COMPUTED_CONDITION_IDS.has(condition.id)) {
-    return conditionIsSatisfied(condition, node, projectStart);
+    return conditionIsSatisfied(condition, node, projectStart, executionItems, operations);
+  }
+  if (condition.linkedExecutionItemId && executionItems) {
+    return conditionIsSatisfied(condition, node, projectStart, executionItems, operations);
   }
   return Boolean(condition.checked);
 }
 
-export function nodeReleaseReady(node: DomainNode, projectStart?: DomainNode) {
-  if (node.type === "gate") return gateApprovalReady(node);
-  if (node.type === "opportunityValidation") return true;
+export function nodeReleaseReady(
+  node: DomainNode,
+  projectStart?: DomainNode,
+  executionItems?: ExecutionItem[],
+  operations?: ProjectOperations,
+) {
+  if (node.type === "gate") {
+    const checklistReady = gateApprovalReady(node);
+    if (!checklistReady || !operations) return checklistReady;
+    const operationalGate = operationsGateStatus(node.id, operations);
+    return operationalGate.ready;
+  }
   if (
     node.type === "projectStart" &&
     !conditionIsSatisfied(
       { id: "project-id-required", required: true },
       node,
       node,
+      executionItems,
+      operations,
     )
   ) {
     return false;
@@ -147,16 +195,39 @@ export function nodeReleaseReady(node: DomainNode, projectStart?: DomainNode) {
   const required = (node.conditions || []).filter(
     (condition) => condition.required !== false,
   );
-  return required.every((condition) =>
-    conditionIsSatisfied(condition, node, projectStart),
+  const conditionsReady = required.every((condition) =>
+    conditionIsSatisfied(condition, node, projectStart, executionItems, operations),
   );
+  if (!conditionsReady || !executionItems) return conditionsReady;
+
+  const executionSummary = getExecutionSummary(
+    node.id,
+    executionItems,
+    operations,
+    { checklistOnly: true },
+  );
+  const executionReady =
+    !executionSummary.hasItems ||
+    executionSummary.requiredCompletedCount === executionSummary.requiredCount;
+  if (!executionReady) return false;
+  if (operations && OPERATIONAL_GATE_NODE_IDS.has(node.id)) {
+    return operationsGateStatus(node.id, operations).ready;
+  }
+  return true;
 }
 
-export function nodeStatusLabel(node: DomainNode, projectStart?: DomainNode) {
+export function nodeStatusLabel(
+  node: DomainNode,
+  projectStart?: DomainNode,
+  executionItems?: ExecutionItem[],
+  operations?: ProjectOperations,
+) {
   const stored = String(node.customFields.status || "").trim();
   if (stored) return stored;
   if (node.type === "gate" || (node.config.gateRules || []).length) {
-    if (gateApprovalReady(node)) return "Ready";
+    if (gateApprovalReady(node)) {
+      if (!operations || operationsGateStatus(node.id, operations).ready) return "Ready";
+    }
     const progress = getGateConditionProgress(node);
     if (progress.state === "none") return "Blocked";
     return "In Progress";
@@ -166,9 +237,14 @@ export function nodeStatusLabel(node: DomainNode, projectStart?: DomainNode) {
   );
   if (!required.length) return "Open";
   const ready = required.filter((item) =>
-    conditionIsSatisfied(item, node, projectStart),
+    conditionIsSatisfied(item, node, projectStart, executionItems, operations),
   );
-  if (ready.length === required.length) return "Ready";
+  if (ready.length === required.length) {
+    if (operations && OPERATIONAL_GATE_NODE_IDS.has(node.id) && !operationsGateStatus(node.id, operations).ready) {
+      return "In Progress";
+    }
+    return "Ready";
+  }
   if (ready.length) return "In Progress";
   return "Blocked";
 }
@@ -192,7 +268,12 @@ export function workflowHasPaidService(
   );
 }
 
-export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
+export function getWorkflowProgress(
+  nodes: DomainNode[],
+  edges: DomainEdge[],
+  executionItems?: ExecutionItem[],
+  operations?: ProjectOperations,
+) {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const incoming = new Set(
     edges
@@ -231,7 +312,10 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
     const sourceId = queue.shift()!;
     const source = nodeById.get(sourceId);
     if (!source) continue;
-    if (source.type !== "gate" && !nodeReleaseReady(source, projectStart))
+    if (
+      source.type !== "gate" &&
+      !nodeReleaseReady(source, projectStart, executionItems, operations)
+    )
       continue;
     for (const edge of outgoing.get(sourceId) || []) {
       let allowed = true;
@@ -239,25 +323,6 @@ export function getWorkflowProgress(nodes: DomainNode[], edges: DomainEdge[]) {
         allowed =
           (edge.sourceHandle === "yes" && gateApprovalReady(source)) ||
           (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
-      } else if (source.type === "opportunityValidation") {
-        const evalResult = evaluateOpportunity(source);
-        const currentOutcome = evalResult.recommendedOutcome;
-        const handle = edge.sourceHandle || "pass-p1-p2";
-        const legacyAliases: Record<string, string[]> = {
-          "class-d": ["class-d", "pass-p1-p2", "pass"],
-          "consultation-csa": ["consultation-csa", "csa-pcs"],
-          pcs: ["pcs", "csa-pcs"],
-          "governed-loi": ["governed-loi", "path-loi", "loi-governed"],
-          "technical-review": ["technical-review", "site-feasibility"],
-          "site-feasibility": ["site-feasibility", "hold-rework", "hold"],
-          "nogo-disqualified": ["nogo-disqualified", "nogo", "in-rework"],
-        };
-        allowed = Boolean(
-          (legacyAliases[currentOutcome] || [currentOutcome]).includes(handle) ||
-            (currentOutcome === "nogo-disqualified" &&
-              (edge.label?.toLowerCase().includes("no-go") ||
-                edge.label?.toLowerCase().includes("nogo"))),
-        );
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

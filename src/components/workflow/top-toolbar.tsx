@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { useTheme } from "next-themes";
 import {
   AlignHorizontalDistributeCenter,
@@ -168,11 +169,18 @@ export function TopToolbar({
   return (
     <header
       data-workflow-toolbar
-      className="relative z-40 grid shrink-0 grid-cols-1 grid-rows-[44px_44px_44px] border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[48px_44px] min-[1800px]:h-14 min-[1800px]:grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] min-[1800px]:grid-rows-1"
+      className="relative z-40 grid shrink-0 grid-cols-1 grid-rows-[44px_44px_44px] border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[48px_44px] min-[1440px]:!h-14 min-[1440px]:!grid-cols-[minmax(220px,max-content)_minmax(0,1fr)_max-content] min-[1440px]:!grid-rows-1"
     >
-      <div className="scroll-thin col-start-1 row-start-1 flex h-full min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-2 min-[1800px]:col-start-1">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground">
-          PW
+      <div className="scroll-thin col-start-1 row-start-1 flex h-full min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-2 min-[1440px]:col-start-1">
+        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-black">
+          <Image
+            src="/falcon-mark.png"
+            alt=""
+            width={570}
+            height={420}
+            unoptimized
+            className="h-full w-full object-contain"
+          />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Input
@@ -181,12 +189,12 @@ export function TopToolbar({
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ name: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="block h-7 w-[170px] min-w-[150px] max-w-[180px] shrink-0 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
+            className="workflow-name-input block h-7 w-[240px] min-w-[180px] max-w-[320px] shrink-0 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
           />
-          <span className="inline shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:inline">
             {store.file.graph.metadata.status}
           </span>
-          <span className="inline shrink-0 text-[11px] text-muted-foreground/50">
+          <span className="hidden shrink-0 text-[11px] text-muted-foreground/50 lg:inline">
             •
           </span>
           <input
@@ -209,7 +217,7 @@ export function TopToolbar({
             </span>
           ) : (
             <span
-              className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300"
+              className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 lg:flex dark:text-emerald-300"
               role="status"
               aria-live="polite"
               title="All changes saved"
@@ -220,8 +228,8 @@ export function TopToolbar({
           )}
         </div>
       </div>
-      <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1800px]:col-span-1 min-[1800px]:col-start-2 min-[1800px]:row-start-1 min-[1800px]:justify-center min-[1800px]:border-t-0">
-      <div className="mx-1.5 hidden h-6 w-px shrink-0 bg-border/60 min-[1800px]:block" />
+      <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1440px]:!col-span-1 min-[1440px]:!col-start-2 min-[1440px]:!row-start-1 min-[1440px]:!justify-start min-[1440px]:!border-t-0">
+      <div className="mx-1.5 hidden h-6 w-px shrink-0 bg-border/60 min-[1440px]:block" />
       <div className="flex shrink-0 items-center gap-1">
         <ToolButton
           label="Undo (⌘Z)"
@@ -254,7 +262,7 @@ export function TopToolbar({
           size="sm"
           onClick={arrange}
           disabled={arranging || isExecutionView}
-          className="h-8 shrink-0 px-2.5 text-xs"
+          className="h-8 min-w-[112px] shrink-0 justify-center gap-1.5 px-2.5 text-xs"
         >
           <span className={arranging ? "animate-spin" : ""}>
             {arranging ? (
@@ -265,27 +273,6 @@ export function TopToolbar({
           </span>
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
-        {isHighLevelView && !isExecutionView && (store.file.highLevel?.graph.nodes.length || 0) > 0 && (
-          <Button
-            title="Clear all L1 nodes"
-            aria-label="Clear L1 Nodes"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              store.showConfirmClear({
-                title: "Clear L1 High-Level Workflow",
-                message:
-                  "Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone and will remove the entire lifecycle skeleton.",
-                confirmLabel: "Clear L1 Workflow",
-                onConfirm: store.clearHighLevelNodes,
-              });
-            }}
-            className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="size-3.5 mr-1" />
-            Clear L1
-          </Button>
-        )}
         {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
           <Button
             title="Clear all L2 nodes"
@@ -368,7 +355,10 @@ export function TopToolbar({
               isHighLevelView
                 ? onToggleHighLevelView
                 : isExecutionView
-                  ? onCloseExecutionView
+                  ? () => {
+                      onCloseExecutionView?.();
+                      onToggleHighLevelView();
+                    }
                   : undefined
             }
             className={`h-7 rounded px-2 text-[11px] font-semibold ${
@@ -402,6 +392,27 @@ export function TopToolbar({
             L3 · Execution View
           </Button>
         </div>
+        {isHighLevelView && !isExecutionView && (store.file.highLevel?.graph.nodes.length || 0) > 0 && (
+          <Button
+            title="Clear all L1 nodes"
+            aria-label="Clear L1 Nodes"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              store.showConfirmClear({
+                title: "Clear L1 High-Level Workflow",
+                message:
+                  "Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone and will remove the entire lifecycle skeleton.",
+                confirmLabel: "Clear L1 Workflow",
+                onConfirm: store.clearHighLevelNodes,
+              });
+            }}
+            className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-1 size-3.5" />
+            Clear L1
+          </Button>
+        )}
         <ToolButton
           label="Group selected"
           onClick={store.groupSelected}
@@ -441,7 +452,7 @@ export function TopToolbar({
         <CollaboratorPresence />
       </div>
       </div>
-      <div className="scroll-thin col-start-1 row-start-3 flex h-full min-w-0 items-center justify-start overflow-x-auto border-t pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0 min-[1800px]:col-start-3 min-[1800px]:justify-end">
+      <div className="scroll-thin col-start-1 row-start-3 flex h-full min-w-0 items-center justify-start overflow-x-auto border-t pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0 min-[1440px]:!col-start-3 min-[1440px]:!row-start-1 min-[1440px]:justify-end min-[1440px]:!border-t-0">
         <ToolButton
           label="Export Excel"
           onClick={() => {

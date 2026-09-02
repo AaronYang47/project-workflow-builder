@@ -1,0 +1,208 @@
+import { expect, test, type Page } from "playwright/test";
+import { seedE2EWorkflow } from "./support/e2e-workflow";
+
+async function openLayer1(page: Page) {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
+}
+
+async function openLayer2(page: Page) {
+  await openLayer1(page);
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await expect(page.locator('[data-id="gate-g1-qualified"]')).toBeVisible();
+}
+
+async function openExecution(page: Page, nodeId: string) {
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
+  await page.evaluate(
+    ({ targetNodeId }) => {
+      window.dispatchEvent(
+        new CustomEvent("workflow:open-execution", {
+          detail: { nodeId: targetNodeId },
+        }),
+      );
+    },
+    { targetNodeId: nodeId },
+  );
+  await expect(page.getByRole("button", { name: "Back to L2" })).toBeVisible();
+}
+
+test("app loads the exact L1 lifecycle without browser, request, or collaboration errors", async ({ page }) => {
+  const consoleErrors: string[] = [];
+  const failedResponses: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
+
+  await openLayer1(page);
+  await expect(page.getByText("4 lifecycle steps · 0 primary gates")).toBeVisible();
+  await expect(page.getByText("Phase-01", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Collab Off", { exact: true })).toBeVisible();
+  await page.waitForTimeout(500);
+
+  expect(failedResponses).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("L1, L2, and the execution view are connected and G1 cannot be bypassed visually", async ({ page }) => {
+  await openLayer2(page);
+  await expect(page.locator('[data-id="pre-construction"]')).toBeVisible();
+
+  await page.locator('[data-id="pre-construction"]').click();
+  await expect(page.getByRole("button", { name: "L3 · Execution View" })).toBeEnabled();
+  await page.getByRole("button", { name: "L3 · Execution View" }).click();
+
+  await expect(page.getByText("PRE-CONSTRUCTION", { exact: true })).toBeVisible();
+  await expect(page.getByText("Required files", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("required-file-checklist")).toBeVisible();
+  await expect(page.getByText("Execution Item", { exact: true })).toHaveCount(0);
+});
+
+test("L3 Detailed Workflow minimap keeps the lifecycle order and excludes retired matrix nodes", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  await openExecution(page, "pre-construction");
+
+  await page.getByRole("button", { name: "Open L2 detailed workflow" }).click();
+  const minimap = page.locator('[data-layer-context-minimap="L2"]');
+  await expect(minimap).toBeVisible();
+
+  const nodeIds = await minimap
+    .locator("[data-context-map-node-id]")
+    .evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute("data-context-map-node-id")),
+    );
+  const indexOf = (id: string) => nodeIds.indexOf(id);
+
+  expect(indexOf("gate-g1-qualified")).toBeLessThan(indexOf("pre-construction"));
+  expect(indexOf("commercial-pathway")).toBe(-1);
+  expect(indexOf("approval-matrix")).toBe(-1);
+  expect(indexOf("responsibility-lane")).toBe(-1);
+});
+
+test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation", async ({
+  page,
+}) => {
+  await openLayer1(page);
+  const processLocator = page.getByRole("button", {
+    name: "Open minimap and process locator",
+  });
+  await expect(processLocator).toBeVisible();
+  await processLocator.click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Process locator pyramid diagram",
+  });
+  await expect(dialog).toBeVisible();
+
+  const l2Toggles = dialog.locator("[data-process-locator-l2-toggle]");
+  expect(await l2Toggles.count()).toBeGreaterThan(0);
+  expect(
+    await l2Toggles.evaluateAll((elements) =>
+      elements.every((element) => element.getAttribute("aria-expanded") === "false"),
+    ),
+  ).toBe(true);
+  await expect(dialog.locator('button[title^="Open L2 ·"]')).toHaveCount(0);
+
+  const firstL1Card = dialog.locator('button[title="Open L1 · Start"]');
+  const firstL2Toggle = dialog.locator(
+    '[data-process-locator-l2-toggle="high-level-1"]',
+  );
+  const [l1Box, toggleBox] = await Promise.all([
+    firstL1Card.boundingBox(),
+    firstL2Toggle.boundingBox(),
+  ]);
+  expect(l1Box).toBeTruthy();
+  expect(toggleBox).toBeTruthy();
+  expect(Math.abs((l1Box?.x || 0) - (toggleBox?.x || 0))).toBeLessThanOrEqual(1);
+  expect(Math.abs((l1Box?.width || 0) - (toggleBox?.width || 0))).toBeLessThanOrEqual(1);
+
+  for (let index = 0; index < (await l2Toggles.count()); index += 1) {
+    if ((await l2Toggles.nth(index).getAttribute("aria-expanded")) === "false") {
+      await l2Toggles.nth(index).click();
+    }
+  }
+  await expect(dialog.locator("[data-process-locator-l3-toggle]")).toHaveCount(0);
+});
+
+test("L1 zooms with an ordinary mouse wheel", async ({ page }) => {
+  await openLayer1(page);
+  const viewport = page.locator(
+    '[data-high-level-workflow-view] .react-flow__viewport',
+  );
+  await expect(viewport).toBeVisible();
+  const before = await viewport.getAttribute("style");
+  const canvas = page.locator('[data-high-level-workflow-view] .react-flow__pane');
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(
+    (box?.x || 0) + (box?.width || 0) / 2,
+    (box?.y || 0) + (box?.height || 0) / 2,
+  );
+  await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(450);
+  const after = await viewport.getAttribute("style");
+  expect(after).not.toBe(before);
+});
+
+test("Opportunity Qualification is completely removed from the workflow", async ({ page }) => {
+  await openLayer2(page);
+  await expect(
+    page.getByRole("button", { name: "Opportunity Qualification" }),
+  ).toHaveCount(0);
+  await expect(page.locator('[data-id^="opportunity"]')).toHaveCount(0);
+});
+
+test("retired matrix nodes are not addable or present in L2", async ({ page }) => {
+  await openLayer2(page);
+  await expect(page.getByRole("button", { name: /Approval Matrix/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Responsibility Matrix/ })).toHaveCount(0);
+  await expect(page.locator('[data-id="approval-matrix"]')).toHaveCount(0);
+  await expect(page.locator('[data-id="responsibility-lane"]')).toHaveCount(0);
+});
+
+test("the execution view releases when every required file is checked", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  await openExecution(page, "pre-construction");
+  const checklist = page.getByTestId("required-file-checklist");
+  const files = checklist.locator('input[type="checkbox"]');
+  const count = await files.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    await files.nth(index).check();
+  }
+  await expect(page.getByText("PRE-CONSTRUCTION is ready to release.", { exact: true })).toBeVisible();
+});
+
+test("the execution view does not expose execution-item editing", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  await openExecution(page, "pre-construction");
+  await expect(page.getByTestId("required-file-checklist")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);
+  await expect(page.getByLabel("Applicability decision")).toHaveCount(0);
+});
+
+
+test("mobile L1 and L3 remain within the viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLayer1(page);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+  ).toBe(true);
+
+  await openExecution(page, "pre-construction");
+  await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+  ).toBe(true);
+});

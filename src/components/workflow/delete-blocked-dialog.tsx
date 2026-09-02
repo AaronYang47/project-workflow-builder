@@ -12,8 +12,8 @@ export function DeleteBlockedDialog() {
   return (
     <Dialog.Root open onOpenChange={(open) => !open && dismiss()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[100] bg-slate-950/35 backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border bg-background shadow-2xl outline-none">
+        <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[100]" />
+        <Dialog.Content className="liquid-glass-panel fixed left-1/2 top-1/2 z-[101] max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border shadow-2xl outline-none">
         <div className="flex items-start gap-3 border-b bg-amber-50 px-5 py-4 dark:bg-amber-950/35">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
             <AlertTriangle className="size-5" />

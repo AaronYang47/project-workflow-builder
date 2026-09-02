@@ -1,7 +1,9 @@
 import { clone } from "@/lib/clone";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { withSyncedLegacyJobNumber } from "@/lib/project-id";
+import { getProfabForm } from "@/lib/profab-forms";
 import type {
+  Condition,
   DomainEdge,
   DomainNode,
   NodeLayout,
@@ -159,7 +161,17 @@ export function wouldRemoveLastProjectStart(file: WorkflowFile, ids: string[]) {
 
 export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): WorkflowFile {
   const nodeSet = new Set(ids);
-  const layouts = { ...file.layout.nodes };
+  const remainingLayer2NodeIds = new Set(
+    file.graph.nodes
+      .filter((node) => !nodeSet.has(node.id))
+      .map((node) => node.id),
+  );
+  const layouts = Object.fromEntries(
+    Object.entries(file.layout.nodes).map(([id, layout]) => [
+      id,
+      { ...layout },
+    ]),
+  );
   ids.forEach((id) => {
     const deletedLayout = layouts[id];
     if (deletedLayout) {
@@ -173,16 +185,90 @@ export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): Workflow
     }
     delete layouts[id];
   });
+
+  const executionItems = (file.execution?.items || []).flatMap((item) => {
+    if (!nodeSet.has(item.linkedLayer2NodeId)) return [item];
+
+    // Custom L3 work belongs to the custom L2 node and is removed with it.
+    // Controlled records are never silently deleted. A ProFab form can be
+    // restored to its catalog-owned canonical L2 node when that node still
+    // exists; otherwise it remains in L3 so validation can surface the broken
+    // lifecycle rather than losing completed form data.
+    if (!item.catalogId) return [];
+    const canonicalNodeId = getProfabForm(item)?.linkedLayer2NodeId;
+    if (
+      canonicalNodeId &&
+      remainingLayer2NodeIds.has(canonicalNodeId) &&
+      canonicalNodeId !== item.linkedLayer2NodeId
+    ) {
+      return [{ ...item, linkedLayer2NodeId: canonicalNodeId }];
+    }
+    return [item];
+  });
+  const remainingExecutionItemIds = new Set(
+    executionItems.map((item) => item.id),
+  );
+  const clearDanglingExecutionLink = (condition: Condition): Condition => {
+    if (
+      !condition.linkedExecutionItemId ||
+      remainingExecutionItemIds.has(condition.linkedExecutionItemId)
+    ) {
+      return condition;
+    }
+    const { linkedExecutionItemId: _removed, ...rest } = condition;
+    void _removed;
+    return rest;
+  };
+  const nodes = file.graph.nodes
+    .filter((node) => !nodeSet.has(node.id))
+    .map((node) => ({
+      ...node,
+      conditions: node.conditions.map(clearDanglingExecutionLink),
+    }));
+  const edges = file.graph.edges
+    .filter((edge) => !nodeSet.has(edge.source) && !nodeSet.has(edge.target))
+    .map((edge) =>
+      edge.condition
+        ? { ...edge, condition: clearDanglingExecutionLink(edge.condition) }
+        : edge,
+    );
+  const remainingEdgeIds = new Set(edges.map((edge) => edge.id));
+  const edgeLayouts = file.layout.edges
+    ? Object.fromEntries(
+        Object.entries(file.layout.edges).filter(([edgeId]) =>
+          remainingEdgeIds.has(edgeId),
+        ),
+      )
+    : undefined;
+  const highLevel = file.highLevel
+    ? {
+        ...file.highLevel,
+        graph: {
+          ...file.highLevel.graph,
+          nodes: file.highLevel.graph.nodes.map((node) => ({
+            ...node,
+            linkedLayer2NodeIds: node.linkedLayer2NodeIds?.filter(
+              (id) => !nodeSet.has(id),
+            ),
+            linkedDetailedNodeIds: node.linkedDetailedNodeIds?.filter(
+              (id) => !nodeSet.has(id),
+            ),
+          })),
+        },
+      }
+    : undefined;
   return {
     ...file,
     graph: {
       ...file.graph,
-      nodes: file.graph.nodes.filter((node) => !nodeSet.has(node.id)),
-      edges: file.graph.edges.filter(
-        (edge) => !nodeSet.has(edge.source) && !nodeSet.has(edge.target),
-      ),
+      nodes,
+      edges,
     },
-    layout: { ...file.layout, nodes: layouts },
+    layout: { ...file.layout, nodes: layouts, edges: edgeLayouts },
+    highLevel,
+    execution: file.execution
+      ? { ...file.execution, items: executionItems }
+      : undefined,
   };
 }
 

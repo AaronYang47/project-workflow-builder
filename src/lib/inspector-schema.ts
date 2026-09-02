@@ -1,5 +1,14 @@
 import { readPath } from "@/lib/object-path";
 import type { DomainNode, WorkflowNodeType } from "@/types/workflow";
+
+export function conditionInspectorKey(
+  nodeId: string,
+  conditionId: string | undefined,
+  index: number,
+) {
+  return `condition:${nodeId}:${conditionId ?? index}`;
+}
+
 export type InspectorField = {
   key: string;
   label: string;
@@ -154,176 +163,7 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
   ],
   document,
   gate,
-  opportunityValidation: [
-    ...general,
-    {
-      key: "config.opportunity.companyName",
-      label: "Company / Client Name",
-      type: "text",
-      section: "Opportunity details",
-    },
-    {
-      key: "config.opportunity.contactPerson",
-      label: "Lead Contact",
-      type: "text",
-      section: "Opportunity details",
-    },
-    {
-      key: "config.opportunity.contactEmail",
-      label: "Contact Email",
-      type: "text",
-      section: "Opportunity details",
-    },
-    {
-      key: "config.opportunity.contactPhone",
-      label: "Contact Phone",
-      type: "text",
-      section: "Opportunity details",
-    },
-    {
-      key: "config.opportunity.clientTierType",
-      label: "Client Tier",
-      type: "select",
-      options: ["Standard", "Returning", "Trusted", "Strategic"],
-      section: "Opportunity details",
-    },
-    {
-      key: "config.opportunity.decisionMakerName",
-      label: "Decision Maker Name",
-      type: "text",
-      section: "Decision authority",
-    },
-    {
-      key: "config.opportunity.decisionMakerRole",
-      label: "Decision Maker Role",
-      type: "text",
-      section: "Decision authority",
-    },
-    {
-      key: "config.opportunity.decisionMakerConfirmed",
-      label: "Decision Maker Confirmed",
-      type: "boolean",
-      section: "Decision authority",
-    },
-    {
-      key: "config.opportunity.projectIntent",
-      label: "Project Intent",
-      type: "text",
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.projectLocation",
-      label: "Location",
-      type: "text",
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.grossFloorArea",
-      label: "Gross Floor Area (sq.ft.)",
-      type: "text",
-      mask: "digits",
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.storeys",
-      label: "Storeys",
-      type: "text",
-      mask: "digits",
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.unitCount",
-      label: "Unit Count",
-      type: "text",
-      mask: "digits",
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.siteStatus",
-      label: "Site Status",
-      type: "select",
-      options: ["Owned", "Under Option", "Searching", "Unresolved"],
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.designStage",
-      label: "Design Maturity",
-      type: "select",
-      options: [
-        "Level 0: No Plans",
-        "Level 1: Concept",
-        "Level 2: Preliminary",
-        "Level 3: Permit Set",
-        "Level 4: Permit Issued",
-      ],
-      section: "Project scale & site",
-    },
-    {
-      key: "config.opportunity.clientBudget",
-      label: "Client Budget ($)",
-      type: "text",
-      mask: "digits",
-      section: "Budget & commercial",
-    },
-    {
-      key: "config.opportunity.targetCostPerSqFt",
-      label: "Target Cost / sq.ft. ($)",
-      type: "text",
-      mask: "digits",
-      section: "Budget & commercial",
-    },
-    {
-      key: "config.opportunity.fundingSource",
-      label: "Funding Source",
-      type: "select",
-      options: [
-        "Equity",
-        "Commercial Loan",
-        "Government Grant",
-        "Financing Program",
-        "TBD",
-      ],
-      section: "Budget & commercial",
-    },
-    {
-      key: "config.opportunity.fundingSecured",
-      label: "Funding Secured",
-      type: "boolean",
-      section: "Budget & commercial",
-    },
-    {
-      key: "config.opportunity.modularFitPassed",
-      label: "Modular Fit Passed",
-      type: "boolean",
-      section: "Budget & commercial",
-    },
-    {
-      key: "config.opportunity.engagementPath",
-      label: "Engagement Path",
-      type: "select",
-      options: [
-        "CSA",
-        "PCS",
-        "LOI",
-        "Paid Feasibility",
-        "Direct Technical Review",
-        "Decline / No-Go",
-      ],
-      section: "Commercial outcome",
-    },
-    {
-      key: "config.opportunity.engagementStatus",
-      label: "Engagement Status",
-      type: "select",
-      options: ["Draft", "Out for Signature", "Executed"],
-      section: "Commercial outcome",
-    },
-  ],
 };
-// Opportunity evidence is edited in the Screening Workspace. Keep the legacy
-// V1 fields available to migration code, but do not expose a second editor that
-// can drift from config.opportunity.intake.
-configByType.opportunityValidation = general;
 export const getInspectorSchema = (type: WorkflowNodeType) =>
   [...common, ...(configByType[type] || [])].filter(
     (field, index, all) =>

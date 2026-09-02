@@ -465,7 +465,7 @@ function writeGateBlock(
   const labels = interfaceText(node);
   const parentId = file.layout.nodes[node.id]?.parentId || "";
   const color = node.color || getNodeDefinition(node.type).color;
-  const status = nodeStatusLabel(node, projectStart);
+  const status = nodeStatusLabel(node, projectStart, file.execution?.items ?? []);
   const gateForm = usesGateForm(node);
   let row = startRow;
   writeKey(sheet, row, `${KEY.node}:${node.id}`);
@@ -531,7 +531,12 @@ function writeGateBlock(
         sheet,
         row,
         2,
-        conditionDisplaySatisfied(condition, node, projectStart),
+        conditionDisplaySatisfied(
+          condition,
+          node,
+          projectStart,
+          file.execution?.items ?? [],
+        ),
         LISTS.boolean,
         true,
       );

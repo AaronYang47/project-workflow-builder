@@ -23,8 +23,9 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   return (
     <div
       data-canvas-node
+      data-selected={selected || undefined}
       className={cn(
-        "h-full w-full rounded-2xl border-2 bg-slate-500/[0.035] transition duration-200",
+        "l2-node-card l2-phase-card h-full w-full rounded-2xl border-2 bg-slate-500/[0.035] transition duration-200",
         selected &&
           "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}

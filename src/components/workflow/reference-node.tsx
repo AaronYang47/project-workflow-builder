@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Check, GripVertical, Plus, Trash2 } from "lucide-react";
 import {
   Handle,
@@ -10,6 +10,8 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { getNodeDefinition } from "@/lib/node-catalog";
+import { L2_NODE_CARD_WIDTH } from "@/lib/node-layout";
+import { projectNodeUuid } from "@/lib/project-id";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type {
@@ -19,8 +21,10 @@ import type {
 } from "@/types/workflow";
 import { ComponentNoteButton } from "./component-note-button";
 import { isSectionBasedReference } from "./node-utils";
+import { ReleaseConditionsPanel } from "./release-conditions-panel";
+import { getNodeColor } from "./high-level-node";
 
-export type ReferenceFlowNode = Node<{ domain: DomainNode }, "reference">;
+export type ReferenceFlowNode = Node<{ domain: DomainNode; phaseColor?: string }, "reference">;
 
 const lines = (value: string) =>
   value
@@ -49,6 +53,16 @@ function ReferenceNodeComponent({
   const reference = node.config.reference || {};
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
+  const projectNodes = useWorkflowStore((state) => state.file.graph.nodes);
+  const executionItems = useWorkflowStore(
+    (state) => state.file.execution?.items ?? [],
+  );
+  const operations = useWorkflowStore((state) => state.file.operations);
+  const projectStartNode = useMemo(
+    () => projectNodes.find((item) => item.type === "projectStart"),
+    [projectNodes],
+  );
+  const nodeUuid = projectNodeUuid(node, projectStartNode);
   const save = (patch: Partial<ReferenceConfig>) =>
     updateNode(node.id, {
       config: { ...node.config, reference: { ...reference, ...patch } },
@@ -70,20 +84,29 @@ function ReferenceNodeComponent({
       ),
     });
 
+  const nodeColor = getNodeColor(data.phaseColor);
+
   return (
     <div className="relative h-full w-full overflow-visible">
       <div
         data-canvas-node
+        data-selected={selected || undefined}
+        data-glass-tint={nodeColor ? "true" : undefined}
         className={cn(
-          "min-w-0 h-full w-full overflow-hidden rounded-2xl border bg-card shadow-[0_8px_28px_rgba(15,23,42,.12)] transition duration-200",
+          "l2-node-card min-w-0 h-full w-full overflow-hidden rounded-2xl border bg-card shadow-[0_8px_28px_rgba(15,23,42,.12)] transition duration-200",
           node.type === "terminal" && "border-2",
           selected &&
             "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
         )}
-        style={{ borderColor: `${node.color || definition.color}66` }}
+        style={{
+          borderColor: nodeColor ? nodeColor.border : `${node.color || definition.color}66`,
+          ...(nodeColor
+            ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
+            : {}),
+        }}
       >
         <NodeResizer
-          minWidth={280}
+          minWidth={L2_NODE_CARD_WIDTH}
           minHeight={140}
           isVisible={selected}
           lineClassName="!border-primary"
@@ -108,6 +131,7 @@ function ReferenceNodeComponent({
           </span>
           <textarea
             aria-label={`${definition.label} title`}
+            key={node.title}
             defaultValue={node.title}
             rows={rowsFor(node.title, 72)}
             onBlur={(event) => saveTitle(event.target.value)}
@@ -493,7 +517,7 @@ function ReferenceNodeComponent({
           ) : null}
 
           {node.type === "terminal" ? (
-            <div className="absolute inset-x-3 bottom-6 top-3 flex min-h-0 flex-col items-center justify-center rounded-2xl bg-emerald-50/70 px-6 text-center dark:bg-emerald-950/30">
+            <div className="absolute inset-x-3 bottom-6 top-3 flex min-h-0 flex-col items-center overflow-y-auto rounded-2xl bg-emerald-50/70 px-4 py-4 text-center dark:bg-emerald-950/30">
               <ComponentNoteButton
                 nodeId={node.id}
                 noteKey="completion"
@@ -502,22 +526,46 @@ function ReferenceNodeComponent({
               />
               <textarea
                 aria-label="Completion title"
+                key={node.title}
                 defaultValue={node.title}
                 rows={rowsFor(node.title, 34)}
                 onBlur={(event) => saveTitle(event.target.value)}
                 className="w-full resize-none overflow-hidden bg-transparent text-center text-lg font-black uppercase leading-6 text-emerald-800 outline-none dark:text-emerald-300"
               />
               <textarea
-                aria-label="Completion content"
+                aria-label="Completion description"
+                data-inspector-target="description"
+                key={node.description}
                 defaultValue={node.description}
                 rows={rowsFor(node.description, 54, 2)}
                 onBlur={(event) => saveDescription(event.target.value)}
-                className="mt-2 min-h-12 w-full resize-none overflow-hidden bg-transparent text-center text-[10px] leading-4 text-emerald-700 outline-none dark:text-emerald-400"
+                className="mt-2 min-h-12 w-full resize-none overflow-hidden bg-transparent text-center text-xs leading-5 text-emerald-700 outline-none dark:text-emerald-400"
               />
+              <div className="mt-3 w-full text-left">
+                <ReleaseConditionsPanel
+                  node={node}
+                  projectStartNode={projectStartNode}
+                  executionItems={executionItems}
+                  operations={operations}
+                />
+              </div>
             </div>
           ) : null}
         </div>
       </div>
+      {nodeUuid ? (
+        <div
+          className="nodrag pointer-events-none absolute right-0 z-10"
+          style={{ top: "100%", marginTop: 6 }}
+        >
+          <span
+            title={nodeUuid}
+            className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+          >
+            UUID {nodeUuid.slice(0, 8)}
+          </span>
+        </div>
+      ) : null}
       <Handle
         type="target"
         position={Position.Left}
@@ -538,7 +586,7 @@ function ReferenceNodeComponent({
         position={Position.Top}
         id="rework-in"
         aria-label="Denied return entry"
-        className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600"
+        className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600 !opacity-0"
       />
     </div>
   );

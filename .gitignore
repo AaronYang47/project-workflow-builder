@@ -10,3 +10,4 @@ out
 .dev.vars
 .pptx-build
 *.ndjson
+tmp

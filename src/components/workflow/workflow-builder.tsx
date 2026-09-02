@@ -16,6 +16,7 @@ const ValidationPanel = dynamic(() => import("./validation-panel").then((module)
 const CommandPalette = dynamic(() => import("./command-palette").then((module) => module.CommandPalette), { ssr: false });
 const DeleteBlockedDialog = dynamic(() => import("./delete-blocked-dialog").then((module) => module.DeleteBlockedDialog), { ssr: false });
 const ConfirmClearDialog = dynamic(() => import("./confirm-clear-dialog").then((module) => module.ConfirmClearDialog), { ssr: false });
+const PyramidLocationWidget = dynamic(() => import("./pyramid-location-widget").then((module) => module.PyramidLocationWidget), { ssr: false });
 
 function subscribeToMediaQuery(
   query: MediaQueryList,
@@ -41,6 +42,7 @@ export default function WorkflowBuilder() {
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop" | null>(null);
   const [isHighLevelView, setIsHighLevelView] = useState(true);
   const [executionNodeId, setExecutionNodeId] = useState<string | null>(null);
+  const [executionItemId, setExecutionItemId] = useState<string | null>(null);
   const isExecutionView = executionNodeId !== null;
   const [layer1FocusRequest, setLayer1FocusRequest] = useState<string | null>(null);
   const [layer2FocusRequest, setLayer2FocusRequest] = useState<string[] | null>(null);
@@ -77,12 +79,23 @@ export default function WorkflowBuilder() {
   }, []);
   const closeExecutionView = useCallback(() => {
     setExecutionNodeId(null);
+    setExecutionItemId(null);
   }, []);
-
+  const focusLayer2Node = useCallback((nodeId: string) => {
+    setExecutionNodeId(null);
+    setExecutionItemId(null);
+    setIsHighLevelView(false);
+    useWorkflowStore.getState().selectNodes([nodeId]);
+    requestLayer2Focus([nodeId]);
+  }, [requestLayer2Focus]);
   useEffect(() => {
     const handleOpenExecution = (event: Event) => {
-      const custom = event as CustomEvent<{ nodeId?: string; step?: number }>;
+      const custom = event as CustomEvent<{
+        nodeId?: string;
+        itemId?: string;
+      }>;
       if (custom.detail?.nodeId) {
+        setExecutionItemId(custom.detail.itemId ?? null);
         openExecutionView(custom.detail.nodeId);
       }
     };
@@ -274,9 +287,11 @@ export default function WorkflowBuilder() {
             ) : null}
             {isExecutionView && executionNodeId ? (
               <ExecutionView
+                key={`${executionNodeId}:${executionItemId ?? "default"}`}
                 nodeId={executionNodeId}
+                focusItemId={executionItemId}
                 onBack={closeExecutionView}
-                onSelectNode={(nextId) => setExecutionNodeId(nextId)}
+                onFocusNode={focusLayer2Node}
               />
             ) : null}
             {!leftOpen && !isExecutionView ? (
@@ -327,6 +342,12 @@ export default function WorkflowBuilder() {
       />
       <DeleteBlockedDialog />
       <ConfirmClearDialog />
+      <PyramidLocationWidget
+        viewLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"}
+        executionNodeId={executionNodeId}
+        onFocusLayer1={openLayer1Context}
+        onFocusLayer2={focusLayer2Node}
+      />
     </main>
     </AuthGate>
   );

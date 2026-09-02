@@ -9,6 +9,18 @@ import { useShallow } from "zustand/react/shallow";
 import { orderLinkedWorkflowNodeIds, orderWorkflowNodeIds } from "@/lib/high-level-workflow";
 import type { HighLevelNodeType } from "@/types/workflow";
 
+const phaseColorOptions = [
+  { label: "Transparent glass", value: "transparent" },
+  { label: "Sky tint", value: "#38bdf8" },
+  { label: "Mint tint", value: "#34d399" },
+  { label: "Amber tint", value: "#fbbf24" },
+  { label: "Lavender tint", value: "#a78bfa" },
+  { label: "Rose tint", value: "#fb7185" },
+  { label: "Slate tint", value: "#94a3b8" },
+];
+
+const isHexColor = (value?: string) => /^#[0-9a-f]{6}$/i.test(value ?? "");
+
 const iconByType: Record<HighLevelNodeType, typeof CircleDot> = {
   start: CircleDot,
   phase: Layers3,
@@ -56,10 +68,9 @@ export function HighLevelInspector() {
       linkedByOtherNode.set(linkedId, otherNode.title);
     }
   }
-  const updateText = (field: "title" | "description", value: string) => {
+  const updateText = (field: "title" | "description" | "code", value: string) => {
     if (!node) return;
-    const next = field === "title" ? value.trim() || node.title : value.trim();
-    if (next !== node[field]) updateHighLevelNode(node.id, { [field]: next });
+    if (value !== node[field]) updateHighLevelNode(node.id, { [field]: value });
   };
 
   return (
@@ -102,9 +113,8 @@ export function HighLevelInspector() {
               <Input
                 id="high-level-title"
                 aria-label="High-Level Title"
-                key={`${node.id}-title-${node.title}`}
-                defaultValue={node.title}
-                onBlur={(event) => updateText("title", event.target.value)}
+                value={node.title}
+                onChange={(event) => updateText("title", event.target.value)}
               />
             </div>
             <div className="space-y-1.5">
@@ -112,12 +122,80 @@ export function HighLevelInspector() {
               <Textarea
                 id="high-level-description"
                 aria-label="High-Level Description"
-                key={`${node.id}-description-${node.description}`}
-                defaultValue={node.description}
-                onBlur={(event) => updateText("description", event.target.value)}
+                value={node.description}
+                onChange={(event) => updateText("description", event.target.value)}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="high-level-code">Badge / code</Label>
+              <Input
+                id="high-level-code"
+                aria-label="High-Level Badge Code"
+                value={node.code ?? ""}
+                placeholder="Optional"
+                onChange={(event) => updateText("code", event.target.value)}
+              />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Optional label shown in the node’s upper-right corner.
+              </p>
+            </div>
             <div className="space-y-2 border-t pt-4">
+                {node.type === "phase" || node.type === "start" || node.type === "end" ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>{node.type === "start" ? "Start appearance" : node.type === "end" ? "Final Close appearance" : "Phase appearance"}</Label>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Choose a visible glass tint. The color remains translucent, so the canvas still shows through.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {phaseColorOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-label={`Use ${option.label} for this ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} node`}
+                          aria-pressed={node.backgroundColor === option.value}
+                          title={option.label}
+                          onClick={() => updateHighLevelNode(node.id, { backgroundColor: option.value })}
+                          className={`size-7 rounded-full border-2 shadow-sm transition hover:scale-105 ${node.backgroundColor === option.value ? "border-primary ring-2 ring-primary/25 ring-offset-1" : "border-white/80"}`}
+                          style={
+                            option.value === "transparent"
+                              ? {
+                                  backgroundColor: "transparent",
+                                  backgroundImage:
+                                    "conic-gradient(#d9e2ee 25%, #ffffff 0 50%, #d9e2ee 0 75%, #ffffff 0)",
+                                  backgroundSize: "8px 8px",
+                                }
+                              : { backgroundColor: option.value }
+                          }
+                        >
+                          {option.value === "transparent" ? (
+                            <span className="sr-only">Transparent glass</span>
+                          ) : null}
+                        </button>
+                      ))}
+                      <label className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/45 bg-card text-[10px] font-bold text-muted-foreground hover:border-primary hover:text-primary" title="Custom color">
+                        <input
+                          type="color"
+                          aria-label={`Custom ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} glass tint`}
+                          value={isHexColor(node.backgroundColor) ? node.backgroundColor : "#e0f2fe"}
+                          onChange={(event) => updateHighLevelNode(node.id, { backgroundColor: event.target.value })}
+                          className="absolute size-0 opacity-0"
+                        />
+                        +
+                      </label>
+                      {node.backgroundColor ? (
+                        <button
+                          type="button"
+                          onClick={() => updateHighLevelNode(node.id, { backgroundColor: "" })}
+                          className="rounded px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          Reset
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 <div>
                   <Label>Linked Workflow Nodes</Label>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

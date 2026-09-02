@@ -8,7 +8,7 @@ import type {
 } from "@/types/workflow";
 import { requiredEdgeLabelGap } from "@/lib/layout-geometry";
 import { PHASE_CONTENT_TOP } from "@/lib/node-layout";
-import { SALES_MAINLINE_NODE_IDS } from "@/lib/pre-gate-sales-flow";
+import { matrixKindForNode } from "@/lib/matrix-config";
 
 const rounded = (value: number | undefined) => Math.round(value || 0);
 const centerY = (layout: NodeLayout) => layout.y + layout.height / 2;
@@ -23,7 +23,6 @@ const PHASE_TOP = 64;
 
 const PHASE_GAP = 240;
 const GATE_CONNECTOR_GAP = 240;
-const SALES_GAP = 96;
 const OVERLAP_SLOP = 24;
 
 type RoutePoint = { x: number; y: number };
@@ -123,20 +122,14 @@ export function packPhases(
   phases: DomainNode[],
 ) {
   const childTop = PHASE_TOP + PHASE_CONTENT_TOP;
-  const hasSalesPath = Boolean(nodes["lead-inquiry"]);
-  const projectStartNode =
-    file.graph.nodes.find(
-      (node) =>
-        node.type === "projectStart" &&
-        file.graph.edges.some(
-          (edge) => edge.source === node.id && edge.target === "lead-inquiry",
-        ),
-    ) ?? file.graph.nodes.find((node) => node.type === "projectStart");
+  const projectStartNode = file.graph.nodes.find(
+    (node) => node.type === "projectStart",
+  );
   const projectStartLayout = projectStartNode
     ? nodes[projectStartNode.id]
     : undefined;
   let phaseCursorX =
-    !hasSalesPath && projectStartLayout
+    projectStartLayout
       ? 64 + projectStartLayout.width + 144
       : 64;
   let groupBottom = childTop;
@@ -194,21 +187,39 @@ export function placeDecorativeReferences(
   isDecorative: (type: DomainNode["type"]) => boolean,
   legacyAuxiliaryTypes: Set<DomainNode["type"]>,
 ) {
-  let referenceY = groupBottom + 140;
-  for (const node of file.graph.nodes.filter(
+  const decorativeNodes = file.graph.nodes.filter(
     (item) =>
       !isPhaseChild(item.id) &&
       (isDecorative(item.type) || legacyAuxiliaryTypes.has(item.type)),
-  )) {
+  );
+  const decorativeIds = new Set(decorativeNodes.map((node) => node.id));
+  const mainBottom = Math.max(
+    0,
+    ...Object.entries(nodes)
+      .filter(([id]) => !decorativeIds.has(id))
+      .map(([, layout]) => layout.y + layout.height),
+  );
+  // Auxiliary cards are rendered as full workflow nodes. Start them below
+  // the tallest primary node as well as below any phase container; otherwise
+  // a tall Project Start or Gate card can overlap the reference stack after
+  // Auto Arrange.
+  let referenceY = Math.max(groupBottom, mainBottom) + 140;
+  for (const node of decorativeNodes) {
     const current = nodes[node.id];
+    if (!current) continue;
     nodes[node.id] = { ...current, x: 72, y: referenceY };
-    referenceY += current.height + 72;
+    // Matrix nodes use the normal L2 card renderer, whose release-condition
+    // section is taller than the compact auto-layout estimate. Reserve a
+    // conservative rendered height so the stacked cards cannot touch.
+    const renderedHeight = matrixKindForNode(node)
+      ? Math.max(current.height, 360)
+      : current.height;
+    referenceY += renderedHeight + 72;
   }
 }
 
-export function placeSalesIntake(
+export function placeProjectStart(
   file: WorkflowFile,
-  original: WorkflowFile["layout"]["nodes"],
   nodes: Record<string, NodeLayout>,
   phases: DomainNode[],
   mainNodes: DomainNode[],
@@ -216,56 +227,7 @@ export function placeSalesIntake(
   projectStartLayout: NodeLayout | undefined,
 ) {
   const mainTop = PHASE_TOP;
-  const gateOne = nodes["g1-opportunity"] || original["g1-opportunity"];
-  const salesMainline = SALES_MAINLINE_NODE_IDS.filter((id) => nodes[id]);
-  const salesGap = (fromId: string, toId: string) =>
-    gapForLabeledPair(file, fromId, toId, "horizontal", SALES_GAP);
-  const salesWidth = salesMainline.reduce(
-    (sum, id, index) =>
-      sum +
-      nodes[id].width +
-      (index ? salesGap(salesMainline[index - 1], id) : 0),
-    0,
-  );
-  const firstSalesId = salesMainline[0];
-  const startToSalesGap =
-    projectStartNode && firstSalesId
-      ? salesGap(projectStartNode.id, firstSalesId)
-      : SALES_GAP;
-  const standaloneSalesStart = projectStartLayout
-    ? 64 + projectStartLayout.width + startToSalesGap
-    : 64;
-  const lastSalesId = salesMainline.at(-1);
-  const salesToGateGap =
-    gateOne && lastSalesId
-      ? gapForLabeledPair(
-          file,
-          lastSalesId,
-          "g1-opportunity",
-          "horizontal",
-          120,
-        )
-      : 120;
-  let salesX = gateOne
-    ? gateOne.x - salesToGateGap - salesWidth
-    : standaloneSalesStart;
-  const salesY = gateOne?.y ?? mainTop;
-  for (let index = 0; index < salesMainline.length; index++) {
-    const id = salesMainline[index];
-    const nextId = salesMainline[index + 1];
-    nodes[id] = { ...nodes[id], x: salesX, y: salesY, parentId: undefined };
-    salesX += nodes[id].width + (nextId ? salesGap(id, nextId) : 0);
-  }
-  const leadInquiry = nodes["lead-inquiry"];
-  if (leadInquiry && projectStartNode && projectStartLayout) {
-    const startGap = salesGap(projectStartNode.id, leadInquiry.nodeId);
-    nodes[projectStartNode.id] = {
-      ...projectStartLayout,
-      x: leadInquiry.x - startGap - projectStartLayout.width,
-      y: salesY,
-      parentId: undefined,
-    };
-  } else if (projectStartNode && projectStartLayout) {
+  if (projectStartNode && projectStartLayout) {
     const firstPhase = phases[0] ? nodes[phases[0].id] : undefined;
     nodes[projectStartNode.id] = {
       ...projectStartLayout,
@@ -643,6 +605,41 @@ function safeReroute(
   ];
 }
 
+function safeSupportingReroute(
+  source: NodeLayout,
+  target: NodeLayout,
+  nodes: Record<string, NodeLayout>,
+  lane: number,
+): RoutePoint[] {
+  const layouts = Object.values(nodes);
+  const outerRight =
+    Math.max(...layouts.map((layout) => layout.x + layout.width)) +
+    96 +
+    lane * 64;
+  const outerLeft =
+    Math.min(...layouts.map((layout) => layout.x)) - 96 - lane * 64;
+  const bottomChannel =
+    Math.max(...layouts.map((layout) => layout.y + layout.height)) +
+    96 +
+    lane * 64;
+  const sourceEdge = source.x + source.width;
+  const targetEdge = target.x;
+  const sourceY = centerY(source);
+  const targetY = centerY(target);
+
+  // Supporting/dependency edges use the normal node handles: source-right
+  // and target-left. Route around the outside perimeter so the edge never
+  // enters a target card from the wrong side or crosses another card.
+  return [
+    { x: sourceEdge, y: sourceY },
+    { x: outerRight, y: sourceY },
+    { x: outerRight, y: bottomChannel },
+    { x: outerLeft, y: bottomChannel },
+    { x: outerLeft, y: targetY },
+    { x: targetEdge, y: targetY },
+  ];
+}
+
 export function routeRemainingEdges(
   file: WorkflowFile,
   nodes: Record<string, NodeLayout>,
@@ -659,6 +656,21 @@ export function routeRemainingEdges(
   }
   let topReturnChannel = PHASE_TOP - 58;
   let bottomChannel = groupBottom + 54;
+  const supportingLanes = new Map(
+    file.graph.edges
+      .map((edge, index) => ({ edge, index }))
+      .filter(
+        ({ edge }) =>
+          edge.type === "supporting" || edge.type === "dependency",
+      )
+      .sort(
+        (left, right) =>
+          (nodes[right.edge.target]?.y ?? 0) -
+            (nodes[left.edge.target]?.y ?? 0) ||
+          left.index - right.index,
+      )
+      .map(({ edge }, index) => [edge.id, index]),
+  );
   for (const edge of file.graph.edges.filter((item) => !edges[item.id])) {
     const source = nodes[edge.source],
       target = nodes[edge.target];
@@ -696,17 +708,14 @@ export function routeRemainingEdges(
         ],
       };
     } else if (edge.type === "supporting" || edge.type === "dependency") {
-      const sourceX = source.x + source.width / 2,
-        targetX = target.x + target.width / 2;
-      const corridorY = Math.min(source.y, target.y) - 46;
       edges[edge.id] = {
         edgeId: edge.id,
-        points: [
-          { x: sourceX, y: source.y },
-          { x: sourceX, y: corridorY },
-          { x: targetX, y: corridorY },
-          { x: targetX, y: target.y },
-        ],
+        points: safeSupportingReroute(
+          source,
+          target,
+          nodes,
+          supportingLanes.get(edge.id) ?? 0,
+        ),
       };
     } else {
       bottomChannel += 32;
@@ -723,8 +732,8 @@ export function routeRemainingEdges(
     }
   }
   // ELK routes are calculated before the deterministic packing passes finish.
-  // A pass that moves a node (for example the split Opportunity chain) can
-  // therefore leave an otherwise valid old route running through that node.
+  // A pass that moves a node can therefore leave an otherwise valid old route
+  // running through that node.
   // Re-check every final route against the final rectangles and give any
   // obstructed edge a generic outside-the-workflow corridor.
   let rerouteLane = 0;

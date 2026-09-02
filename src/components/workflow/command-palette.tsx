@@ -37,8 +37,8 @@ export function CommandPalette({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed left-1/2 top-[12vh] z-50 w-[560px] max-w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-2xl border bg-popover shadow-2xl outline-none">
+        <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-50" />
+        <Dialog.Content className="liquid-glass-panel fixed left-1/2 top-[12vh] z-50 w-[560px] max-w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-2xl border shadow-2xl outline-none">
           <Dialog.Title className="sr-only">Search nodes and commands</Dialog.Title>
           <Dialog.Description className="sr-only">
             Search the node library and add a node to the current workflow.

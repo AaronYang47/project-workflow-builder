@@ -13,8 +13,8 @@ export function ConfirmClearDialog() {
   return (
     <Dialog.Root open onOpenChange={(open) => !open && dismiss()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[100] bg-slate-950/45 backdrop-blur-sm animate-in fade-in duration-150" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-2xl outline-none animate-in zoom-in-95 duration-150">
+        <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[100] animate-in fade-in duration-150" />
+        <Dialog.Content className="liquid-glass-panel fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border p-6 shadow-2xl outline-none animate-in zoom-in-95 duration-150">
           <div className="flex items-start justify-between gap-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive shadow-sm">
               <AlertTriangle className="size-6" />

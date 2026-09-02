@@ -96,7 +96,7 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
       <div className="border-t px-3 py-2 text-[11px] leading-4 text-muted-foreground">
         {highLevelMode
           ? "Drag to canvas · High-level process nodes"
-          : "Drag to canvas · Drop Decision Module onto a Phase"}
+          : "Drag to canvas · Add workflow nodes"}
       </div>
     </aside>
   );

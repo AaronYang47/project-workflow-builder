@@ -10,9 +10,11 @@ import { GateRules } from "./gate-rules";
 export function GateNode({
   node,
   selected,
+  phaseColor,
 }: {
   node: DomainNode;
   selected: boolean;
+  phaseColor?: string;
 }) {
   const layoutHeight = useWorkflowStore(
     (state) => state.file.layout.nodes[node.id]?.height,
@@ -45,7 +47,7 @@ export function GateNode({
         lineClassName="!border-primary"
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
       />
-      <GateRules node={node} />
+      <GateRules node={node} phaseColor={phaseColor} />
     </div>
   );
 }

@@ -1,12 +1,10 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
-  BadgeCheck,
   Boxes,
   CircleCheck,
-  ClipboardCheck,
   Factory,
   Flag,
   Layers3,
@@ -23,6 +21,8 @@ export type HighLevelFlowNode = Node<
   {
     title: string;
     description: string;
+    code?: string;
+    backgroundColor?: string;
     type: HighLevelNodeType;
     linkedDetailedNodeIds?: string[];
     linkedLayer2Nodes?: Array<{ id: string; title: string }>;
@@ -66,7 +66,7 @@ function getHighLevelVisual(type: HighLevelNodeType, title: string) {
     return {
       Icon: Flag,
       eyebrow: "Entry point",
-      code: "L0",
+      code: "START",
       accent: "bg-emerald-500",
       border: "border-emerald-500/45",
       icon: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
@@ -78,7 +78,7 @@ function getHighLevelVisual(type: HighLevelNodeType, title: string) {
     return {
       Icon: CircleCheck,
       eyebrow: "Closeout",
-      code: "L13",
+      code: "",
       accent: "bg-slate-500",
       border: "border-slate-400/55",
       icon: "bg-slate-500/12 text-slate-600 dark:text-slate-300",
@@ -103,9 +103,6 @@ function getHighLevelVisual(type: HighLevelNodeType, title: string) {
   if (normalizedTitle.includes("INITIAL CONTACT")) {
     return { Icon: Flag, eyebrow: "Lifecycle phase", code: "P01", accent: "bg-emerald-500", border: "border-emerald-500/35", icon: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400", badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
   }
-  if (normalizedTitle.includes("OPPORTUNITY")) {
-    return { Icon: ClipboardCheck, eyebrow: "Lifecycle phase", code: "P02", accent: "bg-indigo-500", border: "border-indigo-500/35", icon: "bg-indigo-500/12 text-indigo-600 dark:text-indigo-300", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" };
-  }
   if (normalizedTitle.includes("PRE-CONSTRUCTION")) {
     return { Icon: Ruler, eyebrow: "Lifecycle phase", code: "P04", accent: "bg-amber-500", border: "border-amber-500/40", icon: "bg-amber-500/12 text-amber-700 dark:text-amber-300", badge: "bg-amber-500/10 text-amber-700 dark:text-amber-300" };
   }
@@ -127,25 +124,29 @@ function getHighLevelVisual(type: HighLevelNodeType, title: string) {
 
 function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
   const visual = getHighLevelVisual(data.type, data.title);
+  const code = data.code?.trim() || visual.code;
+  const nodeColor = data.type === "phase" || data.type === "start" || data.type === "end"
+    ? getNodeColor(data.backgroundColor === "transparent" ? undefined : data.backgroundColor)
+    : undefined;
   const VisualIcon = visual.Icon;
-  const visualText = visual.badge.split(" ").find((token) => token.startsWith("text-")) ?? "text-muted-foreground";
   const linkedNodes = data.linkedLayer2Nodes || [];
   const linkedNodeList = linkedNodes.length ? (
-    <div className="nodrag mt-3 border-t border-border/60 pt-2.5">
+    <div className="nodrag mt-3 border-t border-border/60 pt-2.5" style={nodeColor ? { borderColor: nodeColor.border } : undefined}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Linked workflow nodes</p>
-        <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", visual.badge)}>{linkedNodes.length}</span>
+        <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground" style={nodeColor ? { color: nodeColor.muted } : undefined}>Linked workflow nodes</p>
+        <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.badge } : undefined}>{linkedNodes.length}</span>
       </div>
       <div className="mt-1.5 space-y-1">
         {linkedNodes.map((linkedNode, index) => (
           <div key={linkedNode.id}>
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2 py-1.5">
-              <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold", visual.badge)}>
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2 py-1.5" style={nodeColor ? { borderColor: nodeColor.border, backgroundColor: nodeColor.badge } : undefined}>
+              <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.footer } : undefined}>
                 {index + 1}
               </span>
               <button
                 type="button"
-                className="nodrag min-w-0 flex-1 truncate text-left text-[10px] font-medium text-primary hover:underline"
+                className={cn("nodrag min-w-0 flex-1 truncate text-left text-[10px] font-medium hover:underline", nodeColor ? "" : "text-primary")}
+                style={nodeColor ? { color: nodeColor.text } : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
                   data.onLinkedLayer2NodeClick?.(linkedNode.id);
@@ -181,15 +182,14 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
 
   if (data.type === "primaryGate") {
     return (
-      <div className={cn("high-level-node-card relative w-52 min-w-52 max-w-52 overflow-hidden rounded-2xl border bg-primary/[0.055] shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all", visual.border)}>
+      <div className={cn("high-level-node-card relative w-72 min-w-72 max-w-72 overflow-visible rounded-2xl border bg-primary/[0.055] shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all", visual.border)}>
         <FlowHandles />
-        <div className={cn("absolute inset-y-0 left-0 w-1", visual.accent)} />
         <div className="p-3 pl-4 text-center">
           <div className="flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
-            <span className="inline-flex items-center gap-1.5"><VisualIcon className="size-3.5" /> {visual.eyebrow}</span>
-            <span className="rounded-full border border-primary/20 bg-background/75 px-1.5 py-0.5 text-[9px] tracking-tight">{visual.code}</span>
+            <VisualIcon className="size-4" />
+            {code ? <span className="rounded-full border border-primary/25 bg-white/10 px-1.5 py-0.5 text-[9px] tracking-tight dark:bg-white/[0.12]">{code}</span> : null}
           </div>
-          <p className="mt-3 text-[13px] font-bold leading-4 text-foreground">{data.title}</p>
+          <p className="mt-3 text-[14px] font-bold leading-5 text-foreground">{data.title}</p>
           {data.description ? <p className="mt-2 text-[10px] leading-4 text-muted-foreground">{data.description}</p> : null}
           {linkedNodeList}
         </div>
@@ -198,31 +198,65 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
   }
 
   return (
-    <div className={cn("high-level-node-card relative flex flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all", data.type === "phase" ? "w-72 min-w-72 max-w-72" : "w-52 min-w-52 max-w-52", visual.border)}>
+    <div
+      className={cn(
+        "high-level-node-card relative flex flex-col overflow-visible rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all",
+        data.type === "phase" ? "w-72 min-w-72 max-w-72" : data.type === "start" || data.type === "end" ? "w-64 min-w-64 max-w-64 min-h-[184px]" : "w-52 min-w-52 max-w-52 bg-card",
+        data.type !== "phase" && !nodeColor ? visual.border : "",
+      )}
+      data-glass-tint={nodeColor ? "true" : undefined}
+      style={nodeColor ? { "--node-glass-tint": nodeColor.tint } as CSSProperties : undefined}
+    >
       <FlowHandles target={data.type !== "start"} source={data.type !== "end"} />
-      <div className={cn("absolute inset-y-0 left-0 w-1", visual.accent)} />
-      <div className="p-4 pl-5">
-        <div className="flex items-start gap-3">
-          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/40 shadow-inner", visual.icon)}>
+      <div className={cn("flex flex-1 flex-col p-4 pl-5", data.type === "start" || data.type === "end" ? "min-h-[148px]" : "")}>
+        <div className="flex items-center gap-3">
+          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/40 shadow-inner", nodeColor ? "" : visual.icon)} style={nodeColor ? { backgroundColor: nodeColor.badge, color: nodeColor.text, borderColor: nodeColor.border } : undefined}>
             <VisualIcon className="size-5" strokeWidth={1.8} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <span className={cn("text-[9px] font-bold uppercase tracking-[0.14em]", visualText)}>{visual.eyebrow}</span>
-              <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-tight", visual.badge)}>{visual.code}</span>
+              <p className="min-w-0 flex-1 text-[16px] font-bold leading-5" style={nodeColor ? { color: nodeColor.text } : undefined}>{data.title}</p>
+              {code ? <span className={cn("max-w-[150px] shrink-0 whitespace-normal break-words rounded-full px-2 py-1 text-center text-[9px] font-bold leading-3 tracking-tight", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.badge } : undefined}>{code}</span> : null}
             </div>
-            <p className="mt-2 text-[14px] font-bold leading-5 text-foreground">{data.title}</p>
           </div>
         </div>
-        {data.description ? <p className="mt-3 text-[11px] leading-5 text-muted-foreground">{data.description}</p> : null}
+        {data.description ? <p className="mt-2 text-[12px] leading-5" style={nodeColor ? { color: nodeColor.muted } : undefined}>{data.description}</p> : null}
         {linkedNodeList}
-      </div>
-      <div className="flex items-center gap-2 border-t bg-muted/25 px-5 py-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        <BadgeCheck className="size-3.5 text-primary" />
-        <span>{visual.eyebrow}</span>
       </div>
     </div>
   );
+}
+
+export type NodeColorResult = {
+  tint: string;
+  text: string;
+  muted: string;
+  border: string;
+  badge: string;
+  footer: string;
+};
+
+export function getNodeColor(color?: string): NodeColorResult | undefined {
+  if (!color) return undefined;
+  const hex = color.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return undefined;
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  const text = "var(--node-glass-text)";
+  const muted = "var(--node-glass-muted)";
+  const border = luminance < 0.62 ? "rgba(248,250,252,0.42)" : "rgba(23,32,51,0.24)";
+  const badge = "var(--node-glass-tag-fill)";
+  const footer = luminance < 0.62 ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.28)";
+  return {
+    tint: `${red} ${green} ${blue}`,
+    text,
+    muted,
+    border,
+    badge,
+    footer,
+  };
 }
 
 export const HighLevelNode = memo(HighLevelNodeComponent);

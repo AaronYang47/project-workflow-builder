@@ -188,8 +188,8 @@ export function ComponentNoteButton({
 
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[1001] flex max-h-[calc(100dvh-40px)] w-[calc(100vw-32px)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl outline-none">
+          <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[1000]" />
+          <Dialog.Content className="liquid-glass-panel fixed left-1/2 top-1/2 z-[1001] flex max-h-[calc(100dvh-40px)] w-[calc(100vw-32px)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none">
             {/* Header */}
             <div className="flex items-start gap-3 border-b px-5 py-4">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">

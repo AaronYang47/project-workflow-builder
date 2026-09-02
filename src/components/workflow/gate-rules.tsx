@@ -37,8 +37,15 @@ import {
 } from "@/lib/project-id";
 import { workflowHasPaidService } from "@/lib/workflow-progress";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
+import { getNodeColor } from "./high-level-node";
 
-export function GateRules({ node }: { node: DomainNode }) {
+export function GateRules({
+  node,
+  phaseColor,
+}: {
+  node: DomainNode;
+  phaseColor?: string;
+}) {
   const {
     rules,
     outcomes,
@@ -53,6 +60,7 @@ export function GateRules({ node }: { node: DomainNode }) {
     decisionStyle,
     metrics,
   } = useGateContext(node);
+  const nodeColor = getNodeColor(phaseColor);
   const projectStartNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "projectStart"),
   );
@@ -282,14 +290,22 @@ export function GateRules({ node }: { node: DomainNode }) {
         position={Position.Top}
         id="rework-in"
         aria-label="Denied return entry"
-        className="!top-[-7px] !size-3 !border-2 !border-background !bg-rose-600"
+        className="!top-[-7px] !size-3 !border-2 !border-background !bg-rose-600 !opacity-0"
         style={{ left: "78%" }}
       />
       <section
         aria-label="Decision Module card"
         data-inspector-target="config.color"
-        className="absolute left-0 top-0 overflow-hidden rounded-2xl border border-[#233a54] bg-card shadow-[0_12px_32px_rgba(15,35,58,.20)]"
-        style={{ width: GATE_CARD_WIDTH, height: metrics.gateCardHeight }}
+        data-glass-tint={nodeColor ? "true" : undefined}
+        className="l2-node-card absolute left-0 top-0 overflow-hidden rounded-2xl border border-[#233a54] bg-card shadow-[0_12px_32px_rgba(15,35,58,.20)]"
+        style={{
+          width: GATE_CARD_WIDTH,
+          height: metrics.gateCardHeight,
+          borderColor: nodeColor ? nodeColor.border : undefined,
+          ...(nodeColor
+            ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
+            : {}),
+        }}
       >
         <div
           data-inspector-target="config.gateHeaderColor"

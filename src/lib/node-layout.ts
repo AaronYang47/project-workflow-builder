@@ -5,6 +5,7 @@ import {
   type DomainNode,
   type NodeLayout,
 } from "@/types/workflow";
+import { matrixKindForNode } from "@/lib/matrix-config";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -13,13 +14,15 @@ const clamp = (value: number, min: number, max: number) =>
 export const PHASE_HEADER_HEIGHT = 124;
 export const PHASE_CONTENT_TOP = 168;
 export const NODE_HEADER_HEIGHT = 56;
+/** Keep the standard L2 cards aligned so the drag affordance has a consistent footprint. */
+export const L2_NODE_CARD_WIDTH = 384;
 
 /** Width needed so Stage text is not clipped by the Project ID badge. */
 export function estimateNodeHeaderWidth(node: DomainNode) {
   const stage = String(node.config.stage || "Stage");
   const stagePx = Math.max(56, Math.ceil(stage.length * 7.6) + 12);
-  const badgePx = 132;
-  const chrome = 24 + 32 + 57 + 24 + 14 + 32;
+  const badgePx = 112;
+  const chrome = 20 + 24 + 48 + 16 + 10 + 24;
   return chrome + stagePx + badgePx;
 }
 
@@ -28,28 +31,18 @@ export function getAdaptiveNodeSize(
   current?: Pick<NodeLayout, "width" | "height">,
 ) {
   if (node.type === "gate") return getGateLayoutMetrics(node);
-  if (node.type === "opportunityValidation") {
-    return {
-      width: 780,
-      height: 210,
-    };
-  }
-  // Split Opportunity evidence cards are detailed form surfaces. Preserve a
-  // readable footprint during Auto Arrange instead of treating them like
-  // compact generic nodes and collapsing their height back to ~224px.
-  if (node.config.opportunitySection) {
-    return {
-      width: Math.max(current?.width || 0, 420),
-      height: Math.max(current?.height || 0, 460),
-    };
-  }
   if (node.type === "phase")
     return { width: current?.width || 720, height: current?.height || 420 };
   if (node.type === "projectStart") {
     const fallback = getNodeDefinition(node.type).defaultSize;
     const headerWidth = estimateNodeHeaderWidth(node);
     return {
-      width: Math.max(current?.width || 0, fallback.width, headerWidth),
+      width: Math.max(
+        current?.width || 0,
+        fallback.width,
+        headerWidth,
+        L2_NODE_CARD_WIDTH,
+      ),
       height: Math.max(
         current?.height || 0,
         fallback.height,
@@ -57,7 +50,7 @@ export function getAdaptiveNodeSize(
       ),
     };
   }
-  if (isReferenceNodeType(node.type)) {
+  if (isReferenceNodeType(node.type) && !matrixKindForNode(node)) {
     const fallback = getNodeDefinition(node.type).defaultSize;
     const reference = node.config.reference || {};
     const lineCount = (items: string[] | undefined) =>
@@ -105,15 +98,20 @@ export function getAdaptiveNodeSize(
       );
     if (node.type === "businessRules")
       height = Math.max(height, 90 + lineCount(reference.rules) * 24);
-    if (node.type === "terminal")
+    if (node.type === "terminal") {
+      const releaseConditionsHeight = node.conditions?.length
+        ? 112 + node.conditions.length * 48
+        : 0;
       height = Math.max(
         height,
-        100 +
+        140 +
           Math.ceil(node.title.length / 36) * 24 +
-          Math.ceil(node.description.length / 60) * 17,
+          Math.ceil(node.description.length / 60) * 20 +
+          releaseConditionsHeight,
       );
+    }
     return {
-      width: Math.max(current?.width || 0, width),
+      width: Math.max(current?.width || 0, width, L2_NODE_CARD_WIDTH),
       height: Math.max(current?.height || 0, height),
     };
   }
@@ -124,11 +122,8 @@ export function getAdaptiveNodeSize(
     .reduce((longest, word) => Math.max(longest, word.length), 0);
   const generalCard = node.type === "general";
   const headerWidth = estimateNodeHeaderWidth(node);
-  const minWidth = Math.max(
-    generalCard ? 300 : terminal ? 210 : 230,
-    headerWidth,
-  );
-  const maxWidth = Math.max(generalCard ? 480 : 380, headerWidth);
+  const minWidth = Math.max(L2_NODE_CARD_WIDTH, headerWidth);
+  const maxWidth = Math.max(L2_NODE_CARD_WIDTH, headerWidth);
   const width = clamp(
     Math.max(minWidth, 142 + node.title.length * 5, 80 + longestWord * 7),
     minWidth,

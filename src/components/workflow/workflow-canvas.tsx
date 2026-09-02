@@ -38,13 +38,14 @@ import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useNodeDragHandlers } from "./use-node-drag-handlers";
 import { isApprovedEdge, isDeniedEdge } from "@/lib/workflow-graph";
-import type { DomainEdge, WorkflowNodeType } from "@/types/workflow";
+import { isReferenceNodeType, type DomainEdge, type WorkflowNodeType } from "@/types/workflow";
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { getExecutionSummary } from "@/lib/execution";
+import { matrixKindForNode } from "@/lib/matrix-config";
 import { HIGH_LEVEL_NODE_CATALOG } from "@/lib/high-level-workflow";
 import {
   LayerContextMinimap,
@@ -57,8 +58,6 @@ const nodeTypes = {
   reference: ReferenceNode,
 };
 const edgeTypes = { semantic: SemanticEdge };
-const referenceTypes = new Set<WorkflowNodeType>(["terminal"]);
-
 type WorkflowCanvasProps = {
   active?: boolean;
   focusNodeIds?: string[] | null;
@@ -128,8 +127,14 @@ function CanvasInner({
   );
 
   const progress = useMemo(
-    () => getWorkflowProgress(file.graph.nodes, file.graph.edges),
-    [file.graph.nodes, file.graph.edges],
+    () =>
+      getWorkflowProgress(
+        file.graph.nodes,
+        file.graph.edges,
+        file.execution?.items ?? [],
+        file.operations,
+      ),
+    [file.graph.nodes, file.graph.edges, file.execution?.items, file.operations],
   );
 
   const layer1Context = useMemo(() => {
@@ -191,8 +196,8 @@ function CanvasInner({
         label: node.title,
         x: layout?.x ?? 0,
         y: layout?.y ?? 0,
-        width: node.type === "phase" ? 288 : 208,
-        height: node.type === "phase" ? 128 : 104,
+        width: node.type === "phase" || node.type === "primaryGate" ? 288 : 208,
+        height: node.type === "phase" || node.type === "primaryGate" ? 128 : 104,
         color: definition?.color,
         active: activeLayer1Ids.has(node.id),
       };
@@ -208,6 +213,20 @@ function CanvasInner({
   }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
 
   const modelNodes = useMemo<Node[]>(() => {
+    const highLevelNodes = file.highLevel?.graph.nodes || [];
+    const l1PhaseColorByL2NodeId = new Map<string, string>();
+    for (const hlNode of highLevelNodes) {
+      const color = hlNode.backgroundColor;
+      if (!color || color === "transparent") continue;
+      const linkedIds =
+        hlNode.linkedLayer2NodeIds ?? hlNode.linkedDetailedNodeIds ?? [];
+      for (const linkedId of linkedIds) {
+        if (!l1PhaseColorByL2NodeId.has(linkedId)) {
+          l1PhaseColorByL2NodeId.set(linkedId, color);
+        }
+      }
+    }
+
     return file.graph.nodes
       .map((domain): Node => {
         const layout = file.layout.nodes[domain.id];
@@ -218,9 +237,12 @@ function CanvasInner({
         const rendererType =
           domain.type === "phase"
             ? "phase"
-            : referenceTypes.has(domain.type)
-              ? "reference"
+              : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
+                ? "reference"
               : "workflow";
+        const phaseColor =
+          l1PhaseColorByL2NodeId.get(domain.id) ??
+          (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined);
         return {
           id: domain.id,
           type: rendererType,
@@ -240,9 +262,12 @@ function CanvasInner({
               reached: progress.reachedNodeIds.has(domain.id),
               emphasized: Boolean(searchMatch),
               dimmed: Boolean(q && !searchMatch),
+              phaseColor,
               executionSummary: getExecutionSummary(
                 domain.id,
                 file.execution?.items,
+                file.operations,
+                { checklistOnly: true },
               ),
             },
         };
@@ -251,10 +276,12 @@ function CanvasInner({
   }, [
     file.graph.nodes,
     file.layout.nodes,
+    file.highLevel,
     search,
     selection.nodeIds,
     progress.reachedNodeIds,
     file.execution?.items,
+    file.operations,
   ]);
 
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);
@@ -307,6 +334,23 @@ function CanvasInner({
 
   const edges = useMemo<Edge[]>(() => {
     const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
+    const supportingEdgeLanes = new Map(
+      file.graph.edges
+        .map((edge, index) => ({ edge, index }))
+        .filter(
+          ({ edge }) =>
+            edge.type === "supporting" || edge.type === "dependency",
+        )
+        // Lower targets get the inner lane. Upper targets nest outside them,
+        // which keeps vertical target approaches from crossing lower edges.
+        .sort(
+          (left, right) =>
+            (file.layout.nodes[right.edge.target]?.y ?? 0) -
+              (file.layout.nodes[left.edge.target]?.y ?? 0) ||
+            left.index - right.index,
+        )
+        .map(({ edge }, index) => [edge.id, index]),
+    );
     return file.graph.edges.map((domain) => {
       const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
       const siblingIndex = siblingEdges.findIndex(
@@ -330,6 +374,7 @@ function CanvasInner({
         sourceNode?.type === "projectStart";
       const active = progress.activeEdgeIds.has(domain.id);
       const activeColor = getSemanticEdgeColor(domain);
+      const supportingLane = supportingEdgeLanes.get(domain.id);
 
       return {
         id: domain.id,
@@ -353,7 +398,14 @@ function CanvasInner({
           route: file.layout.edges?.[domain.id]?.points,
           active,
           obstacles: labelObstacles,
-          labelLane: returnIndex >= 0 ? labelLane : labelHugsPath ? 2 : 0,
+          labelLane:
+            supportingLane !== undefined
+              ? supportingLane
+              : returnIndex >= 0
+                ? labelLane
+                : labelHugsPath
+                  ? 2
+                  : 0,
           labelHugsPath,
           preGateSales,
           siblingIndex: Math.max(0, siblingIndex),
@@ -366,6 +418,7 @@ function CanvasInner({
     file.graph.edges,
     file.graph.nodes,
     file.layout.edges,
+    file.layout.nodes,
     labelObstacles,
     progress.activeEdgeIds,
     selection.edgeId,
@@ -473,13 +526,9 @@ function CanvasInner({
       }
 
       activationCentered.current = true;
-      void flow.fitView({
-        nodes: rootNodes.map((node) => ({ id: node.id })),
-        padding: FIT_VIEW_PADDING,
-        duration: 350,
-        minZoom: CANVAS_MIN_ZOOM,
-        maxZoom: 1,
-      });
+      // Keep the first L2 view readable. Navigation and explicit focus requests
+      // still fit any requested node on demand.
+      flow.setViewport({ x: 80, y: 70, zoom: 0.55 }, { duration: 350 });
     };
 
     retryTimer = window.setTimeout(fitWhenReady, 80);
@@ -674,7 +723,7 @@ function CanvasInner({
         />
         <Controls
           position="bottom-left"
-          className="!left-4 !bottom-4 !m-0 !overflow-hidden !rounded-lg !border !shadow-sm"
+          className="!left-4 !bottom-20 !m-0 !overflow-hidden !rounded-lg !border !shadow-sm"
           showInteractive={false}
         />
       </ReactFlow>

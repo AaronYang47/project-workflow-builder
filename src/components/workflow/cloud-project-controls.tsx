@@ -27,6 +27,20 @@ class ApiError extends Error {
 }
 
 const AUTOSAVE_MS = 2500;
+const AUTOSAVE_RETRY_MS = 5000;
+const isLocalhost = () =>
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+   window.location.hostname === "127.0.0.1");
+
+const isAuthBypass = () =>
+  isLocalhost() && process.env.NEXT_PUBLIC_AUTH_BYPASS === "1";
+
+const DEV_USER = {
+  id: "dev-bypass",
+  email: "[email protected]",
+  name: "Local Dev",
+} as const;
 
 const api = async <T,>(url: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(url, {
@@ -40,7 +54,8 @@ const api = async <T,>(url: string, options?: RequestInit): Promise<T> => {
 };
 
 export function CloudProjectControls() {
-  const [user, setUser] = useState<User | null>(null);
+  const store = useWorkflowStore();
+  const [user, setUser] = useState<User | null>(() => store.authUser ?? (isAuthBypass() ? DEV_USER : null));
   const [view, setView] = useState<View>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [busy, setBusy] = useState(false);
@@ -53,12 +68,13 @@ export function CloudProjectControls() {
   const [projectNumber, setProjectNumber] = useState("");
   const [autosaving, setAutosaving] = useState(false);
   const [autosaveError, setAutosaveError] = useState("");
-  const store = useWorkflowStore();
   const activeProjectId = store.activeProjectId;
   const dirty = store.dirty;
   const file = store.file;
   const inFlight = useRef(false);
+  const autosaveRetryTimer = useRef<number | undefined>(undefined);
   const userRef = useRef(user);
+  const authUser = store.authUser;
   const confirmReplaceWorkspace = () =>
     !useWorkflowStore.getState().dirty ||
     window.confirm(
@@ -66,13 +82,53 @@ export function CloudProjectControls() {
     );
 
   useEffect(() => {
+    if (authUser) {
+      // The auth gate owns the canonical user; mirror it into this control's
+      // local state when the shared store hydrates after the first render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUser(authUser);
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    // Local auth-bypass runs without the Pages Functions API. Keep the local
+    // editor usable and avoid opening a project picker over the workspace.
+    if (!user || !store.hydrated || activeProjectId || view !== null || isAuthBypass()) return;
+    let cancelled = false;
+    void api<{ projects: Project[] }>("/api/projects")
+      .then((result) => {
+        if (cancelled) return;
+        setProjects(result.projects);
+        // Existing projects should be reopened from the project picker. Only
+        // first-time users with no saved projects go directly to New Project.
+        if (result.projects.length) {
+          setView("open");
+          return;
+        }
+        setProjectName("");
+        setProjectNumber("");
+        setView("new");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProjectName("");
+        setProjectNumber("");
+        setView("new");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProjectId, store.hydrated, user, view]);
+
+  useEffect(() => {
     userRef.current = user;
   }, [user]);
 
   useEffect(() => {
-    void api<{ user: User | null }>("/api/auth/me")
+    if (!isAuthBypass()) void api<{ user: User | null }>("/api/auth/me")
       .then(async (result) => {
         setUser(result.user);
+        useWorkflowStore.getState().setAuthUser(result.user);
         const workflow = useWorkflowStore.getState();
         if (!result.user || !workflow.activeProjectId) return;
         if (workflow.workspaceOwnerId !== result.user.id) {
@@ -141,6 +197,7 @@ export function CloudProjectControls() {
         body: JSON.stringify({ name, email, password }),
       });
       setUser(result.user);
+      store.setAuthUser(result.user);
       setView(null);
       setPassword("");
     } catch (caught) {
@@ -260,8 +317,15 @@ export function CloudProjectControls() {
       inFlight.current = false;
       setBusy(false);
       setAutosaving(false);
-      if (silent && wrote && useWorkflowStore.getState().dirty) {
-        window.setTimeout(() => void persistCloud(true), 800);
+      if (silent && useWorkflowStore.getState().dirty && autosaveRetryTimer.current === undefined) {
+        const delay = wrote ? 800 : AUTOSAVE_RETRY_MS;
+        autosaveRetryTimer.current = window.setTimeout(() => {
+          autosaveRetryTimer.current = undefined;
+          const current = useWorkflowStore.getState();
+          if (current.activeProjectId && current.dirty) {
+            void persistCloudRef.current(true);
+          }
+        }, delay);
       }
     }
   };
@@ -275,10 +339,18 @@ export function CloudProjectControls() {
   });
 
   useEffect(() => {
-    if (!user || !activeProjectId || !dirty || view) return;
+    if (!user || !activeProjectId || !dirty) return;
     const timer = window.setTimeout(() => void persistCloudRef.current(true), AUTOSAVE_MS);
     return () => window.clearTimeout(timer);
-  }, [user, activeProjectId, dirty, file, view]);
+  }, [user, activeProjectId, dirty, file]);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveRetryTimer.current !== undefined) {
+        window.clearTimeout(autosaveRetryTimer.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const flush = () => {
@@ -341,6 +413,7 @@ export function CloudProjectControls() {
     setBusy(true);
     try {
       await api("/api/auth/logout", { method: "POST" });
+      store.setAuthUser(null);
       store.resetWorkspace();
       setUser(null);
       window.location.reload();
@@ -395,9 +468,9 @@ export function CloudProjectControls() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[100] bg-slate-950/40 backdrop-blur-sm" />
+          <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[100]" />
           <Dialog.Content
-            className="fixed left-1/2 top-1/2 z-[101] max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border bg-background p-5 shadow-2xl outline-none"
+            className="liquid-glass-panel fixed left-1/2 top-1/2 z-[101] max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border p-5 shadow-2xl outline-none"
             onPointerDownOutside={(event) => busy && event.preventDefault()}
             onEscapeKeyDown={(event) => busy && event.preventDefault()}
           >

@@ -1,37 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  CalendarDays,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
-  ClipboardList,
-  FileCheck2,
-  FileText,
-  Plus,
-  Trash2,
-  UserRound,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ClipboardList, FileCheck2, Layers3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  executionItemIsGateRequired,
   executionItemProgress,
-  executionItemProgressLabel,
   getExecutionSummary,
 } from "@/lib/execution";
 import {
-  EXECUTION_APPROVAL_STATUSES,
-  EXECUTION_ITEM_STATUSES,
-  EXECUTION_ITEM_TYPES,
-  EXECUTION_SIGNATURE_STATUSES,
-  EXECUTION_TASK_STATUSES,
+  isReferenceNodeType,
+  type DomainNode,
   type ExecutionItem,
-  type ExecutionItemType,
 } from "@/types/workflow";
+import type { ProjectOperations } from "@/types/project-operations";
+import { nodeReleaseReady } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { getNodeDefinition } from "@/lib/node-catalog";
@@ -39,371 +22,168 @@ import {
   LayerContextMinimap,
   type ContextMapNode,
 } from "./layer-context-minimap";
-import { OpportunityIntakeExecutionSheet } from "./opportunity-intake-execution-sheet";
-import { ProjectIdBadge } from "./project-id-badge";
+import { DetailedWorkflowDialog } from "./detailed-workflow-dialog";
 
-function progressTone(item: ExecutionItem) {
-  const progress = executionItemProgress(item);
-  if (progress === "blocked") {
-    return "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300";
-  }
-  if (progress === "complete") {
-    return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-  }
-  return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-}
-
-function ProgressIcon({ item }: { item: ExecutionItem }) {
-  const progress = executionItemProgress(item);
-  const Icon =
-    progress === "blocked"
-      ? CircleAlert
-      : progress === "complete"
-        ? CheckCircle2
-        : Clock3;
-  return <Icon className="size-4 shrink-0" />;
-}
-
-function ToggleField({
-  label,
-  checked,
-  onChange,
+function FileChecklist({
+  node,
+  items,
+  operations,
+  releaseReady,
+  focusItemId,
+  onToggle,
 }: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  node: DomainNode;
+  items: ExecutionItem[];
+  operations?: ProjectOperations;
+  releaseReady: boolean;
+  focusItemId?: string | null;
+  onToggle: (item: ExecutionItem) => void;
 }) {
+  const focusedItemRef = useRef<HTMLLabelElement>(null);
+  useEffect(() => {
+    if (focusItemId && focusedItemRef.current) {
+      focusedItemRef.current.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+    }
+  }, [focusItemId]);
+
+  const requiredItems = items.filter(executionItemIsGateRequired);
+  const checkedCount = requiredItems.filter(
+    (item) =>
+      executionItemProgress(item, operations, { checklistOnly: true }) ===
+      "complete",
+  ).length;
+  const allChecked =
+    requiredItems.length === 0 || checkedCount === requiredItems.length;
+
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "flex min-h-10 items-center justify-between gap-3 rounded-lg border px-3 text-left text-xs transition-colors",
-        checked
-          ? "border-primary/35 bg-primary/[0.06] text-foreground"
-          : "bg-background text-muted-foreground hover:bg-muted/60",
-      )}
+    <div
+      data-testid="required-file-checklist"
+      className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-5"
     >
-      <span className="font-medium">{label}</span>
-      <span
-        className={cn(
-          "flex h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors",
-          checked ? "bg-primary" : "bg-muted-foreground/30",
-        )}
-      >
-        <span
-          className={cn(
-            "size-4 rounded-full bg-white shadow-sm transition-transform",
-            checked && "translate-x-4",
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-
-function ExecutionItemEditor({
-  item,
-  onChange,
-}: {
-  item: ExecutionItem;
-  onChange: (patch: Partial<ExecutionItem>) => void;
-}) {
-  const signatureType = item.type === "Document" || item.type === "Agreement";
-
-  const onTypeChange = (type: ExecutionItemType) => {
-    const nextSignatureType = type === "Document" || type === "Agreement";
-    onChange({
-      type,
-      signatureRequired: nextSignatureType ? true : false,
-      signatureStatus: nextSignatureType
-        ? item.signatureStatus === "Signed"
-          ? "Signed"
-          : "Pending"
-        : "Not Required",
-      signers: nextSignatureType ? item.signers || [] : [],
-      approvalStatus:
-        type === "Approval" ? item.approvalStatus || "Pending" : item.approvalStatus,
-      taskStatus:
-        type === "Task" ? item.taskStatus || "Not Started" : undefined,
-    });
-  };
-
-  return (
-    <div className="scroll-thin min-h-0 overflow-y-auto rounded-xl border bg-background/80">
-      <div className="border-b px-4 py-3">
-        <div className="flex items-start gap-2">
-          <FileCheck2 className="mt-0.5 size-4 shrink-0 text-primary" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Execution Item</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Keep the detailed execution requirement here. L2 only receives its status summary.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4 p-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="execution-item-type">Type</Label>
-          <select
-            id="execution-item-type"
-            aria-label="Execution item type"
-            value={item.type}
-            onChange={(event) =>
-              onTypeChange(event.target.value as ExecutionItemType)
-            }
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-          >
-            {EXECUTION_ITEM_TYPES.map((type) => (
-              <option key={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="execution-item-title">Title</Label>
-          <Input
-            id="execution-item-title"
-            aria-label="Execution item title"
-            value={item.title}
-            onChange={(event) => onChange({ title: event.target.value })}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="execution-item-description">Description</Label>
-          <Textarea
-            id="execution-item-description"
-            aria-label="Execution item description"
-            value={item.description}
-            onChange={(event) => onChange({ description: event.target.value })}
-            rows={3}
-            placeholder="What must be provided, reviewed, or completed?"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <ToggleField
-            label="Required"
-            checked={item.required}
-            onChange={(required) => onChange({ required })}
-          />
-          <ToggleField
-            label="Signature Required"
-            checked={item.signatureRequired}
-            onChange={(signatureRequired) =>
-              onChange({
-                signatureRequired,
-                signatureStatus: signatureRequired
-                  ? item.signatureStatus === "Not Required"
-                    ? "Pending"
-                    : item.signatureStatus || "Pending"
-                  : "Not Required",
-              })
-            }
-          />
-          <ToggleField
-            label="Approval Required"
-            checked={item.approvalRequired}
-            onChange={(approvalRequired) =>
-              onChange({
-                approvalRequired,
-                approvalStatus: approvalRequired
-                  ? item.approvalStatus || "Pending"
-                  : item.approvalStatus,
-              })
-            }
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="execution-item-status">Status</Label>
-            <select
-              id="execution-item-status"
-              aria-label="Execution item status"
-              value={item.status}
-              onChange={(event) =>
-                onChange({
-                  status: event.target.value as ExecutionItem["status"],
-                })
-              }
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            >
-              {EXECUTION_ITEM_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="execution-item-due-date">Due Date</Label>
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-              <Input
-                id="execution-item-due-date"
-                aria-label="Execution item due date"
-                type="date"
-                value={item.dueDate}
-                onChange={(event) => onChange({ dueDate: event.target.value })}
-                className="pl-8"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="execution-item-role">Responsible Role</Label>
-          <div className="relative">
-            <UserRound className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-            <Input
-              id="execution-item-role"
-              aria-label="Responsible role"
-              value={item.responsibleRole}
-              onChange={(event) => onChange({ responsibleRole: event.target.value })}
-              placeholder="e.g. Project Manager, Client, Legal"
-              className="pl-8"
-            />
-          </div>
-        </div>
-
-        {signatureType ? (
-          <section className="space-y-3 border-t pt-4">
-            <div>
-              <p className="text-xs font-semibold">Signature Tracking</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Track signing details here; L2 receives only a high-level requirement status.
+      <section className="mx-auto flex min-h-full max-w-4xl flex-col rounded-xl border bg-background/80">
+        <header className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileCheck2 className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Required files</h2>
+              <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                Check every required file to release this node. No L3 execution form is required here.
               </p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="execution-signature-status">Signature Status</Label>
-              <select
-                id="execution-signature-status"
-                aria-label="Signature status"
-                value={item.signatureStatus || "Not Required"}
-                onChange={(event) =>
-                  onChange({
-                    signatureStatus: event.target.value as ExecutionItem["signatureStatus"],
-                    status:
-                      event.target.value === "Signed" && item.status === "Not Started"
-                        ? "Complete"
-                        : item.status,
-                  })
-                }
-                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              >
-                {EXECUTION_SIGNATURE_STATUSES.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
+          </div>
+          <span
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              allChecked
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+            )}
+          >
+            {requiredItems.length
+              ? `${checkedCount}/${requiredItems.length} checked`
+              : "No required files"}
+          </span>
+        </header>
+
+        <div className="flex-1 space-y-2 p-3 sm:p-4">
+          {requiredItems.length ? (
+            requiredItems.map((item) => {
+              const checked =
+                executionItemProgress(item, operations, {
+                  checklistOnly: true,
+                }) === "complete";
+              const detail = [
+                item.documentNumber
+                  ? `Document ${item.documentNumber}`
+                  : undefined,
+                item.documentCode,
+                item.sourceAvailability,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <label
+                  key={item.id}
+                  ref={item.id === focusItemId ? focusedItemRef : undefined}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors",
+                    checked
+                      ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+                      : "border-border/80 bg-card hover:border-primary/35 hover:bg-primary/[0.025]",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Required file: ${item.title || item.type}`}
+                    checked={checked}
+                    onChange={() => onToggle(item)}
+                    className="size-4 shrink-0 accent-emerald-600"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-semibold text-foreground">
+                      {item.title || item.type}
+                    </span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                      {detail || "Required file"}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                      checked
+                        ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                    )}
+                  >
+                    {checked ? "Checked" : "Required"}
+                  </span>
+                </label>
+              );
+            })
+          ) : (
+            <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed px-6 text-center">
+              <ClipboardList className="size-7 text-muted-foreground/50" />
+              <p className="mt-3 text-sm font-medium">No required files are configured</p>
+              <p className="mt-1 max-w-md text-[11px] leading-relaxed text-muted-foreground">
+                This node can be released once its L2 release conditions are satisfied.
+              </p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="execution-signers">Signers</Label>
-              <Input
-                id="execution-signers"
-                aria-label="Signers"
-                value={(item.signers || []).join(", ")}
-                onChange={(event) =>
-                  onChange({
-                    signers: event.target.value
-                      .split(",")
-                      .map((signer) => signer.trim())
-                      .filter(Boolean),
-                  })
-                }
-                placeholder="Separate names with commas"
-              />
-            </div>
-          </section>
-        ) : null}
-
-        {item.type === "Approval" || item.approvalRequired ? (
-          <section className="space-y-1.5 border-t pt-4">
-            <Label htmlFor="execution-approval-status">Approval Status</Label>
-            <select
-              id="execution-approval-status"
-              aria-label="Approval status"
-              value={item.approvalStatus || "Pending"}
-              onChange={(event) =>
-                onChange({
-                  approvalStatus: event.target.value as ExecutionItem["approvalStatus"],
-                  status:
-                    event.target.value === "Approved" && item.status === "Not Started"
-                      ? "Complete"
-                      : item.status,
-                })
-              }
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            >
-              {EXECUTION_APPROVAL_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-          </section>
-        ) : null}
-
-        {item.type === "Task" ? (
-          <section className="space-y-1.5 border-t pt-4">
-            <Label htmlFor="execution-task-status">Task Status</Label>
-            <select
-              id="execution-task-status"
-              aria-label="Task status"
-              value={item.taskStatus || "Not Started"}
-              onChange={(event) =>
-                onChange({
-                  taskStatus: event.target.value as ExecutionItem["taskStatus"],
-                  status:
-                    event.target.value === "Complete" && item.status === "Not Started"
-                      ? "Complete"
-                      : item.status,
-                })
-              }
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            >
-              {EXECUTION_TASK_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-          </section>
-        ) : null}
-
-        <div className="space-y-1.5 border-t pt-4">
-          <Label htmlFor="execution-item-notes">Notes</Label>
-          <Textarea
-            id="execution-item-notes"
-            aria-label="Execution item notes"
-            value={item.notes}
-            onChange={(event) => onChange({ notes: event.target.value })}
-            rows={3}
-            placeholder="Add execution notes or context"
-          />
+          )}
         </div>
-      </div>
+
+        <footer className="border-t px-4 py-3 text-[11px] text-muted-foreground sm:px-5">
+          {releaseReady
+            ? `${node.title} is ready to release.`
+            : allChecked
+              ? "All required files are checked. Complete the remaining L2 release conditions to release this node."
+              : "The node remains locked until every required file is checked."}
+        </footer>
+      </section>
     </div>
   );
 }
 
 export function ExecutionView({
   nodeId,
+  focusItemId,
   onBack,
-  onSelectNode,
+  onFocusNode,
 }: {
   nodeId: string;
+  focusItemId?: string | null;
   onBack: () => void;
-  onSelectNode?: (nodeId: string) => void;
+  onFocusNode?: (nodeId: string) => void;
 }) {
   const file = useWorkflowStore((state) => state.file);
-  const addExecutionItem = useWorkflowStore((state) => state.addExecutionItem);
   const updateExecutionItem = useWorkflowStore(
     (state) => state.updateExecutionItem,
   );
-  const deleteExecutionItem = useWorkflowStore(
-    (state) => state.deleteExecutionItem,
-  );
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [l2ContextOpen, setL2ContextOpen] = useState(false);
   const node = file.graph.nodes.find((item) => item.id === nodeId);
   const items = useMemo(
     () =>
@@ -412,9 +192,15 @@ export function ExecutionView({
       ),
     [file.execution?.items, nodeId],
   );
-  const summary = getExecutionSummary(nodeId, file.execution?.items);
-  const selectedItem =
-    items.find((item) => item.id === selectedItemId) || items[0];
+  const projectStartNode = file.graph.nodes.find(
+    (item) => item.type === "projectStart",
+  );
+  const summary = getExecutionSummary(
+    nodeId,
+    file.execution?.items,
+    file.operations,
+    { checklistOnly: true },
+  );
   const layer2ContextNodes = useMemo<ContextMapNode[]>(() => {
     const positionCache = new Map<string, { x: number; y: number }>();
     const resolvePosition = (
@@ -426,62 +212,58 @@ export function ExecutionView({
       const layout = file.layout.nodes[id];
       if (!layout || seen.has(id)) return { x: 0, y: 0 };
       seen.add(id);
-      const parent: { x: number; y: number } = layout.parentId
+      const parent = layout.parentId
         ? resolvePosition(layout.parentId, seen)
         : { x: 0, y: 0 };
-      const position: { x: number; y: number } = {
-        x: parent.x + layout.x,
-        y: parent.y + layout.y,
-      };
+      const position = { x: parent.x + layout.x, y: parent.y + layout.y };
       positionCache.set(id, position);
       return position;
     };
 
     const rawNodes = file.graph.nodes
-      .map((workflowNode) => {
-        const layout = file.layout.nodes[workflowNode.id];
+      .map((workflowNode, graphIndex) => {
         const position = resolvePosition(workflowNode.id);
-        const isOpportunity =
-          workflowNode.type === "opportunityValidation" ||
-          workflowNode.id.toLowerCase().includes("opportunity");
-        const nodeWidth = isOpportunity ? 740 : 180;
-        const nodeHeight = 175;
+        const supportingSourceXs = isReferenceNodeType(workflowNode.type)
+          ? file.graph.edges
+              .filter((edge) => edge.target === workflowNode.id)
+              .map((edge) => resolvePosition(edge.source).x)
+          : [];
         return {
           id: workflowNode.id,
           label: workflowNode.title,
           rawX: position.x,
-          width: nodeWidth,
-          height: nodeHeight,
-          color: workflowNode.color || getNodeDefinition(workflowNode.type).color,
+          orderX: supportingSourceXs.length
+            ? Math.max(...supportingSourceXs) + 0.5
+            : position.x,
+          graphIndex,
+          width: 180,
+          height: 96,
+          color:
+            workflowNode.color || getNodeDefinition(workflowNode.type).color,
           active: workflowNode.id === nodeId,
           container: workflowNode.type === "phase",
           type: workflowNode.type,
         };
       })
-      .sort((a, b) => a.rawX - b.rawX);
-
-    // Center-align all nodes on a single horizontal axis to maximize space and keep flow straight
-    const centerY = 100;
-    const gap = 56;
-    const resultNodes: ContextMapNode[] = [];
-    let runningX = 0;
-    for (const n of rawNodes) {
-      resultNodes.push({
-        id: n.id,
-        label: n.label,
-        x: runningX,
-        y: centerY - n.height / 2,
-        width: n.width,
-        height: n.height,
-        color: n.color,
-        active: n.active,
-        container: n.container,
-        type: n.type,
-      });
-      runningX += n.width + gap;
-    }
-    return resultNodes;
-  }, [file.graph.nodes, file.layout.nodes, nodeId]);
+      .sort(
+        (a, b) =>
+          a.orderX - b.orderX || a.rawX - b.rawX || a.graphIndex - b.graphIndex,
+      );
+    return rawNodes.map((workflowNode, index) => {
+      return {
+        id: workflowNode.id,
+        label: workflowNode.label,
+        x: index * (workflowNode.width + 40),
+        y: 100 - workflowNode.height / 2,
+        width: workflowNode.width,
+        height: workflowNode.height,
+        color: workflowNode.color,
+        active: workflowNode.active,
+        container: workflowNode.container,
+        type: workflowNode.type,
+      };
+    });
+  }, [file.graph.edges, file.graph.nodes, file.layout.nodes, nodeId]);
 
   if (!node) {
     return (
@@ -507,11 +289,6 @@ export function ExecutionView({
     );
   }
 
-  const addItem = () => {
-    const id = addExecutionItem(node.id, "Document");
-    if (id) setSelectedItemId(id);
-  };
-
   return (
     <section
       aria-label="L3 Execution Layer"
@@ -536,60 +313,54 @@ export function ExecutionView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {node.type === "opportunityValidation" ? (
-            <div className="flex items-center gap-2">
-              <ProjectIdBadge showPlaceholder />
-            </div>
-          ) : (
-            <>
-              <div
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                  summary.status === "Blocked"
-                    ? "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                    : summary.status === "Incomplete"
-                      ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-                )}
-              >
-                {summary.completedCount}/{summary.itemCount} Complete · {summary.status}
-              </div>
-              {items.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    useWorkflowStore.getState().showConfirmClear({
-                      title: `Clear L3 Requirements for "${node.title}"`,
-                      message: `Are you sure you want to clear all ${items.length} execution requirements for "${node.title}"? This action cannot be undone.`,
-                      confirmLabel: "Clear Node Requirements",
-                      onConfirm: () =>
-                        useWorkflowStore.getState().clearExecutionItems(node.id),
-                    });
-                  }}
-                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  aria-label="Clear L3 execution requirements for this node"
-                >
-                  <Trash2 className="size-3.5" />
-                  Clear L3
-                </Button>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={addItem}
-                aria-label="Add execution item"
-              >
-                <Plus className="size-3.5" />
-                Add Item
-              </Button>
-            </>
-          )}
+          <div
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              summary.status === "Blocked"
+                ? "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                : summary.status === "Incomplete"
+                  ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+            )}
+          >
+            {summary.completedCount}/{summary.itemCount} Checked · {summary.status}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setL2ContextOpen(true)}
+            aria-label="Open L2 detailed workflow"
+            title="Open L2 detailed workflow"
+          >
+            <Layers3 className="size-3.5 text-primary" />
+            L2 · Detailed Workflow
+          </Button>
         </div>
       </header>
 
-      <div className="shrink-0 border-b bg-background/70 px-5 py-1.5">
-        <div>
+      <FileChecklist
+        node={node}
+        items={items}
+        operations={file.operations}
+        focusItemId={focusItemId}
+        releaseReady={nodeReleaseReady(
+          node,
+          projectStartNode,
+          file.execution?.items,
+          file.operations,
+        )}
+        onToggle={(item) =>
+          updateExecutionItem(item.id, {
+            checklistComplete: item.checklistComplete !== true,
+          })
+        }
+      />
+
+      <DetailedWorkflowDialog
+        open={l2ContextOpen}
+        onOpenChange={setL2ContextOpen}
+      >
+        <div className="h-full overflow-auto bg-canvas p-4">
           <LayerContextMinimap
             level="L2"
             title="Detailed Workflow"
@@ -598,142 +369,16 @@ export function ExecutionView({
             activeLabel={node.title}
             onOpenParent={onBack}
             onOpenNode={(targetNodeId) => {
-              if (targetNodeId) {
-                useWorkflowStore.getState().selectNodes([targetNodeId]);
-                onBack();
-                window.setTimeout(() => {
-                  window.dispatchEvent(
-                    new CustomEvent("workflow:focus-node", { detail: targetNodeId }),
-                  );
-                }, 100);
-              }
+              if (!targetNodeId) return;
+              useWorkflowStore.getState().selectNodes([targetNodeId]);
+              setL2ContextOpen(false);
+              onFocusNode?.(targetNodeId);
             }}
-            className="w-full shadow-sm"
             expandable
-            compact={true}
+            className="w-full"
           />
-          <p className="mt-1 px-1 text-[9.5px] leading-3 text-muted-foreground">
-            The highlighted green node is the active L2 source. Click any node in the minimap to return to that location in L2 Detailed Workflow.
-          </p>
         </div>
-      </div>
-
-      {node.type === "opportunityValidation" ? (
-        <OpportunityIntakeExecutionSheet node={node} onBack={onBack} />
-      ) : (
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:overflow-hidden">
-          <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 lg:h-full xl:grid-cols-[minmax(280px,0.85fr)_minmax(340px,1.15fr)]">
-            <div className="flex min-h-64 flex-col rounded-xl border bg-background/80 lg:min-h-0">
-              <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
-                <div>
-                <p className="text-sm font-semibold">Execution Items</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {items.length ? `${items.length} item${items.length === 1 ? "" : "s"} linked to this node` : "No items linked yet"}
-                </p>
-              </div>
-              <FileText className="size-4 text-muted-foreground" />
-            </div>
-            <div className="scroll-thin min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-              {items.length ? (
-                items.map((item) => {
-                  const active = item.id === selectedItem?.id;
-                  return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "flex items-stretch gap-1 rounded-lg border transition-colors",
-                        active
-                          ? "border-primary/45 bg-primary/[0.05] shadow-sm"
-                          : "border-border/80 bg-card hover:border-primary/25",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        aria-label={`Edit execution item ${item.title}`}
-                        onClick={() => setSelectedItemId(item.id)}
-                        className="min-w-0 flex-1 p-3 text-left"
-                      >
-                        <div className="flex items-start gap-2">
-                          <ProgressIcon item={item} />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold">{item.title || "Untitled execution item"}</p>
-                            <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                              {item.type}
-                            </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                {item.required ? "Required" : "Optional"}
-                              </span>
-                              <span
-                                className={cn(
-                                  "rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
-                                  progressTone(item),
-                                )}
-                              >
-                                {executionItemProgressLabel(item)}
-                              </span>
-                            </div>
-                            {item.responsibleRole || item.dueDate ? (
-                              <p className="mt-2 truncate text-[10px] text-muted-foreground">
-                                {[item.responsibleRole, item.dueDate].filter(Boolean).join(" · ")}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Delete execution item ${item.title}`}
-                        title="Delete execution item"
-                        onClick={() => deleteExecutionItem(item.id)}
-                        className="flex w-9 shrink-0 items-center justify-center self-stretch rounded-r-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-lg border border-dashed px-6 text-center">
-                  <ClipboardList className="size-7 text-muted-foreground/50" />
-                  <p className="mt-3 text-sm font-medium">No execution requirements yet</p>
-                  <p className="mt-1 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
-                    Add the documents, approvals, tasks, and evidence that make this workflow node executable.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={addItem}
-                    aria-label="Add first execution item"
-                  >
-                    <Plus className="size-3.5" />
-                    Add first item
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {selectedItem ? (
-            <ExecutionItemEditor
-              item={selectedItem}
-              onChange={(patch) => updateExecutionItem(selectedItem.id, patch)}
-            />
-          ) : (
-            <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed bg-background/50 p-6 text-center lg:min-h-0">
-              <div>
-                <ClipboardList className="mx-auto size-7 text-muted-foreground/50" />
-                <p className="mt-3 text-sm font-medium">Select an execution item</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Its detailed requirements will appear here.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      )}
+      </DetailedWorkflowDialog>
     </section>
   );
 }

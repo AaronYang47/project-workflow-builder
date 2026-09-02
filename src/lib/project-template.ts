@@ -1,15 +1,15 @@
 import {
   createEmptyExecutionLayer,
+  createEmptyHighLevelWorkflow,
   type WorkflowFile,
 } from "@/types/workflow";
 import { clone } from "@/lib/clone";
-import { buildProjectId, currentYearSuffix, legacyJobNumberFromProjectId } from "@/lib/project-id";
-import { createDefaultHighLevelProcess } from "@/lib/high-level-workflow";
-import { createDefaultDetailedLifecycle } from "@/lib/detailed-workflow";
+import { buildProjectId, currentYearSuffix } from "@/lib/project-id";
+import { normalizeProjectOperations } from "@/lib/project-operations";
 
 export const createProjectWorkflow = (
   name: string,
-  projectNumber: string,
+  projectNumber = "",
 ): WorkflowFile => {
   const now = new Date().toISOString();
   const digits = projectNumber.replace(/\D/g, "");
@@ -19,23 +19,6 @@ export const createProjectWorkflow = (
     : digits.length === 3
       ? buildProjectId(digits, "L", yy)
       : "";
-  const detailed = createDefaultDetailedLifecycle(createDefaultHighLevelProcess());
-  const nodes = detailed.graph.nodes.map((node) =>
-    node.id === "project-start"
-      ? {
-          ...node,
-          conditions: [
-            { id: "project-id-required", label: "Project ID is entered", required: true, checked: Boolean(projectId), locked: true },
-          ],
-          customFields: {
-            ...node.customFields,
-            projectId,
-            legacyJobNumber: legacyJobNumberFromProjectId(projectId),
-            nodeUuid: crypto.randomUUID(),
-          },
-        }
-      : node,
-  );
   return {
     graph: {
       schemaVersion: 1,
@@ -47,18 +30,49 @@ export const createProjectWorkflow = (
         updatedAt: now,
         notes: "",
       },
-      nodes,
-      edges: detailed.graph.edges,
+      nodes: [],
+      edges: [],
       rules: [],
     },
     layout: {
-      nodes: detailed.layout.nodes,
-      edges: detailed.layout.edges,
-      viewport: detailed.layout.viewport,
+      nodes: {},
+      edges: {},
+      viewport: { x: 0, y: 0, zoom: 0.8 },
       snapToGrid: true,
       gridSize: 16,
     },
-    highLevel: detailed.highLevel,
+    highLevel: createEmptyHighLevelWorkflow(),
+    execution: createEmptyExecutionLayer(),
+    operations: normalizeProjectOperations(undefined, name, projectId),
+  };
+};
+
+/** Workspace used after a cloud project is deleted or can no longer be restored. */
+export const createEmptyWorkspace = (): WorkflowFile => {
+  const now = new Date().toISOString();
+  return {
+    graph: {
+      schemaVersion: 1,
+      metadata: {
+        name: "",
+        version: "v1.0-draft",
+        status: "Draft",
+        createdAt: now,
+        updatedAt: now,
+        notes: "",
+      },
+      nodes: [],
+      edges: [],
+      rules: [],
+    },
+    layout: {
+      nodes: {},
+      edges: {},
+      viewport: { x: 0, y: 0, zoom: 0.8 },
+      snapToGrid: true,
+      gridSize: 16,
+    },
+    highLevel: createEmptyHighLevelWorkflow(),
     execution: createEmptyExecutionLayer(),
   };
 };

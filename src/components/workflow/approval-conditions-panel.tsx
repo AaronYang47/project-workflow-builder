@@ -105,7 +105,7 @@ export function ApprovalConditionsPanel({
       data-completion-state={conditionState}
       aria-label="Approval conditions card"
       className={cn(
-        "h-full overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
+        "l2-node-card h-full overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
         conditionStyle.card,
       )}
     >

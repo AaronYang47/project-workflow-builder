@@ -10,6 +10,7 @@ import {
 import {
   getInspectorSchema,
   isInspectorFieldVisible,
+  conditionInspectorKey,
   type InspectorField,
 } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
@@ -20,13 +21,12 @@ import {
   syncPaidConditions,
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type { DomainNode, WorkflowEdgeType } from "@/types/workflow";
+import type { Condition, DomainNode, WorkflowEdgeType } from "@/types/workflow";
 import { readPath, writePath } from "@/lib/object-path";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { HighLevelInspector } from "./high-level-inspector";
-import { OpportunityInspector } from "./opportunity-inspector";
 import { getExecutionSummary } from "@/lib/execution";
 
 const applyPromoteToPaid = (node: DomainNode): DomainNode => {
@@ -279,6 +279,106 @@ function OutcomeEditor({
   );
 }
 
+function ConditionEditor({
+  node,
+  conditionIndex,
+  update,
+  onDelete,
+}: {
+  node: DomainNode;
+  conditionIndex: number;
+  update: (node: DomainNode) => void;
+  onDelete: () => void;
+}) {
+  const condition = node.conditions[conditionIndex];
+  if (!condition) return null;
+
+  const updateCondition = (patch: Partial<Condition>) => {
+    update({
+      ...node,
+      conditions: node.conditions.map((item, index) =>
+        index === conditionIndex ? { ...item, ...patch } : item,
+      ),
+    });
+  };
+
+  return (
+    <section className="mb-5 rounded-xl border border-primary/25 bg-primary/[0.045] p-3.5 shadow-sm">
+      <div className="flex items-start gap-2">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <ClipboardList className="size-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold">Release condition {conditionIndex + 1}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Edit the condition content here. The node card remains a compact status view.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {condition.locked ? (
+            <span className="rounded-full border border-border/80 bg-muted/55 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              Managed
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label={`Delete release condition ${conditionIndex + 1}`}
+              title="Delete this release condition"
+              onClick={onDelete}
+              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-destructive"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        <div className="space-y-1.5">
+          <Label>Condition text</Label>
+          <Textarea
+            aria-label={`Release condition ${conditionIndex + 1} text`}
+            value={condition.label || ""}
+            readOnly={condition.locked}
+            onChange={(event) => updateCondition({ label: event.target.value })}
+            placeholder="Describe what must be true before this node can proceed."
+            className="min-h-16 resize-y bg-background/75 text-xs"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Supporting detail</Label>
+          <Textarea
+            aria-label={`Release condition ${conditionIndex + 1} supporting detail`}
+            value={condition.description || ""}
+            readOnly={condition.locked}
+            onChange={(event) => updateCondition({ description: event.target.value })}
+            placeholder="Optional context passed into the L3 requirement."
+            className="min-h-14 resize-y bg-background/75 text-xs"
+          />
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={condition.required !== false}
+          aria-label={`Release condition ${conditionIndex + 1} required`}
+          disabled={condition.locked}
+          onClick={() => updateCondition({ required: condition.required === false })}
+          className={`flex h-9 w-full items-center rounded-md border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${condition.required !== false ? "border-primary/40 bg-primary/10 text-primary" : "bg-background/75 text-muted-foreground"}`}
+        >
+          <span
+            className={`mr-2 h-4 w-7 rounded-full p-0.5 ${condition.required !== false ? "bg-primary" : "bg-muted-foreground/35"}`}
+          >
+            <span
+              className={`block size-3 rounded-full bg-white transition ${condition.required !== false ? "translate-x-3" : ""}`}
+            />
+          </span>
+          {condition.required !== false ? "Required" : "Optional"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 import { useShallow } from "zustand/react/shallow";
 
 function DetailedInspector({
@@ -286,7 +386,15 @@ function DetailedInspector({
 }: {
   onOpenExecutionView?: (nodeId: string) => void;
 }) {
-  const { file, selection, updateNode, updateEdge, deleteSelected } =
+  const {
+    file,
+    selection,
+    updateNode,
+    updateEdge,
+    deleteSelected,
+    deleteNodeCondition,
+    focusedInspectorField,
+  } =
     useWorkflowStore(
       useShallow((state) => ({
         file: state.file,
@@ -294,6 +402,8 @@ function DetailedInspector({
         updateNode: state.updateNode,
         updateEdge: state.updateEdge,
         deleteSelected: state.deleteSelected,
+        deleteNodeCondition: state.deleteNodeCondition,
+        focusedInspectorField: state.focusedInspectorField,
       })),
     );
   const node = file.graph.nodes.find(
@@ -301,12 +411,24 @@ function DetailedInspector({
   );
   const edge = file.graph.edges.find((item) => item.id === selection.edgeId);
   const executionSummary = node
-    ? getExecutionSummary(node.id, file.execution?.items)
+    ? getExecutionSummary(
+        node.id,
+        file.execution?.items,
+        file.operations,
+        { checklistOnly: true },
+      )
     : undefined;
   const schema = useMemo(
     () => (node ? getInspectorSchema(node.type) : []),
     [node],
   );
+  const activeConditionIndex = node
+    ? node.conditions.findIndex(
+        (condition, index) =>
+          conditionInspectorKey(node.id, condition.id, index) ===
+          focusedInspectorField,
+      )
+    : -1;
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     General: true,
     Appearance: true,
@@ -402,10 +524,21 @@ function DetailedInspector({
                 </button>
               </section>
             ) : null}
-            {node.type === "opportunityValidation" ? (
-              <OpportunityInspector node={node} />
-            ) : (
-              Array.from(new Set(schema.map((field) => field.section))).map(
+            {node && activeConditionIndex >= 0 ? (
+              <ConditionEditor
+                node={node}
+                conditionIndex={activeConditionIndex}
+                update={(next) => updateNode(node.id, next)}
+                onDelete={() =>
+                  deleteNodeCondition(
+                    node.id,
+                    node.conditions[activeConditionIndex]?.id,
+                    activeConditionIndex,
+                  )
+                }
+              />
+            ) : null}
+            {Array.from(new Set(schema.map((field) => field.section))).map(
                 (section) => {
                   const open = openSections[section] ?? true;
                   return (
@@ -450,7 +583,7 @@ function DetailedInspector({
                   );
                 },
               )
-            )}
+            }
             {node.type === "gate" ? (
               <OutcomeEditor
                 node={node}

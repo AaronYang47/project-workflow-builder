@@ -1,10 +1,4 @@
-import {
-  CircleCheck,
-  CircleDot,
-  Layers3,
-  Milestone,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleCheck, CircleDot, Layers3, type LucideIcon } from "lucide-react";
 import type {
   HighLevelEdge,
   HighLevelNode,
@@ -24,10 +18,15 @@ function workflowNodeSortKey(
   index: number,
 ) {
   if (node.type === "projectStart") return [0, 0, index] as const;
-  if (node.type === "opportunityValidation") return [1, 0, index] as const;
+  if (node.title.trim().toLowerCase() === "pre-construction assessment") {
+    return [2, 0, index] as const;
+  }
+  if (node.title.trim().toLowerCase() === "project close-out") {
+    return [3, 0, index] as const;
+  }
   const number = conditionNumber(node.title);
-  if (number !== undefined) return [2, number, index] as const;
-  return [3, index, index] as const;
+  if (number !== undefined) return [4, number, index] as const;
+  return [5, index, index] as const;
 }
 
 export function orderWorkflowNodeIds(
@@ -62,6 +61,37 @@ export function orderLinkedWorkflowNodeIds(
   return orderWorkflowNodeIds(linkedIds || [], workflowNodes);
 }
 
+/** Order nodes by the High-Level connections, not by creation order. */
+export function orderHighLevelNodes(nodes: HighLevelNode[], edges: HighLevelEdge[]) {
+  const originalIndex = new Map(nodes.map((node, index) => [node.id, index]));
+  const incoming = new Map(nodes.map((node) => [node.id, 0]));
+  const outgoing = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (!originalIndex.has(edge.source) || !originalIndex.has(edge.target)) continue;
+    outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge.target]);
+    incoming.set(edge.target, (incoming.get(edge.target) || 0) + 1);
+  }
+  const queue = nodes
+    .filter((node) => (incoming.get(node.id) || 0) === 0)
+    .sort((left, right) =>
+      Number(right.type === "start") - Number(left.type === "start") ||
+      originalIndex.get(left.id)! - originalIndex.get(right.id)!,
+    )
+    .map((node) => node.id);
+  const orderedIds: string[] = [];
+  while (queue.length) {
+    const id = queue.shift()!;
+    orderedIds.push(id);
+    for (const target of outgoing.get(id) || []) {
+      const next = (incoming.get(target) || 0) - 1;
+      incoming.set(target, next);
+      if (next === 0) queue.push(target);
+    }
+  }
+  const missing = nodes.map((node) => node.id).filter((id) => !orderedIds.includes(id));
+  return [...orderedIds, ...missing].map((id) => nodes[originalIndex.get(id)!]);
+}
+
 export interface HighLevelNodeDefinition {
   type: HighLevelNodeType;
   label: string;
@@ -86,13 +116,6 @@ export const HIGH_LEVEL_NODE_CATALOG: HighLevelNodeDefinition[] = [
     color: "#64748b",
   },
   {
-    type: "primaryGate",
-    label: "Primary Gate",
-    description: "Primary transition point",
-    icon: Milestone,
-    color: "#2563a9",
-  },
-  {
     type: "end",
     label: "Final Close",
     description: "High-level process completion",
@@ -106,7 +129,50 @@ const defaultNode = (
   type: HighLevelNodeType,
   title: string,
   description = "",
-): HighLevelNode => ({ id, type, title, description });
+  code = "",
+): HighLevelNode => ({ id, type, title, description, code });
+
+/**
+ * The first JF scaffold used one L1 node for nearly every L2 milestone. Keep
+ * this narrow detector so persisted 13-node workspaces can be upgraded to
+ * the compact grouped lifecycle without mistaking a user-authored L1 for the
+ * old default.
+ */
+export function isLegacyDefaultHighLevelFamily(
+  highLevel: HighLevelWorkflow | undefined,
+) {
+  const nodes = highLevel?.graph.nodes || [];
+  return (
+    nodes.length === 13 &&
+    nodes.every((node, index) => node.id === `high-level-${index + 1}`)
+  );
+}
+
+/** Identifies the former seeded nine-step lifecycle so it cannot be restored
+ * as a user project after the workspace was changed to start empty. */
+export function isDefaultHighLevelProcess(
+  highLevel: HighLevelWorkflow | undefined,
+) {
+  const nodes = highLevel?.graph.nodes || [];
+  const expected = [
+    "INITIAL CONTACT",
+    "OPPORTUNITY & QUALIFICATION",
+    "G1 — QUALIFIED & COMMERCIALLY ENGAGED",
+    "G2 — TECHNICAL COMMITMENT",
+    "G3 — PRODUCTION AUTHORIZATION",
+    "G4 — FACTORY RELEASE",
+    "G5 — WARRANTY START",
+    "COMMISSIONING & WARRANTY",
+    "FINAL CLOSE",
+  ];
+  return (
+    nodes.length === expected.length &&
+    nodes.every(
+      (node, index) =>
+        node.id === `high-level-${index + 1}` && node.title === expected[index],
+    )
+  );
+}
 
 export function createHighLevelNode(
   type: HighLevelNodeType,
@@ -124,13 +190,48 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
   }> = [
     {
       type: "start",
-      title: "PROJECT START",
-      description: "Project intake, identification, and client relationship baseline.",
+      title: "INITIAL CONTACT",
+      description: "Create the project record, capture the initial contact, and establish the project identifier.",
     },
     {
       type: "phase",
       title: "OPPORTUNITY & QUALIFICATION",
-      description: "Sequential 6-step qualification, LOI governance, and Gate 1 dossier handoff.",
+      description: "Test client, authority, project scale, site, design, and eligibility evidence.",
+    },
+    {
+      type: "primaryGate",
+      title: "G1 — QUALIFIED & COMMERCIALLY ENGAGED",
+      description: "Release an eligible opportunity with a valid route, approval authority, and executed commercial engagement.",
+    },
+    {
+      type: "primaryGate",
+      title: "G2 — TECHNICAL COMMITMENT",
+      description: "Complete pre-construction and authorize the project, technical basis, scope, and responsibility boundaries.",
+    },
+    {
+      type: "primaryGate",
+      title: "G3 — PRODUCTION AUTHORIZATION",
+      description: "Complete production readiness and release the approved package to factory production.",
+    },
+    {
+      type: "primaryGate",
+      title: "G4 — FACTORY RELEASE",
+      description: "Complete factory production, accept quality evidence, and release the work to delivery.",
+    },
+    {
+      type: "primaryGate",
+      title: "G5 — WARRANTY START",
+      description: "Complete delivery and project completion, accept controlled deficiencies, and start warranty.",
+    },
+    {
+      type: "phase",
+      title: "COMMISSIONING & WARRANTY",
+      description: "Complete commissioning, warranty service, and closeout tracking.",
+    },
+    {
+      type: "end",
+      title: "FINAL CLOSE",
+      description: "Close the project after warranty completion and outstanding obligations are resolved.",
     },
   ];
   const nodes = steps.map((s, index) => {
@@ -145,7 +246,7 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
   let currentX = 0;
   const layoutNodes: Record<string, { nodeId: string; x: number; y: number }> = {};
   for (const node of nodes) {
-    const width = node.type === "phase" ? 288 : 208;
+    const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
     layoutNodes[node.id] = { nodeId: node.id, x: currentX, y: 220 };
     currentX += width + 64;
   }
@@ -163,13 +264,13 @@ export function autoArrangeHighLevel(file: WorkflowFile): WorkflowFile {
   if (!highLevel) return file;
   const gap = 56;
   const widthFor = (type: HighLevelNodeType) => {
-    if (type === "phase") return 288;
-    if (type === "primaryGate") return 208;
+    if (type === "phase" || type === "primaryGate") return 288;
+    if (type === "start" || type === "end") return 256;
     return 208;
   };
   let x = 0;
   const nodes = Object.fromEntries(
-    highLevel.graph.nodes.map((node) => {
+    orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).map((node) => {
       const position = {
         ...(highLevel.layout.nodes[node.id] || { nodeId: node.id }),
         nodeId: node.id,

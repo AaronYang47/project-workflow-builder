@@ -20,6 +20,160 @@ const randomToken = (bytes = 32) => {
 const sha256 = async (value: string) =>
   toHex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
 
+export const PROJECT_VERSION_RETENTION = 50;
+
+export type ProjectVersionChangeKind =
+  | "baseline"
+  | "created"
+  | "updated"
+  | "restored"
+  | "approval";
+
+export type ProjectAuditAction =
+  | "project.created"
+  | "project.updated"
+  | "project.restored"
+  | "project.deleted"
+  | "approval.approved"
+  | "approval.rejected";
+
+export type UserRole =
+  | "Coordinator"
+  | "Project Manager"
+  | "Estimator"
+  | "Engineering"
+  | "Finance"
+  | "CRO"
+  | "CEO"
+  | "Client";
+
+type ProjectSnapshot = {
+  id: string;
+  projectId: string;
+  ownerUserId: string;
+  name: string;
+  projectNumber: string;
+  workflowJson: string;
+  contentHash: string;
+  changeKind: ProjectVersionChangeKind;
+  restoredFromVersionId?: string | null;
+  actorUserId: string;
+  createdAt: string;
+};
+
+type ProjectAuditEntry = {
+  id: string;
+  projectId: string;
+  ownerUserId: string;
+  actorUserId: string;
+  actorRole: UserRole;
+  action: ProjectAuditAction;
+  versionId?: string | null;
+  restoredFromVersionId?: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
+// Hash the exact persisted strings, including metadata that is restored with
+// the workflow. The array encoding avoids ambiguous delimiter combinations.
+export const projectSnapshotHash = (
+  name: string,
+  projectNumber: string,
+  workflowJson: string,
+) => sha256(JSON.stringify([name, projectNumber, workflowJson]));
+
+export const appendProjectVersionStatement = (
+  db: D1Database,
+  snapshot: ProjectSnapshot,
+) => db.prepare(
+  `INSERT INTO project_versions (
+    id, project_id, owner_user_id, version_number, name, project_number,
+    workflow_json, content_hash, change_kind, restored_from_version_id,
+    created_by_user_id, created_at
+  ) VALUES (
+    ?, ?, ?,
+    (SELECT COALESCE(MAX(version_number), 0) + 1 FROM project_versions WHERE project_id = ?),
+    ?, ?, ?, ?, ?, ?, ?, ?
+  )`,
+).bind(
+  snapshot.id,
+  snapshot.projectId,
+  snapshot.ownerUserId,
+  snapshot.projectId,
+  snapshot.name,
+  snapshot.projectNumber,
+  snapshot.workflowJson,
+  snapshot.contentHash,
+  snapshot.changeKind,
+  snapshot.restoredFromVersionId ?? null,
+  snapshot.actorUserId,
+  snapshot.createdAt,
+);
+
+// Projects created before migration 0002 receive one recoverable copy of their
+// pre-update state the first time they are saved after the migration.
+export const appendBaselineIfMissingStatement = (
+  db: D1Database,
+  snapshot: Omit<ProjectSnapshot, "changeKind">,
+) => db.prepare(
+  `INSERT INTO project_versions (
+    id, project_id, owner_user_id, version_number, name, project_number,
+    workflow_json, content_hash, change_kind, restored_from_version_id,
+    created_by_user_id, created_at
+  )
+  SELECT ?, ?, ?, 1, ?, ?, ?, ?, 'baseline', NULL, ?, ?
+  WHERE NOT EXISTS (
+    SELECT 1 FROM project_versions WHERE project_id = ?
+  )`,
+).bind(
+  snapshot.id,
+  snapshot.projectId,
+  snapshot.ownerUserId,
+  snapshot.name,
+  snapshot.projectNumber,
+  snapshot.workflowJson,
+  snapshot.contentHash,
+  snapshot.actorUserId,
+  snapshot.createdAt,
+  snapshot.projectId,
+);
+
+export const appendProjectAuditStatement = (
+  db: D1Database,
+  entry: ProjectAuditEntry,
+) => db.prepare(
+  `INSERT INTO project_audit_log (
+    id, project_id, owner_user_id, actor_user_id, actor_role, action,
+    version_id, restored_from_version_id, details_json, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+).bind(
+  entry.id,
+  entry.projectId,
+  entry.ownerUserId,
+  entry.actorUserId,
+  entry.actorRole,
+  entry.action,
+  entry.versionId ?? null,
+  entry.restoredFromVersionId ?? null,
+  JSON.stringify(entry.details),
+  entry.createdAt,
+);
+
+export const trimProjectVersionsStatement = (
+  db: D1Database,
+  projectId: string,
+) => db.prepare(
+  `DELETE FROM project_versions
+  WHERE project_id = ?
+    AND id NOT IN (
+      SELECT id
+      FROM project_versions
+      WHERE project_id = ?
+      ORDER BY version_number DESC
+      LIMIT ?
+    )`,
+).bind(projectId, projectId, PROJECT_VERSION_RETENTION);
+
 export const hashPassword = async (password: string, salt = randomToken(16)) => {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -78,10 +232,10 @@ export const currentUser = async (
   const hashed = await sha256(secret ? `${token}.${secret}` : token);
   return db
     .prepare(
-      "SELECT users.id, users.email, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?",
+      "SELECT users.id, users.email, users.name, users.role FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?",
     )
     .bind(hashed, new Date().toISOString())
-    .first<{ id: string; email: string; name: string }>();
+    .first<{ id: string; email: string; name: string; role: UserRole }>();
 };
 
 export const requireUser = async (

@@ -8,7 +8,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
-  EyeOff,
   Layers3,
   Maximize2,
   Minimize2,
@@ -56,6 +55,7 @@ type LayerContextMinimapProps = {
   compact?: boolean;
   strip?: boolean;
   defaultHidden?: boolean;
+  onReveal?: () => void;
 };
 
 const MAP_PADDING = 18;
@@ -165,6 +165,7 @@ export function LayerContextMinimap({
   compact = false,
   strip = false,
   defaultHidden,
+  onReveal,
 }: LayerContextMinimapProps) {
   const mounted = useSyncExternalStore(
     subscribeToHydration,
@@ -244,7 +245,6 @@ export function LayerContextMinimap({
         .sort((a, b) => a.x - b.x || a.y - b.y),
     [displayNodes],
   );
-
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -331,10 +331,10 @@ export function LayerContextMinimap({
       <button
         type="button"
         data-layer-context-minimap-toggle={level}
-        onClick={() => setHidden(false)}
+        onClick={() => (onReveal ? onReveal() : setHidden(false))}
         className="pointer-events-auto flex h-8 items-center gap-2 rounded-xl border border-border/80 bg-background/90 px-3 text-[11px] font-semibold text-muted-foreground shadow-sm backdrop-blur-md transition hover:border-primary/40 hover:bg-card hover:text-foreground hover:shadow-md"
-        aria-label={`Show ${level} minimap`}
-        title={`Show ${level} minimap`}
+        aria-label={onReveal ? `Open ${level} detailed workflow` : `Show ${level} minimap`}
+        title={onReveal ? `Open ${level} detailed workflow` : `Show ${level} minimap`}
       >
         <Layers3 className="size-3.5 text-primary" />
         <span>{level} · {title}</span>
@@ -402,6 +402,16 @@ export function LayerContextMinimap({
         </div>
 
         <div className="ml-auto flex w-full shrink-0 items-center justify-end gap-1 sm:ml-0 sm:w-auto">
+          <button
+            type="button"
+            data-layer-context-minimap-hide={level}
+            onClick={() => setHidden(true)}
+            className="flex h-7 items-center rounded-lg px-2 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label={`Hide ${level} minimap`}
+            title={`Hide ${title} minimap`}
+          >
+            Hide
+          </button>
           {expandable ? (
             <button
               type="button"
@@ -417,15 +427,6 @@ export function LayerContextMinimap({
               )}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => setHidden(true)}
-            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            aria-label={`Hide ${level} minimap`}
-            title="Hide minimap"
-          >
-            <EyeOff className="size-3.5" />
-          </button>
         </div>
       </div>
 
@@ -515,46 +516,12 @@ export function LayerContextMinimap({
                         ? "4 4"
                         : undefined;
 
-                const sourceIsOpportunity =
-                  level === "L2" &&
-                  (source.type === "opportunityValidation" ||
-                    source.id.toLowerCase().includes("opportunity") ||
-                    ["pass-p1-p2", "loi-governed", "csa-pcs", "site-feasibility", "nogo-disqualified", "path-loi"].includes(
-                      edge.sourceHandle || "",
-                    ));
-
                 let sourceX = source.x + source.width;
                 let sourceY = source.y + source.height / 2;
                 let preferCorridor: "above" | "below" | "direct" = "direct";
                 let corridorLane = 0;
 
-                if (sourceIsOpportunity) {
-                  if (edge.sourceHandle === "pass-p1-p2") {
-                    sourceY = source.y + source.height * 0.12;
-                    preferCorridor = "direct";
-                    corridorLane = 0;
-                  } else if (edge.sourceHandle === "loi-governed") {
-                    sourceY = source.y + source.height * 0.28;
-                    preferCorridor = "above";
-                    corridorLane = 1;
-                  } else if (edge.sourceHandle === "csa-pcs") {
-                    sourceY = source.y + source.height * 0.44;
-                    preferCorridor = "above";
-                    corridorLane = 0;
-                  } else if (edge.sourceHandle === "site-feasibility") {
-                    sourceY = source.y + source.height * 0.60;
-                    preferCorridor = "below";
-                    corridorLane = 0;
-                  } else if (edge.sourceHandle === "nogo-disqualified") {
-                    sourceY = source.y + source.height * 0.76;
-                    preferCorridor = "above";
-                    corridorLane = 2;
-                  } else if (edge.sourceHandle === "path-loi") {
-                    sourceY = source.y + source.height * 0.92;
-                    preferCorridor = "below";
-                    corridorLane = 1;
-                  }
-                } else if (edge.sourceHandle === "yes") {
+                if (edge.sourceHandle === "yes") {
                   sourceY = source.y + source.height * 0.35;
                   preferCorridor = "direct";
                 } else if (edge.sourceHandle === "no") {
@@ -596,12 +563,14 @@ export function LayerContextMinimap({
                     item.y + item.height > Math.min(sourceY, targetY) - 12,
                 );
 
+                // A context map is still a workflow diagram: every layer must
+                // keep routes outside of cards. This also covers L1 edges that
+                // skip a card, which previously used a direct path.
                 const mustUseCorridor =
-                  level === "L2" &&
-                  (isDeniedOrNoGo ||
-                    isBackward ||
-                    directCollides ||
-                    (hasIntermediates && preferCorridor !== "direct"));
+                  isDeniedOrNoGo ||
+                  isBackward ||
+                  directCollides ||
+                  hasIntermediates;
 
                 let dPath: string;
 
@@ -639,9 +608,9 @@ export function LayerContextMinimap({
                       );
 
                   const useAbove =
+                    level === "L1" ||
                     isDeniedOrNoGo ||
                     isBackward ||
-                    preferCorridor === "above" ||
                     (preferCorridor !== "below" && targetY < sourceY);
 
                   if (useAbove) {
@@ -722,27 +691,6 @@ export function LayerContextMinimap({
                 ? 36
                 : Math.max(20, Math.round(Math.min(node.width, node.height) * 0.12));
 
-              const isOpportunity =
-                level === "L2" &&
-                (node.type === "opportunityValidation" ||
-                  node.id.toLowerCase().includes("opportunity") ||
-                  edges.some(
-                    (e) =>
-                      e.source === node.id &&
-                      ["pass-p1-p2", "loi-governed", "csa-pcs", "site-feasibility", "nogo-disqualified", "path-loi"].includes(
-                        e.sourceHandle || "",
-                      ),
-                  ));
-
-              const opportunityOutputs = [
-                { id: "pass-p1-p2", label: "P1", topRatio: 0.12, color: "#10b981" },
-                { id: "loi-governed", label: "P2", topRatio: 0.28, color: "#2563eb" },
-                { id: "csa-pcs", label: "P3", topRatio: 0.44, color: "#0891b2" },
-                { id: "site-feasibility", label: "P4", topRatio: 0.60, color: "#d97706" },
-                { id: "nogo-disqualified", label: "P5", topRatio: 0.76, color: "#dc2626" },
-                { id: "path-loi", label: "PL", topRatio: 0.92, color: "#7c3aed" },
-              ];
-
               if (isContainer) {
                 return (
                   <g
@@ -792,10 +740,17 @@ export function LayerContextMinimap({
               const charCount = Math.max(1, node.label.length);
               const widthScale = (node.width - 24) / Math.max(4, Math.min(charCount * 0.32, 10));
               const heightScale = (node.height - 24) * 0.25;
-              const adaptiveFontSize = Math.max(
-                level === "L1" ? 14 : 18,
-                Math.min(level === "L1" ? 26 : 42, Math.round(Math.min(widthScale, heightScale))),
-              );
+              // Project Start cards stay readable at a smaller fixed size so
+              // they don't visually overpower the canvas at large L2 widths.
+              const isProjectStart =
+                node.type === "projectStart" ||
+                node.label.trim().toLowerCase() === "project start";
+              const adaptiveFontSize = isProjectStart
+                ? 14
+                : Math.max(
+                    level === "L1" ? 14 : 13,
+                    Math.min(level === "L1" ? 22 : 16, Math.round(Math.min(widthScale, heightScale))),
+                  );
 
               return (
                 <g
@@ -850,103 +805,28 @@ export function LayerContextMinimap({
                     className="transition-all"
                   />
 
-                  {/* Opportunity Node with 6 Stepped Pipeline */}
-                  {isOpportunity ? (
-                    <foreignObject
-                      x={node.x + 8}
-                      y={node.y + 8}
-                      width={Math.max(1, node.width - 16)}
-                      height={Math.max(1, node.height - 16)}
-                      className="pointer-events-none"
-                    >
-                      <div className="flex h-full w-full flex-col justify-between p-2.5 font-sans select-none">
-                        {/* Header Row in Minimap */}
-                        <div className="flex items-center justify-between border-b border-border/50 pb-1.5 shrink-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary text-xs font-bold shrink-0">
-                              🎯
-                            </span>
-                            <span className="text-xs font-extrabold text-foreground truncate">
-                              {node.label}
-                            </span>
-                          </div>
-                          <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0 border border-emerald-500/30">
-                            Active: Step 1 · Intake
-                          </span>
-                        </div>
-
-                        {/* 6 Steps Row in Minimap */}
-                        <div className="grid grid-cols-6 gap-2 mt-2 flex-1 items-stretch">
-                          {[
-                            { num: "STEP 1", title: "Intake", sub: "Evidence", status: "Active", active: true },
-                            { num: "STEP 2", title: "Blockers", sub: "Eligibility", status: "Pending", active: false },
-                            { num: "STEP 3", title: "Reality", sub: "Class D", status: "Pending", active: false },
-                            { num: "STEP 4", title: "Routing", sub: "Commercial", status: "Pending", active: false },
-                            { num: "STEP 5", title: "Approval", sub: "CEO Sign", status: "Locked", active: false },
-                            { num: "STEP 6", title: "Handoff", sub: "G1 Dossier", status: "Locked", active: false },
-                          ].map((step) => (
-                            <div
-                              key={step.num}
-                              className={cn(
-                                "rounded-xl border px-1.5 py-2 text-center transition-all flex flex-col justify-between shadow-xs",
-                                step.active
-                                  ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500/60"
-                                  : "border-border/60 bg-card/75 opacity-90",
-                              )}
-                            >
-                              <div>
-                                <div className="text-[8.5px] font-extrabold text-muted-foreground uppercase tracking-wider">
-                                  {step.num}
-                                </div>
-                                <div className="text-[11.5px] font-black text-foreground truncate mt-0.5">
-                                  {step.title}
-                                </div>
-                                <div className="text-[9.5px] text-muted-foreground truncate font-medium mt-0.5">
-                                  {step.sub}
-                                </div>
-                              </div>
-                              <div className="mt-1.5">
-                                <span
-                                  className={cn(
-                                    "inline-block rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase",
-                                    step.active
-                                      ? "bg-emerald-500/30 text-emerald-800 dark:text-emerald-200"
-                                      : "bg-muted text-muted-foreground",
-                                  )}
-                                >
-                                  {step.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </foreignObject>
-                  ) : (
-                    /* Default Node Title */
-                    <foreignObject
-                      x={node.x + 14}
-                      y={node.y + 14}
-                      width={Math.max(1, node.width - 28)}
-                      height={Math.max(1, node.height - 28)}
-                      className="pointer-events-none"
-                    >
-                      <div className="flex h-full w-full items-center justify-center p-1 font-sans select-none text-center">
-                        <span
-                          className={cn(
-                            "line-clamp-4 font-normal tracking-tight text-foreground",
-                            isActive && "font-medium text-emerald-950 dark:text-emerald-50",
-                          )}
-                          style={{
-                            fontSize: adaptiveFontSize,
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          {node.label}
-                        </span>
-                      </div>
-                    </foreignObject>
-                  )}
+                  <foreignObject
+                    x={node.x + 14}
+                    y={node.y + 14}
+                    width={Math.max(1, node.width - 28)}
+                    height={Math.max(1, node.height - 28)}
+                    className="pointer-events-none"
+                  >
+                    <div className="flex h-full w-full items-center justify-center p-1 font-sans select-none text-center">
+                      <span
+                        className={cn(
+                          "line-clamp-4 font-normal tracking-tight text-foreground",
+                          isActive && "font-medium text-emerald-950 dark:text-emerald-50",
+                        )}
+                        style={{
+                          fontSize: adaptiveFontSize,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {node.label}
+                      </span>
+                    </div>
+                  </foreignObject>
                 </g>
               );
             })}
@@ -960,6 +840,7 @@ export function LayerContextMinimap({
 
       {/* Interactive Step Navigator Strip */}
       {hasNodes ? (
+        <>
         <div
           ref={nodeListScroller}
           className={cn(
@@ -971,71 +852,61 @@ export function LayerContextMinimap({
                 : "gap-1.5 px-2.5 py-1.5 bg-background/80",
           )}
         >
-          {orderedNavigatorNodes.map((node, index) => (
-            <button
-              key={node.id}
-              data-context-node-active={node.active ? "true" : undefined}
-              type="button"
-              onClick={() => onOpenNode?.(node.id)}
-              disabled={!onOpenNode}
-              title={node.label}
-              className={cn(
-                "flex shrink-0 items-center transition-all",
-                compact
-                  ? "max-w-40 gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium"
-                  : "max-w-48 gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold",
-                node.active
-                  ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 shadow-xs"
-                  : "bg-card/70 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
-                  compact ? "size-3.5 text-[8px]" : "size-4 text-[9px]",
-                  node.active
-                    ? "bg-emerald-500 text-white"
-                    : "bg-muted text-muted-foreground",
-                )}
+          {orderedNavigatorNodes.map((node, index) => {
+            const chipClassName = cn(
+              "flex shrink-0 items-center transition-all",
+              compact
+                ? "gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium"
+                : "gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold",
+              node.active
+                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 shadow-xs"
+                : "cursor-default bg-card/70 text-muted-foreground",
+            );
+            const chipBody = (
+              <>
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
+                    compact ? "size-3.5 text-[8px]" : "size-4 text-[9px]",
+                    node.active
+                      ? "bg-emerald-500 text-white"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <span>{node.label}</span>
+              </>
+            );
+            return (
+              <div
+                key={node.id}
+                data-context-node-active={node.active ? "true" : undefined}
+                title={node.label}
+                className={chipClassName}
               >
-                {index + 1}
-              </span>
-              <span className="truncate">{node.label}</span>
-            </button>
-          ))}
+                {chipBody}
+              </div>
+            );
+          })}
         </div>
+        </>
       ) : null}
 
-      {/* Status Bar */}
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 border-t text-muted-foreground",
-          level === "L1"
-            ? "min-h-7 px-2.5 py-1 text-[11px] bg-transparent"
-            : compact
-              ? "min-h-7 px-2.5 py-1 text-[10px] bg-muted/10"
-              : "min-h-9 px-3.5 py-2 text-xs bg-muted/10",
-        )}
-      >
-        <span
+      {!activeLabel ? (
+        <div
           className={cn(
-            "flex items-center gap-1.5 truncate",
-            activeLabel && "font-semibold text-emerald-600 dark:text-emerald-400",
+            "flex items-center justify-between gap-2 border-t text-muted-foreground",
+            level === "L1"
+              ? "min-h-7 px-2.5 py-1 text-[11px] bg-transparent"
+              : compact
+                ? "min-h-7 px-2.5 py-1 text-[10px] bg-muted/10"
+                : "min-h-9 px-3.5 py-2 text-xs bg-muted/10",
           )}
         >
-          {activeLabel ? (
-            <>
-              <span className="size-2 rounded-full bg-emerald-500 node-beacon-pulse shrink-0" />
-              <span>Current Target · {activeLabel}</span>
-            </>
-          ) : (
-            "Select a node to reveal context"
-          )}
-        </span>
-        <span className="shrink-0 text-[10px] text-muted-foreground/75">
-          Drag or scroll horizontally to explore
-        </span>
-      </div>
+          <span className="truncate">Select a node to reveal context</span>
+        </div>
+      ) : null}
     </section>
   );
 }

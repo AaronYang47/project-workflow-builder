@@ -52,9 +52,13 @@ export function CollaboratorPresence() {
 
       const roomParam =
         typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("room") ||
-            "project-main"
-          : "project-main";
+          ? new URLSearchParams(window.location.search).get("room")
+          : null;
+      if (!roomParam) {
+        setRoomId("local-only");
+        state.setIsConnected(false);
+        return;
+      }
       setRoomId(roomParam);
 
       // Keep the mobile browser focused on the workflow editor. WebRTC mesh
@@ -84,8 +88,16 @@ export function CollaboratorPresence() {
 
   const copyShareLink = () => {
     if (typeof window === "undefined") return;
+    const sharedRoomId =
+      roomId && roomId !== "local-only"
+        ? roomId
+        : `project-${crypto.randomUUID().slice(0, 8)}`;
+    if (sharedRoomId !== roomId) {
+      setRoomId(sharedRoomId);
+      collaborationManager.initRoom(sharedRoomId);
+    }
     const url = new URL(window.location.href);
-    url.searchParams.set("room", roomId);
+    url.searchParams.set("room", sharedRoomId);
     navigator.clipboard.writeText(url.toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -105,7 +117,7 @@ export function CollaboratorPresence() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          title={`Real-Time Multiplayer: ${totalUsers} online in room "${roomId}"`}
+          title={isConnected ? `Real-Time Multiplayer: ${totalUsers} online in room "${roomId}"` : "Collaboration is off until a share link is created or opened"}
           className="flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-muted/80 hover:border-primary/40 cursor-pointer"
         >
           <div className="relative flex items-center">
@@ -146,7 +158,7 @@ export function CollaboratorPresence() {
           </div>
 
           <span className="text-[11px] font-medium text-muted-foreground ml-0.5">
-            {totalUsers > 1 ? `${totalUsers} Live` : "Live Collab"}
+            {isConnected ? (totalUsers > 1 ? `${totalUsers} Live` : "Live Collab") : "Collab Off"}
           </span>
         </button>
       </Popover.Trigger>
@@ -155,7 +167,7 @@ export function CollaboratorPresence() {
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 w-80 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl outline-none animate-in fade-in-0 zoom-in-95"
+          className="liquid-glass-panel z-50 w-80 rounded-xl border p-4 text-popover-foreground shadow-xl outline-none animate-in fade-in-0 zoom-in-95"
         >
           <div className="space-y-4">
             {/* Header */}
@@ -171,9 +183,9 @@ export function CollaboratorPresence() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Real-Time
+              <div className={isConnected ? "flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full" : "flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"}>
+                <span className={isConnected ? "size-1.5 animate-pulse rounded-full bg-emerald-500" : "size-1.5 rounded-full bg-amber-500"} />
+                {isConnected ? "Real-Time" : "Local only"}
               </div>
             </div>
 

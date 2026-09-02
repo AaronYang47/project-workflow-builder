@@ -56,20 +56,7 @@ const colors: Record<DomainEdge["type"], string> = {
   reopen: "#159a75",
 };
 
-export const OPPORTUNITY_ROUTE_COLORS: Record<string, string> = {
-  "pass-p1-p2": "#10b981", // P1: Emerald Green
-  "loi-governed": "#2563eb", // P2: Royal Blue
-  "csa-pcs": "#0891b2", // P3: Vibrant Cyan / Teal
-  "site-feasibility": "#d97706", // P4: Amber
-  "nogo-disqualified": "#dc2626", // P5: Bright Red
-  "path-loi": "#7c3aed", // PL: Path LOI
-  "hold-rework": "#ea580c", // Legacy P4 fallback
-};
-
 export function getSemanticEdgeColor(edge: DomainEdge) {
-  if (edge.sourceHandle && OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle]) {
-    return OPPORTUNITY_ROUTE_COLORS[edge.sourceHandle];
-  }
   if (
     edge.sourceHandle?.startsWith("no") ||
     edge.sourceHandle === "in-rework" ||
@@ -101,7 +88,11 @@ const stub = (point: Point, position: Position, length: number): Point =>
         ? { x: point.x, y: point.y - length }
         : { x: point.x, y: point.y + length };
 
-const MIN_END_STUB = 36;
+const MIN_END_STUB = 56;
+/** Last stretch of a connector is reserved for the arrowhead. */
+const ARROW_KEEPOUT_PX = 80;
+/** Extra air between a label chip and the stroke it annotates. */
+const LABEL_STROKE_GAP = 14;
 
 /** Keep a straight run after the last 90° turn so the arrow is not glued to the corner. */
 const withMinEndStub = (
@@ -315,6 +306,7 @@ const placeLabel = (
   siblingCount = 1,
 ) => {
   const { width, height } = estimateEdgeLabelChip(label);
+  const pathClearance = Math.max(LABEL_STROKE_GAP + height / 2, 28);
   const source = obstacles.find((obstacle) => obstacle.id === sourceId);
   const target = obstacles.find((obstacle) => obstacle.id === targetId);
   const gapCenterX = source && target
@@ -329,9 +321,19 @@ const placeLabel = (
       )[0];
 
   if (siblingCount <= 1 && lockToConnectorGap && gapCenterX !== undefined && closestGapPoint) {
+    const tangentLength =
+      Math.hypot(closestGapPoint.tangent.x, closestGapPoint.tangent.y) || 1;
+    const normal = {
+      x: -closestGapPoint.tangent.y / tangentLength,
+      y: closestGapPoint.tangent.x / tangentLength,
+    };
+    const sign = normal.y <= 0 ? 1 : -1;
     return {
-      point: { x: gapCenterX, y: closestGapPoint.y },
-      avoided: false,
+      point: {
+        x: gapCenterX + normal.x * sign * pathClearance,
+        y: closestGapPoint.y + normal.y * sign * pathClearance,
+      },
+      avoided: true,
     };
   }
 
@@ -376,8 +378,19 @@ const placeLabel = (
       : labelLane || 0;
 
   const offsets = labelHugsPath
-    ? [0, 16, -16, 28, -28, 40, -40, 56, -56, 72, -72]
-    : [...new Set([lane, 0, lane + 28, lane - 28, 56, -56, 84, -84])];
+    ? [pathClearance, -pathClearance, 40, -40, 56, -56, 72, -72]
+    : [
+        ...new Set([
+          lane || -pathClearance,
+          -(lane || pathClearance),
+          pathClearance + 16,
+          -(pathClearance + 16),
+          56,
+          -56,
+          84,
+          -84,
+        ]),
+      ];
 
   const pathPoints = [
     ...gapPoints,
@@ -402,19 +415,29 @@ const placeLabel = (
       fraction: pathPoint.fraction,
     }));
   });
-  const scored = candidates.map((candidate) => ({
-    ...candidate,
-    overlap: obstacles.reduce(
-      (sum, obstacle) => sum + overlapArea(candidate, width, height, obstacle),
-      0,
-    ),
-  }));
-  const clear = scored.find((candidate) => candidate.overlap === 0);
+  const pathEnd = points.at(-1) ?? { x: 0, y: 0 };
+  const arrowKeepout = ARROW_KEEPOUT_PX + width / 2;
+  const scored = candidates.map((candidate) => {
+    const distanceFromEnd = distance(candidate, pathEnd);
+    return {
+      ...candidate,
+      overlap: obstacles.reduce(
+        (sum, obstacle) => sum + overlapArea(candidate, width, height, obstacle),
+        0,
+      ),
+      arrowPenalty:
+        distanceFromEnd < arrowKeepout ? arrowKeepout - distanceFromEnd : 0,
+    };
+  });
+  const clear = scored.find(
+    (candidate) => candidate.overlap === 0 && candidate.arrowPenalty === 0,
+  );
   const chosen =
     clear ??
     scored.sort(
       (a, b) =>
         a.overlap - b.overlap ||
+        a.arrowPenalty - b.arrowPenalty ||
         Math.abs(a.fraction - preferredFraction) - Math.abs(b.fraction - preferredFraction) ||
         Math.abs(a.offset - lane) - Math.abs(b.offset - lane),
     )[0];
@@ -582,6 +605,10 @@ export function SemanticEdge({
     !preGateSales &&
     (domain.sourceHandle?.startsWith("no") || ["rework", "exception", "hold"].includes(domain.type));
   const approved = !preGateSales && (domain.sourceHandle === "yes" || domain.type === "approval");
+  const isAuxiliaryEdge =
+    domain.type === "supporting" ||
+    domain.type === "dependency" ||
+    domain.lineStyle === "dotted";
   const displayLabel = domain.label !== undefined && domain.label !== ""
       ? domain.label
       : approved
@@ -741,6 +768,39 @@ export function SemanticEdge({
   const automaticRoute = (() => {
     if (preGateSalesRoute || deniedRoute || approvedRoute) return undefined;
     const obstacles = data?.obstacles ?? [];
+    if (isAuxiliaryEdge) {
+      const cards = cardObstacles(obstacles);
+      const sourceObstacle = cards.find((item) => item.id === domain.source);
+      const targetObstacle = cards.find((item) => item.id === domain.target);
+      const lane = Math.abs(data?.labelLane ?? 0) % 3;
+      const sourceEscapeX =
+        (sourceObstacle?.x ?? sourceX) +
+        (sourceObstacle?.width ?? 0) +
+        24 +
+        lane * 64;
+      const targetApproachX =
+        (targetObstacle?.x ?? targetX) - 24 - lane * 64;
+      const bottomY =
+        Math.max(
+          sourceObstacle?.y ?? sourceY,
+          targetObstacle?.y ?? targetY,
+          ...cards.map((item) => item.y + item.height),
+        ) +
+        56 +
+        lane * 28;
+      const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 16);
+      const targetStub = stub({ x: targetX, y: targetY }, targetPosition, MIN_END_STUB);
+      return compact([
+        { x: sourceX, y: sourceY },
+        sourceStub,
+        { x: sourceEscapeX, y: sourceY },
+        { x: sourceEscapeX, y: bottomY },
+        { x: targetApproachX, y: bottomY },
+        { x: targetApproachX, y: targetY },
+        targetStub,
+        { x: targetX, y: targetY },
+      ]);
+    }
     const sourceObstacle = obstacles.find((item) => item.id === domain.source);
     const targetObstacle = obstacles.find((item) => item.id === domain.target);
     const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 16);
@@ -930,7 +990,11 @@ export function SemanticEdge({
     preGateSalesRoute ??
       deniedRoute ??
       approvedRoute ??
-      (storedDetour || routedCollides ? automaticRoute : routed) ??
+      (isAuxiliaryEdge
+        ? automaticRoute ?? routed
+        : storedDetour || routedCollides
+          ? automaticRoute
+          : routed) ??
       automaticRoute ??
       [],
     targetPosition,

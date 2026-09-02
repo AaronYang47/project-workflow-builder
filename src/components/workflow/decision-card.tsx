@@ -105,7 +105,7 @@ export function DecisionCard({
       data-decision-content=""
       aria-label="Approval decision card"
       className={cn(
-        "relative min-h-[272px] w-full overflow-visible rounded-2xl border px-3 pb-7 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
+        "l2-node-card relative min-h-[272px] w-full overflow-visible rounded-2xl border px-3 pb-7 pt-3 shadow-[0_8px_24px_rgba(15,23,42,.10)] transition-colors",
         decisionStyle.card,
       )}
     >
