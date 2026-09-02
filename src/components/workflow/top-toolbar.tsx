@@ -229,17 +229,6 @@ export function TopToolbar({
               Saved
             </span>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setR2DialogOpen(true)}
-            aria-label="Upload Forms"
-            title="Upload Forms"
-            className="h-7 gap-1.5 px-2 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer shrink-0"
-          >
-            <CloudUpload className="size-3.5" />
-            <span className="hidden sm:inline">Upload Forms</span>
-          </Button>
         </div>
       </div>
       <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1440px]:!col-span-1 min-[1440px]:!col-start-2 min-[1440px]:!row-start-1 min-[1440px]:!justify-start min-[1440px]:!border-t-0">
@@ -539,7 +528,9 @@ export function TopToolbar({
         >
           <PanelRightClose className="size-4" />
         </ToolButton>
-        <CloudProjectControls />
+        <CloudProjectControls
+          onOpenUploadForms={() => setR2DialogOpen(true)}
+        />
       </div>
       <R2FileDialog
         open={r2DialogOpen}

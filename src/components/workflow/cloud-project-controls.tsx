@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { CheckCircle2, Cloud, Copy, FolderOpen, LogOut, Plus, Save, Trash2, X } from "lucide-react";
+import { CheckCircle2, Cloud, CloudUpload, Copy, FolderOpen, LogOut, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createProjectWorkflow, duplicateWorkflowFile } from "@/lib/project-template";
 import { parseWorkflow } from "@/lib/serialization";
@@ -53,7 +53,11 @@ const api = async <T,>(url: string, options?: RequestInit): Promise<T> => {
   return body;
 };
 
-export function CloudProjectControls() {
+export function CloudProjectControls({
+  onOpenUploadForms,
+}: {
+  onOpenUploadForms?: () => void;
+} = {}) {
   const store = useWorkflowStore();
   const [user, setUser] = useState<User | null>(() => store.authUser ?? (isAuthBypass() ? DEV_USER : null));
   const [view, setView] = useState<View>(null);
@@ -440,6 +444,19 @@ export function CloudProjectControls() {
           >
             {autosaving ? "Saving…" : autosaveError ? "Save failed" : dirty ? "Autosave" : "Saved"}
           </span>
+        ) : null}
+        {onOpenUploadForms ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenUploadForms}
+            aria-label="Upload Forms"
+            title="Upload Forms to Cloudflare R2"
+            className="h-7 gap-1.5 px-2 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer shrink-0 ml-1 mr-0.5"
+          >
+            <CloudUpload className="size-3.5" />
+            <span className="hidden sm:inline">Upload Forms</span>
+          </Button>
         ) : null}
         <Button title="Duplicate project" aria-label="Duplicate project" variant="ghost" size="icon" className="size-8" disabled={busy} onClick={() => void duplicateProject()}>
           <Copy className="size-4" />
