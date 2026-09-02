@@ -154,21 +154,34 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       .filter(Boolean);
     if (!children.length) continue;
 
+    const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
     const minX = Math.min(...children.map((c) => c.x));
-    const maxX = Math.max(...children.map((c) => c.x + (c.width || 270)));
+    const maxX = Math.max(
+      ...children.map((c) => {
+        const domain = nodeMap.get(c.nodeId);
+        const w = c.width || (domain ? getAdaptiveNodeSize(domain, c).width : 280);
+        return c.x + w;
+      }),
+    );
     const minY = Math.min(...children.map((c) => c.y));
-    const maxY = Math.max(...children.map((c) => c.y + (c.height || 220)));
+    const maxY = Math.max(
+      ...children.map((c) => {
+        const domain = nodeMap.get(c.nodeId);
+        const h = c.height || (domain ? getAdaptiveNodeSize(domain, c).height : 360);
+        return c.y + h;
+      }),
+    );
 
     const PAD_X = 40;
     const PAD_TOP = 136;
-    const PAD_BOTTOM = 44;
+    const PAD_BOTTOM = 52;
 
     nodes[container.id] = {
       ...nodes[container.id],
       x: minX - PAD_X,
       y: minY - PAD_TOP,
-      width: Math.max(360, maxX - minX + PAD_X * 2),
-      height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
+      width: Math.max(380, maxX - minX + PAD_X * 2),
+      height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
       zIndex: 0,
     };
   }

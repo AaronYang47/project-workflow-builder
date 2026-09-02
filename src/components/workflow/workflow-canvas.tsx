@@ -31,7 +31,7 @@ import {
   CANVAS_MAX_ZOOM,
   FIT_VIEW_PADDING,
 } from "@/lib/flow-helpers";
-import { PHASE_HEADER_HEIGHT } from "@/lib/node-layout";
+import { PHASE_HEADER_HEIGHT, getAdaptiveNodeSize } from "@/lib/node-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
@@ -549,7 +549,14 @@ function getL1FallbackColor(title: string, index: number): string {
           y += pl.y;
           currParentId = pl.parentId;
         }
-        return { x, y, width: l.width || 270, height: l.height || 220 };
+        const domain = file.graph.nodes.find((n) => n.id === id);
+        const adaptive = domain ? getAdaptiveNodeSize(domain, l) : { width: 280, height: 360 };
+        return {
+          x,
+          y,
+          width: l.width || adaptive.width,
+          height: l.height || adaptive.height,
+        };
       };
 
       if (type === "phase") {
@@ -602,8 +609,8 @@ function getL1FallbackColor(title: string, index: number): string {
           const maxY = Math.max(...boundsList.map((b) => b.y + b.height));
 
           const PAD_X = 40;
-          const PAD_TOP = 110;
-          const PAD_BOTTOM = 40;
+          const PAD_TOP = 136;
+          const PAD_BOTTOM = 52;
 
           const phaseInfo = getPhaseInfo(targetNode);
           const phaseProps = {

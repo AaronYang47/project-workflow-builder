@@ -836,21 +836,35 @@ export const useWorkflowStore = create<WorkflowState>()(
           (l) => l.parentId === phaseId,
         );
         if (memberNodes.length > 0) {
+          const nodeMap = new Map(nextFile.graph.nodes.map((n) => [n.id, n]));
           const minX = Math.min(...memberNodes.map((m) => m.x));
-          const maxX = Math.max(...memberNodes.map((m) => m.x + (m.width || 270)));
+          const maxX = Math.max(
+            ...memberNodes.map((m) => {
+              const domain = nodeMap.get(m.nodeId);
+              const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
+              return m.x + w;
+            }),
+          );
           const minY = Math.min(...memberNodes.map((m) => m.y));
-          const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
+          const maxY = Math.max(
+            ...memberNodes.map((m) => {
+              const domain = nodeMap.get(m.nodeId);
+              const h = m.height || (domain ? getAdaptiveNodeSize(domain, m).height : 360);
+              return m.y + h;
+            }),
+          );
 
           const PAD_X = 40;
           const PAD_TOP = 136;
-          const PAD_BOTTOM = 44;
+          const PAD_BOTTOM = 52;
 
           nextFile.layout.nodes[phaseId] = {
             ...nextFile.layout.nodes[phaseId],
             x: minX - PAD_X,
             y: minY - PAD_TOP,
-            width: Math.max(360, maxX - minX + PAD_X * 2),
-            height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
+            width: Math.max(380, maxX - minX + PAD_X * 2),
+            height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
+            zIndex: 0,
           };
         }
 
@@ -872,22 +886,36 @@ export const useWorkflowStore = create<WorkflowState>()(
         );
         if (memberNodes.length === 0) return;
 
+        const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
         const minX = Math.min(...memberNodes.map((m) => m.x));
-        const maxX = Math.max(...memberNodes.map((m) => m.x + (m.width || 270)));
+        const maxX = Math.max(
+          ...memberNodes.map((m) => {
+            const domain = nodeMap.get(m.nodeId);
+            const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
+            return m.x + w;
+          }),
+        );
         const minY = Math.min(...memberNodes.map((m) => m.y));
-        const maxY = Math.max(...memberNodes.map((m) => m.y + (m.height || 220)));
+        const maxY = Math.max(
+          ...memberNodes.map((m) => {
+            const domain = nodeMap.get(m.nodeId);
+            const h = m.height || (domain ? getAdaptiveNodeSize(domain, m).height : 360);
+            return m.y + h;
+          }),
+        );
 
         const PAD_X = 40;
         const PAD_TOP = 136;
-        const PAD_BOTTOM = 44;
+        const PAD_BOTTOM = 52;
 
         const nextFile = clone(file);
         nextFile.layout.nodes[phaseId] = {
           ...phaseLayout,
           x: minX - PAD_X,
           y: minY - PAD_TOP,
-          width: Math.max(360, maxX - minX + PAD_X * 2),
-          height: Math.max(200, maxY - minY + PAD_TOP + PAD_BOTTOM),
+          width: Math.max(380, maxX - minX + PAD_X * 2),
+          height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
+          zIndex: 0,
         };
 
         set({
