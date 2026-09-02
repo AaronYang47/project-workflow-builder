@@ -1,36 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Building2,
   Check,
   CheckCircle2,
+  CloudUpload,
+  Download,
   FileCheck2,
   FileText,
   FolderArchive,
   Layers3,
-  Mail,
-  Phone,
   Plus,
   Scale,
-  ShieldCheck,
   Trash2,
-  UserCheck,
+  X,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  executionItemIsGateRequired,
   executionItemProgress,
   getExecutionSummary,
 } from "@/lib/execution";
 import {
   isReferenceNodeType,
-  type Condition,
   type DomainNode,
   type ExecutionItem,
 } from "@/types/workflow";
-import type { ProjectOperations } from "@/types/project-operations";
 import { nodeReleaseReady } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
@@ -40,17 +37,261 @@ import {
   type ContextMapNode,
 } from "./layer-context-minimap";
 import { DetailedWorkflowDialog } from "./detailed-workflow-dialog";
+import {
+  type UploadedFileRecord,
+  getUploadedFiles,
+  downloadFile,
+} from "@/lib/file-storage";
 
 export interface DocRecord {
   id: string;
   title: string;
   code?: string;
-  category: "legal" | "supporting";
+  fileName?: string;
+  dataUrl?: string;
+  url?: string;
+  category: "legal" | "customer" | "supporting";
   status: "Required" | "Optional" | "Signed" | "Verified" | "Under Review";
   checked: boolean;
   required: boolean;
   notes?: string;
   sourceItemId?: string;
+}
+
+// Modal for adding a new form/document to L3 from R2 file library or custom
+function AddDocumentModal({
+  open,
+  category,
+  onClose,
+  onAdd,
+}: {
+  open: boolean;
+  category: "legal" | "customer" | "supporting" | null;
+  onClose: () => void;
+  onAdd: (doc: DocRecord) => void;
+}) {
+  const [selectedFileId, setSelectedFileId] = useState<string>("custom");
+  const [customTitle, setCustomTitle] = useState("");
+  const [isRequired, setIsRequired] = useState(true);
+  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>([]);
+
+  useEffect(() => {
+    if (open && category) {
+      const files = getUploadedFiles(category);
+      setAvailableFiles(files);
+      if (files.length > 0) {
+        setSelectedFileId(files[0].id);
+        setCustomTitle(files[0].title);
+      } else {
+        setSelectedFileId("custom");
+        setCustomTitle("");
+      }
+      setIsRequired(true);
+    }
+  }, [open, category]);
+
+  if (!open || !category) return null;
+
+  const categoryLabel =
+    category === "legal"
+      ? "Legal Document"
+      : category === "customer"
+        ? "Customer Information Form"
+        : "Supporting Document";
+
+  const handleSelectFile = (file: UploadedFileRecord) => {
+    setSelectedFileId(file.id);
+    setCustomTitle(file.title);
+  };
+
+  const handleSubmit = () => {
+    const selectedFile = availableFiles.find((f) => f.id === selectedFileId);
+    const title = customTitle.trim() || selectedFile?.title || "New Document Form";
+    const prefix = category === "legal" ? "LEG" : category === "customer" ? "CUST" : "SUP";
+    const newDoc: DocRecord = {
+      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      code: `${prefix}-${Math.floor(10 + Math.random() * 90)}`,
+      fileName: selectedFile ? selectedFile.fileName : undefined,
+      dataUrl: selectedFile?.dataUrl,
+      url: selectedFile?.url,
+      category,
+      status: isRequired ? "Required" : "Optional",
+      checked: false,
+      required: isRequired,
+      notes: selectedFile?.description,
+    };
+    onAdd(newDoc);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="relative flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl border bg-card shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b px-5 py-3.5 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Plus className="size-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">
+                Add {categoryLabel}
+              </h2>
+              <p className="text-[11px] text-muted-foreground">
+                Select from Cloudflare R2 uploaded files or create a custom form
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
+          {/* Requirement Selector */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Requirement Level <span className="text-destructive">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsRequired(true)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
+                  isRequired
+                    ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted",
+                )}
+              >
+                <span className="size-2 rounded-full bg-amber-500" />
+                Required (Blocks Release)
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRequired(false)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
+                  !isRequired
+                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted",
+                )}
+              >
+                <span className="size-2 rounded-full bg-slate-400" />
+                Optional (Non-Blocking)
+              </button>
+            </div>
+          </div>
+
+          {/* R2 Library Files */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Select Attached File from R2 Library
+            </label>
+            {availableFiles.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload to R2&quot; in the title.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto scroll-thin pr-1">
+                {availableFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    onClick={() => handleSelectFile(file)}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
+                      selectedFileId === file.id
+                        ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40 shadow-xs"
+                        : "border-border bg-background hover:border-primary/30",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="selectedFile"
+                      checked={selectedFileId === file.id}
+                      onChange={() => handleSelectFile(file)}
+                      className="mt-0.5 size-3.5 accent-primary"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-mono text-xs font-bold text-foreground truncate">
+                          {file.fileName}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {(file.fileSize / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                      <p className="font-semibold text-foreground mt-0.5">{file.title}</p>
+                      {file.description ? (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                          {file.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+
+                <div
+                  onClick={() => setSelectedFileId("custom")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
+                    selectedFileId === "custom"
+                      ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40 shadow-xs"
+                      : "border-border bg-background hover:border-primary/30",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="selectedFile"
+                    checked={selectedFileId === "custom"}
+                    onChange={() => setSelectedFileId("custom")}
+                    className="size-3.5 accent-primary"
+                  />
+                  <span className="font-medium text-muted-foreground">
+                    Custom entry without attached file
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Form Title */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1">
+              Display Title in L3 <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              placeholder="e.g. Master Services Agreement 2026"
+              className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t px-5 py-3 bg-muted/10">
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs">
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!customTitle.trim()}
+            className="h-8 text-xs font-bold gap-1"
+          >
+            <Plus className="size-3.5" />
+            Add to L3 List
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ExecutionView({
@@ -74,6 +315,9 @@ export function ExecutionView({
     (state) => state.updateExecutionItem,
   );
   const [l2ContextOpen, setL2ContextOpen] = useState(false);
+  const [addModalCategory, setAddModalCategory] = useState<
+    "legal" | "customer" | "supporting" | null
+  >(null);
 
   const node = file.graph.nodes.find((item) => item.id === nodeId);
   const conditions = useMemo(() => node?.conditions || [], [node?.conditions]);
@@ -115,7 +359,7 @@ export function ExecutionView({
       )
     : false;
 
-  // 1. Legal Documents & Supporting Documents Data Management
+  // 1. Legal Documents Data
   const customLegalDocs: DocRecord[] = useMemo(() => {
     const raw = node?.customFields?.legalDocuments;
     if (typeof raw === "string") {
@@ -125,22 +369,22 @@ export function ExecutionView({
         // fallthrough
       }
     }
-    // Default seed for legal documents if none customized yet
     return [
       {
         id: "legal-msa",
         title: "Master Services & Commercial Route Agreement",
         code: "LEG-MSA-01",
+        fileName: "Master_Services_Agreement_2026.pdf",
         category: "legal",
         status: "Signed",
         checked: true,
         required: true,
-        notes: "Authorized commercial route engagement",
       },
       {
         id: "legal-nda",
         title: "Non-Disclosure & Confidentiality Agreement",
         code: "LEG-NDA-02",
+        fileName: "NDA_Standard_Mutual_v2.pdf",
         category: "legal",
         status: "Signed",
         checked: true,
@@ -158,6 +402,50 @@ export function ExecutionView({
     ];
   }, [node?.customFields?.legalDocuments]);
 
+  // 2. Customer Information Forms Data (Redesigned as Form/Doc List)
+  const customCustomerDocs: DocRecord[] = useMemo(() => {
+    const raw = node?.customFields?.customerDocuments;
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        // fallthrough
+      }
+    }
+    return [
+      {
+        id: "cust-spec",
+        title: "Customer Project Specification & Scope Form",
+        code: "CUST-REQ-01",
+        fileName: "Customer_Project_Spec_2026.pdf",
+        category: "customer",
+        status: "Required",
+        checked: true,
+        required: true,
+      },
+      {
+        id: "cust-auth",
+        title: "Client Signatory & Authorization Record",
+        code: "CUST-AUTH-02",
+        fileName: "Client_Signatory_Authorization.pdf",
+        category: "customer",
+        status: "Required",
+        checked: false,
+        required: true,
+      },
+      {
+        id: "cust-bill",
+        title: "Client Primary Contact & Billing Profile",
+        code: "CUST-PROF-03",
+        category: "customer",
+        status: "Optional",
+        checked: false,
+        required: false,
+      },
+    ];
+  }, [node?.customFields?.customerDocuments]);
+
+  // 3. Supporting Documents Data
   const customSupportingDocs: DocRecord[] = useMemo(() => {
     const raw = node?.customFields?.supportingDocuments;
     if (typeof raw === "string") {
@@ -167,7 +455,6 @@ export function ExecutionView({
         // fallthrough
       }
     }
-    // Default seed for supporting documents
     return [
       {
         id: "supp-spec",
@@ -182,6 +469,7 @@ export function ExecutionView({
         id: "supp-site",
         title: "Site & Foundation Geotechnical Survey Report",
         code: "ENG-SITE-02",
+        fileName: "Site_Foundation_Survey_Plan.pdf",
         category: "supporting",
         status: "Verified",
         checked: true,
@@ -191,6 +479,7 @@ export function ExecutionView({
         id: "supp-estimate",
         title: "Class C / D Project Cost Estimate Model",
         code: "EST-COST-03",
+        fileName: "Class_CD_Cost_Estimate_Model.xlsx",
         category: "supporting",
         status: "Required",
         checked: false,
@@ -218,6 +507,16 @@ export function ExecutionView({
     });
   };
 
+  const saveCustomerDocs = (docs: DocRecord[]) => {
+    if (!node) return;
+    updateNode(node.id, {
+      customFields: {
+        ...node.customFields,
+        customerDocuments: JSON.stringify(docs),
+      },
+    });
+  };
+
   const saveSupportingDocs = (docs: DocRecord[]) => {
     if (!node) return;
     updateNode(node.id, {
@@ -228,49 +527,29 @@ export function ExecutionView({
     });
   };
 
-  // 2. Customer Information Data Management
-  const customerInfo = useMemo(() => {
-    const fields = node?.customFields || {};
-    const ops = file.operations;
-    return {
-      organizationName:
-        String(fields.customerOrganization || fields.clientName || ops?.clientName || "").trim() ||
-        "ProFab Global Energy Corp",
-      primaryContact:
-        String(fields.customerPrimaryContact || fields.contactName || "").trim() ||
-        "Alexandre Martin",
-      contactRole:
-        String(fields.customerContactRole || fields.contactTitle || "").trim() ||
-        "VP Technical Operations & Commercial Sponsor",
-      contactEmail:
-        String(fields.customerContactEmail || fields.email || "").trim() ||
-        "a.martin@profab-energy.com",
-      contactPhone:
-        String(fields.customerContactPhone || fields.phone || "").trim() ||
-        "+1 (514) 890-2100",
-      ownerType:
-        String(fields.customerOwnerType || fields.ownerType || "").trim() ||
-        "Commercial Infrastructure",
-      decisionAuthority:
-        String(fields.customerDecisionAuthority || fields.decisionAuthority || "").trim() ||
-        "Authorized Executive Committee",
-      notes:
-        String(fields.customerRequirements || fields.customerNotes || "").trim() ||
-        "Client requires full statutory compliance certification with bilingual English/French execution records prior to production release.",
-    };
-  }, [node?.customFields, file.operations]);
+  // Check if all Required items across all 3 boxes are checked
+  const allRequiredChecked = useMemo(() => {
+    const requiredDocs = [
+      ...customLegalDocs.filter((d) => d.required),
+      ...customCustomerDocs.filter((d) => d.required),
+      ...customSupportingDocs.filter((d) => d.required),
+    ];
+    if (requiredDocs.length === 0) return false;
+    return requiredDocs.every((d) => d.checked);
+  }, [customLegalDocs, customCustomerDocs, customSupportingDocs]);
 
-  const saveCustomerField = (field: string, value: string) => {
-    if (!node) return;
-    updateNode(node.id, {
-      customFields: {
-        ...node.customFields,
-        [field]: value,
-      },
-    });
-  };
+  // Automatically update L2 Release Condition when all required items pass
+  useEffect(() => {
+    if (!node || !currentCondition) return;
+    if (currentCondition.checked !== allRequiredChecked) {
+      const updatedConditions = (node.conditions || []).map((c) =>
+        c.id === currentCondition.id ? { ...c, checked: allRequiredChecked } : c,
+      );
+      updateNode(node.id, { conditions: updatedConditions });
+    }
+  }, [allRequiredChecked, currentCondition, node, updateNode]);
 
-  // Toggle checks on execution items or custom docs
+  // Toggle checks on execution items
   const handleToggleExecutionItem = (item: ExecutionItem) => {
     updateExecutionItem(item.id, {
       checklistComplete: item.checklistComplete !== true,
@@ -366,9 +645,8 @@ export function ExecutionView({
   }
 
   const legalCheckedCount = customLegalDocs.filter((d) => d.checked).length;
-  const supportingCheckedCount = customSupportingDocs.filter(
-    (d) => d.checked,
-  ).length;
+  const customerCheckedCount = customCustomerDocs.filter((d) => d.checked).length;
+  const supportingCheckedCount = customSupportingDocs.filter((d) => d.checked).length;
 
   return (
     <section
@@ -436,7 +714,7 @@ export function ExecutionView({
         </div>
       </header>
 
-      {/* Conditions Selector Bar (if node has multiple conditions) */}
+      {/* Conditions Selector Bar with Green Breathing Light on Pass */}
       {conditions.length > 0 ? (
         <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-background/50 px-4 py-2 scroll-thin sm:px-6">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">
@@ -446,31 +724,38 @@ export function ExecutionView({
             const isSelected =
               currentCondition?.id === condition.id ||
               (!currentCondition && idx === 0);
+            const isPassed = condition.checked || (isSelected && allRequiredChecked);
+
             return (
               <button
                 key={condition.id || idx}
                 type="button"
                 onClick={() => onSelectCondition?.(condition.id || `condition-${idx}`)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border",
-                  isSelected
-                    ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
-                    : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-300 cursor-pointer border",
+                  isPassed
+                    ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold condition-breathe-glow"
+                    : isSelected
+                      ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
+                      : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <span
                   className={cn(
                     "flex size-3.5 items-center justify-center rounded-full text-[9px]",
-                    condition.checked
+                    isPassed
                       ? "bg-emerald-600 text-white"
                       : "bg-muted text-muted-foreground border",
                   )}
                 >
-                  {condition.checked ? <Check className="size-2.5" /> : idx + 1}
+                  {isPassed ? <Check className="size-2.5" /> : idx + 1}
                 </span>
                 <span className="truncate max-w-[14rem]">
                   {condition.label || condition.description || `Condition ${idx + 1}`}
                 </span>
+                {isPassed ? (
+                  <Sparkles className="size-3 text-emerald-500 animate-pulse" />
+                ) : null}
               </button>
             );
           })}
@@ -498,7 +783,7 @@ export function ExecutionView({
                     Legal Documents
                   </h2>
                   <p className="text-[10px] text-muted-foreground">
-                    Contracts, statutory deeds & regulatory permits
+                    Contracts, deeds & regulatory permits
                   </p>
                 </div>
               </div>
@@ -509,10 +794,10 @@ export function ExecutionView({
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
               {customLegalDocs.map((doc, index) => (
-                <label
+                <div
                   key={doc.id}
                   className={cn(
-                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors cursor-pointer",
+                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
                     doc.checked
                       ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                       : "border-border/80 bg-background hover:border-indigo-500/40",
@@ -527,22 +812,35 @@ export function ExecutionView({
                       updated[index] = { ...doc, checked: !doc.checked };
                       saveLegalDocs(updated);
                     }}
-                    className="mt-0.5 size-4 shrink-0 accent-indigo-600 rounded"
+                    className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {doc.code || `LEG-0${index + 1}`}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {doc.code || `LEG-0${index + 1}`}
+                        </span>
+                        {doc.fileName ? (
+                          <span
+                            title={doc.fileName}
+                            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.2 font-mono text-[9px] text-foreground font-medium max-w-[130px] truncate"
+                          >
+                            <FileText className="size-2.5 text-primary shrink-0" />
+                            <span className="truncate">{doc.fileName}</span>
+                          </span>
+                        ) : null}
+                      </div>
                       <span
                         className={cn(
-                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase",
+                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0",
                           doc.checked
                             ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+                            : doc.required
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
                         )}
                       >
-                        {doc.checked ? "Executed" : "Required"}
+                        {doc.checked ? "Executed" : doc.required ? "Required" : "Optional"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
@@ -554,20 +852,52 @@ export function ExecutionView({
                       </p>
                     ) : null}
                   </div>
-                </label>
+
+                  {/* Actions: Download and Delete */}
+                  <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                    {doc.fileName ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadFile(doc);
+                        }}
+                        title={`Download ${doc.fileName}`}
+                        aria-label={`Download ${doc.fileName}`}
+                        className="size-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      >
+                        <Download className="size-3.5" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        saveLegalDocs(customLegalDocs.filter((_, i) => i !== index));
+                      }}
+                      title="Remove document"
+                      aria-label="Remove document"
+                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                </div>
               ))}
 
-              {/* Items from execution layer belonging to this node that are documents */}
+              {/* Items from execution layer belonging to this node */}
               {items.map((item) => {
                 const checked =
                   executionItemProgress(item, file.operations, {
                     checklistOnly: true,
                   }) === "complete";
                 return (
-                  <label
+                  <div
                     key={item.id}
                     className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 transition-colors cursor-pointer",
+                      "flex items-start gap-3 rounded-lg border p-3 transition-colors",
                       checked
                         ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                         : "border-border/80 bg-background hover:border-indigo-500/40",
@@ -578,7 +908,7 @@ export function ExecutionView({
                       aria-label={`Required file: ${item.title || item.type}`}
                       checked={checked}
                       onChange={() => handleToggleExecutionItem(item)}
-                      className="mt-0.5 size-4 shrink-0 accent-indigo-600 rounded"
+                      className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
@@ -593,24 +923,13 @@ export function ExecutionView({
                         {item.title || item.type}
                       </p>
                     </div>
-                  </label>
+                  </div>
                 );
               })}
 
               <button
                 type="button"
-                onClick={() => {
-                  const newDoc: DocRecord = {
-                    id: `legal-${Date.now()}`,
-                    title: "New Statutory / Legal Execution Addendum",
-                    code: `LEG-ADD-0${customLegalDocs.length + 1}`,
-                    category: "legal",
-                    status: "Required",
-                    checked: false,
-                    required: true,
-                  };
-                  saveLegalDocs([...customLegalDocs, newDoc]);
-                }}
+                onClick={() => setAddModalCategory("legal")}
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:text-indigo-600 cursor-pointer"
               >
                 <Plus className="size-3.5" />
@@ -620,7 +939,7 @@ export function ExecutionView({
           </div>
 
           {/* ============================================================ */}
-          {/* Box 2 (Center): Customer Information                         */}
+          {/* Box 2 (Center): Customer Information (Form/Doc List)         */}
           {/* ============================================================ */}
           <div className="flex flex-col rounded-xl border bg-card/70 backdrop-blur-xs shadow-xs overflow-hidden">
             <header className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
@@ -633,153 +952,118 @@ export function ExecutionView({
                     Customer Information
                   </h2>
                   <p className="text-[10px] text-muted-foreground">
-                    Client profile, primary contacts & authorization
+                    Client specifications & authorization forms
                   </p>
                 </div>
               </div>
               <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300 border border-sky-500/20">
-                Profile Active
+                {customerCheckedCount}/{customCustomerDocs.length} Verified
               </span>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scroll-thin text-xs">
-              <div>
-                <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                  Customer / Organization Legal Name
-                </label>
-                <input
-                  type="text"
-                  defaultValue={customerInfo.organizationName}
-                  onBlur={(e) =>
-                    saveCustomerField("customerOrganization", e.target.value)
-                  }
-                  placeholder="e.g. ProFab Global Energy Corp"
-                  className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Primary Contact Name
-                  </label>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
+              {customCustomerDocs.map((doc, index) => (
+                <div
+                  key={doc.id}
+                  className={cn(
+                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
+                    doc.checked
+                      ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                      : "border-border/80 bg-background hover:border-sky-500/40",
+                  )}
+                >
                   <input
-                    type="text"
-                    defaultValue={customerInfo.primaryContact}
-                    onBlur={(e) =>
-                      saveCustomerField("customerPrimaryContact", e.target.value)
-                    }
-                    placeholder="Full name"
-                    className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
+                    type="checkbox"
+                    aria-label={`Required file: ${doc.title}`}
+                    checked={doc.checked}
+                    onChange={() => {
+                      const updated = [...customCustomerDocs];
+                      updated[index] = { ...doc, checked: !doc.checked };
+                      saveCustomerDocs(updated);
+                    }}
+                    className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer"
                   />
-                </div>
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Contact Role & Title
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={customerInfo.contactRole}
-                    onBlur={(e) =>
-                      saveCustomerField("customerContactRole", e.target.value)
-                    }
-                    placeholder="e.g. VP Operations"
-                    className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                  />
-                </div>
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {doc.code || `CUST-0${index + 1}`}
+                        </span>
+                        {doc.fileName ? (
+                          <span
+                            title={doc.fileName}
+                            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.2 font-mono text-[9px] text-foreground font-medium max-w-[130px] truncate"
+                          >
+                            <FileText className="size-2.5 text-sky-500 shrink-0" />
+                            <span className="truncate">{doc.fileName}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0",
+                          doc.checked
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            : doc.required
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
+                        )}
+                      >
+                        {doc.checked ? "Verified" : doc.required ? "Required" : "Optional"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
+                      {doc.title}
+                    </p>
+                    {doc.notes ? (
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                        {doc.notes}
+                      </p>
+                    ) : null}
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                    <input
-                      type="email"
-                      defaultValue={customerInfo.contactEmail}
-                      onBlur={(e) =>
-                        saveCustomerField("customerContactEmail", e.target.value)
-                      }
-                      placeholder="client@company.com"
-                      className="w-full rounded-md border bg-background pl-8 pr-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                    />
+                  {/* Actions: Download and Delete */}
+                  <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                    {doc.fileName ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadFile(doc);
+                        }}
+                        title={`Download ${doc.fileName}`}
+                        aria-label={`Download ${doc.fileName}`}
+                        className="size-6 text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10"
+                      >
+                        <Download className="size-3.5" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        saveCustomerDocs(customCustomerDocs.filter((_, i) => i !== index));
+                      }}
+                      title="Remove form"
+                      aria-label="Remove form"
+                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
                   </div>
                 </div>
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Phone Number
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                    <input
-                      type="tel"
-                      defaultValue={customerInfo.contactPhone}
-                      onBlur={(e) =>
-                        saveCustomerField("customerContactPhone", e.target.value)
-                      }
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full rounded-md border bg-background pl-8 pr-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                    />
-                  </div>
-                </div>
-              </div>
+              ))}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Owner / Facility Type
-                  </label>
-                  <select
-                    defaultValue={customerInfo.ownerType}
-                    onChange={(e) =>
-                      saveCustomerField("customerOwnerType", e.target.value)
-                    }
-                    className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                  >
-                    <option value="Commercial Infrastructure">Commercial Infrastructure</option>
-                    <option value="Industrial Process Plant">Industrial Process Plant</option>
-                    <option value="Institutional / Healthcare">Institutional / Healthcare</option>
-                    <option value="Residential Multi-Unit">Residential Multi-Unit</option>
-                    <option value="Public / Statutory Entity">Public / Statutory Entity</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                    Decision Authority / Signer
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={customerInfo.decisionAuthority}
-                    onBlur={(e) =>
-                      saveCustomerField("customerDecisionAuthority", e.target.value)
-                    }
-                    placeholder="Authorized signatory"
-                    className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                  Customer Specific Requirements & Notes
-                </label>
-                <textarea
-                  rows={3}
-                  defaultValue={customerInfo.notes}
-                  onBlur={(e) =>
-                    saveCustomerField("customerRequirements", e.target.value)
-                  }
-                  placeholder="Special instructions, delivery constraints, or site conditions..."
-                  className="w-full rounded-md border bg-background p-2.5 text-xs font-medium leading-relaxed text-foreground outline-none transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 rounded-lg bg-sky-500/[0.06] border border-sky-500/20 p-2 text-[11px] text-sky-800 dark:text-sky-200">
-                <CheckCircle2 className="size-3.5 shrink-0 text-sky-600" />
-                <span>Customer profile is saved and linked with this L2 node.</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setAddModalCategory("customer")}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-sky-500/50 hover:bg-sky-500/5 hover:text-sky-600 cursor-pointer"
+              >
+                <Plus className="size-3.5" />
+                Add Customer Information Form
+              </button>
             </div>
           </div>
 
@@ -797,7 +1081,7 @@ export function ExecutionView({
                     Supporting Documents
                   </h2>
                   <p className="text-[10px] text-muted-foreground">
-                    Engineering packages, estimates, specs & evidence
+                    Engineering drawings, calculations & evidence
                   </p>
                 </div>
               </div>
@@ -808,10 +1092,10 @@ export function ExecutionView({
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
               {customSupportingDocs.map((doc, index) => (
-                <label
+                <div
                   key={doc.id}
                   className={cn(
-                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors cursor-pointer",
+                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
                     doc.checked
                       ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                       : "border-border/80 bg-background hover:border-emerald-500/40",
@@ -826,45 +1110,84 @@ export function ExecutionView({
                       updated[index] = { ...doc, checked: !doc.checked };
                       saveSupportingDocs(updated);
                     }}
-                    className="mt-0.5 size-4 shrink-0 accent-emerald-600 rounded"
+                    className="mt-1 size-4 shrink-0 accent-emerald-600 rounded cursor-pointer"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {doc.code || `SUP-0${index + 1}`}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {doc.code || `SUP-0${index + 1}`}
+                        </span>
+                        {doc.fileName ? (
+                          <span
+                            title={doc.fileName}
+                            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.2 font-mono text-[9px] text-foreground font-medium max-w-[130px] truncate"
+                          >
+                            <FileText className="size-2.5 text-emerald-600 shrink-0" />
+                            <span className="truncate">{doc.fileName}</span>
+                          </span>
+                        ) : null}
+                      </div>
                       <span
                         className={cn(
-                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase",
+                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0",
                           doc.checked
                             ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
+                            : doc.required
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
                         )}
                       >
-                        {doc.checked ? "Verified" : doc.status}
+                        {doc.checked ? "Verified" : doc.required ? "Required" : "Optional"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
                       {doc.title}
                     </p>
+                    {doc.notes ? (
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                        {doc.notes}
+                      </p>
+                    ) : null}
                   </div>
-                </label>
+
+                  {/* Actions: Download and Delete */}
+                  <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                    {doc.fileName ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadFile(doc);
+                        }}
+                        title={`Download ${doc.fileName}`}
+                        aria-label={`Download ${doc.fileName}`}
+                        className="size-6 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+                      >
+                        <Download className="size-3.5" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        saveSupportingDocs(customSupportingDocs.filter((_, i) => i !== index));
+                      }}
+                      title="Remove document"
+                      aria-label="Remove document"
+                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                </div>
               ))}
 
               <button
                 type="button"
-                onClick={() => {
-                  const newDoc: DocRecord = {
-                    id: `supp-${Date.now()}`,
-                    title: "Technical Calculation & Vendor Evidence Sheet",
-                    code: `ENG-VND-0${customSupportingDocs.length + 1}`,
-                    category: "supporting",
-                    status: "Required",
-                    checked: false,
-                    required: true,
-                  };
-                  saveSupportingDocs([...customSupportingDocs, newDoc]);
-                }}
+                onClick={() => setAddModalCategory("supporting")}
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-600 cursor-pointer"
               >
                 <Plus className="size-3.5" />
@@ -882,17 +1205,17 @@ export function ExecutionView({
           <span
             className={cn(
               "size-2 rounded-full",
-              releaseReady ? "bg-emerald-500" : "bg-amber-500",
+              allRequiredChecked ? "bg-emerald-500" : "bg-amber-500",
             )}
           />
           <span>
-            {releaseReady
+            {allRequiredChecked
               ? `${node.title.toUpperCase()} is ready to release.`
-              : "Complete and verify required documents to release this node."}
+              : "Complete and verify all required documents to release this node."}
           </span>
         </div>
         <p className="text-[11px] font-mono text-muted-foreground">
-          L3 Interface · 3-Box Architecture
+          L3 Architecture · R2 Document Sync
         </p>
       </footer>
 
@@ -920,7 +1243,22 @@ export function ExecutionView({
           />
         </div>
       </DetailedWorkflowDialog>
+
+      {/* Add Document Modal */}
+      <AddDocumentModal
+        open={addModalCategory !== null}
+        category={addModalCategory}
+        onClose={() => setAddModalCategory(null)}
+        onAdd={(newDoc) => {
+          if (newDoc.category === "legal") {
+            saveLegalDocs([...customLegalDocs, newDoc]);
+          } else if (newDoc.category === "customer") {
+            saveCustomerDocs([...customCustomerDocs, newDoc]);
+          } else if (newDoc.category === "supporting") {
+            saveSupportingDocs([...customSupportingDocs, newDoc]);
+          }
+        }}
+      />
     </section>
   );
 }
-

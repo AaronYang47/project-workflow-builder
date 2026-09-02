@@ -225,12 +225,22 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await expect(page.getByRole("heading", { name: "Customer Information" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Supporting Documents" })).toBeVisible();
 
-  // Verify customer info can be edited
-  const customerInput = page.getByPlaceholder("e.g. ProFab Global Energy Corp");
-  await expect(customerInput).toBeVisible();
+  // Verify Customer Information is a Form list with Add button
+  await expect(page.getByRole("button", { name: "Add Customer Information Form" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Legal Document" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Supporting Document" })).toBeVisible();
+
+  // Verify Download buttons are present on files
+  const downloadBtns = page.getByRole("button", { name: /Download/ });
+  expect(await downloadBtns.count()).toBeGreaterThan(0);
 
   // Verify navigation Back to L2 works
   await page.getByRole("button", { name: "Back to L2" }).click();
   await expect(page.locator('[data-id="gate-g1-qualified"]')).toBeVisible();
+
+  // Verify Upload to R2 button in top toolbar opens dialog
+  await page.getByRole("button", { name: "Upload documents to R2" }).click();
+  await expect(page.getByText("Cloudflare R2 Document Center")).toBeVisible();
+  await page.getByRole("button", { name: "Close dialog" }).click();
 });
 

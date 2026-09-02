@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import {
   AlignHorizontalDistributeCenter,
   CheckCircle2,
+  CloudUpload,
   Download,
   FileSpreadsheet,
   FileUp,
@@ -29,6 +30,7 @@ import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow"
 import { useWorkflowStore } from "@/store/workflow-store";
 import { CloudProjectControls } from "./cloud-project-controls";
 import { CollaboratorPresence } from "./collaborator-presence";
+import { R2FileDialog } from "./r2-file-dialog";
 
 function ToolButton({
   label,
@@ -85,6 +87,7 @@ export function TopToolbar({
   const inputRef = useRef<HTMLInputElement>(null);
   const metadataSnapshot = useRef<typeof store.file | null>(null);
   const [arranging, setArranging] = useState(false);
+  const [r2DialogOpen, setR2DialogOpen] = useState(false);
   const beginMetadataEdit = () => {
     if (!metadataSnapshot.current)
       metadataSnapshot.current = structuredClone(
@@ -226,6 +229,17 @@ export function TopToolbar({
               Saved
             </span>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setR2DialogOpen(true)}
+            aria-label="Upload documents to R2"
+            title="Upload documents to Cloudflare R2"
+            className="h-7 gap-1.5 px-2 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer shrink-0"
+          >
+            <CloudUpload className="size-3.5" />
+            <span className="hidden sm:inline">Upload to R2</span>
+          </Button>
         </div>
       </div>
       <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1440px]:!col-span-1 min-[1440px]:!col-start-2 min-[1440px]:!row-start-1 min-[1440px]:!justify-start min-[1440px]:!border-t-0">
@@ -527,6 +541,10 @@ export function TopToolbar({
         </ToolButton>
         <CloudProjectControls />
       </div>
+      <R2FileDialog
+        open={r2DialogOpen}
+        onClose={() => setR2DialogOpen(false)}
+      />
     </header>
   );
 }

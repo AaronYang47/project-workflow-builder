@@ -357,6 +357,23 @@ button:disabled { cursor: not-allowed; }
   animation: none;
 }
 
+@keyframes condition-green-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(16 185 129 / 40%), 0 0 8px rgb(16 185 129 / 20%);
+    background-color: rgb(16 185 129 / 12%);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(16 185 129 / 90%), 0 0 18px rgb(16 185 129 / 60%);
+    background-color: rgb(16 185 129 / 24%);
+  }
+}
+
+.condition-breathe-glow {
+  animation: condition-green-pulse 2.2s ease-in-out infinite;
+  border-color: rgb(16 185 129 / 90%) !important;
+}
+
+
 @keyframes context-minimap-breathe {
   0%, 100% {
     opacity: 0.3;
