@@ -131,22 +131,57 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
   const VisualIcon = visual.Icon;
   const linkedNodes = data.linkedLayer2Nodes || [];
   const linkedNodeList = linkedNodes.length ? (
-    <div className="nodrag mt-3 border-t border-border/60 pt-2.5" style={nodeColor ? { borderColor: nodeColor.border } : undefined}>
+    <div className="nodrag mt-3 border-t pt-2.5" style={{ borderColor: nodeColor ? `rgb(var(--node-glass-tint) / 24%)` : "var(--border)" }}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground" style={nodeColor ? { color: nodeColor.muted } : undefined}>Linked workflow nodes</p>
-        <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.badge } : undefined}>{linkedNodes.length}</span>
+        <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Linked workflow nodes
+        </p>
+        <span
+          className="rounded-full px-2 py-0.5 text-[9px] font-bold border"
+          style={
+            nodeColor
+              ? {
+                  color: "var(--foreground)",
+                  backgroundColor: `rgb(var(--node-glass-tint) / 16%)`,
+                  borderColor: `rgb(var(--node-glass-tint) / 30%)`,
+                }
+              : undefined
+          }
+        >
+          {linkedNodes.length}
+        </span>
       </div>
-      <div className="mt-1.5 space-y-1">
+      <div className="mt-2 space-y-1.5">
         {linkedNodes.map((linkedNode, index) => (
           <div key={linkedNode.id}>
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2 py-1.5" style={nodeColor ? { borderColor: nodeColor.border, backgroundColor: nodeColor.badge } : undefined}>
-              <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.footer } : undefined}>
+            <div
+              className="flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 shadow-2xs transition-all hover:border-primary/40"
+              style={{
+                backgroundColor: nodeColor
+                  ? "color-mix(in srgb, var(--card) 92%, rgb(var(--node-glass-tint)) 8%)"
+                  : "var(--card)",
+                borderColor: nodeColor
+                  ? "rgb(var(--node-glass-tint) / 25%)"
+                  : "var(--border)",
+              }}
+            >
+              <span
+                className="flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold border"
+                style={{
+                  backgroundColor: nodeColor
+                    ? "rgb(var(--node-glass-tint) / 20%)"
+                    : "var(--muted)",
+                  borderColor: nodeColor
+                    ? "rgb(var(--node-glass-tint) / 32%)"
+                    : "transparent",
+                  color: "var(--foreground)",
+                }}
+              >
                 {index + 1}
               </span>
               <button
                 type="button"
-                className={cn("nodrag min-w-0 flex-1 truncate text-left text-[10px] font-medium hover:underline", nodeColor ? "" : "text-primary")}
-                style={nodeColor ? { color: nodeColor.text } : undefined}
+                className="nodrag min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors"
                 onClick={(event) => {
                   event.stopPropagation();
                   data.onLinkedLayer2NodeClick?.(linkedNode.id);
@@ -158,7 +193,7 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
               </button>
             </div>
             {index < linkedNodes.length - 1 ? (
-              <span aria-hidden className="block py-0.5 text-center text-[9px] text-muted-foreground/70">
+              <span aria-hidden className="block py-0.5 text-center text-[9px] font-bold text-muted-foreground/60">
                 ↓
               </span>
             ) : null}
@@ -168,7 +203,7 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
       {linkedNodes.length > 1 ? (
         <button
           type="button"
-          className="nodrag mt-1 text-[9px] font-semibold text-muted-foreground hover:text-foreground hover:underline"
+          className="nodrag mt-1.5 text-[9px] font-semibold text-muted-foreground hover:text-foreground hover:underline"
           onClick={(event) => {
             event.stopPropagation();
             data.onViewAllLinkedLayer2Nodes?.();
@@ -210,17 +245,43 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
       <FlowHandles target={data.type !== "start"} source={data.type !== "end"} />
       <div className={cn("flex flex-1 flex-col p-4 pl-5", data.type === "start" || data.type === "end" ? "min-h-[148px]" : "")}>
         <div className="flex items-center gap-3">
-          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/40 shadow-inner", nodeColor ? "" : visual.icon)} style={nodeColor ? { backgroundColor: nodeColor.badge, color: nodeColor.text, borderColor: nodeColor.border } : undefined}>
-            <VisualIcon className="size-5" strokeWidth={1.8} />
+          <span
+            className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border shadow-xs", nodeColor ? "" : visual.icon)}
+            style={
+              nodeColor
+                ? {
+                    backgroundColor: `rgb(var(--node-glass-tint) / 16%)`,
+                    color: "var(--tint-accent-text)",
+                    borderColor: `rgb(var(--node-glass-tint) / 32%)`,
+                  }
+                : undefined
+            }
+          >
+            <VisualIcon className="size-5" strokeWidth={1.9} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 flex-1 text-[16px] font-bold leading-5" style={nodeColor ? { color: nodeColor.text } : undefined}>{data.title}</p>
-              {code ? <span className={cn("max-w-[150px] shrink-0 whitespace-normal break-words rounded-full px-2 py-1 text-center text-[9px] font-bold leading-3 tracking-tight", nodeColor ? "" : visual.badge)} style={nodeColor ? { color: nodeColor.text, backgroundColor: nodeColor.badge } : undefined}>{code}</span> : null}
+              <p className="min-w-0 flex-1 text-[16px] font-bold leading-5 text-foreground">{data.title}</p>
+              {code ? (
+                <span
+                  className={cn("max-w-[150px] shrink-0 whitespace-normal break-words rounded-full px-2.5 py-0.5 text-center text-[9px] font-bold leading-3 tracking-wider uppercase border", nodeColor ? "" : visual.badge)}
+                  style={
+                    nodeColor
+                      ? {
+                          color: "var(--tint-accent-text)",
+                          backgroundColor: `rgb(var(--node-glass-tint) / 14%)`,
+                          borderColor: `rgb(var(--node-glass-tint) / 28%)`,
+                        }
+                      : undefined
+                  }
+                >
+                  {code}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
-        {data.description ? <p className="mt-2 text-[12px] leading-5" style={nodeColor ? { color: nodeColor.muted } : undefined}>{data.description}</p> : null}
+        {data.description ? <p className="mt-2 text-[12px] font-medium leading-5 text-muted-foreground">{data.description}</p> : null}
         {linkedNodeList}
       </div>
     </div>
@@ -243,19 +304,13 @@ export function getNodeColor(color?: string): NodeColorResult | undefined {
   const red = Number.parseInt(hex.slice(0, 2), 16);
   const green = Number.parseInt(hex.slice(2, 4), 16);
   const blue = Number.parseInt(hex.slice(4, 6), 16);
-  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
-  const text = "var(--node-glass-text)";
-  const muted = "var(--node-glass-muted)";
-  const border = luminance < 0.62 ? "rgba(248,250,252,0.42)" : "rgba(23,32,51,0.24)";
-  const badge = "var(--node-glass-tag-fill)";
-  const footer = luminance < 0.62 ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.28)";
   return {
     tint: `${red} ${green} ${blue}`,
-    text,
-    muted,
-    border,
-    badge,
-    footer,
+    text: "var(--foreground)",
+    muted: "var(--muted-foreground)",
+    border: `rgb(${red} ${green} ${blue} / 0.32)`,
+    badge: `rgb(${red} ${green} ${blue} / 0.14)`,
+    footer: `rgb(${red} ${green} ${blue} / 0.22)`,
   };
 }
 

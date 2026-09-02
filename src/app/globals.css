@@ -8,13 +8,13 @@
   --secondary: #eef1f5; --secondary-foreground: #263449; --muted: #eef1f5; --muted-foreground: #667085;
   --accent: #e9eef5; --accent-foreground: #172033; --destructive: #bd3f3f; --border: #dfe3e9;
   --input: #d8dde5; --ring: #3979b8; --panel: #fbfcfd; --canvas: #ffffff; --canvas-export: #ffffff; --grid-dot: #d7dde5;
-  --node-glass-fill: transparent;
+  --node-glass-fill: rgba(255, 255, 255, 0.92);
   --node-glass-border: color-mix(in srgb, #ffffff 66%, var(--border));
   --node-glass-highlight: rgb(255 255 255 / 82%);
-  --node-glass-shadow: rgb(31 54 82 / 17%);
+  --node-glass-shadow: rgb(31 54 82 / 10%);
   --node-glass-text: var(--foreground);
   --node-glass-muted: var(--muted-foreground);
-  --node-glass-tag-fill: rgb(255 255 255 / 10%);
+  --node-glass-tag-fill: rgb(15 23 42 / 6%);
   --radius: .55rem;
 }
 .dark {
@@ -23,7 +23,7 @@
   --secondary: #202734; --secondary-foreground: #e8ecf3; --muted: #202734; --muted-foreground: #929db0;
   --accent: #283140; --accent-foreground: #f2f5f9; --destructive: #db6666; --border: #2b3442;
   --input: #364151; --ring: #6ba5de; --panel: #131923; --canvas: #0f141c; --canvas-export: #0f141c; --grid-dot: #344052;
-  --node-glass-fill: transparent;
+  --node-glass-fill: rgba(16, 21, 30, 0.85);
   --node-glass-border: rgb(255 255 255 / 30%);
   --node-glass-highlight: rgb(255 255 255 / 34%);
   --node-glass-shadow: rgb(0 0 0 / 48%);
@@ -138,18 +138,29 @@ button:disabled { cursor: not-allowed; }
     inset 0 0 0 1px rgb(255 255 255 / 5%);
 }
 .workflow-flow :is(.high-level-node-card, .l2-node-card)[data-glass-tint="true"] {
+  --tint-accent-text: color-mix(in srgb, rgb(var(--node-glass-tint)) 65%, #0f172a);
+  border-color: rgb(var(--node-glass-tint) / 28%);
   background:
-    radial-gradient(circle at 86% 10%, rgb(var(--node-glass-tint) / 28%), transparent 52%),
-    linear-gradient(132deg, rgb(var(--node-glass-tint) / 17%), rgb(var(--node-glass-tint) / 7%) 46%, rgb(var(--node-glass-tint) / 12%)),
-    linear-gradient(132deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 2%) 40%, transparent 72%),
+    radial-gradient(circle at 90% 10%, rgb(var(--node-glass-tint) / 14%), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, rgb(var(--node-glass-tint)) 6%, #ffffff) 0%, #ffffff 100%),
     var(--node-glass-fill);
+  box-shadow:
+    0 10px 25px -4px rgb(var(--node-glass-tint) / 16%),
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 .dark .workflow-flow :is(.high-level-node-card, .l2-node-card)[data-glass-tint="true"] {
+  --tint-accent-text: color-mix(in srgb, rgb(var(--node-glass-tint)) 70%, #ffffff);
+  border-color: rgb(var(--node-glass-tint) / 36%);
   background:
-    radial-gradient(circle at 86% 10%, rgb(var(--node-glass-tint) / 30%), transparent 52%),
-    linear-gradient(132deg, rgb(var(--node-glass-tint) / 19%), rgb(var(--node-glass-tint) / 7%) 46%, rgb(var(--node-glass-tint) / 13%)),
+    radial-gradient(circle at 86% 10%, rgb(var(--node-glass-tint) / 28%), transparent 52%),
+    linear-gradient(132deg, rgb(var(--node-glass-tint) / 18%), rgb(var(--node-glass-tint) / 6%) 46%, rgb(var(--node-glass-tint) / 12%)),
     linear-gradient(132deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 1%) 38%, transparent 70%),
     var(--node-glass-fill);
+  box-shadow:
+    0 14px 36px rgb(var(--node-glass-tint) / 20%),
+    0 4px 14px rgb(0 0 0 / 30%),
+    inset 0 1px 0 var(--node-glass-highlight);
 }
 .dark .workflow-flow :is(.high-level-node-card, .l2-node-card) :is(.text-foreground, [class*="text-muted-foreground"]) {
   color: var(--node-glass-muted) !important;
