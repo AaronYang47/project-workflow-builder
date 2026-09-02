@@ -62,8 +62,11 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
       </div>
       <div
         data-phase-header
-        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
-        style={{ borderBottomColor: `${color}35` }}
+        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+        style={{
+          backgroundColor: isGate ? "rgba(15, 23, 42, 0.95)" : `${color}25`,
+          borderBottomColor: `${color}40`,
+        }}
       >
         <span
           aria-hidden

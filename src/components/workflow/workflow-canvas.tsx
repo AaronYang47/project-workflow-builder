@@ -287,12 +287,46 @@ function getL1FallbackColor(title: string, index: number): string {
             : "workflow";
         const stageKey = (domain.config?.stage || "").toLowerCase();
         const stageFallback = DEFAULT_STAGE_COLORS[stageKey];
+
+        // 1. Direct L1 link for the step
+        const l1DirectColor = l1PhaseColorByL2NodeId.get(domain.id);
+
+        // 2. Or via parent container (e.g. Gate or Phase)
+        const parentLayout = layout?.parentId ? file.layout.nodes[layout.parentId] : undefined;
+        const parentL1Color = layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined;
+        const grandparentL1Color = parentLayout?.parentId ? l1PhaseColorByL2NodeId.get(parentLayout.parentId) : undefined;
+
+        // 3. Or via Phase container color if this step is inside a Phase
+        const parentDomain = layout?.parentId ? file.graph.nodes.find((n) => n.id === layout.parentId) : undefined;
+        const grandParentDomain = parentLayout?.parentId ? file.graph.nodes.find((n) => n.id === parentLayout.parentId) : undefined;
+        const containerColor =
+          (parentDomain?.type === "phase" ? (parentDomain.color || l1PhaseColorByL2NodeId.get(parentDomain.id)) : undefined) ??
+          (grandParentDomain?.type === "phase" ? (grandParentDomain.color || l1PhaseColorByL2NodeId.get(grandParentDomain.id)) : undefined);
+
+        // 4. L1 color has highest priority for steps, so steps strictly follow L1 Phase card color!
+        const l1ResolvedColor = l1DirectColor ?? parentL1Color ?? grandparentL1Color ?? containerColor;
+
+        let resolvedContainerColor = domain.color;
+        if (domain.type === "phase") {
+          const matchedL1 = highLevelNodes.find(
+            (hl) =>
+              hl.title.trim().toLowerCase() === domain.title.trim().toLowerCase() ||
+              (hl.linkedLayer2NodeIds ?? []).some(
+                (id) => file.layout.nodes[id]?.parentId === domain.id,
+              ),
+          );
+          if (matchedL1) {
+            resolvedContainerColor =
+              matchedL1.backgroundColor && matchedL1.backgroundColor !== "transparent"
+                ? matchedL1.backgroundColor
+                : getL1FallbackColor(matchedL1.title, highLevelNodes.indexOf(matchedL1));
+          }
+        }
+
         const phaseColor =
-          domain.color ||
-          (l1PhaseColorByL2NodeId.get(domain.id) ??
-            (layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined)) ||
-          stageFallback ||
-          "#0d9488";
+          isContainer
+            ? resolvedContainerColor || l1ResolvedColor || stageFallback || "#0d9488"
+            : l1ResolvedColor || domain.color || stageFallback || "#0d9488";
         return {
           id: domain.id,
           type: rendererType,
@@ -578,9 +612,21 @@ function getL1FallbackColor(title: string, index: number): string {
         });
 
         if (targetNode) {
-          // Determine covered nodes
+          // Determine covered nodes based on L1 link
+          const directL1 = highLevelNodes.find((hl) => {
+            const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
+            return ids.includes(targetNode.id);
+          });
+
           let coveredNodes = [targetNode];
-          if (
+          if (directL1) {
+            const linkedIds =
+              directL1.linkedLayer2NodeIds ?? directL1.linkedDetailedNodeIds ?? [];
+            const l1Steps = stepNodes.filter((n) => linkedIds.includes(n.id));
+            if (l1Steps.length > 0) {
+              coveredNodes = l1Steps;
+            }
+          } else if (
             selection.nodeIds.length > 1 &&
             selection.nodeIds.includes(targetNode.id)
           ) {
@@ -601,30 +647,59 @@ function getL1FallbackColor(title: string, index: number): string {
             }
           }
 
+          // Also check if any Gate exists whose children are part of coveredNodes:
+          const gateNodes = file.graph.nodes.filter((n) => n.type === "gate");
+          const gatesToInclude = gateNodes.filter((g) => {
+            const gateChildren = stepNodes.filter(
+              (n) => file.layout.nodes[n.id]?.parentId === g.id,
+            );
+            return (
+              gateChildren.length > 0 &&
+              gateChildren.some((c) => coveredNodes.some((cn) => cn.id === c.id))
+            );
+          });
+
+          const allCoveredIds = Array.from(
+            new Set([
+              ...coveredNodes.map((n) => n.id),
+              ...gatesToInclude.map((g) => g.id),
+            ]),
+          );
+
           // Compute enclosing bounding box
-          const boundsList = coveredNodes.map((n) => resolveAbs(n.id));
+          const boundsList = allCoveredIds.map((id) => resolveAbs(id));
           const minX = Math.min(...boundsList.map((b) => b.x));
           const maxX = Math.max(...boundsList.map((b) => b.x + b.width));
           const minY = Math.min(...boundsList.map((b) => b.y));
           const maxY = Math.max(...boundsList.map((b) => b.y + b.height));
 
-          const PAD_X = 40;
-          const PAD_TOP = 176;
-          const PAD_BOTTOM = 52;
+          const containsGate = gatesToInclude.length > 0;
+          const PAD_X = 36;
+          const PAD_TOP = containsGate ? 330 : 176;
+          const PAD_BOTTOM = containsGate ? 40 : 48;
 
           const phaseInfo = getPhaseInfo(targetNode);
+          const phaseColor = directL1
+            ? directL1.backgroundColor && directL1.backgroundColor !== "transparent"
+              ? directL1.backgroundColor
+              : getL1FallbackColor(
+                  directL1.title,
+                  highLevelNodes.indexOf(directL1),
+                )
+            : phaseInfo.color;
+
           const phaseProps = {
             x: minX - PAD_X,
             y: minY - PAD_TOP,
-            width: maxX - minX + PAD_X * 2,
-            height: maxY - minY + PAD_TOP + PAD_BOTTOM,
-            title: phaseInfo.title,
-            color: phaseInfo.color,
+            width: Math.max(380, maxX - minX + PAD_X * 2),
+            height: Math.max(280, maxY - (minY - PAD_TOP) + PAD_BOTTOM),
+            title: directL1 ? directL1.title : phaseInfo.title,
+            color: phaseColor,
           };
 
           addPhaseWrappingNodes(
             phaseProps,
-            coveredNodes.map((n) => n.id),
+            allCoveredIds,
           );
           return;
         }

@@ -202,6 +202,27 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }
   }
 
+  // Automatically link steps belonging to the phase's matched L1 phase
+  const highLevelNodes = file.highLevel?.graph.nodes || [];
+  for (const phase of phaseNodes) {
+    const matchedL1 = highLevelNodes.find(
+      (hl) =>
+        hl.title.trim().toLowerCase() === phase.title.trim().toLowerCase() ||
+        (hl.linkedLayer2NodeIds ?? []).some(
+          (id) => original[id]?.parentId === phase.id,
+        ),
+    );
+    if (matchedL1) {
+      const linkedIds =
+        matchedL1.linkedLayer2NodeIds ?? matchedL1.linkedDetailedNodeIds ?? [];
+      for (const id of linkedIds) {
+        if (!original[id]?.parentId) {
+          original[id] = { ...original[id], parentId: phase.id };
+        }
+      }
+    }
+  }
+
   // 2. Position all PHASE containers (enclosing both steps and nested gates)
   for (const phase of phaseNodes) {
     const memberNodes = file.graph.nodes
