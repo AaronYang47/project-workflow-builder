@@ -858,9 +858,14 @@ export const useWorkflowStore = create<WorkflowState>()(
             }),
           );
 
-          const PAD_X = 40;
-          const PAD_TOP = 136;
-          const PAD_BOTTOM = 52;
+          const containsGate = memberNodes.some(
+            (m) => nodeMap.get(m.nodeId)?.type === "gate",
+          );
+          const isPhase =
+            nextFile.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
+          const PAD_X = 36;
+          const PAD_TOP = isPhase && containsGate ? 190 : 110;
+          const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
 
           nextFile.layout.nodes[phaseId] = {
             ...nextFile.layout.nodes[phaseId],
@@ -912,9 +917,14 @@ export const useWorkflowStore = create<WorkflowState>()(
           }),
         );
 
-        const PAD_X = 40;
-        const PAD_TOP = 136;
-        const PAD_BOTTOM = 52;
+        const containsGate = memberNodes.some(
+          (m) => nodeMap.get(m.nodeId)?.type === "gate",
+        );
+        const isPhase =
+          file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
+        const PAD_X = 36;
+        const PAD_TOP = isPhase && containsGate ? 190 : 110;
+        const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
 
         const nextFile = clone(file);
         nextFile.layout.nodes[phaseId] = {

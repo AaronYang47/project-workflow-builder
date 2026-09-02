@@ -188,15 +188,15 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 24;
-      const PAD_TOP = 136;
-      const PAD_BOTTOM = 52;
+      const GATE_PAD_TOP = 110;
+      const PAD_BOTTOM = 44;
 
       nodes[gate.id] = {
         ...nodes[gate.id],
         x: minX - PAD_X,
-        y: COMMON_STEP_Y - PAD_TOP,
+        y: COMMON_STEP_Y - GATE_PAD_TOP,
         width: Math.max(340, maxX - minX + PAD_X * 2),
-        height: Math.max(240, maxY - COMMON_STEP_Y + PAD_TOP + PAD_BOTTOM),
+        height: Math.max(240, maxY - (COMMON_STEP_Y - GATE_PAD_TOP) + PAD_BOTTOM),
         zIndex: 1,
       };
     }
@@ -216,6 +216,9 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       .filter(Boolean);
 
     if (memberNodes.length > 0) {
+      const containsGate = memberNodes.some(
+        (m) => nodeMap.get(m.nodeId)?.type === "gate",
+      );
       const minX = Math.min(...memberNodes.map((c) => c.x));
       const maxX = Math.max(
         ...memberNodes.map((c) => {
@@ -232,42 +235,22 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
         }),
       );
 
-      const PAD_X = 40;
-      const PAD_TOP = 136;
-      const PAD_BOTTOM = 52;
+      const PAD_X = 36;
+      // When phase wraps an inner Gate, place phase header cleanly above the Gate header to eliminate overlap
+      const PHASE_PAD_TOP = containsGate ? 190 : 110;
+      const PAD_BOTTOM = containsGate ? 56 : 48;
+      const phaseY = COMMON_STEP_Y - PHASE_PAD_TOP;
 
       nodes[phase.id] = {
         ...nodes[phase.id],
         x: minX - PAD_X,
-        y: COMMON_STEP_Y - PAD_TOP,
+        y: phaseY,
         width: Math.max(380, maxX - minX + PAD_X * 2),
-        height: Math.max(240, maxY - COMMON_STEP_Y + PAD_TOP + PAD_BOTTOM),
+        height: Math.max(240, maxY - phaseY + PAD_BOTTOM),
         zIndex: 0,
       };
     }
   }
-
-  const phases = file.graph.nodes.filter((node) => node.type === "phase");
-  const groupBottom = Math.max(
-    ...Object.values(nodes).map((n) => n.y + (n.height || 200)),
-    300,
-  );
-  const packedBottom = expandGapsForLabeledEdges(file, original, nodes, phases);
-  const layoutBottom = Math.max(groupBottom, packedBottom);
-  placeDecorativeReferences(
-    file,
-    nodes,
-    layoutBottom,
-    isContainerChild,
-    isDecorativeReference,
-    legacyAuxiliaryTypes,
-  );
-  const edges = routeRemainingEdges(
-    file,
-    nodes,
-    (result.edges || []) as ElkExtendedEdge[],
-    layoutBottom,
-  );
 
   return {
     ...file,
@@ -275,7 +258,8 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     layout: {
       ...file.layout,
       nodes: restoreChildCoordinates(file, original, nodes),
-      edges,
+      // Preserve original connection lines: do not mutate or reroute them over containers!
+      edges: file.layout.edges,
       viewport: file.layout.viewport,
     },
   };
