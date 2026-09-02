@@ -625,6 +625,7 @@ export function PyramidLocationWidget({
     y: number;
   } | null>(null);
   const diagramFrameRef = useRef<HTMLDivElement>(null);
+  const canvasLayerRef = useRef<HTMLDivElement>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
@@ -678,6 +679,9 @@ export function PyramidLocationWidget({
 
   const applyCamera = useCallback((nextCamera: Camera) => {
     cameraRef.current = nextCamera;
+    if (canvasLayerRef.current) {
+      canvasLayerRef.current.style.transform = `translate3d(${nextCamera.x}px, ${nextCamera.y}px, 0) scale(${nextCamera.zoom})`;
+    }
     setCamera(nextCamera);
   }, []);
 
@@ -1283,30 +1287,41 @@ export function PyramidLocationWidget({
     if (!frame) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
+      cancelCameraAnimation();
       const rect = frame.getBoundingClientRect();
       const mx = event.clientX - rect.left;
       const my = event.clientY - rect.top;
-      const delta =
-        event.deltaMode === WheelEvent.DOM_DELTA_LINE
-          ? event.deltaY * 16
-          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-            ? event.deltaY * frame.clientHeight
-            : event.deltaY;
-      const boundedDelta = Math.max(-240, Math.min(240, delta));
-      if (!boundedDelta) return;
-      const current = cameraRef.current;
-      const zoom = clampZoom(
-        current.zoom * Math.exp(-boundedDelta * ZOOM_WHEEL_SENSITIVITY),
-      );
-      if (Math.abs(zoom - current.zoom) < 0.0001) return;
-      animateCameraTo(
-        cameraAtPoint(current, zoom, { x: mx, y: my }),
-        ZOOM_ANIMATION_MS,
-      );
+
+      const isPinch = event.ctrlKey || event.metaKey;
+      const isDiscreteWheel =
+        event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL ||
+        Math.abs(event.deltaY) >= 80;
+
+      if (isPinch || isDiscreteWheel) {
+        // Zoom centered directly at cursor point (mx, my)
+        const current = cameraRef.current;
+        const delta = isPinch ? event.deltaY * 2.5 : event.deltaY;
+        const boundedDelta = Math.max(-160, Math.min(160, delta));
+        const zoomFactor = Math.exp(-boundedDelta * 0.003);
+        const nextZoom = clampZoom(current.zoom * zoomFactor);
+        if (Math.abs(nextZoom - current.zoom) > 0.0001) {
+          applyCamera(cameraAtPoint(current, nextZoom, { x: mx, y: my }));
+        }
+      } else {
+        // Two-finger trackpad sliding or Shift+scroll horizontal slide
+        const current = cameraRef.current;
+        const dx = event.shiftKey ? event.deltaY : event.deltaX;
+        const dy = event.shiftKey ? 0 : event.deltaY;
+        applyCamera({
+          ...current,
+          x: current.x - dx,
+          y: current.y - dy,
+        });
+      }
     };
     frame.addEventListener("wheel", onWheel, { passive: false });
     return () => frame.removeEventListener("wheel", onWheel);
-  }, [animateCameraTo, open]);
+  }, [applyCamera, cancelCameraAnimation, open]);
 
   const zoomAtFrameCenter = useCallback(
     (direction: "in" | "out") => {
@@ -1329,7 +1344,10 @@ export function PyramidLocationWidget({
   );
 
   const onFramePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 && event.button !== 1) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button")) return;
+
     cancelCameraAnimation();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -1347,9 +1365,11 @@ export function PyramidLocationWidget({
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
-    if (drag.moved) {
-      setPanning(true);
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      if (!drag.moved) {
+        drag.moved = true;
+        setPanning(true);
+      }
       applyCamera({
         ...cameraRef.current,
         x: drag.camX + dx,
@@ -1476,6 +1496,7 @@ export function PyramidLocationWidget({
               </p>
             ) : (
               <div
+                ref={canvasLayerRef}
                 className="absolute left-0 top-0 origin-top-left will-change-transform [transform-style:preserve-3d] [backface-visibility:hidden]"
                 style={{
                   width: diagram.width,
