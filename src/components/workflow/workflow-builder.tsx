@@ -109,6 +109,67 @@ export default function WorkflowBuilder() {
     return () =>
       window.removeEventListener("workflow:open-execution", handleOpenExecution);
   }, [openExecutionView]);
+
+  useEffect(() => {
+    const handleExport = async (event: Event) => {
+      const custom = event as CustomEvent<{
+        format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" | "l3-pdf";
+        switched?: boolean;
+      }>;
+      const format = custom.detail?.format;
+      if (!format || custom.detail?.switched) return;
+
+      if (format === "l3-pdf") {
+        const file = useWorkflowStore.getState().file;
+        const { exportL3ExecutionPdf } = await import("@/lib/l3-pdf-export");
+        await exportL3ExecutionPdf(file);
+        return;
+      }
+
+      if (format === "l1-pdf" && !isHighLevelView) {
+        const prevExecutionId = executionNodeId;
+        setIsHighLevelView(true);
+        if (prevExecutionId) setExecutionNodeId(null);
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("workflow:export", {
+              detail: { format: "l1-pdf", switched: true },
+            }),
+          );
+          setTimeout(() => {
+            setIsHighLevelView(false);
+            if (prevExecutionId) {
+              setExecutionNodeId(prevExecutionId);
+            }
+          }, 350);
+        }, 150);
+        return;
+      }
+
+      if (format === "l2-pdf" && (isHighLevelView || isExecutionView)) {
+        const wasHighLevel = isHighLevelView;
+        const prevExecutionId = executionNodeId;
+        setIsHighLevelView(false);
+        setExecutionNodeId(null);
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("workflow:export", {
+              detail: { format: "l2-pdf", switched: true },
+            }),
+          );
+          setTimeout(() => {
+            if (wasHighLevel) setIsHighLevelView(true);
+            if (prevExecutionId) setExecutionNodeId(prevExecutionId);
+          }, 350);
+        }, 150);
+        return;
+      }
+    };
+
+    window.addEventListener("workflow:export", handleExport);
+    return () => window.removeEventListener("workflow:export", handleExport);
+  }, [isHighLevelView, isExecutionView, executionNodeId]);
+
   const copied = useRef<
     { items: Array<{ node: DomainNode; layout: NodeLayout }> } | null
   >(null);

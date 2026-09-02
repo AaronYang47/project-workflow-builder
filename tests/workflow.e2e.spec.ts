@@ -358,9 +358,15 @@ test("Export dropdown provides Image and PDF export options", async ({ page }) =
   // Click Export to open dropdown
   await exportBtn.click();
 
-  // Verify Export Image and Export PDF items
-  await expect(page.getByText("Export Image")).toBeVisible();
-  await expect(page.getByText("Export PDF")).toBeVisible();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+
+  // Verify L1, L2, L3 PDF items and image options
+  await expect(menu.getByText("L1 · High-Level Process")).toBeVisible();
+  await expect(menu.getByText("L2 · Detailed Workflow")).toBeVisible();
+  await expect(menu.getByText("L3 · All Expanded Matrix")).toBeVisible();
+  await expect(menu.getByText("Export Image (PNG)")).toBeVisible();
+  await expect(menu.getByText("Export SVG (Vector)")).toBeVisible();
 });
 
 

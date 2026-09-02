@@ -24,6 +24,7 @@ import { HighLevelNode as HighLevelNodeComponent, type HighLevelFlowNode } from 
 
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
+import { useCanvasExport } from "./use-canvas-export";
 
 const highLevelNodeTypes = {
   start: HighLevelNodeComponent,
@@ -165,6 +166,8 @@ function HighLevelCanvasInner({
     })),
   );
   const flow = useReactFlow();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  useCanvasExport(flow, wrapperRef, "l1");
   const highLevel = file.highLevel || emptyHighLevel;
   const focusHighLevelNode = useCallback(
     (nodeId: string) => {
@@ -383,6 +386,7 @@ function HighLevelCanvasInner({
 
   return (
     <section
+      ref={wrapperRef}
       aria-label="High-Level Project Process"
       data-high-level-workflow-view
       className="relative h-full min-w-0 flex-1 overflow-hidden bg-canvas"

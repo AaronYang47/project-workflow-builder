@@ -67,7 +67,9 @@ function ToolButton({
   );
 }
 
-const saveImage = (format: "png" | "svg" | "pdf") => {
+const saveImage = (
+  format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" | "l3-pdf",
+) => {
   window.dispatchEvent(
     new CustomEvent("workflow:export", { detail: { format } }),
   );
@@ -504,34 +506,62 @@ export function TopToolbar({
               <ChevronDown className="size-3 text-muted-foreground opacity-70" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-56 p-1.5">
+            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+              Print-Ready PDF Documents
+            </div>
+            <DropdownMenuItem
+              onClick={() => saveImage("l1-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-emerald-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">L1 · High-Level Process</span>
+                <span className="text-[10px] text-muted-foreground">Process flow only, 1:1 styles (PDF)</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => saveImage("l2-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-sky-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">L2 · Detailed Workflow</span>
+                <span className="text-[10px] text-muted-foreground">All phases, gates & steps (PDF)</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => saveImage("l3-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-purple-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">L3 · All Expanded Matrix</span>
+                <span className="text-[10px] text-muted-foreground">Full execution architecture (PDF)</span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="my-1.5" />
+
+            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+              Image & Vector Export
+            </div>
             <DropdownMenuItem
               onClick={() => saveImage("png")}
-              className="gap-2.5 cursor-pointer py-2"
+              className="gap-2.5 cursor-pointer py-1.5 rounded-md hover:bg-muted"
             >
               <ImageDown className="size-4 text-emerald-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-xs">Export Image</span>
-                <span className="text-[10px] text-muted-foreground">High-res PNG</span>
+                <span className="font-semibold text-xs">Export Image (PNG)</span>
+                <span className="text-[10px] text-muted-foreground">High-res canvas snapshot</span>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => saveImage("pdf")}
-              className="gap-2.5 cursor-pointer py-2"
-            >
-              <FileText className="size-4 text-rose-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-xs">Export PDF</span>
-                <span className="text-[10px] text-muted-foreground">Printable document</span>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => saveImage("svg")}
-              className="gap-2.5 cursor-pointer py-1.5"
+              className="gap-2.5 cursor-pointer py-1.5 rounded-md hover:bg-muted"
             >
               <Download className="size-3.5 text-amber-500 shrink-0" />
-              <span className="text-xs">Export SVG</span>
+              <span className="text-xs">Export SVG (Vector)</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

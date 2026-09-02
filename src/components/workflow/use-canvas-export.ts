@@ -11,6 +11,7 @@ type ReactFlowInstance = ReturnType<typeof useReactFlow>;
 export function useCanvasExport(
   flow: ReactFlowInstance,
   wrapper: RefObject<HTMLDivElement | null>,
+  viewType: "l1" | "l2" = "l2",
 ) {
   // Focus node event
   useEffect(() => {
@@ -71,12 +72,19 @@ export function useCanvasExport(
     return () => window.removeEventListener("workflow:fit", fit);
   }, [flow]);
 
-  // Full-scale image export helper
+  // Full-scale image & PDF export helper
   useEffect(() => {
     const capture = async (
-      event: Event & { detail?: { format: "png" | "svg" | "pdf" } },
+      event: Event & {
+        detail?: { format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" };
+      },
     ) => {
       const detail = event.detail ?? { format: "png" };
+
+      // Handle layer-specific PDF requests
+      if (detail.format === "l1-pdf" && viewType !== "l1") return;
+      if (detail.format === "l2-pdf" && viewType !== "l2") return;
+
       const wrapperEl = wrapper.current;
       const flowElement = wrapperEl?.querySelector<HTMLElement>(".react-flow");
       const viewport = flowElement?.querySelector<HTMLElement>(
@@ -85,7 +93,7 @@ export function useCanvasExport(
       if (!flowElement || !viewport) return;
 
       const bounds = flow.getNodesBounds(flow.getNodes());
-      const padding = 48;
+      const padding = viewType === "l1" ? 44 : 56;
       const targetWidth = Math.max(1, Math.round(bounds.width + padding * 2));
       const targetHeight = Math.max(1, Math.round(bounds.height + padding * 2));
 
@@ -103,9 +111,13 @@ export function useCanvasExport(
         const backgroundColor =
           getComputedStyle(document.documentElement)
             .getPropertyValue("--canvas-export")
-            .trim() || "#f6f7f9";
+            .trim() || "#ffffff";
 
-        if (detail.format === "pdf") {
+        if (
+          detail.format === "pdf" ||
+          detail.format === "l1-pdf" ||
+          detail.format === "l2-pdf"
+        ) {
           const { toPng } = await import("html-to-image");
           const { jsPDF } = await import("jspdf");
           const data = await toPng(flowElement, {
@@ -126,7 +138,15 @@ export function useCanvasExport(
             format: [targetWidth, targetHeight],
           });
           pdf.addImage(data, "PNG", 0, 0, targetWidth, targetHeight);
-          pdf.save("workflow.pdf");
+
+          const downloadName =
+            detail.format === "l1-pdf"
+              ? "workflow-L1-high-level.pdf"
+              : detail.format === "l2-pdf"
+                ? "workflow-L2-detailed.pdf"
+                : "workflow.pdf";
+
+          pdf.save(downloadName);
           return;
         }
 
