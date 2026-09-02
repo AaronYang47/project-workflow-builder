@@ -317,22 +317,65 @@ export function ExecutionView({
     (state) => state.file.highLevel?.graph.nodes ?? [],
   );
 
-  const l1Title = useMemo(() => {
-    if (!nodeId) return "High Level";
-    const owner = highLevelNodes.find((hl) => {
+  const owningL1Node = useMemo(() => {
+    if (!nodeId) return null;
+    const directOwner = highLevelNodes.find((hl) => {
       const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
       return ids.includes(nodeId);
     });
-    if (owner?.title?.trim()) return owner.title.trim();
+    if (directOwner) return directOwner;
+
+    // Check if node.config.stage matches any high level node
     if (
       node?.config?.stage &&
       typeof node.config.stage === "string" &&
       node.config.stage.trim()
     ) {
-      return node.config.stage.trim();
+      const match = highLevelNodes.find(
+        (hl) =>
+          hl.title.trim().toLowerCase() ===
+          (node.config.stage as string).trim().toLowerCase(),
+      );
+      if (match) return match;
     }
-    return highLevelNodes[0]?.title?.trim() || "High Level";
-  }, [highLevelNodes, nodeId, node?.config?.stage]);
+
+    // Check parent node in L2 graph
+    const layoutParentId = nodeId ? file.layout.nodes[nodeId]?.parentId : undefined;
+    if (layoutParentId) {
+      const parentNode = file.graph.nodes.find((n) => n.id === layoutParentId);
+      if (parentNode) {
+        const parentOwner = highLevelNodes.find((hl) => {
+          const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
+          return ids.includes(parentNode.id);
+        });
+        if (parentOwner) return parentOwner;
+      }
+    }
+
+    return highLevelNodes[0] || null;
+  }, [highLevelNodes, nodeId, node?.config?.stage, file.layout.nodes, file.graph.nodes]);
+
+  const l1Title = owningL1Node?.title?.trim() || "High Level";
+
+  const l1Color = useMemo(() => {
+    if (!owningL1Node) return undefined;
+    if (
+      owningL1Node.backgroundColor &&
+      owningL1Node.backgroundColor !== "transparent"
+    ) {
+      return owningL1Node.backgroundColor;
+    }
+    const title = (owningL1Node.title || "").toUpperCase();
+    if (title.includes("INITIAL CONTACT")) return "#10b981"; // emerald-500
+    if (title.includes("PRE-CONSTRUCTION")) return "#f59e0b"; // amber-500
+    if (title.includes("READINESS")) return "#8b5cf6"; // violet-500
+    if (title.includes("FACTORY PRODUCTION")) return "#f97316"; // orange-500
+    if (title.includes("DELIVERY")) return "#06b6d4"; // cyan-500
+    if (title.includes("COMMISSIONING")) return "#14b8a6"; // teal-500
+    return "#0ea5e9"; // sky-500
+  }, [owningL1Node]);
+
+  const l2Color = node?.color || undefined;
 
   const conditions = useMemo(() => node?.conditions || [], [node?.conditions]);
   const currentCondition = useMemo(() => {
@@ -559,15 +602,25 @@ export function ExecutionView({
           </Button>
           <div className="min-w-0 border-l pl-3">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                L1 {l1Title}
+              <span
+                className={cn(
+                  "font-mono text-xs font-bold transition-colors",
+                  !l1Color && "text-emerald-600 dark:text-emerald-400",
+                )}
+                style={l1Color ? { color: l1Color } : undefined}
+              >
+                L1 <span>{l1Title}</span>
               </span>
               <span className="font-mono text-xs font-bold text-muted-foreground/60">&gt;</span>
               <button
                 type="button"
                 onClick={onBack}
                 title="Back to L2 Detailed Workflow"
-                className="font-mono text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                className={cn(
+                  "font-mono text-xs font-bold hover:underline cursor-pointer transition-colors",
+                  !l2Color && "text-sky-600 dark:text-sky-400",
+                )}
+                style={l2Color ? { color: l2Color } : undefined}
               >
                 L2 <span>{l2Title}</span>
               </button>
