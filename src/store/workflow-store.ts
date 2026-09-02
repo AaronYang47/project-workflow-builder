@@ -828,15 +828,38 @@ export const useWorkflowStore = create<WorkflowState>()(
             ...nodeLayout,
             parentId: isGate && phaseLayout.parentId ? phaseLayout.parentId : undefined,
           };
-        } else {
-          const previousParentId = nodeLayout.parentId;
-          if (isGate && previousParentId && previousParentId !== phaseId) {
-            const previousParentNode = file.graph.nodes.find((n) => n.id === previousParentId);
-            if (previousParentNode?.type === "phase") {
+          if (isGate) {
+            const remainingInGate = Object.values(nextFile.layout.nodes).filter(
+              (l) => l.parentId === phaseId && l.nodeId !== nodeId,
+            );
+            if (remainingInGate.length === 0) {
               nextFile.layout.nodes[phaseId] = {
                 ...nextFile.layout.nodes[phaseId],
-                parentId: previousParentId,
+                parentId: undefined,
               };
+            }
+          }
+        } else {
+          const previousParentId = nodeLayout.parentId;
+          if (isGate) {
+            const currentGateParentId = phaseLayout.parentId;
+            if (
+              currentGateParentId &&
+              previousParentId &&
+              previousParentId !== phaseId &&
+              previousParentId !== currentGateParentId
+            ) {
+              // Strictly disallow cross-phase selection!
+              return;
+            }
+            if (previousParentId && previousParentId !== phaseId) {
+              const previousParentNode = file.graph.nodes.find((n) => n.id === previousParentId);
+              if (previousParentNode?.type === "phase") {
+                nextFile.layout.nodes[phaseId] = {
+                  ...nextFile.layout.nodes[phaseId],
+                  parentId: previousParentId,
+                };
+              }
             }
           }
           nextFile.layout.nodes[nodeId] = {

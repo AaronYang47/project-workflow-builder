@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -398,6 +398,58 @@ function PhaseStepsManager({
   const [query, setQuery] = useState("");
   const isGate = phaseNode.type === "gate";
   const label = isGate ? "Gate" : "Phase";
+  const highLevel = useWorkflowStore((state) => state.file.highLevel);
+  const highLevelNodes = highLevel?.graph.nodes || [];
+
+  // Helper to find which Phase a step belongs to
+  const getStepPhaseId = useCallback(
+    (stepId: string) => {
+      const parentId = nodeLayouts[stepId]?.parentId;
+      if (parentId) {
+        const parentNode = allNodes.find((n) => n.id === parentId);
+        if (parentNode?.type === "phase") return parentNode.id;
+      }
+      const matchedL1 = highLevelNodes.find((hl) => {
+        const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
+        return ids.includes(stepId);
+      });
+      if (matchedL1) {
+        const phase = allNodes.find(
+          (n) =>
+            n.type === "phase" &&
+            (n.id === `phase-${matchedL1.id}` ||
+              n.title.trim().toLowerCase() ===
+                matchedL1.title.trim().toLowerCase()),
+        );
+        if (phase) return phase.id;
+      }
+      return undefined;
+    },
+    [nodeLayouts, allNodes, highLevelNodes],
+  );
+
+  // Determine which Phase this Gate is bound to:
+  const boundPhaseId = useMemo(() => {
+    // 1. Direct parentId of Gate
+    const gateParentId = nodeLayouts[phaseNode.id]?.parentId;
+    if (gateParentId) {
+      const parentNode = allNodes.find((n) => n.id === gateParentId);
+      if (parentNode?.type === "phase") return parentNode.id;
+    }
+    // 2. From any currently included step in this Gate
+    const firstIncluded = allNodes.find(
+      (n) => nodeLayouts[n.id]?.parentId === phaseNode.id,
+    );
+    if (firstIncluded) {
+      return getStepPhaseId(firstIncluded.id);
+    }
+    return undefined;
+  }, [nodeLayouts, phaseNode.id, allNodes, getStepPhaseId]);
+
+  const boundPhaseNode = useMemo(() => {
+    return boundPhaseId ? allNodes.find((n) => n.id === boundPhaseId) : undefined;
+  }, [boundPhaseId, allNodes]);
+
   const candidates = useMemo(() => {
     return allNodes
       .filter((n) => {
@@ -412,6 +464,18 @@ function PhaseStepsManager({
           const parentNode = allNodes.find((p) => p.id === currentParent);
           if (parentNode?.type === "gate") return false;
         }
+
+        // GATE CANNOT CROSS PHASES!
+        if (boundPhaseId) {
+          const stepPhaseId =
+            currentParent === phaseNode.id
+              ? boundPhaseId
+              : getStepPhaseId(n.id);
+          if (stepPhaseId && stepPhaseId !== boundPhaseId) {
+            return false;
+          }
+        }
+
         // Step can be unassigned, or currently in a Phase: include!
         return true;
       })
@@ -430,7 +494,7 @@ function PhaseStepsManager({
         const by = nodeLayouts[b.id]?.y ?? 0;
         return ay - by;
       });
-  }, [allNodes, phaseNode.id, isGate, nodeLayouts, query]);
+  }, [allNodes, phaseNode.id, nodeLayouts, query, boundPhaseId, getStepPhaseId]);
 
   const includedIndices = useMemo(() => {
     const indices: number[] = [];
@@ -474,6 +538,23 @@ function PhaseStepsManager({
           </div>
         </div>
       </div>
+
+      {boundPhaseNode ? (
+        <div className="mb-2.5 flex items-center justify-between rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1.5 text-xs text-foreground">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: boundPhaseNode.color || "#10b981" }}
+            />
+            <span className="truncate font-semibold text-purple-600 dark:text-purple-400">
+              {boundPhaseNode.title}
+            </span>
+          </div>
+          <span className="shrink-0 text-[10px] text-muted-foreground ml-2">
+            不可跨 Phase 选择
+          </span>
+        </div>
+      ) : null}
 
       {allNodes.length > 5 ? (
         <div className="mb-2">
