@@ -246,9 +246,12 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await expect(page.getByRole("button", { name: "Add Legal Document" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add Supporting Document" })).toBeVisible();
 
-  // Verify Download buttons are present on files
-  const downloadBtns = page.getByRole("button", { name: /Download/ });
-  expect(await downloadBtns.count()).toBeGreaterThan(0);
+  // Verify Add Legal Document works to add a form to the clean L3 list
+  await page.getByRole("button", { name: "Add Legal Document" }).click();
+  await expect(page.getByRole("heading", { name: "Add Legal Document" })).toBeVisible();
+  await page.getByPlaceholder("e.g. Master Services Agreement").fill("Test Contract Document");
+  await page.getByRole("button", { name: "Add to L3 List" }).click();
+  await expect(page.getByText("Test Contract Document")).toBeVisible();
 
   // Verify navigation Back to L2 works
   await page.getByRole("button", { name: "Back to L2" }).click();

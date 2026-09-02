@@ -364,42 +364,20 @@ export function ExecutionView({
     const raw = node?.customFields?.legalDocuments;
     if (typeof raw === "string") {
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (doc) =>
+              !doc.id?.startsWith("legal-") &&
+              doc.fileName !== "Master_Services_Agreement_2026.pdf" &&
+              doc.fileName !== "NDA_Standard_Mutual_v2.pdf",
+          );
+        }
       } catch {
         // fallthrough
       }
     }
-    return [
-      {
-        id: "legal-msa",
-        title: "Master Services & Commercial Route Agreement",
-        code: "LEG-MSA-01",
-        fileName: "Master_Services_Agreement_2026.pdf",
-        category: "legal",
-        status: "Signed",
-        checked: true,
-        required: true,
-      },
-      {
-        id: "legal-nda",
-        title: "Non-Disclosure & Confidentiality Agreement",
-        code: "LEG-NDA-02",
-        fileName: "NDA_Standard_Mutual_v2.pdf",
-        category: "legal",
-        status: "Signed",
-        checked: true,
-        required: true,
-      },
-      {
-        id: "legal-permit",
-        title: "Statutory Authority & Regulatory Compliance Permit",
-        code: "LEG-PERMIT-03",
-        category: "legal",
-        status: "Required",
-        checked: false,
-        required: true,
-      },
-    ];
+    return [];
   }, [node?.customFields?.legalDocuments]);
 
   // 2. Customer Information Forms Data (Redesigned as Form/Doc List)
@@ -407,42 +385,20 @@ export function ExecutionView({
     const raw = node?.customFields?.customerDocuments;
     if (typeof raw === "string") {
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (doc) =>
+              !doc.id?.startsWith("cust-") &&
+              doc.fileName !== "Customer_Project_Spec_2026.pdf" &&
+              doc.fileName !== "Client_Signatory_Authorization.pdf",
+          );
+        }
       } catch {
         // fallthrough
       }
     }
-    return [
-      {
-        id: "cust-spec",
-        title: "Customer Project Specification & Scope Form",
-        code: "CUST-REQ-01",
-        fileName: "Customer_Project_Spec_2026.pdf",
-        category: "customer",
-        status: "Required",
-        checked: true,
-        required: true,
-      },
-      {
-        id: "cust-auth",
-        title: "Client Signatory & Authorization Record",
-        code: "CUST-AUTH-02",
-        fileName: "Client_Signatory_Authorization.pdf",
-        category: "customer",
-        status: "Required",
-        checked: false,
-        required: true,
-      },
-      {
-        id: "cust-bill",
-        title: "Client Primary Contact & Billing Profile",
-        code: "CUST-PROF-03",
-        category: "customer",
-        status: "Optional",
-        checked: false,
-        required: false,
-      },
-    ];
+    return [];
   }, [node?.customFields?.customerDocuments]);
 
   // 3. Supporting Documents Data
@@ -450,51 +406,20 @@ export function ExecutionView({
     const raw = node?.customFields?.supportingDocuments;
     if (typeof raw === "string") {
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (doc) =>
+              !doc.id?.startsWith("supp-") &&
+              doc.fileName !== "Site_Foundation_Survey_Plan.pdf" &&
+              doc.fileName !== "Class_CD_Cost_Estimate_Model.xlsx",
+          );
+        }
       } catch {
         // fallthrough
       }
     }
-    return [
-      {
-        id: "supp-spec",
-        title: "Design Basis & Architectural Specification Package",
-        code: "ENG-DWG-01",
-        category: "supporting",
-        status: "Verified",
-        checked: true,
-        required: true,
-      },
-      {
-        id: "supp-site",
-        title: "Site & Foundation Geotechnical Survey Report",
-        code: "ENG-SITE-02",
-        fileName: "Site_Foundation_Survey_Plan.pdf",
-        category: "supporting",
-        status: "Verified",
-        checked: true,
-        required: true,
-      },
-      {
-        id: "supp-estimate",
-        title: "Class C / D Project Cost Estimate Model",
-        code: "EST-COST-03",
-        fileName: "Class_CD_Cost_Estimate_Model.xlsx",
-        category: "supporting",
-        status: "Required",
-        checked: false,
-        required: true,
-      },
-      {
-        id: "supp-sow",
-        title: "Scope of Work (SOW) & Responsibility Matrix",
-        code: "OPS-SOW-04",
-        category: "supporting",
-        status: "Optional",
-        checked: false,
-        required: false,
-      },
-    ];
+    return [];
   }, [node?.customFields?.supportingDocuments]);
 
   const saveLegalDocs = (docs: DocRecord[]) => {
@@ -527,16 +452,25 @@ export function ExecutionView({
     });
   };
 
-  // Check if all Required items across all 3 boxes are checked
+  // Check if all Required items across all 3 boxes and execution items are checked
   const allRequiredChecked = useMemo(() => {
     const requiredDocs = [
       ...customLegalDocs.filter((d) => d.required),
       ...customCustomerDocs.filter((d) => d.required),
       ...customSupportingDocs.filter((d) => d.required),
     ];
-    if (requiredDocs.length === 0) return false;
-    return requiredDocs.every((d) => d.checked);
-  }, [customLegalDocs, customCustomerDocs, customSupportingDocs]);
+    const itemsChecked =
+      items.length === 0 ||
+      items.every(
+        (item) =>
+          executionItemProgress(item, file.operations, { checklistOnly: true }) === "complete",
+      );
+
+    if (requiredDocs.length === 0) {
+      return releaseReady || itemsChecked;
+    }
+    return requiredDocs.every((d) => d.checked) && itemsChecked;
+  }, [customLegalDocs, customCustomerDocs, customSupportingDocs, items, file.operations, releaseReady]);
 
   // Automatically update L2 Release Condition when all required items pass
   useEffect(() => {
@@ -793,6 +727,13 @@ export function ExecutionView({
             </header>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
+              {customLegalDocs.length === 0 && items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
+                  <FileText className="size-8 opacity-30 mb-2" />
+                  <p className="text-xs font-medium">No legal documents added yet.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Legal Document&quot; below to add from uploaded forms.</p>
+                </div>
+              ) : null}
               {customLegalDocs.map((doc, index) => (
                 <div
                   key={doc.id}
@@ -962,6 +903,13 @@ export function ExecutionView({
             </header>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
+              {customCustomerDocs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
+                  <FileText className="size-8 opacity-30 mb-2" />
+                  <p className="text-xs font-medium">No customer forms added yet.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Customer Information Form&quot; below to add from uploaded forms.</p>
+                </div>
+              ) : null}
               {customCustomerDocs.map((doc, index) => (
                 <div
                   key={doc.id}
@@ -1091,6 +1039,13 @@ export function ExecutionView({
             </header>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
+              {customSupportingDocs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
+                  <FileText className="size-8 opacity-30 mb-2" />
+                  <p className="text-xs font-medium">No supporting documents added yet.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Supporting Document&quot; below to add from uploaded forms.</p>
+                </div>
+              ) : null}
               {customSupportingDocs.map((doc, index) => (
                 <div
                   key={doc.id}
