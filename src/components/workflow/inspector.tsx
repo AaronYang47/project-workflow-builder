@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Layers3,
   Lock,
-  Maximize2,
   Settings2,
   Trash2,
 } from "lucide-react";
@@ -471,17 +470,6 @@ function PhaseStepsManager({
             </p>
           </div>
         </div>
-        {includedCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => fitPhaseToChildren(phaseNode.id)}
-            title={`Auto-fit ${label} frame to encompass all included steps`}
-            className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-background px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer shadow-2xs"
-          >
-            <Maximize2 className="size-3 text-primary" />
-            <span>Auto-fit</span>
-          </button>
-        ) : null}
       </div>
 
       {allNodes.length > 5 ? (
