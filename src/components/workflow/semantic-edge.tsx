@@ -689,7 +689,10 @@ export function SemanticEdge({
           (item) => item.x <= right && item.x + item.width >= left,
         );
         const intermediateObstacles = crossedObstacles.filter(
-          (obs) => obs.id !== domain.source && obs.id !== domain.target,
+          (obs) =>
+            obs.id !== domain.source &&
+            obs.id !== domain.target &&
+            !containsEndpoint(obs),
         );
         if (intermediateObstacles.length === 0 && targetLeft >= sourceRight - 10) {
           return undefined;
@@ -843,10 +846,27 @@ export function SemanticEdge({
       const cards = cardObstacles(obstacles);
       const minSpanX = Math.min(sourceX, targetX);
       const maxSpanX = Math.max(sourceX, targetX);
+      const containsEndpoint = (obstacle: { id: string; x: number; y: number; width: number; height: number }) => {
+        if (sourceObstacle && obstacle.id === sourceObstacle.id) return true;
+        if (targetObstacle && obstacle.id === targetObstacle.id) return true;
+        const sourceInside =
+          sourceX >= obstacle.x &&
+          sourceX <= obstacle.x + obstacle.width &&
+          sourceY >= obstacle.y &&
+          sourceY <= obstacle.y + obstacle.height;
+        const targetInside =
+          targetX >= obstacle.x &&
+          targetX <= obstacle.x + obstacle.width &&
+          targetY >= obstacle.y &&
+          targetY <= obstacle.y + obstacle.height;
+        return sourceInside || targetInside;
+      };
+
       const intermediateCards = cards.filter(
         (item) =>
           item.id !== domain.source &&
           item.id !== domain.target &&
+          !containsEndpoint(item) &&
           item.x + item.width > minSpanX + 16 &&
           item.x < maxSpanX - 16,
       );

@@ -353,7 +353,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
 
   const labelObstacles = useMemo<LabelObstacle[]>(() => {
     const cards = file.graph.nodes
-      .filter((node) => node.type !== "phase")
+      .filter((node) => node.type !== "phase" && node.type !== "gate")
       .map((node) => {
         const layout = file.layout.nodes[node.id];
         return {
