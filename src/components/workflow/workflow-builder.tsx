@@ -120,9 +120,7 @@ export default function WorkflowBuilder() {
       if (!format || custom.detail?.switched) return;
 
       if (format === "l3-pdf") {
-        const file = useWorkflowStore.getState().file;
-        const { exportL3ExecutionPdf } = await import("@/lib/l3-pdf-export");
-        await exportL3ExecutionPdf(file);
+        // Handled by PyramidLocationWidget to export the full expanded Process Locator diagram
         return;
       }
 

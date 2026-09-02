@@ -8,7 +8,8 @@ import {
   useState,
   type PointerEvent,
 } from "react";
-import { ChevronDown, Layers, LocateFixed, Maximize2, Minus, Plus, X } from "lucide-react";
+import { ChevronDown, Download, FileText, Layers, LocateFixed, Maximize2, Minus, Plus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
@@ -1410,6 +1411,77 @@ export function PyramidLocationWidget({
     setOpen(false);
   };
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const exportDiagramToPdf = useCallback(async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+
+    try {
+      // Ensure all L1 and L2 cards are fully expanded so full L3 tree is visible
+      setCollapsedL1Ids(new Set());
+      setCollapsedL2Ids(new Set());
+
+      // Wait 150ms for layout update
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const el = canvasLayerRef.current;
+      if (!el) {
+        setExportingPdf(false);
+        return;
+      }
+
+      const { toPng } = await import("html-to-image");
+      const { jsPDF } = await import("jspdf");
+
+      const width = Math.max(1, Math.round(diagram.width));
+      const height = Math.max(1, Math.round(diagram.height));
+
+      // Temporarily clear camera scale/translate to capture entire diagram at 100% resolution
+      const prevTransform = el.style.transform;
+      el.style.transform = "none";
+
+      const dataUrl = await toPng(el, {
+        backgroundColor: "#0b1120",
+        pixelRatio: 2,
+        width,
+        height,
+      });
+
+      el.style.transform = prevTransform;
+
+      const orientation = width >= height ? "landscape" : "portrait";
+      const pdf = new jsPDF({
+        orientation,
+        unit: "px",
+        format: [width, height],
+      });
+
+      pdf.addImage(dataUrl, "PNG", 0, 0, width, height);
+      pdf.save("workflow-L3-process-locator.pdf");
+    } catch (err) {
+      console.error("Failed to export process locator PDF:", err);
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [diagram.width, diagram.height, exportingPdf]);
+
+  useEffect(() => {
+    const handleExport = (event: Event) => {
+      const custom = event as CustomEvent<{ format: string }>;
+      if (custom.detail?.format === "l3-pdf") {
+        setOpen(true);
+        setCollapsedL1Ids(new Set());
+        setCollapsedL2Ids(new Set());
+        setTimeout(() => {
+          void exportDiagramToPdf();
+        }, 250);
+      }
+    };
+    window.addEventListener("workflow:export", handleExport);
+    return () => window.removeEventListener("workflow:export", handleExport);
+  }, [exportDiagramToPdf]);
+
   return (
     <div className="pointer-events-none" aria-live="polite">
       {open ? (
@@ -1450,16 +1522,30 @@ export function PyramidLocationWidget({
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              aria-label="Close process locator"
-              onClick={() => {
-                setOpen(false);
-              }}
-              className="flex size-8 items-center justify-center rounded-[3px] border border-slate-500/80 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
-            >
-              <X className="size-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={exportDiagramToPdf}
+                disabled={exportingPdf}
+                className="h-8 gap-1.5 border-slate-500/80 bg-slate-800 px-2.5 text-xs font-semibold text-slate-100 hover:bg-slate-700 hover:text-white"
+                title="Export this full expanded Process Locator diagram as PDF"
+              >
+                <Download className="size-3.5 text-emerald-400" />
+                <span>{exportingPdf ? "Exporting PDF…" : "Export PDF"}</span>
+              </Button>
+              <button
+                type="button"
+                aria-label="Close process locator"
+                onClick={() => {
+                  setOpen(false);
+                }}
+                className="flex size-8 items-center justify-center rounded-[3px] border border-slate-500/80 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-slate-300 bg-slate-100 px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
