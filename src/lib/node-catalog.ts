@@ -7,7 +7,6 @@ import type { WorkflowNodeType } from "@/types/workflow";
 export const PALETTE_NODE_TYPES = [
   "projectStart",
   "general",
-  "phase",
   "gate",
   "terminal",
 ] as const satisfies readonly WorkflowNodeType[];

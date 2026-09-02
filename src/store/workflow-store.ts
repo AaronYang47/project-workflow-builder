@@ -820,29 +820,47 @@ export const useWorkflowStore = create<WorkflowState>()(
         const isCurrentlyInside = nodeLayout.parentId === phaseId;
         const nextFile = clone(file);
 
+        const containerNode = file.graph.nodes.find((n) => n.id === phaseId);
+        const isGate = containerNode?.type === "gate";
+
         if (isCurrentlyInside) {
           nextFile.layout.nodes[nodeId] = {
             ...nodeLayout,
-            parentId: undefined,
+            parentId: isGate && phaseLayout.parentId ? phaseLayout.parentId : undefined,
           };
         } else {
+          const previousParentId = nodeLayout.parentId;
+          if (isGate && previousParentId && previousParentId !== phaseId) {
+            const previousParentNode = file.graph.nodes.find((n) => n.id === previousParentId);
+            if (previousParentNode?.type === "phase") {
+              nextFile.layout.nodes[phaseId] = {
+                ...nextFile.layout.nodes[phaseId],
+                parentId: previousParentId,
+              };
+            }
+          }
           nextFile.layout.nodes[nodeId] = {
             ...nodeLayout,
             parentId: phaseId,
           };
         }
 
-        const memberNodes = Object.values(nextFile.layout.nodes).filter(
-          (l) => {
-            if (l.parentId === phaseId) return true;
-            if (l.parentId && nextFile.layout.nodes[l.parentId]?.parentId === phaseId) return true;
+        const fitContainer = (targetContainerId: string) => {
+          const targetLayout = nextFile.layout.nodes[targetContainerId];
+          if (!targetLayout) return;
+          const targetDomain = nextFile.graph.nodes.find((n) => n.id === targetContainerId);
+          const isTargetPhase = targetDomain?.type === "phase";
+
+          const members = Object.values(nextFile.layout.nodes).filter((l) => {
+            if (l.parentId === targetContainerId) return true;
+            if (l.parentId && nextFile.layout.nodes[l.parentId]?.parentId === targetContainerId) return true;
             return false;
-          },
-        );
-        if (memberNodes.length > 0) {
+          });
+          if (members.length === 0) return;
+
           const nodeMap = new Map(nextFile.graph.nodes.map((n) => [n.id, n]));
           const minX = Math.min(
-            ...memberNodes.map((m) => {
+            ...members.map((m) => {
               const domain = nodeMap.get(m.nodeId);
               if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
                 return nextFile.layout.nodes[m.nodeId].x;
@@ -851,7 +869,7 @@ export const useWorkflowStore = create<WorkflowState>()(
             }),
           );
           const maxX = Math.max(
-            ...memberNodes.map((m) => {
+            ...members.map((m) => {
               const domain = nodeMap.get(m.nodeId);
               if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
                 return (
@@ -863,9 +881,9 @@ export const useWorkflowStore = create<WorkflowState>()(
               return m.x + w;
             }),
           );
-          const minY = Math.min(...memberNodes.map((m) => m.y));
+          const minY = Math.min(...members.map((m) => m.y));
           const maxMemberBottom = Math.max(
-            ...memberNodes.map((m) => {
+            ...members.map((m) => {
               const domain = nodeMap.get(m.nodeId);
               if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
                 return (
@@ -878,24 +896,26 @@ export const useWorkflowStore = create<WorkflowState>()(
             }),
           );
 
-          const containsGate = memberNodes.some(
-            (m) => nodeMap.get(m.nodeId)?.type === "gate",
-          );
-          const isPhase =
-            nextFile.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
-          const PAD_X = 36;
-          const PAD_TOP = isPhase && containsGate ? 330 : 176;
-          const phaseY = minY - PAD_TOP;
-          const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
+          const containsGate = members.some((m) => nodeMap.get(m.nodeId)?.type === "gate");
+          const padX = isTargetPhase ? 36 : 24;
+          const padTop = isTargetPhase ? (containsGate ? 330 : 176) : 176;
+          const padBottom = isTargetPhase ? (containsGate ? 40 : 48) : 44;
+          const cY = minY - padTop;
+          const cBottom = maxMemberBottom + padBottom;
 
-          nextFile.layout.nodes[phaseId] = {
-            ...nextFile.layout.nodes[phaseId],
-            x: minX - PAD_X,
-            y: phaseY,
-            width: Math.max(380, maxX - minX + PAD_X * 2),
-            height: Math.max(280, phaseBottom - phaseY),
-            zIndex: 0,
+          nextFile.layout.nodes[targetContainerId] = {
+            ...nextFile.layout.nodes[targetContainerId],
+            x: minX - padX,
+            y: cY,
+            width: Math.max(isTargetPhase ? 380 : 340, maxX - minX + padX * 2),
+            height: Math.max(isTargetPhase ? 280 : 240, cBottom - cY),
+            zIndex: isTargetPhase ? 0 : 1,
           };
+        };
+
+        fitContainer(phaseId);
+        if (nextFile.layout.nodes[phaseId]?.parentId) {
+          fitContainer(nextFile.layout.nodes[phaseId].parentId!);
         }
 
         set({

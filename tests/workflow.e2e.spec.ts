@@ -267,33 +267,28 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await page.getByRole("button", { name: "Close dialog" }).click();
 });
 
-test("L2 node palette includes Phase and Gate, and supports adding them", async ({ page }) => {
+test("L2 node palette includes Gate and supports adding them", async ({ page }) => {
   await seedE2EWorkflow(page);
   await page.goto("/");
   // Open L2
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
 
-  // Verify Phase and Gate exist in the palette
+  // Verify Gate exists in the palette and Phase does NOT exist in the palette
   const phaseBtn = page.getByRole("button", { name: /Phase Phase frame covering workflow steps/ });
   const gateBtn = page.getByRole("button", { name: /Gate Phase completion gate & signoff/ });
-  await expect(phaseBtn).toBeVisible();
+  await expect(phaseBtn).not.toBeVisible();
   await expect(gateBtn).toBeVisible();
-
-  // Double clicking Phase adds a Phase node
-  await phaseBtn.dblclick();
-  await expect(page.locator(".l2-phase-card")).toBeVisible();
-
-  // Click on the Phase header to select it and open Inspector
-  await page.locator(".phase-drag-handle").first().click();
-
-  // Verify Inspector displays Included Steps section
-  await expect(page.getByText(/Included Steps in Phase/)).toBeVisible();
-  await expect(page.getByText(/Select independent steps/)).toBeVisible();
 
   // Double clicking Gate adds a Gate node
   await gateBtn.dblclick();
   await expect(page.locator('[data-testid="gate-card"]').first()).toBeVisible();
+
+  // Click on the Gate header to select it and open Inspector
+  await page.locator(".phase-drag-handle").first().click();
+
+  // Verify Inspector displays Included Steps in Gate section
+  await expect(page.getByText(/Included Steps in Gate/)).toBeVisible();
 });
 
 

@@ -403,13 +403,16 @@ function PhaseStepsManager({
       .filter((n) => {
         if (n.id === phaseNode.id) return false;
         if (n.type === "phase") return false;
-        if (isGate && n.type === "gate") return false;
+        if (n.type === "gate") return false;
         const currentParent = nodeLayouts[n.id]?.parentId;
-        // Already in this container: include
+        // Already in this gate: include
         if (currentParent === phaseNode.id) return true;
-        // Belong to another container: exclude
-        if (currentParent) return false;
-        // Independent step or independent gate: include
+        // If it belongs to ANOTHER gate: exclude
+        if (currentParent) {
+          const parentNode = allNodes.find((p) => p.id === currentParent);
+          if (parentNode?.type === "gate") return false;
+        }
+        // Step can be unassigned, or currently in a Phase: include!
         return true;
       })
       .filter((n) =>
@@ -487,7 +490,7 @@ function PhaseStepsManager({
       <div className="space-y-1.5 max-h-60 overflow-y-auto scroll-thin pr-1">
         {candidates.length === 0 ? (
           <div className="py-4 text-center text-xs text-muted-foreground">
-            No independent steps available to include.
+            No steps available to include in this Gate.
           </div>
         ) : (
           candidates.map((node, index) => {
@@ -731,7 +734,7 @@ function DetailedInspector({
                 </button>
               </section>
             ) : null}
-            {node && (node.type === "phase" || node.type === "gate") ? (
+            {node && node.type === "gate" ? (
               <PhaseStepsManager
                 phaseNode={node}
                 allNodes={file.graph.nodes}
