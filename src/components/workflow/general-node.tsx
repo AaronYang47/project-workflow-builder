@@ -718,10 +718,19 @@ export function GeneralNode({
                       </button>
                       <button
                         type="button"
-                        aria-label={`Edit release condition ${index + 1} in Inspector`}
-                        title="Edit this release condition in Inspector"
-                        onClick={stopBubble(focusCondition)}
-                        className="min-w-0 flex-1 truncate bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Open L3 details for release condition ${index + 1}`}
+                        title="Click to view and edit L3 details for this condition"
+                        onClick={stopBubble(() => {
+                          window.dispatchEvent(
+                            new CustomEvent("workflow:open-execution", {
+                              detail: {
+                                nodeId: node.id,
+                                conditionId: condition.id || `condition-${index}`,
+                              },
+                            }),
+                          );
+                        })}
+                        className="min-w-0 flex-1 truncate bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary hover:underline cursor-pointer focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {condition.label || condition.description || `Release condition ${index + 1}`}
                         {condition.required !== false ? (

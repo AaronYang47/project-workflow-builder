@@ -206,3 +206,31 @@ test("mobile L1 and L3 remain within the viewport", async ({ page }) => {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);
 });
+
+test("L2 release condition text click opens L3 with 3-box architecture: Legal, Customer, Supporting", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  // Open L2
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+
+  // Find a release condition text button in L2 and click it
+  const conditionBtn = page.getByRole("button", { name: /Open L3 details for release condition/ }).first();
+  await expect(conditionBtn).toBeVisible();
+  await conditionBtn.click();
+
+  // Verify L3 interface is displayed with the 3 boxes
+  await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Legal Documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Customer Information" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Supporting Documents" })).toBeVisible();
+
+  // Verify customer info can be edited
+  const customerInput = page.getByPlaceholder("e.g. ProFab Global Energy Corp");
+  await expect(customerInput).toBeVisible();
+
+  // Verify navigation Back to L2 works
+  await page.getByRole("button", { name: "Back to L2" }).click();
+  await expect(page.locator('[data-id="gate-g1-qualified"]')).toBeVisible();
+});
+

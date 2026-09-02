@@ -43,6 +43,7 @@ export default function WorkflowBuilder() {
   const [isHighLevelView, setIsHighLevelView] = useState(true);
   const [executionNodeId, setExecutionNodeId] = useState<string | null>(null);
   const [executionItemId, setExecutionItemId] = useState<string | null>(null);
+  const [executionConditionId, setExecutionConditionId] = useState<string | null>(null);
   const isExecutionView = executionNodeId !== null;
   const [layer1FocusRequest, setLayer1FocusRequest] = useState<string | null>(null);
   const [layer2FocusRequest, setLayer2FocusRequest] = useState<string[] | null>(null);
@@ -61,6 +62,7 @@ export default function WorkflowBuilder() {
       setLayer1FocusRequest(nodeId);
     }
     setExecutionNodeId(null);
+    setExecutionConditionId(null);
     setIsHighLevelView(true);
   }, []);
   const openExecutionView = useCallback((nodeId?: string) => {
@@ -80,10 +82,12 @@ export default function WorkflowBuilder() {
   const closeExecutionView = useCallback(() => {
     setExecutionNodeId(null);
     setExecutionItemId(null);
+    setExecutionConditionId(null);
   }, []);
   const focusLayer2Node = useCallback((nodeId: string) => {
     setExecutionNodeId(null);
     setExecutionItemId(null);
+    setExecutionConditionId(null);
     setIsHighLevelView(false);
     useWorkflowStore.getState().selectNodes([nodeId]);
     requestLayer2Focus([nodeId]);
@@ -93,9 +97,11 @@ export default function WorkflowBuilder() {
       const custom = event as CustomEvent<{
         nodeId?: string;
         itemId?: string;
+        conditionId?: string;
       }>;
       if (custom.detail?.nodeId) {
         setExecutionItemId(custom.detail.itemId ?? null);
+        setExecutionConditionId(custom.detail.conditionId ?? null);
         openExecutionView(custom.detail.nodeId);
       }
     };
@@ -287,9 +293,11 @@ export default function WorkflowBuilder() {
             ) : null}
             {isExecutionView && executionNodeId ? (
               <ExecutionView
-                key={`${executionNodeId}:${executionItemId ?? "default"}`}
+                key={`${executionNodeId}:${executionConditionId ?? "default"}:${executionItemId ?? "default"}`}
                 nodeId={executionNodeId}
                 focusItemId={executionItemId}
+                activeConditionId={executionConditionId}
+                onSelectCondition={(conditionId) => setExecutionConditionId(conditionId)}
                 onBack={closeExecutionView}
                 onFocusNode={focusLayer2Node}
               />
