@@ -59,10 +59,7 @@ export default function WorkflowBuilder() {
   const openLayer1Context = useCallback((nodeId: string) => {
     if (nodeId) {
       useWorkflowStore.getState().selectHighLevelNodes([nodeId]);
-      setLayer1FocusRequest(null);
-      window.setTimeout(() => {
-        setLayer1FocusRequest(nodeId);
-      }, 50);
+      setLayer1FocusRequest(nodeId);
     }
     setExecutionNodeId(null);
     setExecutionConditionId(null);
@@ -93,10 +90,7 @@ export default function WorkflowBuilder() {
     setExecutionConditionId(null);
     setIsHighLevelView(false);
     useWorkflowStore.getState().selectNodes([nodeId]);
-    setLayer2FocusRequest(null);
-    window.setTimeout(() => {
-      setLayer2FocusRequest([nodeId]);
-    }, 50);
+    setLayer2FocusRequest([nodeId]);
   }, []);
   useEffect(() => {
     const handleOpenExecution = (event: Event) => {

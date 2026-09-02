@@ -503,7 +503,7 @@ function CanvasInner({
       activationCentered.current = false;
       return;
     }
-    if (activationCentered.current || focusNodeIdsRef.current?.length) return;
+    if (activationCentered.current || focusNodeIdsRef.current?.length || focusNodeIds?.length) return;
 
     let attempts = 0;
     let retryTimer: number | undefined;
@@ -536,7 +536,7 @@ function CanvasInner({
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [active, flow]);
+  }, [active, flow, focusNodeIds]);
 
   useEffect(() => {
     if (!focusNodeIds?.length) return;
@@ -570,40 +570,31 @@ function CanvasInner({
         return;
       }
 
-      const fitRequest = (() => {
-        if (validIds.length !== 1) {
-          return flow.fitView({
-            nodes: validIds.map((id) => ({ id })),
-            duration: 500,
-            padding: 0.8,
-            maxZoom: 1.25,
-          });
-        }
-
-        const node = flow.getInternalNode(validIds[0]);
-        const width = node?.measured.width ?? 0;
-        const height = node?.measured.height ?? 0;
-        const position = node?.internals.positionAbsolute;
-        if (!node || !width || !height || !position || !canvasRect) {
-          return Promise.resolve(false);
-        }
-
-        const zoom = Math.max(
-          CANVAS_MIN_ZOOM,
-          Math.min(
-            1.25,
-            (canvasRect.width * 0.82) / width,
-            (canvasRect.height * 0.82) / height,
-          ),
-        );
-
-        return flow.setCenter(
-          position.x + width / 2,
-          position.y + height / 2,
-          { duration: 500, zoom },
-        );
-      })();
+      activationCentered.current = true;
       useWorkflowStore.getState().selectNodes(validIds);
+
+      const targetNode = flow.getInternalNode(validIds[0]);
+      const width = targetNode?.measured.width ?? 0;
+      const height = targetNode?.measured.height ?? 0;
+      const position = targetNode?.internals?.positionAbsolute;
+
+      const fitRequest = (() => {
+        if (targetNode && width && height && position) {
+          return flow.setCenter(
+            position.x + width / 2,
+            position.y + height / 2,
+            { duration: 500, zoom: 0.85 },
+          );
+        }
+
+        return flow.fitView({
+          nodes: validIds.map((id) => ({ id })),
+          duration: 500,
+          padding: 1.5,
+          maxZoom: 0.9,
+        });
+      })();
+
       void fitRequest.then(() => onFocusRequestHandled?.());
     };
 

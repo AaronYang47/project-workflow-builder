@@ -569,9 +569,10 @@ export function ExecutionView({
     }
   };
 
+  const targetL2Id = node?.id || nodeId;
   const handleNavigateToL2 = () => {
-    if (node?.id && onFocusNode) {
-      onFocusNode(node.id);
+    if (targetL2Id && onFocusNode) {
+      onFocusNode(targetL2Id);
     } else {
       onBack();
     }
