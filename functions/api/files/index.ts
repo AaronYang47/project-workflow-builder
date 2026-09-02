@@ -51,7 +51,7 @@ export async function onRequestGet(context: {
         title,
         description,
         uploadedAt,
-        url: `/api/files/${encodeURIComponent(obj.key)}`,
+        url: `/api/files/download?key=${encodeURIComponent(obj.key)}`,
       };
     });
 

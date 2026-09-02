@@ -34,7 +34,7 @@ export async function onRequestPost(context: {
           fileName,
         },
       });
-      r2Url = `/api/files/${encodeURIComponent(key)}`;
+      r2Url = `/api/files/download?key=${encodeURIComponent(key)}`;
     }
 
     return Response.json({
