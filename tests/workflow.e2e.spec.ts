@@ -284,6 +284,13 @@ test("L2 node palette includes Phase and Gate, and supports adding them", async 
   await phaseBtn.dblclick();
   await expect(page.locator(".l2-phase-card")).toBeVisible();
 
+  // Click on the Phase header to select it and open Inspector
+  await page.locator(".phase-drag-handle").first().click();
+
+  // Verify Inspector displays Included Steps & Gates section
+  await expect(page.getByText("Included Steps & Gates")).toBeVisible();
+  await expect(page.getByText("Select which steps belong to this Phase")).toBeVisible();
+
   // Double clicking Gate adds a Gate node
   await gateBtn.dblclick();
   await expect(page.locator('[data-testid="gate-card"]').first()).toBeVisible();

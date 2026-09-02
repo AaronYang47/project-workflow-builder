@@ -4,9 +4,12 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Layers3,
+  Maximize2,
   Settings2,
   Trash2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   getInspectorSchema,
   isInspectorFieldVisible,
@@ -379,6 +382,150 @@ function ConditionEditor({
   );
 }
 
+function PhaseStepsManager({
+  phaseNode,
+  allNodes,
+  nodeLayouts,
+  toggleNodeInPhase,
+  fitPhaseToChildren,
+}: {
+  phaseNode: DomainNode;
+  allNodes: DomainNode[];
+  nodeLayouts: Record<string, { parentId?: string }>;
+  toggleNodeInPhase: (phaseId: string, nodeId: string) => void;
+  fitPhaseToChildren: (phaseId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const candidates = useMemo(() => {
+    return allNodes
+      .filter((n) => n.id !== phaseNode.id && n.type !== "phase")
+      .filter((n) =>
+        query.trim()
+          ? `${n.title} ${n.config?.stage || ""} ${n.type}`
+              .toLowerCase()
+              .includes(query.toLowerCase())
+          : true,
+      )
+      .sort((a, b) => {
+        const aIncluded = nodeLayouts[a.id]?.parentId === phaseNode.id;
+        const bIncluded = nodeLayouts[b.id]?.parentId === phaseNode.id;
+        if (aIncluded && !bIncluded) return -1;
+        if (!aIncluded && bIncluded) return 1;
+        return 0;
+      });
+  }, [allNodes, phaseNode.id, nodeLayouts, query]);
+
+  const includedCount = allNodes.filter(
+    (n) => nodeLayouts[n.id]?.parentId === phaseNode.id,
+  ).length;
+
+  return (
+    <section className="mb-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-3 shadow-xs">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/60 mb-2.5">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex size-6 items-center justify-center rounded-md text-white text-[10px] font-bold"
+            style={{ backgroundColor: phaseNode.color || "#0d9488" }}
+          >
+            {includedCount}
+          </span>
+          <div>
+            <h3 className="text-xs font-bold text-foreground">
+              Included Steps & Gates
+            </h3>
+            <p className="text-[10px] text-muted-foreground">
+              Select which steps belong to this Phase
+            </p>
+          </div>
+        </div>
+        {includedCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => fitPhaseToChildren(phaseNode.id)}
+            title="Auto-fit Phase frame to encompass all included steps"
+            className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-background px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer shadow-2xs"
+          >
+            <Maximize2 className="size-3 text-primary" />
+            <span>Auto-fit</span>
+          </button>
+        ) : null}
+      </div>
+
+      {allNodes.length > 5 ? (
+        <div className="mb-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter steps..."
+            className="h-7 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-background px-2.5 text-[11px] outline-none focus:border-primary"
+          />
+        </div>
+      ) : null}
+
+      <div className="space-y-1.5 max-h-60 overflow-y-auto scroll-thin pr-1">
+        {candidates.length === 0 ? (
+          <div className="py-4 text-center text-xs text-muted-foreground">
+            No steps available to include.
+          </div>
+        ) : (
+          candidates.map((node) => {
+            const isIncluded = nodeLayouts[node.id]?.parentId === phaseNode.id;
+            const isOtherPhase =
+              Boolean(nodeLayouts[node.id]?.parentId) && !isIncluded;
+            const isGate = node.type === "gate";
+
+            return (
+              <div
+                key={node.id}
+                onClick={() => toggleNodeInPhase(phaseNode.id, node.id)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg border p-2 text-xs transition-colors cursor-pointer select-none",
+                  isIncluded
+                    ? "border-primary bg-primary/[0.08] ring-1 ring-primary/40 font-medium"
+                    : "border-slate-200 dark:border-slate-800 bg-background hover:border-primary/40",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={isIncluded}
+                  onChange={() => toggleNodeInPhase(phaseNode.id, node.id)}
+                  className="size-3.5 rounded accent-primary cursor-pointer"
+                />
+                <span
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                    isGate
+                      ? "bg-purple-500/15 text-purple-600 dark:text-purple-300"
+                      : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+                  )}
+                >
+                  {isGate ? "Gate" : "Step"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-foreground text-xs font-semibold">
+                    {node.title || "Untitled"}
+                  </p>
+                  {node.config?.stage ? (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {node.config.stage}
+                    </p>
+                  ) : null}
+                </div>
+                {isOtherPhase ? (
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium shrink-0">
+                    in other phase
+                  </span>
+                ) : null}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+}
+
 import { useShallow } from "zustand/react/shallow";
 
 function DetailedInspector({
@@ -393,6 +540,8 @@ function DetailedInspector({
     updateEdge,
     deleteSelected,
     deleteNodeCondition,
+    toggleNodeInPhase,
+    fitPhaseToChildren,
     focusedInspectorField,
   } =
     useWorkflowStore(
@@ -403,6 +552,8 @@ function DetailedInspector({
         updateEdge: state.updateEdge,
         deleteSelected: state.deleteSelected,
         deleteNodeCondition: state.deleteNodeCondition,
+        toggleNodeInPhase: state.toggleNodeInPhase,
+        fitPhaseToChildren: state.fitPhaseToChildren,
         focusedInspectorField: state.focusedInspectorField,
       })),
     );
@@ -523,6 +674,15 @@ function DetailedInspector({
                   <ChevronRight className="size-4 shrink-0 text-primary" />
                 </button>
               </section>
+            ) : null}
+            {node && node.type === "phase" ? (
+              <PhaseStepsManager
+                phaseNode={node}
+                allNodes={file.graph.nodes}
+                nodeLayouts={file.layout.nodes}
+                toggleNodeInPhase={toggleNodeInPhase}
+                fitPhaseToChildren={fitPhaseToChildren}
+              />
             ) : null}
             {node && activeConditionIndex >= 0 ? (
               <ConditionEditor

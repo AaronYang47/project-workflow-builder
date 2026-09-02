@@ -18,6 +18,12 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   const node = data.domain;
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
+  const childCount = useWorkflowStore(
+    (state) =>
+      Object.values(state.file.layout.nodes).filter(
+        (l) => l.parentId === node.id,
+      ).length,
+  );
   const color = node.color || (data as { phaseColor?: string })?.phaseColor || "#0d9488";
 
   return (
@@ -65,9 +71,22 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           <Layers3 className="size-5" />
         </span>
         <label className="min-w-0 flex-1">
-          <span className="block text-sm font-black uppercase tracking-[0.15em] text-muted-foreground">
-            Phase / Swimlane
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="block text-xs font-black uppercase tracking-[0.16em]"
+              style={{ color }}
+            >
+              Phase
+            </span>
+            {childCount > 0 ? (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs"
+                style={{ backgroundColor: color }}
+              >
+                {childCount} {childCount === 1 ? "step" : "steps"}
+              </span>
+            ) : null}
+          </div>
           <textarea
             aria-label="Phase title"
             defaultValue={node.title}

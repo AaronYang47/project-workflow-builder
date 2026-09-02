@@ -323,6 +323,8 @@ export interface WorkflowState {
       stage?: string;
     },
   ) => string;
+  toggleNodeInPhase: (phaseId: string, nodeId: string) => void;
+  fitPhaseToChildren: (phaseId: string) => void;
   updateNode: (id: string, patch: Partial<DomainNode>) => void;
   deleteNodeCondition: (
     nodeId: string,
@@ -813,6 +815,95 @@ export const useWorkflowStore = create<WorkflowState>()(
           };
         });
         return id;
+      },
+      toggleNodeInPhase: (phaseId, nodeId) => {
+        const state = get();
+        const file = state.file;
+        const phaseLayout = file.layout.nodes[phaseId];
+        const nodeLayout = file.layout.nodes[nodeId];
+        if (!phaseLayout || !nodeLayout) return;
+
+        const isCurrentlyInside = nodeLayout.parentId === phaseId;
+        const nextFile = clone(file);
+
+        if (isCurrentlyInside) {
+          const absX = phaseLayout.x + nodeLayout.x;
+          const absY = phaseLayout.y + nodeLayout.y;
+          nextFile.layout.nodes[nodeId] = {
+            ...nodeLayout,
+            x: absX,
+            y: absY,
+            parentId: undefined,
+            zIndex: undefined,
+          };
+        } else {
+          let absX = nodeLayout.x;
+          let absY = nodeLayout.y;
+          if (nodeLayout.parentId && nextFile.layout.nodes[nodeLayout.parentId]) {
+            absX += nextFile.layout.nodes[nodeLayout.parentId].x;
+            absY += nextFile.layout.nodes[nodeLayout.parentId].y;
+          }
+
+          const relX = Math.max(36, absX - phaseLayout.x);
+          const relY = Math.max(110, absY - phaseLayout.y);
+          nextFile.layout.nodes[nodeId] = {
+            ...nodeLayout,
+            x: relX,
+            y: relY,
+            parentId: phaseId,
+            zIndex: 1,
+          };
+
+          const nodeW = nodeLayout.width || 270;
+          const nodeH = nodeLayout.height || 220;
+          const neededW = relX + nodeW + 40;
+          const neededH = relY + nodeH + 40;
+          if (neededW > phaseLayout.width || neededH > phaseLayout.height) {
+            nextFile.layout.nodes[phaseId] = {
+              ...phaseLayout,
+              width: Math.max(phaseLayout.width, neededW),
+              height: Math.max(phaseLayout.height, neededH),
+            };
+          }
+        }
+
+        set({
+          past: appendHistory(state.past, state.file),
+          file: nextFile,
+          future: [],
+          dirty: true,
+        });
+      },
+      fitPhaseToChildren: (phaseId) => {
+        const state = get();
+        const file = state.file;
+        const phaseLayout = file.layout.nodes[phaseId];
+        if (!phaseLayout) return;
+
+        const children = Object.values(file.layout.nodes).filter(
+          (l) => l.parentId === phaseId,
+        );
+        if (children.length === 0) return;
+
+        const maxX = Math.max(...children.map((c) => c.x + (c.width || 270)));
+        const maxY = Math.max(...children.map((c) => c.y + (c.height || 220)));
+
+        const PAD_X = 40;
+        const PAD_BOTTOM = 40;
+
+        const nextFile = clone(file);
+        nextFile.layout.nodes[phaseId] = {
+          ...phaseLayout,
+          width: Math.max(420, maxX + PAD_X),
+          height: Math.max(260, maxY + PAD_BOTTOM),
+        };
+
+        set({
+          past: appendHistory(state.past, state.file),
+          file: nextFile,
+          future: [],
+          dirty: true,
+        });
       },
       updateNode: (id, patch) => {
         get().commit((file) => patchNode(file, id, patch));
