@@ -7,6 +7,8 @@ import type { WorkflowNodeType } from "@/types/workflow";
 export const PALETTE_NODE_TYPES = [
   "projectStart",
   "general",
+  "phase",
+  "gate",
   "terminal",
 ] as const satisfies readonly WorkflowNodeType[];
 export type PaletteNodeType = (typeof PALETTE_NODE_TYPES)[number];
@@ -16,9 +18,10 @@ export interface NodeDefinition { type: WorkflowNodeType; label: string; descrip
 export const NODE_CATALOG: NodeDefinition[] = [
   { type: "projectStart", label: "Project Start", description: "Start a project with an editable project number", icon: FolderKanban, color: "#2563a9", category: "Flow", defaultSize: { width: 320, height: 220 } },
   { type: "general", label: "Node", description: "Custom stage, name, content, and icon", icon: Boxes, color: "#3f668c", category: "General", defaultSize: { width: 270, height: 168 } },
+  { type: "phase", label: "Phase", description: "Phase frame covering workflow steps", icon: Layers3, color: "#0d9488", category: "Flow", defaultSize: { width: 620, height: 280 } },
+  { type: "gate", label: "Gate", description: "Phase completion gate & signoff", icon: ShieldCheck, color: "#7c3aed", category: "Governance", defaultSize: { width: 620, height: 268 } },
   { type: "start", label: "Start", description: "Workflow entry point", icon: CircleDot, color: "#16866f", category: "Flow", defaultSize: { width: 210, height: 104 } },
   { type: "end", label: "End", description: "Workflow completion", icon: CircleStop, color: "#64748b", category: "Flow", defaultSize: { width: 210, height: 104 } },
-  { type: "phase", label: "Phase / Group", description: "Swimlane container", icon: Layers3, color: "#64748b", category: "Flow", defaultSize: { width: 620, height: 280 } },
   { type: "decision", label: "Decision", description: "Conditional branch", icon: Repeat2, color: "#7657b5", category: "Flow", defaultSize: { width: 230, height: 132 } },
   { type: "activity", label: "Activity", description: "Task or action", icon: Activity, color: "#2563a9", category: "Work", defaultSize: { width: 240, height: 132 } },
   { type: "handoff", label: "Handoff", description: "Ownership transfer", icon: Handshake, color: "#397d91", category: "Work", defaultSize: { width: 240, height: 132 } },

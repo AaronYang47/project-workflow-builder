@@ -301,6 +301,28 @@ export interface WorkflowState {
     position: { x: number; y: number },
     parentId?: string,
   ) => string;
+  addPhaseWrappingNodes: (
+    phaseProps: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      title: string;
+      color: string;
+    },
+    childIds: string[],
+  ) => string;
+  addGateUnderNode: (
+    gateProps: {
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      title?: string;
+      color?: string;
+      stage?: string;
+    },
+  ) => string;
   updateNode: (id: string, patch: Partial<DomainNode>) => void;
   deleteNodeCondition: (
     nodeId: string,
@@ -697,6 +719,99 @@ export const useWorkflowStore = create<WorkflowState>()(
             }
           }, 0);
         }
+        return id;
+      },
+      addPhaseWrappingNodes: (phaseProps, childIds) => {
+        const id = `phase-${crypto.randomUUID().slice(0, 8)}`;
+        const phaseNode = createDomainNode("phase", id);
+        phaseNode.title = phaseProps.title || "Phase";
+        phaseNode.color = phaseProps.color || "#0d9488";
+        if (phaseNode.config) {
+          phaseNode.config.stage = phaseProps.title;
+        }
+
+        set((state) => {
+          const nextFile = clone(state.file);
+          nextFile.graph.nodes.push(phaseNode);
+          nextFile.layout.nodes[id] = {
+            nodeId: id,
+            x: phaseProps.x,
+            y: phaseProps.y,
+            width: phaseProps.width,
+            height: phaseProps.height,
+            zIndex: -1,
+          };
+
+          for (const childId of childIds) {
+            const childLayout = nextFile.layout.nodes[childId];
+            if (childLayout) {
+              const relX = Math.max(36, childLayout.x - phaseProps.x);
+              const relY = Math.max(110, childLayout.y - phaseProps.y);
+              childLayout.x = relX;
+              childLayout.y = relY;
+              childLayout.parentId = id;
+              childLayout.zIndex = 1;
+            }
+          }
+
+          if (nextFile.highLevel) {
+            const matchedL1 = nextFile.highLevel.graph.nodes.find(
+              (hl) =>
+                hl.title.trim().toLowerCase() === phaseProps.title.trim().toLowerCase(),
+            );
+            if (matchedL1) {
+              matchedL1.linkedLayer2NodeIds = Array.from(
+                new Set([...(matchedL1.linkedLayer2NodeIds || []), id, ...childIds]),
+              );
+            }
+          }
+
+          return {
+            past: appendHistory(state.past, state.file),
+            file: nextFile,
+            future: [],
+            dirty: true,
+            selection: { nodeIds: [id] },
+          };
+        });
+        return id;
+      },
+      addGateUnderNode: (gateProps) => {
+        const id = `gate-${crypto.randomUUID().slice(0, 8)}`;
+        const gateNode = createDomainNode("gate", id);
+        if (gateProps.title) {
+          gateNode.title = gateProps.title;
+        }
+        if (gateProps.color) {
+          gateNode.color = gateProps.color;
+          if (gateNode.config) {
+            gateNode.config.gateHeaderColor = gateProps.color;
+          }
+        }
+        if (gateProps.stage && gateNode.config) {
+          gateNode.config.stage = gateProps.stage;
+        }
+        const width = gateProps.width || 620;
+        const height = gateProps.height || 268;
+
+        set((state) => {
+          const nextFile = clone(state.file);
+          nextFile.graph.nodes.push(gateNode);
+          nextFile.layout.nodes[id] = {
+            nodeId: id,
+            x: gateProps.x,
+            y: gateProps.y,
+            width,
+            height,
+          };
+          return {
+            past: appendHistory(state.past, state.file),
+            file: nextFile,
+            future: [],
+            dirty: true,
+            selection: { nodeIds: [id] },
+          };
+        });
         return id;
       },
       updateNode: (id, patch) => {

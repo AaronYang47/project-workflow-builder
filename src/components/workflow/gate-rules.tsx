@@ -79,7 +79,7 @@ export function GateRules({
     Landmark;
   const gateLabel = node.config.gateLabel?.trim() || "GATE";
   const gateHeaderColor =
-    node.config.gateHeaderColor || node.color || "#0d233b";
+    node.config.gateHeaderColor || node.color || phaseColor || "#0d233b";
   const gateTitleColor = node.config.gateTitleColor || "#ffffff";
   const yes = outcomes.find((outcome) => outcome.id === "yes");
   const saveRules = (nextRules: typeof rules) => {

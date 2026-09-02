@@ -18,18 +18,21 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   const node = data.domain;
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
-  const color = node.color || "#64748b";
+  const color = node.color || (data as { phaseColor?: string })?.phaseColor || "#0d9488";
 
   return (
     <div
       data-canvas-node
       data-selected={selected || undefined}
       className={cn(
-        "l2-node-card l2-phase-card h-full w-full rounded-2xl border-2 bg-slate-500/[0.035] transition duration-200",
+        "l2-node-card l2-phase-card h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
         selected &&
           "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
-      style={{ borderColor: `${color}66` }}
+      style={{
+        borderColor: `${color}77`,
+        backgroundColor: `${color}06`,
+      }}
     >
       <div className="pointer-events-auto">
         <NodeResizer
@@ -47,18 +50,19 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
       </div>
       <div
         data-phase-header
-        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-28 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3.5 shadow-sm backdrop-blur active:cursor-grabbing"
+        className="phase-drag-handle pointer-events-auto relative z-10 flex min-h-24 cursor-grab items-center gap-3 overflow-hidden rounded-t-[14px] border-b bg-card/95 px-5 py-3 shadow-sm backdrop-blur active:cursor-grabbing"
+        style={{ borderBottomColor: `${color}35` }}
       >
         <span
           aria-hidden
-          className="absolute inset-y-0 left-0 w-1.5"
+          className="absolute inset-y-0 left-0 w-2"
           style={{ backgroundColor: color }}
         />
         <span
-          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
           style={{ backgroundColor: color }}
         >
-          <Layers3 className="size-6" />
+          <Layers3 className="size-5" />
         </span>
         <label className="min-w-0 flex-1">
           <span className="block text-sm font-black uppercase tracking-[0.15em] text-muted-foreground">

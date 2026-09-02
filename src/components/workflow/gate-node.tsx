@@ -26,8 +26,9 @@ export function GateNode({
   return (
     <div
       data-canvas-node
+      data-testid="gate-card"
       className={cn(
-        "relative h-full w-full overflow-visible rounded-2xl transition duration-200",
+        "relative h-full w-full overflow-visible rounded-2xl transition duration-200 l2-gate-card",
         selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
     >
