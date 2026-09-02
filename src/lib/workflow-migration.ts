@@ -603,24 +603,28 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       height: 168,
     };
     const parentId =
-      current.parentId && nodeById.get(current.parentId)?.type === "phase"
+      current.parentId &&
+      (nodeById.get(current.parentId)?.type === "phase" ||
+        nodeById.get(current.parentId)?.type === "gate")
         ? current.parentId
         : undefined;
-    const position = parentId
-      ? { x: current.x, y: current.y }
-      : absolute(node.id);
+    const isContainer = node.type === "phase" || node.type === "gate";
     const size =
-      node.type === "gate"
-        ? getGateLayoutMetrics(node)
-        : getAdaptiveNodeSize(node, current);
+      isContainer && current.width && current.height
+        ? { width: current.width, height: current.height }
+        : node.type === "gate"
+          ? (current.width && current.height ? { width: current.width, height: current.height } : getGateLayoutMetrics(node))
+          : getAdaptiveNodeSize(node, current);
     layouts[node.id] = {
       nodeId: node.id,
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
+      x: typeof current.x === "number" ? current.x : 0,
+      y: typeof current.y === "number" ? current.y : 0,
+      width: current.width && current.width > 0 ? current.width : size.width,
+      height: current.height && current.height > 0 ? current.height : size.height,
       parentId,
-      zIndex: parentId ? 1 : current.zIndex,
+      zIndex: typeof current.zIndex === "number"
+        ? current.zIndex
+        : node.type === "phase" ? 0 : node.type === "gate" ? 1 : 10,
     };
   }
   const edges = file.graph.edges

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "playwright/test";
-import { seedE2EWorkflow } from "./support/e2e-workflow";
+import { seedE2EWorkflow, WORKFLOW_STORAGE_KEY, createE2EWorkflow } from "./support/e2e-workflow";
 
 async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
@@ -290,5 +290,59 @@ test("L2 node palette includes Gate and supports adding them", async ({ page }) 
   // Verify Inspector displays Included Steps in Gate section
   await expect(page.getByText(/Included Steps in Gate/)).toBeVisible();
 });
+
+test("Auto arrange layout persists stably upon page reload", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(
+    ({ key, persistedFile }) => {
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: {
+            file: persistedFile,
+            workspaceOwnerId: "dev-bypass",
+            dirty: false,
+          },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, persistedFile: createE2EWorkflow() },
+  );
+
+  await page.goto("/");
+  // Open L2
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+
+  // Click Auto arrange
+  await page.getByRole("button", { name: "Auto arrange" }).click();
+  await page.waitForTimeout(600);
+
+  // Get layout of Project Start from store
+  const layoutBefore = await page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw).state.file.layout.nodes : null;
+  }, WORKFLOW_STORAGE_KEY);
+  expect(layoutBefore["project-start"]).toBeDefined();
+
+  // Reload page
+  await page.reload();
+
+  // Open L2
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await page.waitForTimeout(600);
+
+  // Verify stored layout remains identical after reload
+  const layoutAfter = await page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw).state.file.layout.nodes : null;
+  }, WORKFLOW_STORAGE_KEY);
+  expect(layoutAfter["project-start"]).toBeDefined();
+  expect(layoutAfter["project-start"].x).toBe(layoutBefore["project-start"].x);
+  expect(layoutAfter["project-start"].y).toBe(layoutBefore["project-start"].y);
+});
+
 
 
