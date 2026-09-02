@@ -238,8 +238,8 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await page.getByRole("button", { name: "Back to L2" }).click();
   await expect(page.locator('[data-id="gate-g1-qualified"]')).toBeVisible();
 
-  // Verify Upload to R2 button in top toolbar opens dialog
-  await page.getByRole("button", { name: "Upload documents to R2" }).click();
+  // Verify Upload Forms button in top toolbar opens dialog
+  await page.getByRole("button", { name: "Upload Forms" }).click();
   await expect(page.getByText("Cloudflare R2 Document Center")).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
 });

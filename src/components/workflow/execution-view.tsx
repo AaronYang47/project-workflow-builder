@@ -195,7 +195,7 @@ function AddDocumentModal({
             </label>
             {availableFiles.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload to R2&quot; in the title.
+                No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload Forms&quot; in the title.
               </div>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto scroll-thin pr-1">

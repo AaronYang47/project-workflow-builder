@@ -233,12 +233,12 @@ export function TopToolbar({
             variant="outline"
             size="sm"
             onClick={() => setR2DialogOpen(true)}
-            aria-label="Upload documents to R2"
-            title="Upload documents to Cloudflare R2"
+            aria-label="Upload Forms"
+            title="Upload Forms"
             className="h-7 gap-1.5 px-2 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer shrink-0"
           >
             <CloudUpload className="size-3.5" />
-            <span className="hidden sm:inline">Upload to R2</span>
+            <span className="hidden sm:inline">Upload Forms</span>
           </Button>
         </div>
       </div>
