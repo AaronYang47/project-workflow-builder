@@ -219,34 +219,48 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       const containsGate = memberNodes.some(
         (m) => nodeMap.get(m.nodeId)?.type === "gate",
       );
-      const minX = Math.min(...memberNodes.map((c) => c.x));
+      const minX = Math.min(
+        ...memberNodes.map((c) => {
+          const domain = nodeMap.get(c.nodeId);
+          if (domain?.type === "gate" && nodes[c.nodeId]) {
+            return nodes[c.nodeId].x;
+          }
+          return c.x;
+        }),
+      );
       const maxX = Math.max(
         ...memberNodes.map((c) => {
           const domain = nodeMap.get(c.nodeId);
+          if (domain?.type === "gate" && nodes[c.nodeId]) {
+            return nodes[c.nodeId].x + (nodes[c.nodeId].width || 340);
+          }
           const w = c.width || (domain ? getAdaptiveNodeSize(domain, c).width : 280);
           return c.x + w;
         }),
       );
-      const maxY = Math.max(
+      const maxMemberBottom = Math.max(
         ...memberNodes.map((c) => {
           const domain = nodeMap.get(c.nodeId);
+          if (domain?.type === "gate" && nodes[c.nodeId]) {
+            return (nodes[c.nodeId].y ?? c.y) + (nodes[c.nodeId].height || 360);
+          }
           const h = c.height || (domain ? getAdaptiveNodeSize(domain, c).height : 360);
           return c.y + h;
         }),
       );
 
       const PAD_X = 36;
-      // When phase wraps an inner Gate, place phase header cleanly above the Gate header to eliminate overlap
       const PHASE_PAD_TOP = containsGate ? 330 : 176;
-      const PAD_BOTTOM = containsGate ? 56 : 48;
       const phaseY = COMMON_STEP_Y - PHASE_PAD_TOP;
+      // Guarantee Phase extends at least 40px below the bottom of any member, including Gate!
+      const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
 
       nodes[phase.id] = {
         ...nodes[phase.id],
         x: minX - PAD_X,
         y: phaseY,
         width: Math.max(380, maxX - minX + PAD_X * 2),
-        height: Math.max(240, maxY - phaseY + PAD_BOTTOM),
+        height: Math.max(280, phaseBottom - phaseY),
         zIndex: 0,
       };
     }

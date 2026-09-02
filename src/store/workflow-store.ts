@@ -841,18 +841,38 @@ export const useWorkflowStore = create<WorkflowState>()(
         );
         if (memberNodes.length > 0) {
           const nodeMap = new Map(nextFile.graph.nodes.map((n) => [n.id, n]));
-          const minX = Math.min(...memberNodes.map((m) => m.x));
+          const minX = Math.min(
+            ...memberNodes.map((m) => {
+              const domain = nodeMap.get(m.nodeId);
+              if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
+                return nextFile.layout.nodes[m.nodeId].x;
+              }
+              return m.x;
+            }),
+          );
           const maxX = Math.max(
             ...memberNodes.map((m) => {
               const domain = nodeMap.get(m.nodeId);
+              if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
+                return (
+                  nextFile.layout.nodes[m.nodeId].x +
+                  (nextFile.layout.nodes[m.nodeId].width || 340)
+                );
+              }
               const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
               return m.x + w;
             }),
           );
           const minY = Math.min(...memberNodes.map((m) => m.y));
-          const maxY = Math.max(
+          const maxMemberBottom = Math.max(
             ...memberNodes.map((m) => {
               const domain = nodeMap.get(m.nodeId);
+              if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
+                return (
+                  (nextFile.layout.nodes[m.nodeId].y ?? m.y) +
+                  (nextFile.layout.nodes[m.nodeId].height || 360)
+                );
+              }
               const h = m.height || (domain ? getAdaptiveNodeSize(domain, m).height : 360);
               return m.y + h;
             }),
@@ -865,14 +885,15 @@ export const useWorkflowStore = create<WorkflowState>()(
             nextFile.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
           const PAD_X = 36;
           const PAD_TOP = isPhase && containsGate ? 330 : 176;
-          const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
+          const phaseY = minY - PAD_TOP;
+          const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
 
           nextFile.layout.nodes[phaseId] = {
             ...nextFile.layout.nodes[phaseId],
             x: minX - PAD_X,
-            y: minY - PAD_TOP,
+            y: phaseY,
             width: Math.max(380, maxX - minX + PAD_X * 2),
-            height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
+            height: Math.max(280, phaseBottom - phaseY),
             zIndex: 0,
           };
         }
@@ -900,18 +921,38 @@ export const useWorkflowStore = create<WorkflowState>()(
         if (memberNodes.length === 0) return;
 
         const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
-        const minX = Math.min(...memberNodes.map((m) => m.x));
+        const minX = Math.min(
+          ...memberNodes.map((m) => {
+            const domain = nodeMap.get(m.nodeId);
+            if (domain?.type === "gate" && file.layout.nodes[m.nodeId]) {
+              return file.layout.nodes[m.nodeId].x;
+            }
+            return m.x;
+          }),
+        );
         const maxX = Math.max(
           ...memberNodes.map((m) => {
             const domain = nodeMap.get(m.nodeId);
+            if (domain?.type === "gate" && file.layout.nodes[m.nodeId]) {
+              return (
+                file.layout.nodes[m.nodeId].x +
+                (file.layout.nodes[m.nodeId].width || 340)
+              );
+            }
             const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
             return m.x + w;
           }),
         );
         const minY = Math.min(...memberNodes.map((m) => m.y));
-        const maxY = Math.max(
+        const maxMemberBottom = Math.max(
           ...memberNodes.map((m) => {
             const domain = nodeMap.get(m.nodeId);
+            if (domain?.type === "gate" && file.layout.nodes[m.nodeId]) {
+              return (
+                (file.layout.nodes[m.nodeId].y ?? m.y) +
+                (file.layout.nodes[m.nodeId].height || 360)
+              );
+            }
             const h = m.height || (domain ? getAdaptiveNodeSize(domain, m).height : 360);
             return m.y + h;
           }),
@@ -924,15 +965,16 @@ export const useWorkflowStore = create<WorkflowState>()(
           file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
         const PAD_X = 36;
         const PAD_TOP = isPhase && containsGate ? 330 : 176;
-        const PAD_BOTTOM = isPhase && containsGate ? 56 : 48;
+        const phaseY = minY - PAD_TOP;
+        const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
 
         const nextFile = clone(file);
         nextFile.layout.nodes[phaseId] = {
           ...phaseLayout,
           x: minX - PAD_X,
-          y: minY - PAD_TOP,
+          y: phaseY,
           width: Math.max(380, maxX - minX + PAD_X * 2),
-          height: Math.max(240, maxY - minY + PAD_TOP + PAD_BOTTOM),
+          height: Math.max(280, phaseBottom - phaseY),
           zIndex: 0,
         };
 
