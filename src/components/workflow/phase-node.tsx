@@ -26,7 +26,9 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
       ).length,
   );
   const defaultColor = isGate ? "#7c3aed" : "#0d9488";
-  const color = node.color || data.phaseColor || (data as { phaseColor?: string })?.phaseColor || defaultColor;
+  const color = isGate
+    ? node.color || "#7c3aed"
+    : node.color || data.phaseColor || (data as { phaseColor?: string })?.phaseColor || defaultColor;
   const Icon = isGate ? ShieldCheck : Layers3;
 
   return (

@@ -303,9 +303,11 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
         }
 
         const phaseColor =
-          isContainer
-            ? resolvedContainerColor || l1ResolvedColor || stageFallback || "#0d9488"
-            : l1ResolvedColor || domain.color || stageFallback || "#0d9488";
+          domain.type === "gate"
+            ? domain.color || "#7c3aed"
+            : isContainer
+              ? resolvedContainerColor || l1ResolvedColor || stageFallback || "#0d9488"
+              : l1ResolvedColor || domain.color || stageFallback || "#0d9488";
         return {
           id: domain.id,
           type: rendererType,
