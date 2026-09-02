@@ -74,7 +74,7 @@ export function useCanvasExport(
   // Full-scale image export helper
   useEffect(() => {
     const capture = async (
-      event: Event & { detail?: { format: "png" | "svg" } },
+      event: Event & { detail?: { format: "png" | "svg" | "pdf" } },
     ) => {
       const detail = event.detail ?? { format: "png" };
       const wrapperEl = wrapper.current;
@@ -100,12 +100,37 @@ export function useCanvasExport(
       viewport.style.transform = `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`;
 
       try {
-        const { toPng, toSvg } = await import("html-to-image");
         const backgroundColor =
           getComputedStyle(document.documentElement)
             .getPropertyValue("--canvas-export")
             .trim() || "#f6f7f9";
 
+        if (detail.format === "pdf") {
+          const { toPng } = await import("html-to-image");
+          const { jsPDF } = await import("jspdf");
+          const data = await toPng(flowElement, {
+            backgroundColor,
+            pixelRatio: 2,
+            width: targetWidth,
+            height: targetHeight,
+            filter: (node: HTMLElement) =>
+              !node.classList?.contains("react-flow__controls") &&
+              !node.classList?.contains("react-flow__minimap"),
+          });
+
+          const orientation =
+            targetWidth >= targetHeight ? "landscape" : "portrait";
+          const pdf = new jsPDF({
+            orientation,
+            unit: "px",
+            format: [targetWidth, targetHeight],
+          });
+          pdf.addImage(data, "PNG", 0, 0, targetWidth, targetHeight);
+          pdf.save("workflow.pdf");
+          return;
+        }
+
+        const { toPng, toSvg } = await import("html-to-image");
         const data =
           detail.format === "png"
             ? await toPng(flowElement, {

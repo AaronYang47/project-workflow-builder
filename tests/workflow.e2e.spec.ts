@@ -344,5 +344,25 @@ test("Auto arrange layout persists stably upon page reload", async ({ page }) =>
   expect(layoutAfter["project-start"].y).toBe(layoutBefore["project-start"].y);
 });
 
+test("Export dropdown provides Image and PDF export options", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  // Open L2
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+
+  // Find Export button
+  const exportBtn = page.getByRole("button", { name: "Export", exact: false }).filter({ hasText: "Export" });
+  await expect(exportBtn).toBeVisible();
+
+  // Click Export to open dropdown
+  await exportBtn.click();
+
+  // Verify Export Image and Export PDF items
+  await expect(page.getByText("Export Image")).toBeVisible();
+  await expect(page.getByText("Export PDF")).toBeVisible();
+});
+
+
 
 

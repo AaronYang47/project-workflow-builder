@@ -25,6 +25,7 @@
     "elkjs": "^0.12.0",
     "exceljs": "^4.4.0",
     "html-to-image": "latest",
+    "jspdf": "^4.2.1",
     "lucide-react": "latest",
     "next": "latest",
     "next-themes": "latest",

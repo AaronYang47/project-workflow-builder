@@ -5,9 +5,11 @@ import { useTheme } from "next-themes";
 import {
   AlignHorizontalDistributeCenter,
   CheckCircle2,
+  ChevronDown,
   CloudUpload,
   Download,
   FileSpreadsheet,
+  FileText,
   FileUp,
   Focus,
   Group,
@@ -25,6 +27,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { autoLayout } from "@/lib/layout";
 import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -58,7 +67,7 @@ function ToolButton({
   );
 }
 
-const saveImage = (format: "png" | "svg") => {
+const saveImage = (format: "png" | "svg" | "pdf") => {
   window.dispatchEvent(
     new CustomEvent("workflow:export", { detail: { format } }),
   );
@@ -483,29 +492,49 @@ export function TopToolbar({
           className="hidden"
           onChange={(e) => importFile(e.target.files?.[0])}
         />
-        <div className="group relative">
-          <ToolButton label="Export image">
-            <ImageDown className="size-4" />
-          </ToolButton>
-          <div className="invisible absolute right-0 top-8 z-50 w-36 rounded-md border bg-popover p-1 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-            <button
-              type="button"
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 border-slate-300 dark:border-slate-700 bg-background/80 text-xs font-semibold hover:bg-muted"
+            >
+              <Download className="size-3.5 text-primary" />
+              <span>Export</span>
+              <ChevronDown className="size-3 text-muted-foreground opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
               onClick={() => saveImage("png")}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
+              className="gap-2.5 cursor-pointer py-2"
             >
-              <Download className="size-3.5" />
-              Export PNG
-            </button>
-            <button
-              type="button"
+              <ImageDown className="size-4 text-emerald-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">Export Image</span>
+                <span className="text-[10px] text-muted-foreground">High-res PNG</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => saveImage("pdf")}
+              className="gap-2.5 cursor-pointer py-2"
+            >
+              <FileText className="size-4 text-rose-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">Export PDF</span>
+                <span className="text-[10px] text-muted-foreground">Printable document</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
               onClick={() => saveImage("svg")}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
+              className="gap-2.5 cursor-pointer py-1.5"
             >
-              <Download className="size-3.5" />
-              Export SVG
-            </button>
-          </div>
-        </div>
+              <Download className="size-3.5 text-amber-500 shrink-0" />
+              <span className="text-xs">Export SVG</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <ToolButton
           label="Toggle theme"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
