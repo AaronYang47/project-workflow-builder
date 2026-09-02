@@ -175,8 +175,8 @@ function measureCard(card: PyramidCard) {
     ),
   );
   const inner = Math.max(96, width - 24);
-  const titleLines = Math.max(1, Math.ceil((card.label.length * 8) / inner));
-  const subtitleLines = Math.max(1, Math.ceil((card.subtitle.length * 6.8) / inner));
+  const titleLines = Math.max(1, Math.min(2, Math.ceil((card.label.length * 8) / inner)));
+  const subtitleLines = Math.max(1, Math.min(2, Math.ceil((card.subtitle.length * 6.8) / inner)));
   const height = 18 + 18 + titleLines * 20 + subtitleLines * 16 + 18;
   return { width, height };
 }
@@ -230,6 +230,14 @@ function isWorkflowL2(node: DomainNode) {
 }
 
 function l2Subtitle(node: DomainNode) {
+  if (node.description?.trim()) return node.description.trim();
+  if (
+    node.config?.stage &&
+    typeof node.config.stage === "string" &&
+    node.config.stage.trim()
+  ) {
+    return node.config.stage.trim();
+  }
   if (node.type === "projectStart") return "Project Start";
   if (node.type === "gate") return "Gate";
   return getNodeDefinition(node.type).label;
@@ -239,7 +247,7 @@ function l2CardFromNode(node: DomainNode): PyramidCard {
   return {
     id: node.id,
     layer: "L2",
-    label: node.title,
+    label: node.title?.trim() || getNodeDefinition(node.type).label,
     subtitle: l2Subtitle(node),
   };
 }
@@ -265,15 +273,22 @@ function l1CardFromHighLevel(node: HighLevelNode): PyramidCard {
   return {
     id: node.id,
     layer: "L1",
-    label: node.title,
+    label:
+      node.title?.trim() ||
+      (node.type === "start"
+        ? "Start"
+        : node.type === "end"
+          ? "Final Close"
+          : "Phase"),
     subtitle:
-      node.type === "primaryGate"
+      node.description?.trim() ||
+      (node.type === "primaryGate"
         ? "Primary Gate"
         : node.type === "start"
           ? "Start"
           : node.type === "end"
             ? "Final Close"
-            : "Phase",
+            : "Phase"),
   };
 }
 
@@ -1408,10 +1423,16 @@ export function PyramidLocationWidget({
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[13px] font-semibold leading-snug break-words">
+                    <p
+                      className="text-[13px] font-semibold leading-snug break-words line-clamp-2"
+                      title={card.label}
+                    >
                       {card.label}
                     </p>
-                    <p className="text-[11px] leading-snug text-muted-foreground break-words">
+                    <p
+                      className="text-[11px] leading-snug text-muted-foreground break-words line-clamp-2"
+                      title={card.subtitle}
+                    >
                       {card.subtitle}
                     </p>
                   </button>
