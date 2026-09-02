@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   type UploadedFileRecord,
   getUploadedFiles,
+  fetchUploadedFilesFromR2,
   uploadFileToR2,
   downloadFile,
   deleteUploadedFile,
@@ -51,8 +52,20 @@ export function R2FileDialog({
       setFileList(getUploadedFiles());
       setUploadSuccess(false);
       if (initialCategory) setCategory(initialCategory);
+
+      fetchUploadedFilesFromR2().then((remoteFiles) => {
+        setFileList(remoteFiles);
+      });
     }
   }, [open, initialCategory]);
+
+  useEffect(() => {
+    if (activeTab === "library") {
+      fetchUploadedFilesFromR2().then((remoteFiles) => {
+        setFileList(remoteFiles);
+      });
+    }
+  }, [activeTab]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,7 +88,8 @@ export function R2FileDialog({
         title: title || selectedFile.name,
         description,
       });
-      setFileList(getUploadedFiles());
+      const latest = await fetchUploadedFilesFromR2();
+      setFileList(latest);
       setUploadSuccess(true);
       setSelectedFile(null);
       setTitle("");
@@ -383,10 +397,11 @@ export function R2FileDialog({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
+                          onClick={async () => {
                             if (window.confirm(`Delete "${file.fileName}" from R2 Library?`)) {
-                              deleteUploadedFile(file.id);
-                              setFileList(getUploadedFiles());
+                              await deleteUploadedFile(file.id, file.key);
+                              const latest = await fetchUploadedFilesFromR2();
+                              setFileList(latest);
                             }
                           }}
                           title={`Delete ${file.fileName}`}

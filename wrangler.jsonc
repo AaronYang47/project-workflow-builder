@@ -10,5 +10,11 @@
       "database_name": "project-workflow-builder-db",
       "database_id": "86e1d86d-52a3-4134-934f-2b495344f9bc"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "project-workflow-builder-files"
+    }
   ]
 }

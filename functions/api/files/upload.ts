@@ -18,15 +18,16 @@ export async function onRequestPost(context: {
     const fileSize = (file as File).size;
     const fileType = (file as File).type || "application/octet-stream";
 
+    const key = `${category}/${id}-${fileName}`;
     let r2Url: string | undefined;
 
     if (context.env.R2_BUCKET) {
-      const key = `${category}/${id}-${fileName}`;
       await context.env.R2_BUCKET.put(key, (file as File).stream(), {
         httpMetadata: {
           contentType: fileType,
         },
         customMetadata: {
+          id,
           title,
           description,
           category,
@@ -39,6 +40,7 @@ export async function onRequestPost(context: {
     return Response.json({
       ok: true,
       id,
+      key,
       fileName,
       fileSize,
       fileType,

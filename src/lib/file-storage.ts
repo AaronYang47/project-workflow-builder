@@ -1,5 +1,6 @@
 export interface UploadedFileRecord {
   id: string;
+  key?: string;
   fileName: string;
   fileSize: number;
   fileType: string;
@@ -50,6 +51,41 @@ export function getUploadedFiles(category?: "legal" | "customer" | "supporting")
   }
 }
 
+export async function fetchUploadedFilesFromR2(
+  category?: "legal" | "customer" | "supporting",
+): Promise<UploadedFileRecord[]> {
+  try {
+    const response = await fetch("/api/files");
+    if (response.ok) {
+      const data = (await response.json()) as {
+        ok: boolean;
+        files?: UploadedFileRecord[];
+      };
+      if (data.ok && Array.isArray(data.files)) {
+        if (typeof window !== "undefined") {
+          const local = getUploadedFiles();
+          const merged: UploadedFileRecord[] = data.files.map((remote) => {
+            const localMatch = local.find(
+              (l) => l.id === remote.id || (remote.key && l.key === remote.key),
+            );
+            return {
+              ...remote,
+              dataUrl: localMatch?.dataUrl || remote.dataUrl,
+            };
+          });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        }
+        return category
+          ? data.files.filter((item) => item.category === category)
+          : data.files;
+      }
+    }
+  } catch {
+    // Network or offline fallback
+  }
+  return getUploadedFiles(category);
+}
+
 export function saveUploadedFile(file: UploadedFileRecord): void {
   if (typeof window === "undefined") return;
   const current = getUploadedFiles();
@@ -58,9 +94,22 @@ export function saveUploadedFile(file: UploadedFileRecord): void {
   window.dispatchEvent(new CustomEvent("workflow:uploaded-files-changed", { detail: file }));
 }
 
-export function deleteUploadedFile(fileId: string): void {
+export async function deleteUploadedFile(fileId: string, key?: string): Promise<void> {
   if (typeof window === "undefined") return;
   const current = getUploadedFiles();
+  const fileToDelete = current.find((item) => item.id === fileId);
+  const targetKey = key || fileToDelete?.key;
+
+  if (targetKey) {
+    try {
+      await fetch(`/api/files?key=${encodeURIComponent(targetKey)}`, {
+        method: "DELETE",
+      });
+    } catch {
+      // Best effort remote delete
+    }
+  }
+
   const updated = current.filter((item) => item.id !== fileId);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   window.dispatchEvent(
@@ -88,6 +137,7 @@ export async function uploadFileToR2(
 
   const recordId = `r2-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   let r2Url: string | undefined;
+  let remoteKey: string | undefined;
 
   // Attempt upload to Cloudflare Pages API endpoint
   try {
@@ -103,17 +153,21 @@ export async function uploadFileToR2(
       body: formData,
     });
     if (response.ok) {
-      const data = (await response.json()) as { url?: string };
+      const data = (await response.json()) as { url?: string; key?: string };
       if (data?.url) {
         r2Url = data.url;
       }
+      if (data?.key) {
+        remoteKey = data.key;
+      }
     }
   } catch {
-    // API endpoint might not be active in local dev or without R2 binding; fallback gracefully
+    // API endpoint might not be active in local dev; fallback gracefully
   }
 
   const record: UploadedFileRecord = {
     id: recordId,
+    key: remoteKey,
     fileName: file.name,
     fileSize: file.size,
     fileType: file.type || "application/octet-stream",
@@ -139,8 +193,8 @@ export function downloadFile(record: {
   const fileName =
     record.fileName || `${(record.title || "document").replace(/\s+/g, "_")}.pdf`;
   const href =
-    record.dataUrl ||
     record.url ||
+    record.dataUrl ||
     createPlaceholderDataUrl(fileName, record.title || fileName);
 
   const anchor = document.createElement("a");
