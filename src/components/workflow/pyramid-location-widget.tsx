@@ -831,7 +831,11 @@ export function PyramidLocationWidget({
     const l2Items = sized.flatMap((group, groupIndex) =>
       collapsedL1Ids.has(group.l1.id)
         ? []
-        : group.l2.map((branch) => ({ branch, groupIndex })),
+        : group.l2.map((branch, branchIndex) => ({
+            branch,
+            groupIndex,
+            isFirstInGroup: branchIndex === 0,
+          })),
     );
     const l2RowWidth = rowWidth(
       l2Items.map((item) => item.branch.l2.width),
@@ -882,7 +886,7 @@ export function PyramidLocationWidget({
     });
 
     layerX = l2Start;
-    l2Items.forEach(({ branch, groupIndex }) => {
+    l2Items.forEach(({ branch, groupIndex, isFirstInGroup }) => {
       const l1Card = l1Cards[groupIndex];
       if (!l1Card) return;
       const l2Status = l2Statuses.get(branch.l2.id) || "locked";
@@ -897,14 +901,16 @@ export function PyramidLocationWidget({
         status: l2Status,
       };
       cards.push(l2Card);
-      edges.push({
-        id: `${l1Card.id}->${l2Card.id}`,
-        from: l1Card,
-        to: l2Card,
-        direction: "down",
-        flowing: edgeFlows(l1Card.status, l2Card.status),
-        path: "",
-      });
+      if (isFirstInGroup) {
+        edges.push({
+          id: `${l1Card.id}->${l2Card.id}`,
+          from: l1Card,
+          to: l2Card,
+          direction: "down",
+          flowing: edgeFlows(l1Card.status, l2Card.status),
+          path: "",
+        });
+      }
       layerX += branch.l2.width + L2_GAP;
     });
 
@@ -1371,11 +1377,7 @@ export function PyramidLocationWidget({
                     key={`${card.layer}-${card.id}`}
                     type="button"
                     onClick={() => openCard(card)}
-                    className={`absolute flex cursor-pointer flex-col justify-center rounded-[3px] border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 [transform:translateZ(0)] [backface-visibility:hidden] ${statusTone(card.status, card.layer)} ${
-                      card.breathe
-                        ? `pyramid-breathe pyramid-breathe-${card.layer.toLowerCase()} transition-none`
-                        : "transition-shadow hover:shadow-md hover:ring-1 hover:ring-sky-500/40 overflow-hidden"
-                    }`}
+                    className={`absolute flex cursor-pointer flex-col justify-center rounded-[3px] border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 transition-shadow hover:shadow-md hover:ring-1 hover:ring-sky-500/40 ${statusTone(card.status, card.layer)}`}
                     style={{
                       left: Math.round(card.x),
                       top: Math.round(card.y),
@@ -1384,6 +1386,12 @@ export function PyramidLocationWidget({
                     }}
                     title={`Open ${card.layer} · ${card.label}`}
                   >
+                    {card.breathe ? (
+                      <span
+                        className={`pyramid-breathe-glow pyramid-breathe-glow-${card.layer.toLowerCase()}`}
+                        aria-hidden="true"
+                      />
+                    ) : null}
                     <div className="flex shrink-0 items-center justify-between gap-1">
                       <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         {card.layer}

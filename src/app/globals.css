@@ -322,51 +322,39 @@ button:disabled { cursor: not-allowed; }
   to { stroke-dashoffset: 0; }
 }
 
-.pyramid-breathe {
-  overflow: visible;
-  transition: none !important;
-  will-change: box-shadow, border-color;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+.pyramid-breathe-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: -3px;
+  border-radius: 6px;
+  will-change: opacity;
+  animation: pyramid-glow-pulse 3s ease-in-out infinite;
 }
-.pyramid-breathe-l1 {
-  animation: pyramid-breathe-l1 4s ease-in-out infinite;
+.pyramid-breathe-glow-l1 {
+  border: 1.5px solid rgb(52 211 153 / 85%);
+  box-shadow: 0 0 16px rgb(52 211 153 / 45%), inset 0 0 6px rgb(52 211 153 / 20%);
 }
-.pyramid-breathe-l2 {
-  animation: pyramid-breathe-l2 4s ease-in-out 0.4s infinite;
+.pyramid-breathe-glow-l2 {
+  border: 1.5px solid rgb(56 189 248 / 85%);
+  box-shadow: 0 0 16px rgb(56 189 248 / 45%), inset 0 0 6px rgb(56 189 248 / 20%);
 }
+.pyramid-breathe-glow-l3 {
+  border: 1.5px solid rgb(167 139 250 / 85%);
+  box-shadow: 0 0 16px rgb(167 139 250 / 45%), inset 0 0 6px rgb(167 139 250 / 20%);
+}
+@keyframes pyramid-glow-pulse {
+  0%, 100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+.pyramid-breathe,
+.pyramid-breathe-l1,
+.pyramid-breathe-l2,
 .pyramid-breathe-l3 {
-  animation: pyramid-breathe-l3 4s ease-in-out 0.8s infinite;
-}
-@keyframes pyramid-breathe-l1 {
-  0%, 100% {
-    border-color: rgb(21 154 117 / 50%);
-    box-shadow: 0 0 0 1px rgb(21 154 117 / 20%), 0 0 8px rgb(21 154 117 / 15%);
-  }
-  50% {
-    border-color: rgb(52 211 153 / 90%);
-    box-shadow: 0 0 0 2px rgb(52 211 153 / 40%), 0 0 16px rgb(52 211 153 / 30%);
-  }
-}
-@keyframes pyramid-breathe-l2 {
-  0%, 100% {
-    border-color: rgb(14 165 233 / 50%);
-    box-shadow: 0 0 0 1px rgb(14 165 233 / 20%), 0 0 8px rgb(14 165 233 / 15%);
-  }
-  50% {
-    border-color: rgb(56 189 248 / 90%);
-    box-shadow: 0 0 0 2px rgb(56 189 248 / 40%), 0 0 16px rgb(56 189 248 / 30%);
-  }
-}
-@keyframes pyramid-breathe-l3 {
-  0%, 100% {
-    border-color: rgb(139 92 246 / 50%);
-    box-shadow: 0 0 0 1px rgb(139 92 246 / 20%), 0 0 8px rgb(139 92 246 / 15%);
-  }
-  50% {
-    border-color: rgb(167 139 250 / 90%);
-    box-shadow: 0 0 0 2px rgb(167 139 250 / 40%), 0 0 16px rgb(167 139 250 / 30%);
-  }
+  animation: none;
 }
 
 @keyframes context-minimap-breathe {
