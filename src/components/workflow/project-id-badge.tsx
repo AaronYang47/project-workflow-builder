@@ -43,9 +43,8 @@ export function ProjectIdBadge({
   const onDark = tone === "onDark";
   const large = size === "large";
   const containerSize = large ? "max-w-[min(100%,17rem)]" : "max-w-[min(100%,15rem)]";
-  const containerPad = large ? "px-3 py-2 gap-1.5" : "px-2.5 py-1.5 gap-1";
+  const containerPad = large ? "px-2.5 py-1.5 gap-1" : "px-2 py-1 gap-0.5";
   const idSize = large ? "text-[14px]" : "text-[12px]";
-  const legacySize = large ? "px-2 py-0.5 text-[11px]" : "px-1.5 py-0.5 text-[10px]";
 
   return (
     <span
@@ -64,23 +63,32 @@ export function ProjectIdBadge({
         className,
       )}
     >
-      <span className={cn(idSize, "whitespace-nowrap font-bold text-foreground dark:text-white")}>
+      <span className={cn(idSize, "whitespace-nowrap font-bold text-right text-foreground dark:text-white")}>
         {ready ? displayedId : "L-—"}
       </span>
-      <span
-        className={cn(
-          "rounded font-semibold tracking-tight",
-          legacySize,
-          onDark
-            ? ready
-              ? "bg-white/20 text-white"
-              : "bg-white/15 text-white/70"
-            : ready
-              ? "bg-slate-200/70 text-slate-700 dark:bg-white/15 dark:text-slate-100"
-              : "bg-background text-muted-foreground",
-        )}
-      >
-        Legacy {ready ? legacy || "—" : "—"}
+      <span className="flex items-baseline justify-end gap-1 whitespace-nowrap text-right font-mono">
+        <span
+          className={cn(
+            "font-semibold tracking-wider uppercase",
+            large ? "text-[10px]" : "text-[9px]",
+            onDark
+              ? "text-white/70"
+              : "text-muted-foreground/80 dark:text-slate-400",
+          )}
+        >
+          Legacy
+        </span>
+        <span
+          className={cn(
+            "font-bold tracking-tight text-right",
+            large ? "text-[12px]" : "text-[11px]",
+            onDark
+              ? "text-white"
+              : "text-foreground dark:text-white",
+          )}
+        >
+          {ready ? legacy || "—" : "—"}
+        </span>
       </span>
     </span>
   );
