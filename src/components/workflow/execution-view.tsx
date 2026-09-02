@@ -320,6 +320,27 @@ export function ExecutionView({
   >(null);
 
   const node = file.graph.nodes.find((item) => item.id === nodeId);
+  const highLevelNodes = useWorkflowStore(
+    (state) => state.file.highLevel?.graph.nodes ?? [],
+  );
+
+  const l1Title = useMemo(() => {
+    if (!nodeId) return "High Level";
+    const owner = highLevelNodes.find((hl) => {
+      const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
+      return ids.includes(nodeId);
+    });
+    if (owner?.title?.trim()) return owner.title.trim();
+    if (
+      node?.config?.stage &&
+      typeof node.config.stage === "string" &&
+      node.config.stage.trim()
+    ) {
+      return node.config.stage.trim();
+    }
+    return highLevelNodes[0]?.title?.trim() || "High Level";
+  }, [highLevelNodes, nodeId, node?.config?.stage]);
+
   const conditions = useMemo(() => node?.conditions || [], [node?.conditions]);
   const currentCondition = useMemo(() => {
     if (!conditions.length) return null;
@@ -330,6 +351,12 @@ export function ExecutionView({
     }
     return conditions[0];
   }, [conditions, activeConditionId]);
+
+  const l2Title = node?.title?.trim() || "Detailed Workflow";
+  const l3Title =
+    currentCondition?.label?.trim() ||
+    currentCondition?.description?.trim() ||
+    "Execution Layer";
 
   const items = useMemo(
     () =>
@@ -601,21 +628,30 @@ export function ExecutionView({
             Back to L2
           </Button>
           <div className="min-w-0 border-l pl-3">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
-                L3 · Execution Layer
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                L1 {l1Title}
               </span>
-              <span className="text-xs text-muted-foreground">/</span>
-              <h1 className="truncate text-sm font-bold text-foreground">
-                {node.title}
+              <span className="font-mono text-xs font-bold text-muted-foreground/60">&gt;</span>
+              <button
+                type="button"
+                onClick={onBack}
+                title="Back to L2 Detailed Workflow"
+                className="font-mono text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+              >
+                L2 <span>{l2Title}</span>
+              </button>
+              <span className="font-mono text-xs font-bold text-muted-foreground/60">&gt;</span>
+              <h1 className="font-mono text-xs font-bold text-violet-600 dark:text-violet-400 truncate">
+                L3 <span>{l3Title}</span>
               </h1>
               <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 Required files
               </span>
             </div>
-            {currentCondition ? (
-              <p className="text-[11px] font-medium text-muted-foreground truncate max-w-md">
-                Condition: <span className="font-semibold text-foreground">{currentCondition.label || currentCondition.description}</span>
+            {currentCondition?.description && currentCondition.description.trim() !== l3Title ? (
+              <p className="text-[11px] font-medium text-muted-foreground truncate max-w-md mt-0.5">
+                Condition: <span className="font-semibold text-foreground">{currentCondition.description.trim()}</span>
               </p>
             ) : null}
           </div>
@@ -1170,7 +1206,7 @@ export function ExecutionView({
           </span>
         </div>
         <p className="text-[11px] font-mono text-muted-foreground">
-          L3 Architecture · R2 Document Sync
+          <span>L3 · Execution Layer</span> · R2 Document Sync
         </p>
       </footer>
 
