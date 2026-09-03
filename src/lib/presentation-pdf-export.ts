@@ -1,4 +1,73 @@
-import type { WorkflowFile } from "@/types/workflow";
+import type { WorkflowFile, DomainNode, HighLevelNode } from "@/types/workflow";
+import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import { isReferenceNodeType } from "@/types/workflow";
+
+const PHASE_THEMES = [
+  {
+    badge: "#0284c7",
+    bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+    border: "#bae6fd",
+    text: "#0c4a6e",
+    accent: "#0284c7",
+    subtext: "#0369a1",
+    tagBg: "#e0f2fe",
+  },
+  {
+    badge: "#d97706",
+    bg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+    border: "#fde68a",
+    text: "#78350f",
+    accent: "#d97706",
+    subtext: "#b45309",
+    tagBg: "#fef3c7",
+  },
+  {
+    badge: "#7c3aed",
+    bg: "linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)",
+    border: "#ddd6fe",
+    text: "#4c1d95",
+    accent: "#7c3aed",
+    subtext: "#6d28d9",
+    tagBg: "#ede9fe",
+  },
+  {
+    badge: "#059669",
+    bg: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+    border: "#a7f3d0",
+    text: "#064e3b",
+    accent: "#059669",
+    subtext: "#047857",
+    tagBg: "#d1fae5",
+  },
+  {
+    badge: "#0891b2",
+    bg: "linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)",
+    border: "#a5f3fc",
+    text: "#164e63",
+    accent: "#0891b2",
+    subtext: "#0e7490",
+    tagBg: "#cffafe",
+  },
+  {
+    badge: "#475569",
+    bg: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+    border: "#cbd5e1",
+    text: "#1e293b",
+    accent: "#475569",
+    subtext: "#334155",
+    tagBg: "#e2e8f0",
+  },
+];
+
+function escapeHtml(str?: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -12,6 +81,74 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     month: "short",
     day: "numeric",
   });
+
+  const allNodes = file.graph.nodes || [];
+  const layout = file.layout.nodes || {};
+  const executionItems = file.execution?.items || [];
+  const highLevelNodes = file.highLevel?.graph.nodes || [];
+  const highLevelEdges = file.highLevel?.graph.edges || [];
+
+  // 1. Determine L1 Phases from actual project
+  let orderedL1: HighLevelNode[] = [];
+  if (highLevelNodes.length > 0) {
+    orderedL1 = orderHighLevelNodes(highLevelNodes, highLevelEdges);
+  } else {
+    // Fallback if highLevel graph is empty: look for phase nodes in L2
+    const phaseNodes = allNodes.filter((n) => n.type === "phase");
+    if (phaseNodes.length > 0) {
+      orderedL1 = phaseNodes.map((p, idx) => ({
+        id: p.id,
+        type: "phase" as const,
+        title: p.title || `Phase ${idx + 1}`,
+        description: p.description || "",
+        code: `PHASE-0${idx + 1}`,
+      }));
+    } else {
+      // Single group fallback
+      orderedL1 = [
+        {
+          id: "hl-all",
+          type: "phase" as const,
+          title: "Project Lifecycle",
+          description: "Full workflow lifecycle",
+          code: "PHASE-01",
+        },
+      ];
+    }
+  }
+
+  // Helper to resolve linked L2 nodes for an L1 phase
+  const getLinkedL2Nodes = (l1Node: HighLevelNode): DomainNode[] => {
+    const explicitIds = l1Node.linkedLayer2NodeIds ?? l1Node.linkedDetailedNodeIds ?? [];
+    if (explicitIds.length > 0) {
+      const orderedIds = orderLinkedWorkflowNodeIds(explicitIds, allNodes);
+      return orderedIds
+        .map((id) => allNodes.find((n) => n.id === id))
+        .filter((n): n is DomainNode => Boolean(n && !isReferenceNodeType(n.type)));
+    }
+
+    // Check by parentId in layout or phaseId in config
+    const byParent = allNodes.filter(
+      (n) =>
+        !isReferenceNodeType(n.type) &&
+        n.type !== "phase" &&
+        (layout[n.id]?.parentId === l1Node.id ||
+          n.config?.phaseId === l1Node.id ||
+          (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title)),
+    );
+    if (byParent.length > 0) return byParent;
+
+    // If single phase, include all non-reference non-phase nodes
+    if (orderedL1.length === 1) {
+      return allNodes.filter((n) => !isReferenceNodeType(n.type) && n.type !== "phase");
+    }
+
+    return [];
+  };
+
+  const totalPhases = orderedL1.length;
+  const totalL2Nodes = allNodes.filter((n) => !isReferenceNodeType(n.type) && n.type !== "phase").length;
+  const totalL3Items = executionItems.length;
 
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -28,7 +165,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.color = "#0f172a";
   container.style.fontFamily =
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
-  container.style.padding = "24px 30px";
+  container.style.padding = "22px 28px";
   container.style.boxSizing = "border-box";
   container.style.display = "flex";
   container.style.flexDirection = "column";
@@ -36,457 +173,344 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.lineHeight = "1.3";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
+  // Calculate dynamic row height based on number of phases
+  const rowHeightPx = Math.max(140, Math.floor(900 / Math.max(1, totalPhases)));
+
+  let phaseRowsHtml = "";
+
+  orderedL1.forEach((l1Node, phaseIdx) => {
+    const theme = PHASE_THEMES[phaseIdx % PHASE_THEMES.length];
+    const linkedL2 = getLinkedL2Nodes(l1Node);
+
+    // Collect all conditions and execution items from linked L2 nodes
+    const phaseConditions: Array<{ label: string; checked: boolean; nodeTitle: string; description?: string }> = [];
+    const phaseForms: Array<{ code: string; title: string; role: string; type: string }> = [];
+
+    // Find any gates in this phase
+    const gateNodes = linkedL2.filter(
+      (n) =>
+        n.type === "gate" ||
+        n.title.toLowerCase().includes("gate") ||
+        n.title.toLowerCase().startsWith("g1") ||
+        n.title.toLowerCase().startsWith("g2") ||
+        n.title.toLowerCase().startsWith("g3") ||
+        n.title.toLowerCase().startsWith("g4") ||
+        n.title.toLowerCase().startsWith("g5"),
+    );
+
+    linkedL2.forEach((l2Node) => {
+      // 1. Conditions
+      if (l2Node.conditions && l2Node.conditions.length > 0) {
+        l2Node.conditions.forEach((c) => {
+          if (c.label?.trim()) {
+            phaseConditions.push({
+              label: c.label.trim(),
+              checked: Boolean(c.checked),
+              nodeTitle: l2Node.title,
+              description: c.description?.trim(),
+            });
+          }
+        });
+      }
+
+      // 2. Execution Items (Forms)
+      const linkedItems = executionItems.filter(
+        (item) =>
+          item.linkedLayer2NodeId === l2Node.id ||
+          l2Node.conditions?.some((c) => c.linkedExecutionItemId === item.id),
+      );
+      linkedItems.forEach((item) => {
+        phaseForms.push({
+          code: item.documentCode || item.documentNumber || item.catalogId || "DOC",
+          title: item.title?.replace(/^[A-Z0-9-—/ ]+\/\s*/, "") || item.title || "Form",
+          role: item.responsibleRole || "Owner",
+          type: item.type,
+        });
+      });
+
+      // 3. Fallback to node documents if no execution items found
+      if (linkedItems.length === 0 && l2Node.documents && l2Node.documents.length > 0) {
+        l2Node.documents.forEach((docTitle, docIdx) => {
+          phaseForms.push({
+            code: `DOC-0${docIdx + 1}`,
+            title: docTitle,
+            role: "Assigned",
+            type: "Document",
+          });
+        });
+      }
+    });
+
+    // Deduplicate forms
+    const uniqueForms = phaseForms.filter(
+      (form, idx, arr) => arr.findIndex((f) => f.code === form.code && f.title === form.title) === idx,
+    );
+
+    // Build L2 Stages HTML
+    let l2StagesHtml = "";
+    if (linkedL2.length === 0) {
+      l2StagesHtml = `
+        <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 8px 12px; text-align: center; color: #94a3b8; font-size: 10px;">
+          No detailed L2 workflow nodes linked to this phase.
+        </div>
+      `;
+    } else if (linkedL2.length <= 4) {
+      // Linear column stack
+      l2StagesHtml = linkedL2
+        .map((node, nIdx) => {
+          const isGate =
+            node.type === "gate" ||
+            node.title.toLowerCase().includes("gate") ||
+            node.title.toLowerCase().startsWith("g1") ||
+            node.title.toLowerCase().startsWith("g2") ||
+            node.title.toLowerCase().startsWith("g3") ||
+            node.title.toLowerCase().startsWith("g4") ||
+            node.title.toLowerCase().startsWith("g5");
+
+          const subtitle =
+            node.description?.trim() ||
+            (node.config?.stage as string) ||
+            (isGate ? "Primary Gate Control Point" : "Workflow Execution Step");
+
+          return `
+            <div style="background: #ffffff; border: 1px solid ${isGate ? theme.border : "#e2e8f0"}; border-radius: 6px; padding: 6px 10px; border-left: 3.5px solid ${isGate ? theme.accent : "#64748b"};">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 10px; font-weight: 700; color: #0f172a;">
+                  ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
+                </span>
+                ${
+                  isGate
+                    ? `<span style="background: ${theme.tagBg}; color: ${theme.subtext}; font-size: 8px; font-weight: 800; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">🚦 Gate</span>`
+                    : `<span style="background: #f1f5f9; color: #475569; font-size: 8px; font-weight: 600; padding: 1px 5px; border-radius: 3px;">Step</span>`
+                }
+              </div>
+              <p style="margin: 0; font-size: 8.5px; color: #64748b; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(subtitle)}
+              </p>
+            </div>
+            ${
+              nIdx < linkedL2.length - 1
+                ? `<div style="text-align: center; color: #94a3b8; font-size: 9px; line-height: 0.8; font-weight: 800; margin: 1px 0;">↓</div>`
+                : ""
+            }
+          `;
+        })
+        .join("");
+    } else {
+      // 2-column compact grid for 5+ nodes
+      l2StagesHtml = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 100%; overflow: hidden;">
+          ${linkedL2
+            .map((node, nIdx) => {
+              const isGate = node.type === "gate" || node.title.toLowerCase().includes("gate");
+              return `
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 6px; border-left: 3px solid ${isGate ? theme.accent : "#94a3b8"};">
+                  <div style="font-size: 9px; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
+                  </div>
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+      `;
+    }
+
+    // Build L3 Conditions HTML
+    let conditionsHtml = "";
+    if (phaseConditions.length > 0) {
+      conditionsHtml = phaseConditions
+        .slice(0, 3)
+        .map(
+          (c) => `
+          <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 9px; color: #334155; line-height: 1.25;">
+            <span style="color: ${c.checked ? "#059669" : "#64748b"}; font-weight: 800;">${c.checked ? "✓" : "☑"}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+              <strong>${escapeHtml(c.label)}</strong>${c.description ? ` · <span style="color: #64748b;">${escapeHtml(c.description)}</span>` : ""}
+            </span>
+          </div>
+        `,
+        )
+        .join("");
+    } else {
+      // Synthesize conditions from L2 node titles if no explicit conditions
+      conditionsHtml = linkedL2
+        .slice(0, 2)
+        .map(
+          (node) => `
+          <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 9px; color: #334155; line-height: 1.25;">
+            <span style="color: #059669; font-weight: 800;">✓</span>
+            <span><strong>${escapeHtml(node.title)}:</strong> Complete verification and authorized release criteria.</span>
+          </div>
+        `,
+        )
+        .join("");
+    }
+
+    // Build L3 Forms HTML
+    let formsHtml = "";
+    if (uniqueForms.length > 0) {
+      formsHtml = uniqueForms
+        .slice(0, 8)
+        .map(
+          (form) => `
+          <span style="background: #f8fafc; border: 1px solid #cbd5e1; font-size: 8px; font-weight: 600; padding: 2px 5px; border-radius: 3px; color: #1e293b; white-space: nowrap;">
+            <strong>[${escapeHtml(form.code)}]</strong> ${escapeHtml(form.title)} <span style="color: #64748b; font-size: 7.5px;">(${escapeHtml(form.role)})</span>
+          </span>
+        `,
+        )
+        .join("");
+    } else {
+      formsHtml = `
+        <span style="color: #94a3b8; font-size: 8.5px; font-style: italic;">No specific controlled forms registered for this phase.</span>
+      `;
+    }
+
+    const phaseCode = l1Node.code || `PHASE-0${phaseIdx + 1}`;
+    const phaseTitle = l1Node.title || `Phase ${phaseIdx + 1}`;
+    const phaseSubtitle = l1Node.description || "Active Lifecycle Phase";
+
+    phaseRowsHtml += `
+      <!-- PHASE ROW ${phaseIdx + 1} -->
+      <div style="display: grid; grid-template-columns: 260px 460px 1fr; gap: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; min-height: ${rowHeightPx}px; height: 100%;">
+        
+        <!-- L1 Card (Left Column) -->
+        <div style="background: ${theme.bg}; border-right: 1px solid ${theme.border}; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="background: ${theme.badge}; color: #ffffff; font-size: 8.5px; font-weight: 800; padding: 2px 6px; border-radius: 3px; text-transform: uppercase;">
+                ${escapeHtml(phaseCode)}
+              </span>
+              <span style="font-size: 8.5px; font-weight: 700; color: ${theme.subtext};">
+                ${linkedL2.length} L2 Step${linkedL2.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <h2 style="margin: 0 0 2px 0; font-size: 13.5px; font-weight: 800; color: ${theme.text}; line-height: 1.2;">
+              ${escapeHtml(phaseTitle)}
+            </h2>
+            <p style="margin: 0; font-size: 9px; color: #334155; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+              ${escapeHtml(phaseSubtitle)}
+            </p>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px;">
+            ${
+              gateNodes.length > 0
+                ? gateNodes
+                    .map(
+                      (g) => `
+                    <div style="background: #ffffff; border: 1px solid ${theme.border}; border-radius: 4px; padding: 3px 6px; display: flex; align-items: center; justify-content: space-between;">
+                      <span style="font-size: 8.5px; font-weight: 800; color: ${theme.accent};">🚦 Gate</span>
+                      <span style="font-size: 8px; font-weight: 600; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;">
+                        ${escapeHtml(g.title)}
+                      </span>
+                    </div>
+                  `,
+                    )
+                    .join("")
+                : `
+                  <div style="background: rgba(255,255,255,0.7); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 3px 6px; text-align: center; font-size: 8px; color: ${theme.subtext};">
+                    Continuous Phase Controls
+                  </div>
+                `
+            }
+          </div>
+        </div>
+
+        <!-- L2 Stages (Middle Column) -->
+        <div style="padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa; overflow: hidden;">
+          ${l2StagesHtml}
+        </div>
+
+        <!-- L3 Release Conditions & Documents (Right Column) -->
+        <div style="padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; overflow: hidden;">
+          <div>
+            <div style="font-size: 9px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">
+              Release Conditions & Gate Rules
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              ${conditionsHtml}
+            </div>
+          </div>
+
+          <div style="margin-top: 4px;">
+            <div style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 3px;">
+              Controlled Forms, Master Records & Artifacts
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+              ${formsHtml}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+  });
+
   const html = `
     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
       
       <!-- TOP HEADER BAR -->
-      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <span style="background: #0f172a; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 3px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px;">
+            <span style="background: #0f172a; color: #ffffff; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 2px 6px; border-radius: 3px;">
               L1 · L2 · L3 Process Architecture
             </span>
-            <span style="background: #0284c7; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 3px;">
-              4 Phases · 5 Primary Gates · 52 Controlled Documents
+            <span style="background: #0284c7; color: #ffffff; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px;">
+              ${totalPhases} Phases · ${totalL2Nodes} Workflow Steps · ${totalL3Items} Controlled Items
             </span>
           </div>
-          <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
-            ${projectName}
+          <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+            ${escapeHtml(projectName)}
           </h1>
-          <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b; font-weight: 500;">
-            End-to-End Modular Construction Workflow: Macro Lifecycle (L1) → Bounded Stages (L2) → Release Conditions & Controlled Forms (L3)
+          <p style="margin: 1px 0 0 0; font-size: 10.5px; color: #64748b; font-weight: 500;">
+            Current Project Workflow Structure: L1 High-Level Phases → L2 Detailed Stages & Gates → L3 Release Conditions & Deliverables
           </p>
         </div>
         
-        <div style="text-align: right; font-size: 10.5px; color: #475569; display: flex; gap: 20px; align-items: center;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; text-align: left;">
-            <div style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700;">Project Number</div>
-            <div style="font-weight: 800; font-family: monospace; font-size: 12px; color: #0f172a;">${projectNumber}</div>
+        <div style="text-align: right; font-size: 10px; color: #475569; display: flex; gap: 14px; align-items: center;">
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 4px 10px; text-align: left;">
+            <div style="font-size: 8.5px; color: #64748b; text-transform: uppercase; font-weight: 700;">Project Number</div>
+            <div style="font-weight: 800; font-family: monospace; font-size: 11px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
           </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; text-align: left;">
-            <div style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700;">Revision / Date</div>
-            <div style="font-weight: 700; font-size: 11px; color: #0f172a;">${version} · ${timestamp}</div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 4px 10px; text-align: left;">
+            <div style="font-size: 8.5px; color: #64748b; text-transform: uppercase; font-weight: 700;">Revision / Date</div>
+            <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">${escapeHtml(version)} · ${timestamp}</div>
           </div>
         </div>
       </div>
 
       <!-- MAIN 3-ZONE TABLE / GRID -->
-      <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin-top: 10px; margin-bottom: 10px; gap: 8px;">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin-top: 8px; margin-bottom: 8px; gap: 6px;">
         
         <!-- COLUMN TITLES HEADER -->
-        <div style="display: grid; grid-template-columns: 260px 450px 1fr; gap: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0 4px;">
+        <div style="display: grid; grid-template-columns: 260px 460px 1fr; gap: 12px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0 4px;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span>
-            L1 · 4 Lifecycle Phases & Gates
+            L1 · High-Level Phases (${totalPhases})
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #6366f1;"></span>
-            L2 · Bounded Stages & Operational Flow
+            L2 · Detailed Workflow Stages (${totalL2Nodes})
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
-            L3 · Release Conditions & Controlled Deliverables
+            L3 · Release Conditions & Controlled Documents
           </div>
         </div>
 
-        <!-- ==================== PHASE 1 ROW ==================== -->
-        <div style="display: grid; grid-template-columns: 260px 450px 1fr; gap: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; height: 215px;">
-          <!-- L1 Card -->
-          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-right: 1px solid #bae6fd; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Phase 01</span>
-                <span style="font-size: 9px; font-weight: 700; color: #0369a1;">P01 — Opportunity</span>
-              </div>
-              <h2 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #0c4a6e; line-height: 1.2;">
-                Opportunity & Pre-Con
-              </h2>
-              <p style="margin: 0; font-size: 9.5px; color: #334155; line-height: 1.3;">
-                Qualify client authority, establish project scale, lock Class C basis and 4-party boundaries.
-              </p>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="background: #ffffff; border: 1px solid #7dd3fc; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #0284c7;">🚦 Gate G1</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #0369a1;">Commercially Engaged</span>
-              </div>
-              <div style="background: #ffffff; border: 1px solid #7dd3fc; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #0284c7;">🚦 Gate G2</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #0369a1;">Technical Commitment</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- L2 Stages -->
-          <div style="padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa;">
-            <!-- Stage 1.1 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #0284c7;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">1.1 Project Intake & Qualification</span>
-                <span style="background: #e0f2fe; color: #0369a1; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Routes: CSA / Class D / PCS / LOI</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Evidence intake (Storeys, GFA, Site, Budget). Hard blocker check: Unknown authority or incompatible design triggers Hold.
-              </p>
-            </div>
-
-            <!-- Down Arrow Indicator -->
-            <div style="text-align: center; color: #94a3b8; font-size: 10px; line-height: 1; font-weight: 800;">↓</div>
-
-            <!-- Stage 1.2 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #0284c7;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">1.2 Design Basis & Scope Delineation</span>
-                <span style="background: #e0f2fe; color: #0369a1; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Class C & SOW Convergence</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Architectural/MEP coordination, PDAF design freeze, 4-party Responsibility Matrix (RM), SOW and formal Sales Agreement.
-              </p>
-            </div>
-          </div>
-
-          <!-- L3 Release Conditions & Documents -->
-          <div style="padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
-            <div>
-              <div style="font-size: 9.5px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;">
-                Release Conditions & Governance Rules
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 3.5px; font-size: 9.5px; color: #334155;">
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>G1 Release:</strong> Validated storeys & GFA, named decision authority, eligible commercial route executed (no bypass).</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>G2 Release:</strong> PDAF design freeze, Class C budget signed, 4-Party Responsibility Matrix (RM) & SOW accepted.</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size: 8.5px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
-                Key Controlled Master Forms & Artifacts
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-01]</strong> CRM Intake (Sales)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-04]</strong> Client Qual (Sales)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-07]</strong> CEC-D Estimate (Est)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-14]</strong> PDAF Design Auth (Eng)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-18]</strong> SOW Scope (PM)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-20]</strong> Responsibility Matrix (PM)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-21]</strong> Sales Agreement (Legal)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ==================== PHASE 2 ROW ==================== -->
-        <div style="display: grid; grid-template-columns: 260px 450px 1fr; gap: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; height: 215px;">
-          <!-- L1 Card -->
-          <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-right: 1px solid #fde68a; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Phase 02</span>
-                <span style="font-size: 9px; font-weight: 700; color: #b45309;">P02 — Readiness</span>
-              </div>
-              <h2 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #78350f; line-height: 1.2;">
-                Production Readiness
-              </h2>
-              <p style="margin: 0; font-size: 9.5px; color: #334155; line-height: 1.3;">
-                Freeze shop drawings, secure building permits, confirm signed PSO and lock production slot.
-              </p>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="background: #ffffff; border: 1px solid #fcd34d; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #d97706;">🚦 Gate G3</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #b45309;">Production Authorization</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- L2 Stages -->
-          <div style="padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa;">
-            <!-- Stage 2.1 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #d97706;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">2.1 Shop Drawings & Permit Tracking</span>
-                <span style="background: #fef3c7; color: #b45309; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Technical Inputs Freeze</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Final fabrication details, engineering stamping, client sign-off on finishes, and municipal permit clearance.
-              </p>
-            </div>
-
-            <!-- Down Arrow Indicator -->
-            <div style="text-align: center; color: #94a3b8; font-size: 10px; line-height: 1; font-weight: 800;">↓</div>
-
-            <!-- Stage 2.2 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #d97706;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">2.2 PSO Execution & Master Schedule (MPS)</span>
-                <span style="background: #fef3c7; color: #b45309; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Commercial & Plant Release</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Execute Production Shop Order (PSO), verify production deposit, allocate plant line capacity, lock procurement.
-              </p>
-            </div>
-          </div>
-
-          <!-- L3 Release Conditions & Documents -->
-          <div style="padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
-            <div>
-              <div style="font-size: 9.5px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;">
-                Release Conditions & Governance Rules
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 3.5px; font-size: 9.5px; color: #334155;">
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>Shop Drawings:</strong> 100% approved by client & engineering; unapproved details block factory start.</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>G3 Release:</strong> Executed PSO + verified manufacturing funds + confirmed MPS line allocation.</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size: 8.5px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
-                Key Controlled Master Forms & Artifacts
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-22]</strong> Shop Order PSO (PM/Eng)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-25]</strong> Permit Tracker (PM)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-28]</strong> Master Schedule MPS (Plant)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-30]</strong> Change Order PCO (PM)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ==================== PHASE 3 ROW ==================== -->
-        <div style="display: grid; grid-template-columns: 260px 450px 1fr; gap: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; height: 215px;">
-          <!-- L1 Card -->
-          <div style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-right: 1px solid #ddd6fe; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="background: #7c3aed; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Phase 03</span>
-                <span style="font-size: 9px; font-weight: 700; color: #6d28d9;">P03 — Factory</span>
-              </div>
-              <h2 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #4c1d95; line-height: 1.2;">
-                Factory Production
-              </h2>
-              <p style="margin: 0; font-size: 9.5px; color: #334155; line-height: 1.3;">
-                Fabricate modules, conduct station inspections, control NCRs, and execute dual-release dispatch.
-              </p>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="background: #ffffff; border: 1px solid #c4b5fd; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #7c3aed;">🚦 Gate G4</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #6d28d9;">Factory Completion & Release</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- L2 Stages -->
-          <div style="padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa;">
-            <!-- Stage 3.1 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #7c3aed;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">3.1 Modular Fabrication & Station Travelers</span>
-                <span style="background: #ede9fe; color: #6d28d9; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Structure · MEP · Finishes</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Framing, electrical/plumbing rough-in, pressure testing, insulation, drywall, cabinetry and final trim.
-              </p>
-            </div>
-
-            <!-- Down Arrow Indicator -->
-            <div style="text-align: center; color: #94a3b8; font-size: 10px; line-height: 1; font-weight: 800;">↓</div>
-
-            <!-- Stage 3.2 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #7c3aed;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">3.2 QA/QC Inspection, NCR & Release Check</span>
-                <span style="background: #ede9fe; color: #6d28d9; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Dual-Unlock Release</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Independent quality audit, non-conformance remediation, MSO sign-off, staging wrap, and transport coordination.
-              </p>
-            </div>
-          </div>
-
-          <!-- L3 Release Conditions & Documents -->
-          <div style="padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
-            <div>
-              <div style="font-size: 9.5px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;">
-                Release Conditions & Governance Rules
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 3.5px; font-size: 9.5px; color: #334155;">
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>MQC Sign-off:</strong> 100% Station Travelers signed; all critical inspections and testing passed.</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>G4 Dual-Release:</strong> Factory completion signed (MSO) + site foundation ready & transport cleared.</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size: 8.5px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
-                Key Controlled Master Forms & Artifacts
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-33]</strong> Traveler / Route Card (QC)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-35]</strong> Module Sign-off MSO (QC)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-38]</strong> Factory QC Report (Plant)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-40]</strong> Non-Conformance NCR (QC)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ==================== PHASE 4 ROW ==================== -->
-        <div style="display: grid; grid-template-columns: 260px 450px 1fr; gap: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; height: 215px;">
-          <!-- L1 Card -->
-          <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-right: 1px solid #a7f3d0; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="background: #059669; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Phase 04</span>
-                <span style="font-size: 9px; font-weight: 700; color: #047857;">P04 — Delivery & Close</span>
-              </div>
-              <h2 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #064e3b; line-height: 1.2;">
-                Delivery & Final Close
-              </h2>
-              <p style="margin: 0; font-size: 9.5px; color: #334155; line-height: 1.3;">
-                Site set, stitch interfaces, punchlist resolution, warranty initiation, and commercial closeout.
-              </p>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="background: #ffffff; border: 1px solid #6ee7b7; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #059669;">🚦 Gate G5</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #047857;">Warranty Start</span>
-              </div>
-              <div style="background: #ffffff; border: 1px solid #6ee7b7; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #059669;">🏁 Final Close</span>
-                <span style="font-size: 8.5px; font-weight: 600; color: #047857;">Commercial Reconciliation</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- L2 Stages -->
-          <div style="padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa;">
-            <!-- Stage 4.1 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #059669;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">4.1 Transport, Crane Set & Site Interconnection</span>
-                <span style="background: #d1fae5; color: #047857; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Site Ready · Crane · Set</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                Site access check, bill of lading receipt, crane rigging, module placement, structural stitch, utility tie-ins.
-              </p>
-            </div>
-
-            <!-- Down Arrow Indicator -->
-            <div style="text-align: center; color: #94a3b8; font-size: 10px; line-height: 1; font-weight: 800;">↓</div>
-
-            <!-- Stage 4.2 -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #059669;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-size: 10.5px; font-weight: 700; color: #0f172a;">4.2 Commissioning, Warranty & Final Close</span>
-                <span style="background: #d1fae5; color: #047857; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">Substantial Completion</span>
-              </div>
-              <p style="margin: 0; font-size: 9px; color: #64748b;">
-                HVAC/plumbing start-up, punch list disposition, handover manuals, warranty tracking, final accounting reconciliation.
-              </p>
-            </div>
-          </div>
-
-          <!-- L3 Release Conditions & Documents -->
-          <div style="padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
-            <div>
-              <div style="font-size: 9.5px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px;">
-                Release Conditions & Governance Rules
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 3.5px; font-size: 9.5px; color: #334155;">
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>G5 Release:</strong> Substantial completion executed; non-critical punch items recorded with fixed resolution dates.</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 5px;">
-                  <span style="color: #059669; font-weight: 800;">✓</span>
-                  <span><strong>Final Close:</strong> All warranty obligations completed, change orders finalized, final billing reconciled.</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size: 8.5px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
-                Key Controlled Master Forms & Artifacts
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-43]</strong> Site Ready Checklist (Site)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-46]</strong> Bill of Lading BOL (Logistics)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-49]</strong> Substantial Completion (PM)
-                </span>
-                <span style="background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #1e293b;">
-                  <strong>[F-52]</strong> Warranty & Final Close (PM/Fin)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        ${phaseRowsHtml}
 
       </div>
 
       <!-- BOTTOM FOOTER & SIGN-OFF BAR -->
-      <div style="border-top: 1px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-        <div style="display: flex; gap: 16px; align-items: center;">
-          <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 9.5px;">Standard Rules:</span>
-          <span>● <strong>Process before Forms:</strong> L1 lifecycle governs L2 flow; L3 owns controlled records.</span>
-          <span>● <strong>Main Gates:</strong> Only G1–G5 are primary release points.</span>
-          <span>● <strong>Dual Release:</strong> Factory complete is not shipment release without site clearance.</span>
+      <div style="border-top: 1px solid #cbd5e1; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #64748b;">
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 9px;">System Traceability:</span>
+          <span>● <strong>Dynamic Mapping:</strong> Directly rendered from current project workspace nodes & connections.</span>
+          <span>● <strong>Stage Governance:</strong> Each L2 step inherits its parent L1 lifecycle phase.</span>
+          <span>● <strong>Release Integrity:</strong> L3 conditions block progress until verified.</span>
         </div>
         <div style="font-weight: 600; color: #0f172a;">
           ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
