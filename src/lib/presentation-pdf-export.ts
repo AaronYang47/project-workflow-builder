@@ -2,7 +2,7 @@ import type { WorkflowFile, DomainNode, HighLevelNode, NodeLayout } from "@/type
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { conditionIsSatisfied } from "@/lib/workflow-progress";
 
-// 1:1 Matching colors from the app canvas (Green -> Pink -> Amber -> Yellow)
+// High-contrast, crystal-clear Phase themes (Green -> Pink -> Amber -> Sky Blue)
 const DEFAULT_PHASE_THEMES = [
   {
     badge: "#10b981",
@@ -32,15 +32,6 @@ const DEFAULT_PHASE_THEMES = [
     tagBg: "#fef3c7",
   },
   {
-    badge: "#eab308",
-    bg: "linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)",
-    border: "#fef08a",
-    text: "#713f12",
-    accent: "#eab308",
-    subtext: "#854d0e",
-    tagBg: "#fef9c3",
-  },
-  {
     badge: "#0284c7",
     bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
     border: "#bae6fd",
@@ -48,6 +39,15 @@ const DEFAULT_PHASE_THEMES = [
     accent: "#0284c7",
     subtext: "#0369a1",
     tagBg: "#e0f2fe",
+  },
+  {
+    badge: "#0d9488",
+    bg: "linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)",
+    border: "#99f6e4",
+    text: "#134e4a",
+    accent: "#0d9488",
+    subtext: "#0f766e",
+    tagBg: "#ccfbf1",
   },
   {
     badge: "#475569",
