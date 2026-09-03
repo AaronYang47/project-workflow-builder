@@ -431,11 +431,6 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                 ${escapeHtml(subtitle)}
               </p>
             </div>
-            ${
-              nIdx < linkedL2.length - 1
-                ? `<div style="text-align: center; color: #94a3b8; font-size: 7px; line-height: 0.4; font-weight: 800; margin: 1px 0;">↓</div>`
-                : ""
-            }
           `;
         })
         .join("");
@@ -634,7 +629,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         </div>
 
         <!-- L2 Stages (Middle Column) -->
-        <div style="padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #f1f5f9; background: #fafafa; overflow: hidden;">
+        <div style="padding: 5px 6px; display: flex; flex-direction: column; gap: 4px; justify-content: flex-start; border-right: 1px solid #f1f5f9; background: #fafafa; overflow: hidden;">
           ${l2StagesHtml}
         </div>
 
