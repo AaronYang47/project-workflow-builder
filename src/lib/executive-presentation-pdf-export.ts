@@ -549,31 +549,33 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       </div>
 
       <!-- BOTTOM EXECUTIVE FOOTER -->
-      <div style="border-top: 1.5px solid #cbd5e1; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 9.5px; color: #64748b; height: 28px; box-sizing: border-box; flex-shrink: 0;">
-        <div style="display: flex; gap: 16px; align-items: center;">
-          <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 10px;">Executive Legend:</span>
-          <span style="display: flex; align-items: center; gap: 5px;">
-            <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #10b981;"></span>
-            <strong>Phase 1:</strong> Start & Qualification
+      <div style="border-top: 1.5px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; height: 32px; box-sizing: border-box; flex-shrink: 0; line-height: 1; white-space: nowrap;">
+        <div style="display: flex; gap: 18px; align-items: center; white-space: nowrap;">
+          <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 10.5px; white-space: nowrap; letter-spacing: 0.05em;">
+            EXECUTIVE LEGEND:
           </span>
-          <span style="display: flex; align-items: center; gap: 5px;">
-            <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #f43f5e;"></span>
-            <strong>Phase 2:</strong> Pre-Construction
+          <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; flex-shrink: 0;"></span>
+            <span style="color: #334155;"><strong>Phase 1:</strong> Start &amp; Qualification</span>
           </span>
-          <span style="display: flex; align-items: center; gap: 5px;">
-            <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ea580c;"></span>
-            <strong>Phase 3:</strong> Construction
+          <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f43f5e; flex-shrink: 0;"></span>
+            <span style="color: #334155;"><strong>Phase 2:</strong> Pre-Construction</span>
           </span>
-          <span style="display: flex; align-items: center; gap: 5px;">
-            <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ca8a04;"></span>
-            <strong>Phase 4:</strong> Final Close
+          <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ea580c; flex-shrink: 0;"></span>
+            <span style="color: #334155;"><strong>Phase 3:</strong> Construction</span>
           </span>
-          <span style="display: flex; align-items: center; gap: 5px;">
-            <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #7c3aed;"></span>
-            <strong style="color: #6d28d9;">Purple Dashed Box:</strong> Gate Multi-Step Scope
+          <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ca8a04; flex-shrink: 0;"></span>
+            <span style="color: #334155;"><strong>Phase 4:</strong> Final Close</span>
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; border: 1.5px dashed #7c3aed; background: #f3e8ff; flex-shrink: 0;"></span>
+            <span style="color: #6d28d9;"><strong>Purple Dashed Box:</strong> Gate Multi-Step Scope</span>
           </span>
         </div>
-        <div style="font-weight: 800; color: #0f172a; font-size: 10px;">
+        <div style="font-weight: 800; color: #0f172a; font-size: 10px; white-space: nowrap;">
           ProFab Process Workflow System · Single-Page Executive Presentation Architecture (A4 Landscape)
         </div>
       </div>
