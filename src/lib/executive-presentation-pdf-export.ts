@@ -47,6 +47,7 @@ const DEFAULT_PHASE_THEMES = [
   {
     badge: "#0284c7",
     bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+    headerBg: "#f0f9ff",
     border: "#bae6fd",
     text: "#0c4a6e",
     accent: "#0284c7",
@@ -166,8 +167,10 @@ function getNodeGateLabel(
 }
 
 /**
- * Generates an executive presentation PDF with exact, unbroken SVG connecting lines
- * running directly from the bottom center of each L1 card down into the top of every child L2 card.
+ * Generates an executive presentation PDF with:
+ * - Generous vertical space between L1 and L2 (90px)
+ * - Clean, non-overlapping SVG branch lines
+ * - Refined, sharp, perfectly centered downward arrowheads on L2 tops
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -454,11 +457,11 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         </div>
       </div>
 
-      <!-- MAIN 2-TIER WORKFLOW CANVAS (Connected by SVG branch overlay) -->
+      <!-- MAIN 2-TIER WORKFLOW CANVAS (Generous 90px spacing between L1 and L2) -->
       <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0; position: relative;">
         
         <!-- 1. TOP L1 ROW: 4 Identical Size Cards, Evenly Spaced with Arrows -->
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; padding: 0 10px; margin-bottom: 50px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; padding: 0 10px; margin-bottom: 90px;">
           ${l1CardsRowHtml}
         </div>
 
@@ -467,17 +470,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           ${l2PhaseGroupsHtml}
         </div>
 
-        <!-- SVG Branch Connectors Overlay (Populated dynamically) -->
+        <!-- SVG Branch Connectors Overlay -->
         <svg id="exec-svg-overlay" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: visible;">
-          <defs>
-            ${DEFAULT_PHASE_THEMES.map(
-              (th, i) => `
-              <marker id="exec-arrow-${i}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M 0 0 L 8 4 L 0 8 Z" fill="${th.accent}" />
-              </marker>
-            `,
-            ).join("")}
-          </defs>
         </svg>
 
       </div>
@@ -524,27 +518,34 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
 
-    // Dynamic Calculation of Exact Continuous SVG Branch Connectors
+    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (No overlaps, perfect downward arrowheads)
     const canvasBody = container.querySelector("#exec-canvas-body") as HTMLElement | null;
     const svgOverlay = container.querySelector("#exec-svg-overlay") as SVGSVGElement | null;
 
     if (canvasBody && svgOverlay) {
       const canvasRect = canvasBody.getBoundingClientRect();
-      let svgPathsHtml = "";
+      let svgContent = "";
 
       orderedL1.forEach((l1Node, phaseIdx) => {
         const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
         const linkedL2 = getLinkedL2Nodes(l1Node);
         const l1CardEl = container.querySelector(`#exec-l1-card-${phaseIdx}`) as HTMLElement | null;
+        const l2GroupEl = container.querySelector(`#exec-l2-group-${phaseIdx}`) as HTMLElement | null;
 
-        if (!l1CardEl || linkedL2.length === 0) return;
+        if (!l1CardEl || !l2GroupEl || linkedL2.length === 0) return;
 
         const l1Rect = l1CardEl.getBoundingClientRect();
+        const l2GroupRect = l2GroupEl.getBoundingClientRect();
+
         // Exact Bottom Center of L1 Card
         const startX = l1Rect.left - canvasRect.left + l1Rect.width / 2;
         const startY = l1Rect.bottom - canvasRect.top;
 
-        // Get Top Centers of all Child L2 Cards
+        // Group horizontal bounds to strictly prevent any line overlap with neighboring phases
+        const groupLeftX = l2GroupRect.left - canvasRect.left + 4;
+        const groupRightX = l2GroupRect.right - canvasRect.left - 4;
+
+        // Get Top Center of all Child L2 Cards
         const childPoints: Array<{ x: number; y: number }> = [];
         linkedL2.forEach((_, nodeIdx) => {
           const l2CardEl = container.querySelector(`#exec-l2-card-${phaseIdx}-${nodeIdx}`) as HTMLElement | null;
@@ -559,49 +560,55 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
         if (childPoints.length === 0) return;
 
-        // Intermediate Bus Y (Midpoint between L1 bottom and L2 tops)
         const avgChildY = childPoints.reduce((acc, p) => acc + p.y, 0) / childPoints.length;
-        const midY = startY + (avgChildY - startY) * 0.45;
+        const step1Y = startY + 22;
+        const busY = startY + (avgChildY - startY) * 0.52;
 
-        // 1. Line directly from Bottom Center of L1 Card down to midY
-        let pathD = `M ${startX} ${startY} L ${startX} ${midY}`;
+        const minChildX = Math.min(...childPoints.map((p) => p.x));
+        const maxChildX = Math.max(...childPoints.map((p) => p.x));
+
+        // Clamped entry point into the L2 Phase Group (Guarantees zero overlap with neighboring phases)
+        const safeTrunkX = Math.max(groupLeftX, Math.min(groupRightX, startX));
+
+        let pathD = `M ${startX} ${startY}`;
+
+        if (startX !== safeTrunkX) {
+          pathD += ` L ${startX} ${step1Y} L ${safeTrunkX} ${step1Y} L ${safeTrunkX} ${busY}`;
+        } else {
+          pathD += ` L ${safeTrunkX} ${busY}`;
+        }
 
         if (childPoints.length === 1) {
-          // Single child (e.g. Phase 4): Straight or orthogonal line down to child with arrowhead
+          // Single child (e.g. Phase 4): Route strictly to target.x and drop into card top
           const target = childPoints[0];
-          pathD += ` L ${target.x} ${midY} L ${target.x} ${target.y - 3}`;
-          svgPathsHtml += `
-            <path d="${pathD}" stroke="${theme.accent}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#exec-arrow-${phaseIdx % DEFAULT_PHASE_THEMES.length})" />
-          `;
+          pathD += ` L ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
         } else {
-          // Multiple children: Main trunk drops to midY, horizontal bus bar spans across, and vertical stems drop into each card
-          const minChildX = Math.min(...childPoints.map((p) => p.x));
-          const maxChildX = Math.max(...childPoints.map((p) => p.x));
-          const busLeft = Math.min(startX, minChildX);
-          const busRight = Math.max(startX, maxChildX);
+          // Multiple children: Horizontal bus bar spans child cards strictly within group bounds
+          const busLeft = Math.min(safeTrunkX, minChildX);
+          const busRight = Math.max(safeTrunkX, maxChildX);
 
-          // Horizontal bus bar
-          pathD += ` M ${busLeft} ${midY} L ${busRight} ${midY}`;
+          pathD += ` M ${busLeft} ${busY} L ${busRight} ${busY}`;
 
-          // Add vertical drops to each child card with arrow
+          // Vertical stems drop straight down to 6px above each L2 card
           childPoints.forEach((target) => {
-            pathD += ` M ${target.x} ${midY} L ${target.x} ${target.y - 3}`;
-          });
-
-          svgPathsHtml += `
-            <path d="${pathD}" stroke="${theme.accent}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-          `;
-
-          // Add arrow markers specifically to each vertical downward drop
-          childPoints.forEach((target) => {
-            svgPathsHtml += `
-              <path d="M ${target.x} ${target.y - 5} L ${target.x} ${target.y - 2}" stroke="${theme.accent}" stroke-width="2.5" fill="none" marker-end="url(#exec-arrow-${phaseIdx % DEFAULT_PHASE_THEMES.length})" />
-            `;
+            pathD += ` M ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
           });
         }
+
+        // Draw the trunk & branch paths
+        svgContent += `
+          <path d="${pathD}" stroke="${theme.accent}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        `;
+
+        // Draw refined, sharp, perfectly centered downward arrowheads onto the top of EVERY L2 card
+        childPoints.forEach((target) => {
+          svgContent += `
+            <polygon points="${target.x},${target.y} ${target.x - 3.5},${target.y - 6} ${target.x + 3.5},${target.y - 6}" fill="${theme.accent}" />
+          `;
+        });
       });
 
-      svgOverlay.innerHTML += svgPathsHtml;
+      svgOverlay.innerHTML = svgContent;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 50));
