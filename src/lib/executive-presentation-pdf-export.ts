@@ -167,7 +167,10 @@ function getNodeGateLabel(
 }
 
 /**
- * Generates an executive presentation PDF with clean, single-level orthogonal branch routing (zero redundant zigzags).
+ * Generates an executive presentation PDF with:
+ * - Strictly identical uniform height/length for all L2 step cards
+ * - Clean, single-level orthogonal branch routing without redundant zigzags
+ * - Sharp, perfectly centered downward arrowheads on L2 tops
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -333,7 +336,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     })
     .join("");
 
-  // 4. Build Bottom L2 Row: Adaptive height cards with zero empty space in the middle
+  // 4. Build Bottom L2 Row: Strictly IDENTICAL uniform height (175px) across all 10 cards
   let globalStepCounter = 0;
 
   const l2PhaseGroupsHtml = orderedL1
@@ -342,7 +345,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       const linkedL2 = getLinkedL2Nodes(l1Node);
       const count = Math.max(1, linkedL2.length);
 
-      // Build Step cards for this Phase block (Adaptive height, compact & tight)
+      // Build Step cards for this Phase block (Strictly identical height: 175px)
       const stepsInPhaseHtml = linkedL2
         .map((node, nodeIdx) => {
           globalStepCounter++;
@@ -370,25 +373,27 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           return `
             <div style="flex: 1; min-width: 0; display: flex; align-items: center; position: relative; box-sizing: border-box;">
               
-              <!-- Content-Adaptive L2 Step Card (ID for SVG connector) -->
-              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; position: relative; z-index: 10;">
+              <!-- Identical Uniform Height L2 Step Card (Height: 175px) -->
+              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 175px; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px;">
-                  <span style="font-size: 9.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
-                    ${phaseIdx + 1}.${nodeIdx + 1}
-                  </span>
-                  <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
-                    ${badgeText}
-                  </span>
-                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
+                    <span style="font-size: 9.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
+                      ${phaseIdx + 1}.${nodeIdx + 1}
+                    </span>
+                    <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
+                      ${badgeText}
+                    </span>
+                  </div>
 
-                <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25;">
-                  ${escapeHtml(node.title)}
-                </div>
+                  <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${escapeHtml(node.title)}
+                  </div>
 
-                <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500;">
-                  ${escapeHtml(subtitle)}
-                </p>
+                  <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${escapeHtml(subtitle)}
+                  </p>
+                </div>
 
                 <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
                   <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
@@ -462,7 +467,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           ${l1CardsRowHtml}
         </div>
 
-        <!-- 2. BOTTOM L2 ROW: Adaptive Height Cards in 4 Groups -->
+        <!-- 2. BOTTOM L2 ROW: Identical Uniform Height Cards in 4 Groups -->
         <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%; box-sizing: border-box;">
           ${l2PhaseGroupsHtml}
         </div>
@@ -557,7 +562,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         let pathD = "";
 
         if (childPoints.length === 1) {
-          // Single child (Phase 4 Final Close): Clean 2-bend orthogonal or straight line without zigzag!
+          // Single child (Phase 4 Final Close): Clean single orthogonal bend without redundant zigzag!
           const target = childPoints[0];
           if (Math.abs(startX - target.x) < 2) {
             pathD = `M ${startX} ${startY} L ${target.x} ${target.y - 6}`;
@@ -600,7 +605,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       svgOverlay.innerHTML = svgContent;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 80));
 
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
