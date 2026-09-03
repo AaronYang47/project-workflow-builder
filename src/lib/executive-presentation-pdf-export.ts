@@ -215,10 +215,9 @@ function clusterStepsByGate(
 
 /**
  * Generates an executive presentation PDF with:
- * - Solid border on individual step cards
- * - Purple dashed border wrapping multiple steps belonging to the same Gate inside the Phase box
- * - Clean, non-overlapping SVG branch lines from L1 card bottom center
- * - Sharp, perfectly centered downward arrowheads on L2 card tops
+ * - Direct vertical trunk alignment from L1 cards to L2 groups (0% line overlap)
+ * - Solid borders on step cards with multi-step Gate purple dashed box
+ * - Proportional, razor-sharp downward arrowheads
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -344,18 +343,19 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   container.style.lineHeight = "1.3";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
-  // 3. Build Top L1 Row: Cards are strictly IDENTICAL in size and EVENLY spaced with arrows (No top-left Phase tag)
+  // 3. Build Top L1 Row: Each L1 Phase card is centered in its column corresponding to its L2 group
   const l1CardsRowHtml = orderedL1
     .map((l1Node, phaseIdx) => {
       const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
       const linkedL2 = getLinkedL2Nodes(l1Node);
       const isLastPhase = phaseIdx === orderedL1.length - 1;
+      const count = Math.max(1, linkedL2.length);
 
       return `
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
+        <div style="flex: ${count}; min-width: 0; display: flex; align-items: center; justify-content: center; position: relative; box-sizing: border-box;">
           
-          <!-- Identical Size L1 Card (Width: 260px, Height: 98px, ID for SVG connector) -->
-          <div id="exec-l1-card-${phaseIdx}" style="width: 260px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
+          <!-- Identical Size L1 Card (Width: 220px, Height: 98px, ID for SVG connector) -->
+          <div id="exec-l1-card-${phaseIdx}" style="width: 220px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
             
             <div style="display: flex; justify-content: flex-end; align-items: center;">
               <span style="font-size: 10px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.9); border: 1px solid ${theme.border}; padding: 2px 7px; border-radius: 4px;">
@@ -375,7 +375,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
           ${
             !isLastPhase
-              ? `<div style="position: absolute; right: -12px; top: calc(50% - 10px); color: #94a3b8; font-size: 18px; font-weight: 900; z-index: 15;">➔</div>`
+              ? `<div style="position: absolute; right: -8px; top: calc(50% - 10px); color: #94a3b8; font-size: 16px; font-weight: 900; z-index: 15;">➔</div>`
               : ""
           }
 
@@ -532,8 +532,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       <!-- MAIN 2-TIER WORKFLOW CANVAS (Generous 90px spacing between L1 and L2) -->
       <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0; position: relative;">
         
-        <!-- 1. TOP L1 ROW: 4 Identical Size Cards, Evenly Spaced with Arrows -->
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; padding: 0 10px; margin-bottom: 90px;">
+        <!-- 1. TOP L1 ROW: Directly Aligned with L2 Columns Below (0% Overlap) -->
+        <div style="display: flex; align-items: stretch; gap: 10px; width: 100%; box-sizing: border-box; margin-bottom: 90px;">
           ${l1CardsRowHtml}
         </div>
 
@@ -590,7 +590,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
 
-    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (Clean, single-level orthogonal routing)
+    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (100% Straight Vertical Trunks, 0% Overlap)
     const canvasBody = container.querySelector("#exec-canvas-body") as HTMLElement | null;
     const svgOverlay = container.querySelector("#exec-svg-overlay") as SVGSVGElement | null;
 
@@ -634,7 +634,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         let pathD = "";
 
         if (childPoints.length === 1) {
-          // Single child (Phase 4 Final Close): Clean single orthogonal bend without redundant zigzag!
+          // Single child (Phase 4 Final Close): Clean straight vertical or single orthogonal line directly into card
           const target = childPoints[0];
           if (Math.abs(startX - target.x) < 2) {
             pathD = `M ${startX} ${startY} L ${target.x} ${target.y - 6}`;
@@ -642,7 +642,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
             pathD = `M ${startX} ${startY} L ${startX} ${busY} L ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
           }
         } else {
-          // Multiple children: Clean single horizontal bus bar connected to L1 trunk
+          // Multiple children: Trunk drops straight down to busY, bus bar spans strictly across child cards
           const minChildX = Math.min(...childPoints.map((p) => p.x));
           const maxChildX = Math.max(...childPoints.map((p) => p.x));
 
