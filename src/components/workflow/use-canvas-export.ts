@@ -82,7 +82,11 @@ export function useCanvasExport(
       const detail = event.detail ?? { format: "png" };
 
       // Handle layer-specific PDF requests
-      if ((detail.format as string) === "l3-pdf") return;
+      if (
+        (detail.format as string) === "l3-pdf" ||
+        (detail.format as string) === "presentation-pdf"
+      )
+        return;
       if (detail.format === "l1-pdf" && viewType !== "l1") return;
       if (detail.format === "l2-pdf" && viewType !== "l2") return;
 

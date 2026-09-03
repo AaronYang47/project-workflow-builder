@@ -826,7 +826,15 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
   const quickAdd = useCallback(
     (event: React.MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (target.closest(".react-flow__node")) return;
+      // React Flow bubbles control-button double clicks to the canvas. Keep
+      // zoom/fit controls from being interpreted as a request to add a node.
+      if (
+        target.closest(".react-flow__node") ||
+        target.closest(".react-flow__controls") ||
+        target.closest(".react-flow__minimap")
+      ) {
+        return;
+      }
       addNode(
         "general",
         flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),

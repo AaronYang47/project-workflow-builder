@@ -41,6 +41,39 @@ const OPERATIONAL_GATE_NODE_IDS = new Set([
 export const requirementApplies = (item: { requirementType?: string }) =>
   item.requirementType !== "Optional";
 
+const L3_DOCUMENT_FIELDS = [
+  "legalDocuments",
+  "customerDocuments",
+  "supportingDocuments",
+] as const;
+
+function conditionL3FormState(condition: Condition, node: DomainNode) {
+  const suffix = `::release-condition::${condition.id || "default"}`;
+  const documents = L3_DOCUMENT_FIELDS.flatMap((field) => {
+    const raw = node.customFields[`${field}${suffix}`];
+    if (typeof raw !== "string") return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  return {
+    hasForms: documents.length > 0,
+    requiredComplete: documents
+      .filter((document) => document.required !== false)
+      .every((document) => document.checked === true),
+  };
+}
+
+export function conditionHasL3Forms(condition: Condition, node: DomainNode) {
+  // Linked execution items are the standard L3 form source for generated
+  // workflows, even when no custom document record has been uploaded yet.
+  if (condition.linkedExecutionItemId) return true;
+  return conditionL3FormState(condition, node).hasForms;
+}
+
 export const currentRevisionComplete = (item: GateSignatureRequirement) => {
   if (!item.revisionControlled) return true;
   const current = item.revisions?.find(
@@ -121,16 +154,24 @@ export function conditionIsSatisfied(
   executionItems?: ExecutionItem[],
   operations?: ProjectOperations,
 ) {
-  if (condition.linkedExecutionItemId && executionItems) {
-    const linkedItem = executionItems.find(
+  if (condition.linkedExecutionItemId) {
+    const linkedItem = executionItems?.find(
       (item) => item.id === condition.linkedExecutionItemId,
     );
     return Boolean(
+        // L3-backed conditions are completed by the L3 form flow. Keeping the
+        // condition flag in the check prevents an L2 checkbox from bypassing
+        // required fields in that form.
+        condition.checked === true &&
         linkedItem &&
         executionItemProgress(linkedItem, operations, {
           checklistOnly: true,
         }) === "complete",
     );
+  }
+  const l3Forms = conditionL3FormState(condition, node);
+  if (l3Forms.hasForms) {
+    return condition.checked === true && l3Forms.requiredComplete;
   }
   const source = computedConditionSource(node, projectStart);
   const projectId = String(
@@ -165,7 +206,7 @@ export function conditionDisplaySatisfied(
   if (condition.linkedExecutionItemId && executionItems) {
     return conditionIsSatisfied(condition, node, projectStart, executionItems, operations);
   }
-  return Boolean(condition.checked);
+  return conditionIsSatisfied(condition, node, projectStart, executionItems, operations);
 }
 
 export function nodeReleaseReady(

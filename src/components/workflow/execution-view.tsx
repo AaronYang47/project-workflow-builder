@@ -27,13 +27,14 @@ import {
   type DomainNode,
   type ExecutionItem,
 } from "@/types/workflow";
-import { nodeReleaseReady } from "@/lib/workflow-progress";
+import { conditionHasL3Forms, nodeReleaseReady } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
   type UploadedFileRecord,
   getUploadedFiles,
+  fetchUploadedFilesFromR2,
   downloadFile,
 } from "@/lib/file-storage";
 
@@ -70,6 +71,7 @@ function AddDocumentModal({
   const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     if (open && category) {
       const files = getUploadedFiles(category);
       setAvailableFiles(files);
@@ -81,7 +83,18 @@ function AddDocumentModal({
         setCustomTitle("");
       }
       setIsRequired(true);
+      void fetchUploadedFilesFromR2(category).then((remoteFiles) => {
+        if (cancelled) return;
+        setAvailableFiles(remoteFiles);
+        if (remoteFiles.length > 0) {
+          setSelectedFileId(remoteFiles[0].id);
+          setCustomTitle((current) => current.trim() ? current : remoteFiles[0].title);
+        }
+      });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [open, category]);
 
   if (!open || !category) return null;
@@ -389,12 +402,27 @@ export function ExecutionView({
     }
     return conditions[0];
   }, [conditions, activeConditionId]);
+  const currentConditionHasL3Forms = Boolean(
+    node && currentCondition && conditionHasL3Forms(currentCondition, node),
+  );
 
   const l2Title = node?.title?.trim() || "Detailed Workflow";
   const l3Title =
     currentCondition?.label?.trim() ||
     currentCondition?.description?.trim() ||
     "Execution Layer";
+
+  // L3 documents belong to a specific release condition. Keep the legacy
+  // node-level key visible only for the first condition so existing projects
+  // migrate without making one condition's files appear in every condition.
+  const firstConditionId = conditions[0]?.id;
+  const conditionStorageKey = currentCondition?.id?.trim() || "default";
+  const useLegacyDocumentKeys =
+    conditions.length === 0 || currentCondition?.id === firstConditionId;
+  const customFieldForCondition = (field: string) =>
+    node?.customFields?.[
+      `${field}::release-condition::${conditionStorageKey}`
+    ] ?? (useLegacyDocumentKeys ? node?.customFields?.[field] : undefined);
 
   const items = useMemo(
     () =>
@@ -426,7 +454,7 @@ export function ExecutionView({
 
   // 1. Legal Documents Data
   const customLegalDocs: DocRecord[] = useMemo(() => {
-    const raw = node?.customFields?.legalDocuments;
+    const raw = customFieldForCondition("legalDocuments");
     if (typeof raw === "string") {
       try {
         const parsed = JSON.parse(raw);
@@ -443,11 +471,11 @@ export function ExecutionView({
       }
     }
     return [];
-  }, [node?.customFields?.legalDocuments]);
+  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
 
   // 2. Customer Information Forms Data (Redesigned as Form/Doc List)
   const customCustomerDocs: DocRecord[] = useMemo(() => {
-    const raw = node?.customFields?.customerDocuments;
+    const raw = customFieldForCondition("customerDocuments");
     if (typeof raw === "string") {
       try {
         const parsed = JSON.parse(raw);
@@ -464,11 +492,11 @@ export function ExecutionView({
       }
     }
     return [];
-  }, [node?.customFields?.customerDocuments]);
+  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
 
   // 3. Supporting Documents Data
   const customSupportingDocs: DocRecord[] = useMemo(() => {
-    const raw = node?.customFields?.supportingDocuments;
+    const raw = customFieldForCondition("supportingDocuments");
     if (typeof raw === "string") {
       try {
         const parsed = JSON.parse(raw);
@@ -485,14 +513,14 @@ export function ExecutionView({
       }
     }
     return [];
-  }, [node?.customFields?.supportingDocuments]);
+  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
 
   const saveLegalDocs = (docs: DocRecord[]) => {
     if (!node) return;
     updateNode(node.id, {
       customFields: {
         ...node.customFields,
-        legalDocuments: JSON.stringify(docs),
+        [`legalDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
       },
     });
   };
@@ -502,7 +530,7 @@ export function ExecutionView({
     updateNode(node.id, {
       customFields: {
         ...node.customFields,
-        customerDocuments: JSON.stringify(docs),
+        [`customerDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
       },
     });
   };
@@ -512,18 +540,27 @@ export function ExecutionView({
     updateNode(node.id, {
       customFields: {
         ...node.customFields,
-        supportingDocuments: JSON.stringify(docs),
+        [`supportingDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
       },
     });
   };
 
-  // Check if all Required items across all 3 boxes and execution items are checked
-  const allRequiredChecked = useMemo(() => {
-    const requiredDocs = [
+  const requiredDocs = useMemo(
+    () => [
       ...customLegalDocs.filter((d) => d.required),
       ...customCustomerDocs.filter((d) => d.required),
       ...customSupportingDocs.filter((d) => d.required),
-    ];
+    ],
+    [customLegalDocs, customCustomerDocs, customSupportingDocs],
+  );
+
+  const hasRequiredForms = requiredDocs.length > 0 || items.length > 0;
+
+  // Check if all Required items across all 3 boxes and execution items are checked
+  const allRequiredChecked = useMemo(() => {
+    if (!hasRequiredForms) return false;
+
+    const docsChecked = requiredDocs.length === 0 || requiredDocs.every((d) => d.checked);
     const itemsChecked =
       items.length === 0 ||
       items.every(
@@ -531,22 +568,19 @@ export function ExecutionView({
           executionItemProgress(item, file.operations, { checklistOnly: true }) === "complete",
       );
 
-    if (requiredDocs.length === 0) {
-      return releaseReady || itemsChecked;
-    }
-    return requiredDocs.every((d) => d.checked) && itemsChecked;
-  }, [customLegalDocs, customCustomerDocs, customSupportingDocs, items, file.operations, releaseReady]);
+    return docsChecked && itemsChecked;
+  }, [hasRequiredForms, requiredDocs, items, file.operations]);
 
   // Automatically update L2 Release Condition when all required items pass
   useEffect(() => {
-    if (!node || !currentCondition) return;
+    if (!node || !currentCondition || !hasRequiredForms) return;
     if (currentCondition.checked !== allRequiredChecked) {
       const updatedConditions = (node.conditions || []).map((c) =>
         c.id === currentCondition.id ? { ...c, checked: allRequiredChecked } : c,
       );
       updateNode(node.id, { conditions: updatedConditions });
     }
-  }, [allRequiredChecked, currentCondition, node, updateNode]);
+  }, [allRequiredChecked, currentCondition, node, updateNode, hasRequiredForms]);
 
   // Toggle checks on execution items
   const handleToggleExecutionItem = (item: ExecutionItem) => {
@@ -660,12 +694,38 @@ export function ExecutionView({
               <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">&gt;</span>
 
               <h1
-                className="inline-flex items-center gap-1 font-sans text-xs font-semibold text-violet-600 dark:text-violet-400 truncate p-0 m-0"
+                className="inline-flex items-center gap-1.5 font-sans text-xs font-semibold text-violet-600 dark:text-violet-400 truncate p-0 m-0"
                 title={`L3 ${l3Title}`}
               >
                 <span>L3</span>
                 <span>{l3Title}</span>
               </h1>
+
+              {currentCondition && currentCondition.id !== "project-id-required" ? (
+                <button
+                  type="button"
+                  aria-label={currentCondition.checked ? "Uncheck release condition" : "Check release condition"}
+                  title={currentCondition.checked ? "Uncheck release condition" : "Mark release condition complete"}
+                  disabled={currentConditionHasL3Forms}
+                  onClick={() => {
+                    const nextChecked = !currentCondition.checked;
+                    const updatedConditions = (node.conditions || []).map((c) =>
+                      c.id === currentCondition.id ? { ...c, checked: nextChecked } : c,
+                    );
+                    updateNode(node.id, { conditions: updatedConditions });
+                  }}
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ml-0.5",
+                    currentCondition.checked
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : currentConditionHasL3Forms
+                        ? "condition-forms-breathe bg-amber-500 text-white"
+                        : "border-border bg-background hover:border-primary",
+                  )}
+                >
+                  <Check className={cn("size-3", !currentCondition.checked && "opacity-0")} />
+                </button>
+              ) : null}
 
               <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground font-sans">
                 Required files
@@ -705,7 +765,8 @@ export function ExecutionView({
             const isSelected =
               currentCondition?.id === condition.id ||
               (!currentCondition && idx === 0);
-            const isPassed = condition.checked || (isSelected && allRequiredChecked);
+            const isPassed = Boolean(condition.checked) || (isSelected && allRequiredChecked);
+            const hasL3Forms = node ? conditionHasL3Forms(condition, node) : false;
 
             return (
               <button
@@ -716,17 +777,41 @@ export function ExecutionView({
                   "relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-300 cursor-pointer border",
                   isPassed
                     ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold condition-breathe-glow"
+                    : hasL3Forms
+                      ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold condition-forms-breathe"
                     : isSelected
                       ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
                       : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <span
+                  role="checkbox"
+                  aria-checked={Boolean(isPassed)}
+                  title={
+                    condition.id === "project-id-required"
+                      ? "Complete the project ID field first"
+                      : isPassed
+                        ? "Click to uncheck condition"
+                        : "Click to mark condition complete"
+                  }
+                  onClick={(e) => {
+                    if (condition.id === "project-id-required" || hasL3Forms) return;
+                    e.stopPropagation();
+                    const nextChecked = !isPassed;
+                    const updatedConditions = (node.conditions || []).map((c, i) =>
+                      (c.id === condition.id || (!c.id && i === idx))
+                        ? { ...c, checked: nextChecked }
+                        : c,
+                    );
+                    updateNode(node.id, { conditions: updatedConditions });
+                  }}
                   className={cn(
-                    "flex size-3.5 items-center justify-center rounded-full text-[9px]",
+                    "flex size-3.5 items-center justify-center rounded-full text-[9px] cursor-pointer hover:scale-110 transition-transform",
                     isPassed
                       ? "bg-emerald-600 text-white"
-                      : "bg-muted text-muted-foreground border",
+                      : hasL3Forms
+                        ? "bg-amber-500 text-white border-amber-500"
+                        : "bg-muted text-muted-foreground border hover:border-primary",
                   )}
                 >
                   {isPassed ? <Check className="size-2.5" /> : idx + 1}
@@ -1207,11 +1292,11 @@ export function ExecutionView({
           <span
             className={cn(
               "size-2 rounded-full",
-              allRequiredChecked ? "bg-emerald-500" : "bg-amber-500",
+              allRequiredChecked || releaseReady ? "bg-emerald-500" : "bg-amber-500",
             )}
           />
           <span>
-            {allRequiredChecked
+            {allRequiredChecked || releaseReady
               ? `${node.title.toUpperCase()} is ready to release.`
               : "Complete and verify all required documents to release this node."}
           </span>

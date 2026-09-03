@@ -370,5 +370,3 @@ test("Export dropdown provides Image and PDF export options", async ({ page }) =
 });
 
 
-
-

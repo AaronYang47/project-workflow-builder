@@ -15,7 +15,7 @@ import {
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
-import { conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
+import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
 import { conditionInspectorKey } from "@/lib/inspector-schema";
 import { ComponentNoteButton } from "./component-note-button";
 import { ProjectIdBadge } from "./project-id-badge";
@@ -523,6 +523,7 @@ export function GeneralNode({
                     executionItems,
                     operations,
                   );
+                  const hasL3Forms = conditionHasL3Forms(condition, node);
                   const rowShift = (() => {
                     if (
                       draggingConditionIndex === null ||
@@ -709,13 +710,17 @@ export function GeneralNode({
                               ? "Uncheck this release condition"
                               : "Mark this release condition complete"
                         }
-                        disabled={condition.id === "project-id-required"}
+                        disabled={
+                          condition.id === "project-id-required" ||
+                          hasL3Forms
+                        }
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded border",
                           checked
                             ? "border-emerald-600 bg-emerald-600 text-white"
                             : "border-border bg-background",
+                          !checked && hasL3Forms && "condition-forms-breathe condition-forms-checkbox",
                         )}
                       >
                         <Check

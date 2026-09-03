@@ -19,6 +19,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelRightClose,
+  Presentation,
   Redo2,
   Search,
   Sun,
@@ -68,7 +69,7 @@ function ToolButton({
 }
 
 const saveImage = (
-  format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" | "l3-pdf",
+  format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" | "l3-pdf" | "presentation-pdf",
 ) => {
   window.dispatchEvent(
     new CustomEvent("workflow:export", { detail: { format } }),
@@ -538,6 +539,16 @@ export function TopToolbar({
               <div className="flex flex-col">
                 <span className="font-semibold text-xs">L3 · All Expanded Matrix</span>
                 <span className="text-[10px] text-muted-foreground">Full execution architecture (PDF)</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => saveImage("presentation-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <Presentation className="size-4 text-amber-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">Export PDF for Presentation</span>
+                <span className="text-[10px] text-muted-foreground">L1-L2-L3 single-page sheet (PDF)</span>
               </div>
             </DropdownMenuItem>
 

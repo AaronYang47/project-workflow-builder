@@ -5,7 +5,7 @@ import { Check, GripVertical, Plus, Settings2, ShieldCheck, Trash2 } from "lucid
 import type { ExecutionItem, Condition, DomainNode } from "@/types/workflow";
 import type { ProjectOperations } from "@/types/project-operations";
 import { conditionInspectorKey } from "@/lib/inspector-schema";
-import { conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
+import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { stopBubble } from "./node-utils";
@@ -28,9 +28,6 @@ export function ReleaseConditionsPanel({
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const deleteNodeCondition = useWorkflowStore(
     (state) => state.deleteNodeCondition,
-  );
-  const updateExecutionItem = useWorkflowStore(
-    (state) => state.updateExecutionItem,
   );
   const focusedInspectorField = useWorkflowStore(
     (state) => state.focusedInspectorField,
@@ -105,6 +102,7 @@ export function ReleaseConditionsPanel({
             executionItems,
             operations,
           );
+          const hasL3Forms = conditionHasL3Forms(condition, node);
           const rowShift = (() => {
             if (draggingConditionIndex === null || dragTargetConditionIndex === null) return 0;
             if (index === draggingConditionIndex) return dragOffsetY;
@@ -131,7 +129,8 @@ export function ReleaseConditionsPanel({
               ? executionItems.find((item) => item.id === condition.linkedExecutionItemId)
               : undefined;
             if (linkedItem) {
-              updateExecutionItem(linkedItem.id, { checklistComplete: !checked });
+              // L3-backed conditions are completed from the L3 form itself.
+              // Do not let the L2 checkbox bypass required form fields.
               return;
             }
             saveConditions(
@@ -241,11 +240,18 @@ export function ReleaseConditionsPanel({
                       ? "Uncheck this release condition"
                       : "Mark this release condition complete"
                 }
-                disabled={condition.id === "project-id-required"}
+                disabled={
+                  condition.id === "project-id-required" ||
+                  Boolean(condition.linkedExecutionItemId) ||
+                  conditionHasL3Forms(condition, node)
+                }
                 onClick={stopBubble(toggleCondition)}
                 className={cn(
                   "flex size-5 shrink-0 items-center justify-center rounded border",
-                  checked ? "border-emerald-600 bg-emerald-600 text-white" : "border-border bg-background",
+                  checked
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border bg-background",
+                  !checked && hasL3Forms && "condition-forms-breathe condition-forms-checkbox",
                 )}
               >
                 <Check className={cn("size-3.5", !checked && "opacity-0")} />

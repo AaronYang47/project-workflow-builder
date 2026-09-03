@@ -8,6 +8,7 @@ import {
   useState,
   type PointerEvent,
 } from "react";
+import { flushSync } from "react-dom";
 import { ChevronDown, Download, FileText, Layers, LocateFixed, Maximize2, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
@@ -599,17 +600,13 @@ export function PyramidLocationWidget({
 
   const [open, setOpen] = useState(false);
   const [collapsedL1Ids, setCollapsedL1Ids] = useState<Set<string>>(
-    () => new Set(highLevelNodes.map((node) => node.id)),
+    () => new Set<string>(),
   );
-  const collapsedL1SeedRef = useRef(
-    new Set(highLevelNodes.map((node) => node.id)),
-  );
+  const collapsedL1SeedRef = useRef(new Set<string>());
   const [collapsedL2Ids, setCollapsedL2Ids] = useState<Set<string>>(
-    () => new Set(nodes.map((node) => node.id)),
+    () => new Set<string>(),
   );
-  const collapsedL2SeedRef = useRef(
-    new Set(nodes.map((node) => node.id)),
-  );
+  const collapsedL2SeedRef = useRef(new Set<string>());
   const [dock, setDock] = useState<DockCorner>(readDockCorner);
   const [dockPos, setDockPos] = useState<{ x: number; y: number } | null>(null);
   const [dockDragging, setDockDragging] = useState(false);
@@ -654,9 +651,7 @@ export function PyramidLocationWidget({
     );
     setCollapsedL1Ids((current) => {
       const next = new Set(current);
-      for (const id of groupIds) {
-        if (!collapsedL1SeedRef.current.has(id)) next.add(id);
-      }
+      // Only remove IDs that no longer exist; never auto-collapse new nodes
       for (const id of next) {
         if (!groupIds.has(id)) next.delete(id);
       }
@@ -667,9 +662,7 @@ export function PyramidLocationWidget({
     const nodeIds = new Set(nodes.map((node) => node.id));
     setCollapsedL2Ids((current) => {
       const next = new Set(current);
-      for (const id of nodeIds) {
-        if (!collapsedL2SeedRef.current.has(id)) next.add(id);
-      }
+      // Only remove IDs that no longer exist; never auto-collapse new nodes
       for (const id of next) {
         if (!nodeIds.has(id)) next.delete(id);
       }
@@ -1420,11 +1413,11 @@ export function PyramidLocationWidget({
 
     try {
       // Ensure all L1 and L2 cards are fully expanded so full L3 tree is visible
-      setCollapsedL1Ids(new Set());
-      setCollapsedL2Ids(new Set());
-
-      // Wait 200ms for layout update
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      flushSync(() => {
+        setCollapsedL1Ids(new Set());
+        setCollapsedL2Ids(new Set());
+      });
+      await document.fonts.ready;
 
       const el = canvasLayerRef.current;
       if (!el) {
@@ -1435,21 +1428,20 @@ export function PyramidLocationWidget({
       const { toPng } = await import("html-to-image");
       const { jsPDF } = await import("jspdf");
 
-      const width = Math.max(1, Math.round(diagram.width));
-      const height = Math.max(1, Math.round(diagram.height));
-
-      // Temporarily clear camera scale/translate to capture entire diagram at 100% resolution
-      const prevTransform = el.style.transform;
-      el.style.transform = "none";
+      // Read the expanded DOM, not the collapsed dimensions from this callback's render.
+      const width = Math.max(1, el.offsetWidth);
+      const height = Math.max(1, el.offsetHeight);
+      const backgroundColor =
+        getComputedStyle(diagramFrameRef.current ?? el).backgroundColor;
 
       const dataUrl = await toPng(el, {
-        backgroundColor: "#0b1120",
+        backgroundColor,
         pixelRatio: 2,
         width,
         height,
+        // Change only the export clone so the live camera also survives export failures.
+        style: { transform: "none" },
       });
-
-      el.style.transform = prevTransform;
 
       const orientation = width >= height ? "landscape" : "portrait";
       const pdf = new jsPDF({
@@ -1465,7 +1457,7 @@ export function PyramidLocationWidget({
     } finally {
       setExportingPdf(false);
     }
-  }, [diagram.width, diagram.height, exportingPdf]);
+  }, [exportingPdf]);
 
   // Handle auto-export when triggered from top toolbar
   useEffect(() => {
@@ -1692,6 +1684,12 @@ export function PyramidLocationWidget({
                         key={edge.id}
                         d={edge.path}
                         fill="none"
+                        // SVG children are cloned without stylesheet rules by html-to-image.
+                        stroke={edge.flowing ? (edge.direction === "down" ? "#f59e0b" : "#159a75") : "#94a3b8"}
+                        strokeWidth={edge.flowing ? 3 : 1.8}
+                        strokeDasharray={edge.flowing ? "5 5" : "none"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                         className={
                           edge.flowing
                             ? edge.direction === "down"

@@ -72,3 +72,46 @@ test("every L2 node uses the file checklist view", async ({ page }) => {
     await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);
   }
 });
+
+test("entering L3 for a condition without forms does not automatically check it", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  const node = page.locator('[data-id="pre-construction"]');
+  await expect(node).toBeVisible();
+
+  // Condition 2 should initially be unchecked (has "Check release condition 2" button)
+  await expect(
+    node.getByRole("button", { name: "Check release condition 2" }),
+  ).toBeVisible();
+
+  // Open L3 for this node
+  const conditionLink = node.getByRole("button", {
+    name: "Open L3 details for release condition 2",
+  });
+  if ((await conditionLink.count()) > 0) {
+    await conditionLink.click();
+  } else {
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent("workflow:open-execution", {
+          detail: { nodeId: "pre-construction" },
+        }),
+      );
+    });
+  }
+
+  await expect(page.getByRole("button", { name: "Back to L2" })).toBeVisible();
+
+  // Return to L2
+  await page.getByRole("button", { name: "Back to L2" }).click();
+
+  // Condition 2 should still be unchecked in L2
+  await expect(
+    node.getByRole("button", { name: "Check release condition 2" }),
+  ).toBeVisible();
+});
+

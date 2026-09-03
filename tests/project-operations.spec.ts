@@ -28,6 +28,8 @@ import {
 } from "../src/lib/project-operations";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import {
+  conditionHasL3Forms,
+  conditionIsSatisfied,
   getWorkflowProgress,
   nodeReleaseReady,
   nodeStatusLabel,
@@ -1055,6 +1057,44 @@ test.describe("ICS time, weekly reporting, MasterFormat/GPF, and Stitch List", (
 });
 
 test.describe("L1/L2 operational gate and store wiring", () => {
+  test("requires an L3-backed release condition to be completed by the L3 flow", () => {
+    const lifecycle = createDefaultDetailedLifecycle();
+    const node = lifecycle.graph.nodes.find((item) => item.id === "gate-g1-qualified")!;
+    const sourceCondition = node.conditions[0];
+    const linkedItem = lifecycle.execution!.items.find(
+      (item) => item.id === sourceCondition.linkedExecutionItemId,
+    )!;
+    const condition = { ...sourceCondition, checked: false };
+    linkedItem.checklistComplete = true;
+
+    expect(
+      conditionIsSatisfied(condition, node, undefined, [linkedItem]),
+    ).toBe(false);
+    expect(
+      conditionIsSatisfied({ ...condition, checked: true }, node, undefined, [linkedItem]),
+    ).toBe(true);
+  });
+
+  test("requires scoped L3 documents to be completed before a condition passes", () => {
+    const lifecycle = createDefaultDetailedLifecycle();
+    const node = lifecycle.graph.nodes.find((item) => item.id === "gate-g1-qualified")!;
+    const condition = {
+      ...node.conditions[0],
+      linkedExecutionItemId: undefined,
+      checked: true,
+    };
+    node.customFields[`legalDocuments::release-condition::${condition.id}`] = JSON.stringify([
+      { id: "form-1", required: true, checked: false },
+    ]);
+
+    expect(conditionHasL3Forms(condition, node)).toBe(true);
+    expect(conditionIsSatisfied(condition, node)).toBe(false);
+    node.customFields[`legalDocuments::release-condition::${condition.id}`] = JSON.stringify([
+      { id: "form-1", required: true, checked: true },
+    ]);
+    expect(conditionIsSatisfied(condition, node)).toBe(true);
+  });
+
   test("lets a Client/Lead ID satisfy Project Start before a project number exists", () => {
     const file = createProjectWorkflow("Pre-G1 lead");
     const projectStart = file.graph.nodes.find((node) => node.id === "project-start")!;
