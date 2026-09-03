@@ -724,7 +724,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           <span>● <strong>Adaptive Layout:</strong> Dynamic flex distribution fully utilizes A4 space with zero overflow.</span>
         </div>
         <div style="font-weight: 700; color: #0f172a;">
-          ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
+          ProFab Process Workflow System · Single-Page Executive Tech Architecture (A4 Landscape)
         </div>
       </div>
 
@@ -760,7 +760,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
-    pdf.save(`${safeProjectName}-L1-L2-L3-Presentation.pdf`);
+    pdf.save(`${safeProjectName}-L1-L2-L3-Tech.pdf`);
   } finally {
     document.body.removeChild(container);
   }

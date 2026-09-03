@@ -547,7 +547,7 @@ export function TopToolbar({
             >
               <Presentation className="size-4 text-amber-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-xs">Export PDF for Presentation</span>
+                <span className="font-semibold text-xs">Export PDF for Tech</span>
                 <span className="text-[10px] text-muted-foreground">L1-L2-L3 single-page sheet (PDF)</span>
               </div>
             </DropdownMenuItem>
