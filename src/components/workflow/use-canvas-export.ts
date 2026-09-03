@@ -84,6 +84,7 @@ export function useCanvasExport(
       // Handle layer-specific PDF requests
       if (
         (detail.format as string) === "l3-pdf" ||
+        (detail.format as string) === "tech-pdf" ||
         (detail.format as string) === "presentation-pdf"
       )
         return;

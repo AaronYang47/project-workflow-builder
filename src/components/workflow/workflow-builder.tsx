@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AuthGate } from "./auth-gate";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { exportPresentationPdf } from "@/lib/presentation-pdf-export";
+import { exportExecutivePresentationPdf } from "@/lib/executive-presentation-pdf-export";
 import type { DomainNode, NodeLayout } from "@/types/workflow";
 
 const TopToolbar = dynamic(() => import("./top-toolbar").then((module) => module.TopToolbar), { ssr: false });
@@ -121,14 +122,20 @@ export default function WorkflowBuilder() {
           | "l1-pdf"
           | "l2-pdf"
           | "l3-pdf"
+          | "tech-pdf"
           | "presentation-pdf";
         switched?: boolean;
       }>;
       const format = custom.detail?.format;
       if (!format || custom.detail?.switched) return;
 
-      if (format === "presentation-pdf") {
+      if (format === "tech-pdf") {
         void exportPresentationPdf(useWorkflowStore.getState().file);
+        return;
+      }
+
+      if (format === "presentation-pdf") {
+        void exportExecutivePresentationPdf(useWorkflowStore.getState().file);
         return;
       }
 
