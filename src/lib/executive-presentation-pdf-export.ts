@@ -166,11 +166,8 @@ function getNodeGateLabel(
 }
 
 /**
- * Generates an executive single-page presentation PDF with:
- * 1. L1 cards strictly identical in size and evenly spaced with arrows.
- * 2. L1 connector lines branching directly to child L2 cards.
- * 3. L1 top-left Phase tag removed.
- * 4. L2 cards adaptive to their content with no giant empty middle space.
+ * Generates an executive presentation PDF with exact, unbroken SVG connecting lines
+ * running directly from the bottom center of each L1 card down into the top of every child L2 card.
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -306,8 +303,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       return `
         <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
           
-          <!-- Identical Size L1 Card (Width: 260px, Height: 98px, No Phase tag in top-left) -->
-          <div style="width: 260px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center;">
+          <!-- Identical Size L1 Card (Width: 260px, Height: 98px, ID for SVG connector) -->
+          <div id="exec-l1-card-${phaseIdx}" style="width: 260px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
             
             <div style="display: flex; justify-content: flex-end; align-items: center;">
               <span style="font-size: 10px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.9); border: 1px solid ${theme.border}; padding: 2px 7px; border-radius: 4px;">
@@ -371,51 +368,41 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           const isOverallLast = globalStepCounter === totalL2Nodes;
 
           return `
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; position: relative; box-sizing: border-box;">
               
-              <!-- Direct Branch Line & Downward Arrow into Card Top -->
-              <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 4px; color: ${theme.accent};">
-                <div style="width: 2.5px; height: 16px; background: ${theme.accent};"></div>
-                <div style="font-size: 11px; margin-top: -3px; font-weight: 900; line-height: 1;">▼</div>
-              </div>
-
-              <div style="display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+              <!-- Content-Adaptive L2 Step Card (ID for SVG connector) -->
+              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; position: relative; z-index: 10;">
                 
-                <!-- Content-Adaptive L2 Step Card (No large empty space in the middle) -->
-                <div style="flex: 1; min-width: 0; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 6px; box-sizing: border-box;">
-                  
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px;">
-                    <span style="font-size: 9.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
-                      ${phaseIdx + 1}.${nodeIdx + 1}
-                    </span>
-                    <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
-                      ${badgeText}
-                    </span>
-                  </div>
-
-                  <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25;">
-                    ${escapeHtml(node.title)}
-                  </div>
-
-                  <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500;">
-                    ${escapeHtml(subtitle)}
-                  </p>
-
-                  <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
-                    <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
-                      ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
-                    </span>
-                  </div>
-
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px;">
+                  <span style="font-size: 9.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
+                    ${phaseIdx + 1}.${nodeIdx + 1}
+                  </span>
+                  <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
+                    ${badgeText}
+                  </span>
                 </div>
 
-                ${
-                  !isOverallLast
-                    ? `<div style="color: #94a3b8; font-size: 12px; font-weight: 900; flex-shrink: 0; padding: 0 1px;">➔</div>`
-                    : ""
-                }
+                <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25;">
+                  ${escapeHtml(node.title)}
+                </div>
+
+                <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500;">
+                  ${escapeHtml(subtitle)}
+                </p>
+
+                <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
+                  <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
+                    ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
+                  </span>
+                </div>
 
               </div>
+
+              ${
+                !isOverallLast
+                  ? `<div style="color: #94a3b8; font-size: 12px; font-weight: 900; flex-shrink: 0; padding: 0 1px;">➔</div>`
+                  : ""
+              }
 
             </div>
           `;
@@ -424,18 +411,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
       return `
         <!-- Phase Sub-Group in Bottom L2 Container -->
-        <div style="flex: ${count}; min-width: 0; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
+        <div id="exec-l2-group-${phaseIdx}" style="flex: ${count}; min-width: 0; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
           
-          <!-- Master Branch Bus Line from Phase down to child cards -->
-          <div style="display: flex; flex-direction: column; align-items: center; width: 100%; margin-bottom: 2px;">
-            <div style="width: 2.5px; height: 18px; background: ${theme.accent};"></div>
-            ${
-              linkedL2.length > 1
-                ? `<div style="width: calc(100% - ${100 / linkedL2.length}%); height: 2.5px; background: ${theme.accent}; border-radius: 2px;"></div>`
-                : ""
-            }
-          </div>
-
           <!-- L2 Steps Row inside this Phase container -->
           <div style="width: 100%; display: flex; align-items: flex-start; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
             ${stepsInPhaseHtml}
@@ -447,7 +424,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     .join("");
 
   const html = `
-    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; overflow: hidden;">
+    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; overflow: hidden; position: relative;">
       
       <!-- TOP HEADER BAR -->
       <div style="border-bottom: 3px solid #0f172a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end; height: 56px; box-sizing: border-box; flex-shrink: 0;">
@@ -477,18 +454,31 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         </div>
       </div>
 
-      <!-- MAIN 2-TIER WORKFLOW CANVAS (Evenly Centered with Perfect Proportions) -->
-      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0;">
+      <!-- MAIN 2-TIER WORKFLOW CANVAS (Connected by SVG branch overlay) -->
+      <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0; position: relative;">
         
         <!-- 1. TOP L1 ROW: 4 Identical Size Cards, Evenly Spaced with Arrows -->
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; padding: 0 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; padding: 0 10px; margin-bottom: 50px;">
           ${l1CardsRowHtml}
         </div>
 
-        <!-- 2. BOTTOM L2 ROW: Adaptive Height Cards, Flow Arrows, and Connected Branch Lines -->
+        <!-- 2. BOTTOM L2 ROW: Adaptive Height Cards in 4 Groups -->
         <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%; box-sizing: border-box;">
           ${l2PhaseGroupsHtml}
         </div>
+
+        <!-- SVG Branch Connectors Overlay (Populated dynamically) -->
+        <svg id="exec-svg-overlay" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: visible;">
+          <defs>
+            ${DEFAULT_PHASE_THEMES.map(
+              (th, i) => `
+              <marker id="exec-arrow-${i}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 Z" fill="${th.accent}" />
+              </marker>
+            `,
+            ).join("")}
+          </defs>
+        </svg>
 
       </div>
 
@@ -533,6 +523,88 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       await document.fonts.ready;
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
+
+    // Dynamic Calculation of Exact Continuous SVG Branch Connectors
+    const canvasBody = container.querySelector("#exec-canvas-body") as HTMLElement | null;
+    const svgOverlay = container.querySelector("#exec-svg-overlay") as SVGSVGElement | null;
+
+    if (canvasBody && svgOverlay) {
+      const canvasRect = canvasBody.getBoundingClientRect();
+      let svgPathsHtml = "";
+
+      orderedL1.forEach((l1Node, phaseIdx) => {
+        const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
+        const linkedL2 = getLinkedL2Nodes(l1Node);
+        const l1CardEl = container.querySelector(`#exec-l1-card-${phaseIdx}`) as HTMLElement | null;
+
+        if (!l1CardEl || linkedL2.length === 0) return;
+
+        const l1Rect = l1CardEl.getBoundingClientRect();
+        // Exact Bottom Center of L1 Card
+        const startX = l1Rect.left - canvasRect.left + l1Rect.width / 2;
+        const startY = l1Rect.bottom - canvasRect.top;
+
+        // Get Top Centers of all Child L2 Cards
+        const childPoints: Array<{ x: number; y: number }> = [];
+        linkedL2.forEach((_, nodeIdx) => {
+          const l2CardEl = container.querySelector(`#exec-l2-card-${phaseIdx}-${nodeIdx}`) as HTMLElement | null;
+          if (l2CardEl) {
+            const l2Rect = l2CardEl.getBoundingClientRect();
+            childPoints.push({
+              x: l2Rect.left - canvasRect.left + l2Rect.width / 2,
+              y: l2Rect.top - canvasRect.top,
+            });
+          }
+        });
+
+        if (childPoints.length === 0) return;
+
+        // Intermediate Bus Y (Midpoint between L1 bottom and L2 tops)
+        const avgChildY = childPoints.reduce((acc, p) => acc + p.y, 0) / childPoints.length;
+        const midY = startY + (avgChildY - startY) * 0.45;
+
+        // 1. Line directly from Bottom Center of L1 Card down to midY
+        let pathD = `M ${startX} ${startY} L ${startX} ${midY}`;
+
+        if (childPoints.length === 1) {
+          // Single child (e.g. Phase 4): Straight or orthogonal line down to child with arrowhead
+          const target = childPoints[0];
+          pathD += ` L ${target.x} ${midY} L ${target.x} ${target.y - 3}`;
+          svgPathsHtml += `
+            <path d="${pathD}" stroke="${theme.accent}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#exec-arrow-${phaseIdx % DEFAULT_PHASE_THEMES.length})" />
+          `;
+        } else {
+          // Multiple children: Main trunk drops to midY, horizontal bus bar spans across, and vertical stems drop into each card
+          const minChildX = Math.min(...childPoints.map((p) => p.x));
+          const maxChildX = Math.max(...childPoints.map((p) => p.x));
+          const busLeft = Math.min(startX, minChildX);
+          const busRight = Math.max(startX, maxChildX);
+
+          // Horizontal bus bar
+          pathD += ` M ${busLeft} ${midY} L ${busRight} ${midY}`;
+
+          // Add vertical drops to each child card with arrow
+          childPoints.forEach((target) => {
+            pathD += ` M ${target.x} ${midY} L ${target.x} ${target.y - 3}`;
+          });
+
+          svgPathsHtml += `
+            <path d="${pathD}" stroke="${theme.accent}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          `;
+
+          // Add arrow markers specifically to each vertical downward drop
+          childPoints.forEach((target) => {
+            svgPathsHtml += `
+              <path d="M ${target.x} ${target.y - 5} L ${target.x} ${target.y - 2}" stroke="${theme.accent}" stroke-width="2.5" fill="none" marker-end="url(#exec-arrow-${phaseIdx % DEFAULT_PHASE_THEMES.length})" />
+            `;
+          });
+        }
+      });
+
+      svgOverlay.innerHTML += svgPathsHtml;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
