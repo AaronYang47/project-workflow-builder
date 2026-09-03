@@ -166,12 +166,59 @@ function getNodeGateLabel(
   return "Gate";
 }
 
+type StepGroup = {
+  isGateCluster: boolean;
+  gateLabel?: string;
+  nodes: Array<{ node: DomainNode; nodeIdx: number }>;
+};
+
+function clusterStepsByGate(
+  linkedL2: DomainNode[],
+  allNodes: DomainNode[],
+  layout: Record<string, NodeLayout>,
+): StepGroup[] {
+  const groups: StepGroup[] = [];
+  let currentGroup: StepGroup | null = null;
+
+  linkedL2.forEach((node, nodeIdx) => {
+    const isGate = isNodeGate(node, allNodes, layout);
+    const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : null;
+    const parentId = layout[node.id]?.parentId;
+    const parentNode = parentId ? allNodes.find((n) => n.id === parentId) : null;
+    const isParentGate = parentNode && (parentNode.type === "gate" || parentNode.color === "#7c3aed" || /gate/i.test(parentNode.title || ""));
+
+    const gateKey = isParentGate ? parentId : (isGate ? gateLabel : null);
+
+    if (gateKey) {
+      const label = parentNode?.title?.replace(/^(gate\s*\d*).*/i, "$1") || gateLabel || "Gate";
+      if (currentGroup && currentGroup.isGateCluster && currentGroup.gateLabel === label) {
+        currentGroup.nodes.push({ node, nodeIdx });
+      } else {
+        currentGroup = {
+          isGateCluster: true,
+          gateLabel: label,
+          nodes: [{ node, nodeIdx }],
+        };
+        groups.push(currentGroup);
+      }
+    } else {
+      currentGroup = {
+        isGateCluster: false,
+        nodes: [{ node, nodeIdx }],
+      };
+      groups.push(currentGroup);
+    }
+  });
+
+  return groups;
+}
+
 /**
  * Generates an executive presentation PDF with:
- * - Strictly identical uniform height for all L2 Phase outer container boxes
- * - Strictly identical uniform height for all 10 L2 step cards
- * - Simplified, single-level orthogonal branch routing without redundant zigzags
- * - Sharp, centered downward arrowheads on L2 card tops
+ * - Solid border on individual step cards
+ * - Purple dashed border wrapping multiple steps belonging to the same Gate inside the Phase box
+ * - Clean, non-overlapping SVG branch lines from L1 card bottom center
+ * - Sharp, perfectly centered downward arrowheads on L2 card tops
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -346,70 +393,92 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       const linkedL2 = getLinkedL2Nodes(l1Node);
       const count = Math.max(1, linkedL2.length);
 
-      // Build Step cards for this Phase block (Strictly identical height: 175px)
-      const stepsInPhaseHtml = linkedL2
-        .map((node, nodeIdx) => {
-          globalStepCounter++;
-          const isGate = isNodeGate(node, allNodes, layout);
-          const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
-          const isStart = node.type === "projectStart" || node.id === "project-start";
-          const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+      // Cluster steps by Gate (Multiple steps in same Gate get a purple dashed container)
+      const stepGroups = clusterStepsByGate(linkedL2, allNodes, layout);
 
-          const subtitle =
-            node.description?.trim() ||
-            (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
-            (isGate ? "Quality Gate Verification & Decision Sign-off" : isStart ? "Project Record Initiation & Entry" : isTerminal ? "Formal Handover & Closeout" : "Standard Process Execution");
+      const stepGroupsHtml = stepGroups
+        .map((group) => {
+          const groupCardsHtml = group.nodes
+            .map(({ node, nodeIdx }) => {
+              globalStepCounter++;
+              const isGate = isNodeGate(node, allNodes, layout);
+              const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
+              const isStart = node.type === "projectStart" || node.id === "project-start";
+              const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
 
-          const badgeStyle = isGate
-            ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1.5px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
-            : isStart
-              ? `background: #e0f2fe; color: #0369a1; font-weight: 800; border: 1px solid #bae6fd;`
-              : isTerminal
-                ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
-                : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
+              const subtitle =
+                node.description?.trim() ||
+                (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
+                (isGate ? "Quality Gate Verification & Decision Sign-off" : isStart ? "Project Record Initiation & Entry" : isTerminal ? "Formal Handover & Closeout" : "Standard Process Execution");
 
-          const badgeText = isGate ? `🚦 ${gateLabel}` : isStart ? "Start" : isTerminal ? "Complete 🏁" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
-          const isOverallLast = globalStepCounter === totalL2Nodes;
+              const badgeStyle = isGate
+                ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1.5px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
+                : isStart
+                  ? `background: #e0f2fe; color: #0369a1; font-weight: 800; border: 1px solid #bae6fd;`
+                  : isTerminal
+                    ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
+                    : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
 
-          return `
-            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; position: relative; box-sizing: border-box;">
-              
-              <!-- Identical Uniform Height L2 Step Card (Height: 100% of container) -->
-              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: ${isGate ? "#faf5ff" : "#ffffff"}; border: ${isGate ? "2px dashed #8b5cf6" : `2px solid ${theme.border}`}; border-top: 5px solid ${isGate ? "#7c3aed" : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
-                
-                <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
-                    <span style="font-size: 9.5px; font-weight: 900; color: ${isGate ? "#6d28d9" : theme.subtext}; background: ${isGate ? "#f3e8ff" : theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
-                      ${phaseIdx + 1}.${nodeIdx + 1}
-                    </span>
-                    <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
-                      ${badgeText}
-                    </span>
+              const badgeText = isGate ? `🚦 ${gateLabel}` : isStart ? "Start" : isTerminal ? "Complete 🏁" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
+              const isOverallLast = globalStepCounter === totalL2Nodes;
+
+              return `
+                <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; position: relative; box-sizing: border-box;">
+                  
+                  <!-- Solid-Border L2 Step Card (Height: 100% of container) -->
+                  <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 8px; padding: 10px 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
+                    
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
+                        <span style="font-size: 9.5px; font-weight: 900; color: ${isGate ? "#6d28d9" : theme.subtext}; background: ${isGate ? "#f3e8ff" : theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
+                          ${phaseIdx + 1}.${nodeIdx + 1}
+                        </span>
+                        <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
+                          ${badgeText}
+                        </span>
+                      </div>
+
+                      <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        ${escapeHtml(node.title)}
+                      </div>
+
+                      <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+                        ${escapeHtml(subtitle)}
+                      </p>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
+                      <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
+                        ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
+                      </span>
+                    </div>
+
                   </div>
 
-                  <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                    ${escapeHtml(node.title)}
-                  </div>
+                  ${
+                    !isOverallLast
+                      ? `<div style="color: #94a3b8; font-size: 12px; font-weight: 900; flex-shrink: 0; padding: 0 1px;">➔</div>`
+                      : ""
+                  }
 
-                  <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
-                    ${escapeHtml(subtitle)}
-                  </p>
                 </div>
+              `;
+            })
+            .join("");
 
-                <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${isGate ? "#c084fc" : theme.border}; padding-top: 4px; margin-top: 2px;">
-                  <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
-                    ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
-                  </span>
-                </div>
-
+          if (group.isGateCluster && group.nodes.length > 1) {
+            // Multiple Steps inside a Gate: Wrapped in a Purple Dashed Border Box INSIDE the Phase Box!
+            return `
+              <div style="flex: ${group.nodes.length}; min-width: 0; height: 100%; display: flex; align-items: stretch; gap: 4px; border: 2px dashed #8b5cf6; border-radius: 8px; padding: 4px; background: rgba(243, 232, 255, 0.4); box-sizing: border-box; position: relative;">
+                ${groupCardsHtml}
               </div>
+            `;
+          }
 
-              ${
-                !isOverallLast
-                  ? `<div style="color: #94a3b8; font-size: 12px; font-weight: 900; flex-shrink: 0; padding: 0 1px;">➔</div>`
-                  : ""
-              }
-
+          // Single step or non-gate cluster
+          return `
+            <div style="flex: ${group.nodes.length}; min-width: 0; height: 100%; display: flex; align-items: stretch; gap: 4px; box-sizing: border-box;">
+              ${groupCardsHtml}
             </div>
           `;
         })
@@ -421,7 +490,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           
           <!-- L2 Steps Row inside this Phase container (Strictly Uniform Height: 195px) -->
           <div style="width: 100%; height: 100%; display: flex; align-items: stretch; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
-            ${stepsInPhaseHtml}
+            ${stepGroupsHtml}
           </div>
 
         </div>
@@ -501,7 +570,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           </span>
           <span style="display: flex; align-items: center; gap: 5px;">
             <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #7c3aed;"></span>
-            <strong style="color: #6d28d9;">🚦 Purple Tag:</strong> Formal Gate Decision
+            <strong style="color: #6d28d9;">🚦 Purple Dashed Box:</strong> Gate Multi-Step Scope
           </span>
         </div>
         <div style="font-weight: 800; color: #0f172a; font-size: 10px;">
