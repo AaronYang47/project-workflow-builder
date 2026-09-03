@@ -375,11 +375,11 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
             <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; position: relative; box-sizing: border-box;">
               
               <!-- Identical Uniform Height L2 Step Card (Height: 100% of container) -->
-              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
+              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: ${isGate ? "#faf5ff" : "#ffffff"}; border: ${isGate ? "2px dashed #8b5cf6" : `2px solid ${theme.border}`}; border-top: 5px solid ${isGate ? "#7c3aed" : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
                 
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
-                    <span style="font-size: 9.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
+                    <span style="font-size: 9.5px; font-weight: 900; color: ${isGate ? "#6d28d9" : theme.subtext}; background: ${isGate ? "#f3e8ff" : theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
                       ${phaseIdx + 1}.${nodeIdx + 1}
                     </span>
                     <span style="font-size: 8px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
@@ -396,7 +396,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
                   </p>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
+                <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${isGate ? "#c084fc" : theme.border}; padding-top: 4px; margin-top: 2px;">
                   <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
                     ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
                   </span>
@@ -543,14 +543,16 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         const startY = l1Rect.bottom - canvasRect.top;
 
         // Get Top Center of all Child L2 Cards
-        const childPoints: Array<{ x: number; y: number }> = [];
-        linkedL2.forEach((_, nodeIdx) => {
+        const childPoints: Array<{ x: number; y: number; isGate: boolean }> = [];
+        linkedL2.forEach((node, nodeIdx) => {
+          const isGate = isNodeGate(node, allNodes, layout);
           const l2CardEl = container.querySelector(`#exec-l2-card-${phaseIdx}-${nodeIdx}`) as HTMLElement | null;
           if (l2CardEl) {
             const l2Rect = l2CardEl.getBoundingClientRect();
             childPoints.push({
               x: l2Rect.left - canvasRect.left + l2Rect.width / 2,
               y: l2Rect.top - canvasRect.top,
+              isGate,
             });
           }
         });
@@ -597,8 +599,9 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
         // Draw refined, sharp, perfectly centered downward arrowheads onto the top of EVERY L2 card
         childPoints.forEach((target) => {
+          const arrowColor = target.isGate ? "#7c3aed" : theme.accent;
           svgContent += `
-            <polygon points="${target.x},${target.y} ${target.x - 3.5},${target.y - 6} ${target.x + 3.5},${target.y - 6}" fill="${theme.accent}" />
+            <polygon points="${target.x},${target.y} ${target.x - 3.5},${target.y - 6} ${target.x + 3.5},${target.y - 6}" fill="${arrowColor}" />
           `;
         });
       });
