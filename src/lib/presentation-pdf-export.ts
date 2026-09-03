@@ -15,8 +15,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
   const container = document.createElement("div");
   container.style.position = "fixed";
-  container.style.left = "-9999px";
+  container.style.left = "0";
   container.style.top = "0";
+  container.style.zIndex = "-99999";
+  container.style.pointerEvents = "none";
+  container.style.opacity = "1";
+  container.style.visibility = "visible";
   // Exact 297 : 210 ratio (1485px x 1050px = 5px per mm)
   container.style.width = "1485px";
   container.style.height = "1050px";
@@ -496,9 +500,17 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   document.body.appendChild(container);
 
   try {
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
       pixelRatio: 2,
+      width: 1485,
+      height: 1050,
+      cacheBust: true,
     });
 
     const pdf = new jsPDF({
