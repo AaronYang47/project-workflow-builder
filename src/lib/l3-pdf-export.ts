@@ -69,14 +69,32 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
   container.style.lineHeight = "1.5";
 
   // Build Document Header
+  const allNodes = file.graph.nodes || [];
+  const startNode = allNodes.find((n) => n.type === "projectStart" || n.id === "project-start");
+  const projectNumber =
+    String(startNode?.customFields?.projectId || "").trim() ||
+    String(startNode?.customFields?.projectNumber || "").trim() ||
+    String(allNodes.find((n) => n.customFields?.projectId)?.customFields?.projectId || "").trim() ||
+    String(file.operations?.identity?.projectNumber || "").trim() ||
+    String(file.operations?.identity?.projectId || "").trim() ||
+    String(file.operations?.projectNumber || "").trim() ||
+    "PRJ-001";
+
   const projectName = file.graph.metadata.name || "ProFab Process Workflow";
-  const projectNumber = "PRJ-2026-001";
   const version = file.graph.metadata.version || "v1.0-draft";
-  const timestamp = new Date().toLocaleDateString("en-US", {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
     year: "numeric",
-    month: "long",
+    month: "short",
     day: "numeric",
   });
+  const timeStr = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const timestamp = `${dateStr} ${timeStr}`;
 
   let html = `
     <div style="border-bottom: 2px solid #0284c7; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
