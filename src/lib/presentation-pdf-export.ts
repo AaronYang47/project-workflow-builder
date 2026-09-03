@@ -299,7 +299,6 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       const count = (n.conditions || []).length + ((n.config?.gateRules as unknown[]) || []).length;
       if (count > maxConds) maxConds = count;
     });
-    // Weight calculation: more conditions or more steps gets proportional flex
     const weight = Math.max(1, Math.min(2.5, 0.8 + (maxConds > 10 ? 0.8 : maxConds > 5 ? 0.4 : 0) + (linkedL2.length > 3 ? 0.3 : 0)));
     return { l1Node, linkedL2, weight };
   });
@@ -319,7 +318,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.color = "#0f172a";
   container.style.fontFamily =
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
-  container.style.padding = "16px 20px";
+  container.style.padding = "14px 18px";
   container.style.boxSizing = "border-box";
   container.style.display = "flex";
   container.style.flexDirection = "column";
@@ -327,7 +326,6 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.lineHeight = "1.3";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
-  let globalGateCounter = 0;
   let phaseRowsHtml = "";
 
   phaseData.forEach(({ l1Node, linkedL2, weight }, phaseIdx) => {
@@ -358,8 +356,8 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
               : `${group.titles.length} Gate Milestones`;
           return `
             <div style="background: #ffffff; border: 1.5px solid ${GATE_TAG_VISUAL.border}; border-radius: 4px; padding: 3px 6px; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(124,58,237,0.08);">
-              <span style="font-size: 9px; font-weight: 800; color: ${GATE_TAG_VISUAL.tagText}; background: ${GATE_TAG_VISUAL.tagBg}; padding: 2px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1;">🚦 ${escapeHtml(group.label)}</span>
-              <span style="font-size: 8.5px; font-weight: 700; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <span style="font-size: 9.5px; font-weight: 900; color: ${GATE_TAG_VISUAL.tagText}; background: ${GATE_TAG_VISUAL.tagBg}; padding: 2px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1;">🚦 ${escapeHtml(group.label)}</span>
+              <span style="font-size: 9px; font-weight: 800; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${escapeHtml(summaryText)}
               </span>
             </div>
@@ -368,19 +366,19 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         .join("");
     } else if (l1Node.type === "end" || phaseIdx === orderedL1.length - 1 || l1Node.title.toLowerCase().includes("final") || l1Node.title.toLowerCase().includes("close")) {
       gateBadgesHtml = `
-        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 8.5px; color: ${theme.subtext}; font-weight: 700;">
+        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 9px; color: ${theme.subtext}; font-weight: 800;">
           🏁 Final Milestone (No Gate)
         </div>
       `;
     } else if (l1Node.type === "start" || phaseIdx === 0) {
       gateBadgesHtml = `
-        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 8.5px; color: ${theme.subtext}; font-weight: 600;">
+        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 9px; color: ${theme.subtext}; font-weight: 700;">
           🚀 Project Intake & Start
         </div>
       `;
     } else {
       gateBadgesHtml = `
-        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 8.5px; color: ${theme.subtext}; font-weight: 600;">
+        <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 9px; color: ${theme.subtext}; font-weight: 700;">
           Phase Execution Flow
         </div>
       `;
@@ -390,7 +388,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     let l2StagesHtml = "";
     if (linkedL2.length === 0) {
       l2StagesHtml = `
-        <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 5px; padding: 10px; text-align: center; color: #94a3b8; font-size: 10px;">
+        <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 5px; padding: 10px; text-align: center; color: #94a3b8; font-size: 11px;">
           No detailed L2 workflow nodes linked to this phase.
         </div>
       `;
@@ -408,27 +406,27 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
           const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
 
-          const cardBorder = `border: 1.5px solid ${theme.border}; border-left: 4px solid ${theme.accent}; background: #ffffff;`;
+          const cardBorder = `border: 1.5px solid ${theme.border}; border-left: 4.5px solid ${theme.accent}; background: #ffffff;`;
 
           const badgeStyle = isGate
-            ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1px solid ${GATE_TAG_VISUAL.border}; font-weight: 800;`
+            ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
             : isStart
-              ? `background: #e0f2fe; color: #0369a1; font-weight: 700;`
+              ? `background: #e0f2fe; color: #0369a1; font-weight: 800;`
               : isTerminal
-                ? `background: #dcfce7; color: #15803d; font-weight: 700;`
-                : `background: ${theme.tagBg}; color: ${theme.text}; font-weight: 600;`;
+                ? `background: #dcfce7; color: #15803d; font-weight: 800;`
+                : `background: ${theme.tagBg}; color: ${theme.text}; font-weight: 700;`;
 
           return `
             <div style="${cardBorder} border-radius: 4px; padding: 4px 7px;">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
-                <span style="font-size: 10px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+                <span style="font-size: 11px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
                   STEP ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
-                <span style="font-size: 8px; padding: 1.5px 5px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
+                <span style="font-size: 8.5px; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
                   ${isGate ? `🚦 ${gateLabel}` : gateLabel}
                 </span>
               </div>
-              <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #475569; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <p style="margin: 2px 0 0 0; font-size: 9.5px; color: #475569; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">
                 ${escapeHtml(subtitle)}
               </p>
             </div>
@@ -441,7 +439,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     let l3NodesHtml = "";
     if (linkedL2.length === 0) {
       l3NodesHtml = `
-        <div style="color: #94a3b8; font-size: 9.5px; font-style: italic; text-align: center; padding: 10px;">
+        <div style="color: #94a3b8; font-size: 10px; font-style: italic; text-align: center; padding: 10px;">
           No release conditions or controlled forms defined.
         </div>
       `;
@@ -537,13 +535,13 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
               ${conditions
                 .map((c) => {
                   const boxHtml = c.checked
-                    ? `<span style="display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 8.5px; font-weight: 900; line-height: 1; flex-shrink: 0; margin-top: 1.5px;">✓</span>`
-                    : `<span style="display: inline-flex; width: 11px; height: 11px; border-radius: 2px; background: #fef08a; border: 1.2px solid #ca8a04; flex-shrink: 0; margin-top: 1.5px; box-sizing: border-box;"></span>`;
+                    ? `<span style="display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 9.5px; font-weight: 900; line-height: 1; flex-shrink: 0; margin-top: 1.5px;">✓</span>`
+                    : `<span style="display: inline-flex; width: 12px; height: 12px; border-radius: 2px; background: #fef08a; border: 1.3px solid #ca8a04; flex-shrink: 0; margin-top: 1.5px; box-sizing: border-box;"></span>`;
 
                   return `
-                    <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 9px; color: #1e293b; line-height: 1.35;">
+                    <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 9.5px; color: #0f172a; line-height: 1.35;">
                       ${boxHtml}
-                      <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">
+                      <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600;">
                         ${escapeHtml(c.label)}
                       </span>
                     </div>
@@ -554,9 +552,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           `;
         } else {
           condMarkup = `
-            <div style="display: flex; align-items: center; gap: 4px; font-size: 9px; color: #64748b; flex: 1;">
-              <span style="display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 8.5px; font-weight: 900; line-height: 1; flex-shrink: 0;">✓</span>
-              <span>${isGate ? "Gate approval & verification signoff" : isTerminal ? "Project complete & closeout sign-off" : "Milestone verification"}</span>
+            <div style="display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: #64748b; flex: 1;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 9.5px; font-weight: 900; line-height: 1; flex-shrink: 0;">✓</span>
+              <span style="font-weight: 600;">${isGate ? "Gate approval & verification signoff" : isTerminal ? "Project complete & closeout sign-off" : "Milestone verification"}</span>
             </div>
           `;
         }
@@ -568,7 +566,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
               ${nodeForms
                 .map(
                   (f) => `
-                <span style="background: #ffffff; border: 1px solid #cbd5e1; font-size: 8px; font-weight: 700; padding: 1.5px 4px; border-radius: 2px; color: #0f172a; white-space: nowrap;">
+                <span style="background: #ffffff; border: 1px solid #cbd5e1; font-size: 8.5px; font-weight: 700; padding: 2px 5px; border-radius: 2px; color: #0f172a; white-space: nowrap;">
                   <strong>[${escapeHtml(f.code)}]</strong> ${escapeHtml(f.title)}
                 </span>
               `,
@@ -590,10 +588,10 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           <div style="flex: ${flexGrow}; min-width: 0; background: #ffffff; border: 1.5px solid ${theme.border}; border-radius: 4px; padding: 4px 7px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; height: 100%; box-sizing: border-box;">
             <div style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
               <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid ${theme.border}; padding-bottom: 2px; margin-bottom: 4px; gap: 4px;">
-                <span style="font-size: 9.5px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+                <span style="font-size: 10px; font-weight: 900; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
                   STEP ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
-                <span style="font-size: 7.5px; color: ${badgeColor}; font-weight: 800; background: ${badgeBg}; border: 1px solid ${badgeBorder}; padding: 1px 4px; border-radius: 2px; white-space: nowrap; flex-shrink: 0; line-height: 1;">
+                <span style="font-size: 8px; color: ${badgeColor}; font-weight: 900; background: ${badgeBg}; border: 1px solid ${badgeBorder}; padding: 1.5px 5px; border-radius: 2px; white-space: nowrap; flex-shrink: 0; line-height: 1;">
                   ${badgeLabel}
                 </span>
               </div>
@@ -617,23 +615,23 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
     phaseRowsHtml += `
       <!-- PHASE ROW ${phaseIdx + 1} (Flex weight: ${weight}) -->
-      <div style="flex: ${weight}; min-height: 0; display: grid; grid-template-columns: 180px 265px 1fr; gap: 8px; border: 1.5px solid ${theme.border}; border-radius: 6px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden; box-sizing: border-box;">
+      <div style="flex: ${weight}; min-height: 0; display: grid; grid-template-columns: 190px 275px 1fr; gap: 8px; border: 1.5px solid ${theme.border}; border-radius: 6px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden; box-sizing: border-box;">
         
         <!-- L1 Card (Left Column) -->
-        <div style="background: ${theme.bg}; border-right: 1.5px solid ${theme.border}; padding: 7px 9px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
+        <div style="background: ${theme.bg}; border-right: 1.5px solid ${theme.border}; padding: 7px 10px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
           <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-              <span style="background: ${theme.badge}; color: #ffffff; font-size: 8.5px; font-weight: 800; padding: 2px 5px; border-radius: 3px; text-transform: uppercase;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="background: ${theme.badge}; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 3px; text-transform: uppercase;">
                 ${escapeHtml(phaseCode)}
               </span>
-              <span style="font-size: 8.5px; font-weight: 800; color: ${theme.subtext};">
+              <span style="font-size: 9px; font-weight: 900; color: ${theme.subtext};">
                 ${linkedL2.length} Step${linkedL2.length !== 1 ? "s" : ""}
               </span>
             </div>
-            <h2 style="margin: 0 0 2px 0; font-size: 14.5px; font-weight: 800; color: ${theme.text}; line-height: 1.15;">
+            <h2 style="margin: 0 0 2px 0; font-size: 15.5px; font-weight: 900; color: ${theme.text}; line-height: 1.15;">
               ${escapeHtml(phaseTitle)}
             </h2>
-            <p style="margin: 0; font-size: 9px; color: ${theme.text}; opacity: 0.9; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-weight: 500;">
+            <p style="margin: 0; font-size: 10px; color: ${theme.text}; opacity: 0.95; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-weight: 600;">
               ${escapeHtml(phaseSubtitle)}
             </p>
           </div>
@@ -661,29 +659,29 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
       
       <!-- TOP HEADER BAR -->
-      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end; height: 42px; box-sizing: border-box; flex-shrink: 0;">
+      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end; height: 44px; box-sizing: border-box; flex-shrink: 0;">
         <div>
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-            <span style="background: #0f172a; color: #ffffff; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 1px 6px; border-radius: 2px;">
+            <span style="background: #0f172a; color: #ffffff; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 3px;">
               L1 · L2 · L3 Process Architecture
             </span>
-            <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 2px;">
+            <span style="background: #0284c7; color: #ffffff; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 3px;">
               ${totalPhases} Phases · ${totalL2Nodes} Workflow Steps · ${totalL3Items} Controlled Items
             </span>
           </div>
-          <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
+          <h1 style="margin: 0; font-size: 21px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
             ${escapeHtml(projectName)}
           </h1>
         </div>
         
-        <div style="text-align: right; font-size: 9.5px; color: #475569; display: flex; gap: 10px; align-items: center;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 7px; text-align: left;">
-            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 700;">Project Number</div>
-            <div style="font-weight: 800; font-family: monospace; font-size: 11px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
+        <div style="text-align: right; font-size: 10px; color: #475569; display: flex; gap: 10px; align-items: center;">
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 8px; text-align: left;">
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Project Number</div>
+            <div style="font-weight: 900; font-family: monospace; font-size: 12px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
           </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 7px; text-align: left;">
-            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 700;">Revision / Date</div>
-            <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">${escapeHtml(version)} · ${timestamp}</div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 8px; text-align: left;">
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Revision / Date</div>
+            <div style="font-weight: 800; font-size: 11px; color: #0f172a;">${escapeHtml(version)} · ${timestamp}</div>
           </div>
         </div>
       </div>
@@ -692,7 +690,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin-top: 5px; margin-bottom: 5px; gap: 6px; overflow: hidden; min-height: 0;">
         
         <!-- COLUMN TITLES HEADER -->
-        <div style="display: grid; grid-template-columns: 180px 265px 1fr; gap: 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0 2px; flex-shrink: 0;">
+        <div style="display: grid; grid-template-columns: 190px 275px 1fr; gap: 8px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #334155; padding: 0 2px; flex-shrink: 0;">
           <div style="display: flex; align-items: center; gap: 5px;">
             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span>
             L1 · High-Level (${totalPhases})
@@ -712,14 +710,14 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       </div>
 
       <!-- BOTTOM FOOTER & SIGN-OFF BAR -->
-      <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748b; height: 22px; box-sizing: border-box; flex-shrink: 0;">
+      <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #64748b; height: 22px; box-sizing: border-box; flex-shrink: 0;">
         <div style="display: flex; gap: 10px; align-items: center;">
-          <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 8.5px;">System Traceability:</span>
+          <span style="font-weight: 800; color: #0f172a; text-transform: uppercase; font-size: 9px;">System Traceability:</span>
           <span>● <strong>Step Governance:</strong> All L2 steps follow sequential lifecycle execution within their parent Phase.</span>
           <span>● <strong>Purple Gate Tags:</strong> 🚦 Gate tags highlight control points while cards retain Phase theme colors.</span>
           <span>● <strong>Adaptive Layout:</strong> Dynamic flex distribution fully utilizes A4 space with zero overflow.</span>
         </div>
-        <div style="font-weight: 600; color: #0f172a;">
+        <div style="font-weight: 700; color: #0f172a;">
           ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
         </div>
       </div>
