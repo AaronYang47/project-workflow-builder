@@ -167,10 +167,7 @@ function getNodeGateLabel(
 }
 
 /**
- * Generates an executive presentation PDF with:
- * - Generous vertical space between L1 and L2 (90px)
- * - Clean, non-overlapping SVG branch lines
- * - Refined, sharp, perfectly centered downward arrowheads on L2 tops
+ * Generates an executive presentation PDF with clean, single-level orthogonal branch routing (zero redundant zigzags).
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -518,7 +515,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
 
-    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (No overlaps, perfect downward arrowheads)
+    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (Clean, single-level orthogonal routing)
     const canvasBody = container.querySelector("#exec-canvas-body") as HTMLElement | null;
     const svgOverlay = container.querySelector("#exec-svg-overlay") as SVGSVGElement | null;
 
@@ -530,20 +527,14 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
         const linkedL2 = getLinkedL2Nodes(l1Node);
         const l1CardEl = container.querySelector(`#exec-l1-card-${phaseIdx}`) as HTMLElement | null;
-        const l2GroupEl = container.querySelector(`#exec-l2-group-${phaseIdx}`) as HTMLElement | null;
 
-        if (!l1CardEl || !l2GroupEl || linkedL2.length === 0) return;
+        if (!l1CardEl || linkedL2.length === 0) return;
 
         const l1Rect = l1CardEl.getBoundingClientRect();
-        const l2GroupRect = l2GroupEl.getBoundingClientRect();
 
         // Exact Bottom Center of L1 Card
         const startX = l1Rect.left - canvasRect.left + l1Rect.width / 2;
         const startY = l1Rect.bottom - canvasRect.top;
-
-        // Group horizontal bounds to strictly prevent any line overlap with neighboring phases
-        const groupLeftX = l2GroupRect.left - canvasRect.left + 4;
-        const groupRightX = l2GroupRect.right - canvasRect.left - 4;
 
         // Get Top Center of all Child L2 Cards
         const childPoints: Array<{ x: number; y: number }> = [];
@@ -561,35 +552,33 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         if (childPoints.length === 0) return;
 
         const avgChildY = childPoints.reduce((acc, p) => acc + p.y, 0) / childPoints.length;
-        const step1Y = startY + 22;
-        const busY = startY + (avgChildY - startY) * 0.52;
+        const busY = startY + (avgChildY - startY) * 0.5;
 
-        const minChildX = Math.min(...childPoints.map((p) => p.x));
-        const maxChildX = Math.max(...childPoints.map((p) => p.x));
-
-        // Clamped entry point into the L2 Phase Group (Guarantees zero overlap with neighboring phases)
-        const safeTrunkX = Math.max(groupLeftX, Math.min(groupRightX, startX));
-
-        let pathD = `M ${startX} ${startY}`;
-
-        if (startX !== safeTrunkX) {
-          pathD += ` L ${startX} ${step1Y} L ${safeTrunkX} ${step1Y} L ${safeTrunkX} ${busY}`;
-        } else {
-          pathD += ` L ${safeTrunkX} ${busY}`;
-        }
+        let pathD = "";
 
         if (childPoints.length === 1) {
-          // Single child (e.g. Phase 4): Route strictly to target.x and drop into card top
+          // Single child (Phase 4 Final Close): Clean 2-bend orthogonal or straight line without zigzag!
           const target = childPoints[0];
-          pathD += ` L ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
+          if (Math.abs(startX - target.x) < 2) {
+            pathD = `M ${startX} ${startY} L ${target.x} ${target.y - 6}`;
+          } else {
+            pathD = `M ${startX} ${startY} L ${startX} ${busY} L ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
+          }
         } else {
-          // Multiple children: Horizontal bus bar spans child cards strictly within group bounds
-          const busLeft = Math.min(safeTrunkX, minChildX);
-          const busRight = Math.max(safeTrunkX, maxChildX);
+          // Multiple children: Clean single horizontal bus bar connected to L1 trunk
+          const minChildX = Math.min(...childPoints.map((p) => p.x));
+          const maxChildX = Math.max(...childPoints.map((p) => p.x));
 
+          const busLeft = Math.min(startX, minChildX);
+          const busRight = Math.max(startX, maxChildX);
+
+          // 1. Trunk from L1 card bottom center down to busY
+          pathD += `M ${startX} ${startY} L ${startX} ${busY}`;
+
+          // 2. Single clean horizontal bus bar spanning across child cards
           pathD += ` M ${busLeft} ${busY} L ${busRight} ${busY}`;
 
-          // Vertical stems drop straight down to 6px above each L2 card
+          // 3. Stems dropping straight down from bus bar to 6px above each L2 card
           childPoints.forEach((target) => {
             pathD += ` M ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
           });
