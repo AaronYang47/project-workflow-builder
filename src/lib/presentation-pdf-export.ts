@@ -59,17 +59,13 @@ const DEFAULT_PHASE_THEMES = [
   },
 ];
 
-// Distinct Purple styling for all Gate nodes matching the canvas Gate container (#7c3aed)
-const GATE_VISUAL = {
-  accent: "#7c3aed",
+// Distinct Purple styling ONLY for the Gate tag/badge
+const GATE_TAG_VISUAL = {
   badgeBg: "#7c3aed",
   badgeText: "#ffffff",
   tagBg: "#f3e8ff",
   tagText: "#6d28d9",
-  cardBg: "#faf5ff",
   border: "#c084fc",
-  checkColor: "#7c3aed",
-  shadow: "0 1px 3px rgba(124, 58, 237, 0.12)",
 };
 
 function escapeHtml(str?: string): string {
@@ -162,7 +158,6 @@ export function getNodeGateLabel(
     return config.gateLabel.trim();
   }
 
-  // Check parent container title if wrapped inside a Gate
   const parentId = layout[node.id]?.parentId;
   if (parentId) {
     const parentNode = allNodes.find((n) => n.id === parentId);
@@ -252,12 +247,10 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
     }
 
-    // Dynamic matching by parent container in layout
     const byParent = allNodes.filter((n) => {
       if (n.type === "phase" || n.type === "gate") return false;
       const pId = layout[n.id]?.parentId;
       if (pId === l1Node.id) return true;
-      // If parent is a gate, check if that gate's parent is this phase
       if (pId) {
         const grandParentId = layout[pId]?.parentId;
         if (grandParentId === l1Node.id) return true;
@@ -334,7 +327,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     // Filter actual Gate nodes in this phase
     const gateNodes = linkedL2.filter((n) => isNodeGate(n, allNodes, layout));
 
-    // Build L1 Gate Badges list with distinct purple Gate styling
+    // Build L1 Gate Badges list: Gate badges are Purple, container is Phase theme
     let gateBadgesHtml = "";
     if (gateNodes.length > 0) {
       gateBadgesHtml = gateNodes
@@ -342,9 +335,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           globalGateCounter += 1;
           const gateLabel = getNodeGateLabel(g, allNodes, layout, globalGateCounter);
           return `
-            <div style="background: ${GATE_VISUAL.cardBg}; border: 1.5px solid ${GATE_VISUAL.border}; border-radius: 3px; padding: 2px 5px; display: flex; align-items: center; justify-content: space-between; box-shadow: ${GATE_VISUAL.shadow};">
-              <span style="font-size: 7.5px; font-weight: 800; color: ${GATE_VISUAL.accent};">🚦 ${gateLabel}</span>
-              <span style="font-size: 7px; font-weight: 700; color: ${GATE_VISUAL.tagText}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 95px;">
+            <div style="background: #ffffff; border: 1px solid ${GATE_TAG_VISUAL.border}; border-radius: 3px; padding: 2px 5px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 7.5px; font-weight: 800; color: ${GATE_TAG_VISUAL.tagText}; background: ${GATE_TAG_VISUAL.tagBg}; padding: 1px 3px; border-radius: 2px;">🚦 ${gateLabel}</span>
+              <span style="font-size: 7px; font-weight: 600; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 95px;">
                 ${escapeHtml(g.title)}
               </span>
             </div>
@@ -371,7 +364,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       `;
     }
 
-    // Build L2 Stages (Middle Column - Compact connected vertical stepper)
+    // Build L2 Stages (Middle Column - Card is Phase theme, ONLY Gate tag is Purple)
     let l2StagesHtml = "";
     if (linkedL2.length === 0) {
       l2StagesHtml = `
@@ -392,12 +385,13 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
             (isGate ? "Phase Completion Gate & Signoff" : isStart ? "Project Entry" : isTerminal ? "Completion Sign-off" : "Workflow Step");
 
           const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
-          const cardBorder = isGate
-            ? `border: 1.5px solid ${GATE_VISUAL.border}; border-left: 4px solid ${GATE_VISUAL.accent}; background: ${GATE_VISUAL.cardBg}; box-shadow: ${GATE_VISUAL.shadow};`
-            : `border: 1px solid ${theme.border}; border-left: 3.5px solid ${isStart ? "#0284c7" : isTerminal ? "#10b981" : theme.accent}; background: #ffffff;`;
 
+          // Card uses Phase theme color (本色)
+          const cardBorder = `border: 1px solid ${theme.border}; border-left: 3.5px solid ${theme.accent}; background: #ffffff;`;
+
+          // Tag: Purple ONLY when it is a Gate; otherwise Phase theme
           const badgeStyle = isGate
-            ? `background: ${GATE_VISUAL.tagBg}; color: ${GATE_VISUAL.accent}; border: 1px solid ${GATE_VISUAL.border}; font-weight: 800;`
+            ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1px solid ${GATE_TAG_VISUAL.border}; font-weight: 800;`
             : isStart
               ? `background: #e0f2fe; color: #0369a1; font-weight: 700;`
               : isTerminal
@@ -408,13 +402,13 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
             <div style="${cardBorder} border-radius: 4px; padding: 4px 6px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 8.5px; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">
-                  ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
+                  STEP ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
                 <span style="font-size: 7px; padding: 1px 4px; border-radius: 2px; text-transform: uppercase; ${badgeStyle}">
                   ${isGate ? `🚦 ${gateLabel}` : gateLabel}
                 </span>
               </div>
-              <p style="margin: 1px 0 0 0; font-size: 7.5px; color: ${isGate ? GATE_VISUAL.tagText : "#64748b"}; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <p style="margin: 1px 0 0 0; font-size: 7.5px; color: #64748b; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${escapeHtml(subtitle)}
               </p>
             </div>
@@ -428,7 +422,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         .join("");
     }
 
-    // Build L3 Right Column: Side-by-side horizontal cards for each L2 node in this phase
+    // Build L3 Right Column (Side-by-Side L2 Nodes - Card is Phase theme, ONLY Gate tag is Purple)
     let l3NodesHtml = "";
     if (linkedL2.length === 0) {
       l3NodesHtml = `
@@ -519,7 +513,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                 .map(
                   (c) => `
                 <div style="display: flex; align-items: flex-start; gap: 3px; font-size: 7.5px; color: #334155; line-height: 1.2;">
-                  <span style="color: ${c.checked ? "#059669" : isGate ? "#7c3aed" : "#d97706"}; font-weight: 800; font-size: 8px;">${c.checked ? "✓" : "☑"}</span>
+                  <span style="color: ${c.checked ? "#059669" : theme.accent}; font-weight: 800; font-size: 8px;">${c.checked ? "✓" : "☑"}</span>
                   <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     ${escapeHtml(c.label)}
                   </span>
@@ -541,11 +535,11 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         let formsMarkup = "";
         if (nodeForms.length > 0) {
           formsMarkup = `
-            <div style="display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; border-top: 1px dashed ${isGate ? GATE_VISUAL.border : "#e2e8f0"}; padding-top: 2px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; border-top: 1px dashed ${theme.border}; padding-top: 2px;">
               ${nodeForms
                 .map(
                   (f) => `
-                <span style="background: #ffffff; border: 1px solid ${isGate ? GATE_VISUAL.border : "#cbd5e1"}; font-size: 7px; font-weight: 600; padding: 1px 3px; border-radius: 2px; color: #1e293b; white-space: nowrap;">
+                <span style="background: #ffffff; border: 1px solid #cbd5e1; font-size: 7px; font-weight: 600; padding: 1px 3px; border-radius: 2px; color: #1e293b; white-space: nowrap;">
                   <strong>[${escapeHtml(f.code)}]</strong> ${escapeHtml(f.title)}
                 </span>
               `,
@@ -557,22 +551,20 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
         const flexGrow = condCount > 10 ? 2 : 1;
 
+        // Tag: Purple ONLY when it is a Gate; otherwise Phase theme
         const badgeLabel = isGate ? `🚦 ${gateLabel}` : isTerminal ? "🏁 Complete" : isStart ? "Start" : `${condCount} cond`;
-        const badgeColor = isGate ? GATE_VISUAL.accent : isTerminal ? "#15803d" : isStart ? "#0369a1" : "#64748b";
-        const badgeBg = isGate ? GATE_VISUAL.tagBg : isTerminal ? "#dcfce7" : isStart ? "#e0f2fe" : "#ffffff";
-
-        const cardStyle = isGate
-          ? `background: ${GATE_VISUAL.cardBg}; border: 1.5px solid ${GATE_VISUAL.border}; box-shadow: ${GATE_VISUAL.shadow};`
-          : `background: #f8fafc; border: 1px solid #e2e8f0;`;
+        const badgeColor = isGate ? GATE_TAG_VISUAL.tagText : isTerminal ? "#15803d" : isStart ? "#0369a1" : theme.text;
+        const badgeBg = isGate ? GATE_TAG_VISUAL.tagBg : isTerminal ? "#dcfce7" : isStart ? "#e0f2fe" : theme.tagBg;
+        const badgeBorder = isGate ? GATE_TAG_VISUAL.border : theme.border;
 
         return `
-          <div style="flex: ${flexGrow}; min-width: 0; ${cardStyle} border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
+          <div style="flex: ${flexGrow}; min-width: 0; background: #ffffff; border: 1px solid ${theme.border}; border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
             <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid ${isGate ? GATE_VISUAL.border : "#e2e8f0"}; padding-bottom: 2px; margin-bottom: 3px;">
-                <span style="font-size: 8px; font-weight: 800; color: ${isGate ? GATE_VISUAL.accent : "#0f172a"}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
+              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid ${theme.border}; padding-bottom: 2px; margin-bottom: 3px;">
+                <span style="font-size: 8px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  STEP ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
-                <span style="font-size: 6.5px; color: ${badgeColor}; font-weight: 800; background: ${badgeBg}; border: 1px solid ${isGate ? GATE_VISUAL.border : "#e2e8f0"}; padding: 0 3px; border-radius: 2px;">
+                <span style="font-size: 6.5px; color: ${badgeColor}; font-weight: 800; background: ${badgeBg}; border: 1px solid ${badgeBorder}; padding: 0 3px; border-radius: 2px;">
                   ${badgeLabel}
                 </span>
               </div>
@@ -606,7 +598,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                 ${escapeHtml(phaseCode)}
               </span>
               <span style="font-size: 7.5px; font-weight: 700; color: ${theme.subtext};">
-                ${linkedL2.length} Node${linkedL2.length !== 1 ? "s" : ""}
+                ${linkedL2.length} Step${linkedL2.length !== 1 ? "s" : ""}
               </span>
             </div>
             <h2 style="margin: 0 0 1px 0; font-size: 12px; font-weight: 800; color: ${theme.text}; line-height: 1.15;">
@@ -647,7 +639,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
               L1 · L2 · L3 Process Architecture
             </span>
             <span style="background: #0284c7; color: #ffffff; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 2px;">
-              ${totalPhases} Phases · ${totalL2Nodes} Workflow Nodes · ${totalL3Items} Controlled Items
+              ${totalPhases} Phases · ${totalL2Nodes} Workflow Steps · ${totalL3Items} Controlled Items
             </span>
           </div>
           <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
@@ -694,9 +686,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; color: #64748b; height: 22px; box-sizing: border-box;">
         <div style="display: flex; gap: 10px; align-items: center;">
           <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 8px;">System Traceability:</span>
-          <span>● <strong>Canvas 1:1 Colors:</strong> Phase colors (Green, Pink, Amber, Yellow) and Gate purple (#7c3aed) match the canvas.</span>
-          <span>● <strong>Gate Governance:</strong> Gate nodes require verified release conditions before downstream stages proceed.</span>
-          <span>● <strong>Node Traceability:</strong> All L3 release conditions & controlled forms are mapped directly to parent L2 nodes.</span>
+          <span>● <strong>Step Governance:</strong> All L2 steps follow sequential lifecycle execution within their parent Phase.</span>
+          <span>● <strong>Purple Gate Tags:</strong> 🚦 Gate tags highlight control points while cards retain Phase theme colors.</span>
+          <span>● <strong>Node Alignment:</strong> All L3 release conditions & controlled forms are mapped directly to parent L2 nodes.</span>
         </div>
         <div style="font-weight: 600; color: #0f172a;">
           ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
