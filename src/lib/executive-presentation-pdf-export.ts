@@ -480,17 +480,6 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       <!-- MAIN 2-TIER WORKFLOW CANVAS (Moved Upward with Connected Lines from L1 Bottom to L2 Tops) -->
       <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 6px; flex-shrink: 0;">
         
-        <!-- SECTION TITLE: L1 & L2 PROCESS ARCHITECTURE -->
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0 4px; margin-bottom: 2px;">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span>
-            <span>L1 Lifecycle Macro Phases ➔ L2 Sequential Workflow Steps</span>
-          </div>
-          <span style="font-size: 8.5px; color: #64748b; font-weight: 700; text-transform: none;">
-            Connected from phase governance to execution
-          </span>
-        </div>
-
         <!-- 4 PHASE COLUMNS (L1 Card -> Direct Connector Line from Bottom -> L2 Cards) -->
         <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%;">
           ${phaseColumnsMergedHtml}
