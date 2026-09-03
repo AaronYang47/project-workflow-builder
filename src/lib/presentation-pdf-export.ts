@@ -10,7 +10,6 @@ const PHASE_THEMES = [
     accent: "#0284c7",
     subtext: "#0369a1",
     tagBg: "#e0f2fe",
-    defaultGate: "Gate G1 — Qualified & Commercially Engaged",
   },
   {
     badge: "#d97706",
@@ -20,7 +19,6 @@ const PHASE_THEMES = [
     accent: "#d97706",
     subtext: "#b45309",
     tagBg: "#fef3c7",
-    defaultGate: "Gate G2 — Technical & Project Commitment",
   },
   {
     badge: "#7c3aed",
@@ -30,7 +28,6 @@ const PHASE_THEMES = [
     accent: "#7c3aed",
     subtext: "#6d28d9",
     tagBg: "#ede9fe",
-    defaultGate: "Gate G3 — Production & Execution Authorization",
   },
   {
     badge: "#059669",
@@ -40,7 +37,6 @@ const PHASE_THEMES = [
     accent: "#059669",
     subtext: "#047857",
     tagBg: "#d1fae5",
-    defaultGate: "Gate G5 — Final Project Acceptance & Close",
   },
   {
     badge: "#0891b2",
@@ -50,7 +46,6 @@ const PHASE_THEMES = [
     accent: "#0891b2",
     subtext: "#0e7490",
     tagBg: "#cffafe",
-    defaultGate: "Primary Gate Control",
   },
   {
     badge: "#475569",
@@ -60,7 +55,6 @@ const PHASE_THEMES = [
     accent: "#475569",
     subtext: "#334155",
     tagBg: "#e2e8f0",
-    defaultGate: "Primary Gate Control",
   },
 ];
 
@@ -80,33 +74,72 @@ function isGateNode(node: DomainNode): boolean {
   const id = String(node.id || "").toLowerCase();
   const stage = String(node.config?.stage || "").toLowerCase();
 
-  return (
+  // Explicit non-gate exclusions
+  if (
+    type === "terminal" ||
+    type === "end" ||
+    type === "projectstart" ||
+    id === "project-complete" ||
+    id === "close-out" ||
+    title === "project complete" ||
+    title === "final close" ||
+    title === "project start" ||
+    title === "sales agreement" ||
+    title.includes("warranty period")
+  ) {
+    return false;
+  }
+
+  const hasGateRules = Array.isArray(node.config?.gateRules) && node.config.gateRules.length > 0;
+  const hasSignatures = Array.isArray(node.config?.signatureRequirements) && node.config.signatureRequirements.length > 0;
+  const isDecisionMode = node.config?.decisionMode === "approval" || node.config?.decisionMode === "binary";
+
+  // Explicit gate properties
+  if (
     type === "gate" ||
     type === "decision" ||
     stage.includes("gate") ||
     title.includes("gate") ||
-    title.startsWith("g1") ||
-    title.startsWith("g2") ||
-    title.startsWith("g3") ||
-    title.startsWith("g4") ||
-    title.startsWith("g5") ||
     id.includes("gate") ||
+    hasGateRules ||
+    hasSignatures ||
+    isDecisionMode
+  ) {
+    return true;
+  }
+
+  // CEC Class C, Class B, Class A Estimate are Gate release checkpoints; Qualification is G1; Execution & Payments is G3
+  if (
+    title.includes("cec class c") ||
+    title.includes("cec class b") ||
+    title.includes("cec class a") ||
+    title.includes("class c estimate") ||
+    title.includes("class b estimate") ||
+    title.includes("class a estimate") ||
     title.includes("qualification & commercial") ||
-    title.includes("sales agreement") ||
-    title.includes("execution & payment") ||
-    title.includes("project complete") ||
-    title.includes("authorization")
-  );
+    title.includes("execution & payment")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function getGateLabelForNode(node: DomainNode, phaseIdx: number, nIdx: number): string {
   const title = String(node.title || "").toLowerCase();
-  if (title.includes("qualification") || title.startsWith("g1")) return "Gate G1";
-  if (title.includes("sales agreement") || title.includes("technical commitment") || title.startsWith("g2")) return "Gate G2";
-  if (title.includes("execution") || title.includes("production auth") || title.startsWith("g3")) return "Gate G3";
-  if (title.includes("factory release") || title.startsWith("g4")) return "Gate G4";
-  if (title.includes("project complete") || title.includes("warranty start") || title.startsWith("g5")) return "Gate G5";
-  return `Gate G${phaseIdx + 1}`;
+  const id = String(node.id || "").toLowerCase();
+
+  const match = title.match(/\b(g[1-5])\b/i) || id.match(/\b(g[1-5])\b/i);
+  if (match) return `Gate ${match[1].toUpperCase()}`;
+
+  if (title.includes("qualification")) return "Gate G1";
+  if (title.includes("cec class c") || title.includes("class c")) return "Gate G2-C";
+  if (title.includes("cec class b") || title.includes("class b")) return "Gate G2-B";
+  if (title.includes("cec class a") || title.includes("class a")) return "Gate G2-A";
+  if (title.includes("execution") || title.includes("payment")) return "Gate G3";
+  if (title.includes("factory release")) return "Gate G4";
+
+  return "Gate";
 }
 
 export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
@@ -240,33 +273,35 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     const theme = PHASE_THEMES[phaseIdx % PHASE_THEMES.length];
     const linkedL2 = getLinkedL2Nodes(l1Node);
 
-    // Find any gates in this phase
-    const explicitGateNodes = linkedL2.filter(isGateNode);
+    // Filter actual gate nodes inside this phase
+    const gateNodes = linkedL2.filter(isGateNode);
 
     // Build L1 Gate Badges list
     let gateBadgesHtml = "";
-    if (explicitGateNodes.length > 0) {
-      gateBadgesHtml = explicitGateNodes
+    if (gateNodes.length > 0) {
+      gateBadgesHtml = gateNodes
         .map((g, gIdx) => {
           const gateLabel = getGateLabelForNode(g, phaseIdx, gIdx);
           return `
-            <div style="background: #ffffff; border: 1px solid ${theme.border}; border-radius: 3px; padding: 2px 5px; display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 8px; font-weight: 800; color: ${theme.accent};">🚦 ${gateLabel}</span>
-              <span style="font-size: 7px; font-weight: 600; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;">
+            <div style="background: #ffffff; border: 1px solid ${theme.border}; border-radius: 2px; padding: 2px 4px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 7.5px; font-weight: 800; color: ${theme.accent};">🚦 ${gateLabel}</span>
+              <span style="font-size: 7px; font-weight: 600; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 95px;">
                 ${escapeHtml(g.title)}
               </span>
             </div>
           `;
         })
         .join("");
-    } else {
-      // Fallback to default phase gate milestone
+    } else if (l1Node.type === "end" || phaseIdx === orderedL1.length - 1 || l1Node.title.toLowerCase().includes("final")) {
       gateBadgesHtml = `
-        <div style="background: #ffffff; border: 1px solid ${theme.border}; border-radius: 3px; padding: 2px 5px; display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-size: 8px; font-weight: 800; color: ${theme.accent};">🚦 Gate G${phaseIdx + 1}</span>
-          <span style="font-size: 7px; font-weight: 600; color: ${theme.subtext}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 105px;">
-            ${escapeHtml(theme.defaultGate.replace(/^Gate G\d+\s*—\s*/, ""))}
-          </span>
+        <div style="background: rgba(255,255,255,0.7); border: 1px dashed ${theme.border}; border-radius: 2px; padding: 2px 4px; text-align: center; font-size: 7px; color: ${theme.subtext}; font-weight: 600;">
+          🏁 Final Project Milestone
+        </div>
+      `;
+    } else {
+      gateBadgesHtml = `
+        <div style="background: rgba(255,255,255,0.7); border: 1px dashed ${theme.border}; border-radius: 2px; padding: 2px 4px; text-align: center; font-size: 7px; color: ${theme.subtext};">
+          Phase Execution Flow
         </div>
       `;
     }
@@ -283,15 +318,15 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       l2StagesHtml = linkedL2
         .map((node, nIdx) => {
           const isGate = isGateNode(node);
-          const isStart = node.type === "projectStart" || node.id === "project-start";
-          const isTerminal = node.type === "terminal" || node.id === "project-complete" || node.id === "close-out";
+          const isStart = node.type === "projectStart" || node.id === "project-start" || node.title.toLowerCase() === "project start";
+          const isTerminal = node.type === "terminal" || node.id === "project-complete" || node.id === "close-out" || node.title.toLowerCase() === "project complete";
 
           const subtitle =
             node.description?.trim() ||
             (node.config?.stage as string) ||
             (isGate ? "Primary Gate Control Point" : isStart ? "Project Record Entry" : isTerminal ? "Final Project Sign-off" : "Workflow Execution Step");
 
-          const gateLabel = isGate ? getGateLabelForNode(node, phaseIdx, nIdx) : isStart ? "Start" : isTerminal ? "End" : "Step";
+          const badgeLabel = isGate ? getGateLabelForNode(node, phaseIdx, nIdx) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
           const badgeStyle = isGate
             ? `background: ${theme.tagBg}; color: ${theme.subtext}; font-weight: 800;`
             : isStart
@@ -307,7 +342,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                   ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
                 <span style="font-size: 7px; padding: 1px 4px; border-radius: 2px; text-transform: uppercase; ${badgeStyle}">
-                  ${isGate ? `🚦 ${gateLabel}` : gateLabel}
+                  ${isGate ? `🚦 ${badgeLabel}` : badgeLabel}
                 </span>
               </div>
               <p style="margin: 1px 0 0 0; font-size: 7.5px; color: #64748b; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -335,6 +370,8 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     } else {
       const subCards = linkedL2.map((node, nIdx) => {
         const isGate = isGateNode(node);
+        const isTerminal = node.type === "terminal" || node.id === "project-complete" || node.title.toLowerCase() === "project complete";
+        const isStart = node.type === "projectStart" || node.id === "project-start" || node.title.toLowerCase() === "project start";
         const gateLabel = isGate ? getGateLabelForNode(node, phaseIdx, nIdx) : "";
 
         // 1. Collect conditions
@@ -424,7 +461,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           condMarkup = `
             <div style="display: flex; align-items: center; gap: 3px; font-size: 7.5px; color: #64748b;">
               <span style="color: #059669; font-weight: 800;">✓</span>
-              <span>${isGate ? "Authorized Gate decision & verification release" : "Milestone completion and verification sign-off"}</span>
+              <span>${isGate ? "Authorized Gate decision & verification release" : isTerminal ? "Project complete & closeout sign-off" : "Milestone verification"}</span>
             </div>
           `;
         }
@@ -448,6 +485,10 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
         const flexGrow = condCount > 10 ? 2 : 1;
 
+        const badgeLabel = isGate ? `🚦 ${gateLabel}` : isTerminal ? "🏁 Complete" : isStart ? "Start" : `${condCount} cond`;
+        const badgeColor = isGate ? theme.subtext : isTerminal ? "#15803d" : isStart ? "#0369a1" : "#64748b";
+        const badgeBg = isGate ? theme.tagBg : isTerminal ? "#dcfce7" : isStart ? "#e0f2fe" : "#ffffff";
+
         return `
           <div style="flex: ${flexGrow}; min-width: 0; background: ${isGate ? "#ffffff" : "#f8fafc"}; border: 1px solid ${isGate ? theme.border : "#e2e8f0"}; border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; ${isGate ? `box-shadow: 0 0 0 1px ${theme.border};` : ""}">
             <div>
@@ -455,8 +496,8 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                 <span style="font-size: 8px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
-                <span style="font-size: 6.5px; color: ${isGate ? theme.subtext : "#64748b"}; font-weight: 700; background: ${isGate ? theme.tagBg : "#ffffff"}; border: 1px solid ${isGate ? theme.border : "#e2e8f0"}; padding: 0 3px; border-radius: 2px;">
-                  ${isGate ? `🚦 ${gateLabel}` : `${condCount} cond`}
+                <span style="font-size: 6.5px; color: ${badgeColor}; font-weight: 700; background: ${badgeBg}; border: 1px solid ${isGate ? theme.border : "#e2e8f0"}; padding: 0 3px; border-radius: 2px;">
+                  ${badgeLabel}
                 </span>
               </div>
               ${condMarkup}
@@ -530,7 +571,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
               L1 · L2 · L3 Process Architecture
             </span>
             <span style="background: #0284c7; color: #ffffff; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 2px;">
-              ${totalPhases} Phases · ${totalL2Nodes} Workflow Nodes · 5 Primary Gates · ${totalL3Items} Controlled Items
+              ${totalPhases} Phases · ${totalL2Nodes} Workflow Nodes · ${totalL3Items} Controlled Items
             </span>
           </div>
           <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
@@ -557,7 +598,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         <div style="display: grid; grid-template-columns: 155px 260px 1fr; gap: 8px; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0 2px;">
           <div style="display: flex; align-items: center; gap: 4px;">
             <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #0284c7;"></span>
-            L1 · High-Level & Gates (${totalPhases})
+            L1 · High-Level (${totalPhases})
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
             <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #6366f1;"></span>
@@ -577,9 +618,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; color: #64748b; height: 22px; box-sizing: border-box;">
         <div style="display: flex; gap: 10px; align-items: center;">
           <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 8px;">System Traceability:</span>
-          <span>● <strong>Primary Gates:</strong> G1 (Qualification), G2 (Commitment), G3 (Execution), G5 (Completion) govern release.</span>
+          <span>● <strong>Stage Governance:</strong> Gated release decisions block downstream execution until conditions are verified.</span>
           <span>● <strong>Node Alignment:</strong> Every L3 condition & form is mapped directly to its owner L2 node.</span>
-          <span>● <strong>Stage Integrity:</strong> Release conditions must be verified before proceeding downstream.</span>
+          <span>● <strong>Closeout Integrity:</strong> Final Close represents project completion and commercial reconciliation.</span>
         </div>
         <div style="font-weight: 600; color: #0f172a;">
           ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
