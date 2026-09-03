@@ -350,7 +350,7 @@ function buildGlobalPyramidGroups(
 ) {
   const claimed = new Set<string>();
   const groups = highLevelNodes.map((hlNode) => {
-    const ids = orderLinkedWorkflowNodeIds(linkedIds(hlNode), nodes);
+    const ids = orderLinkedWorkflowNodeIds(linkedIds(hlNode), nodes, edges);
     const branches = ids.map((id) => {
       claimed.add(id);
       return branchForLayer2(id, nodes);

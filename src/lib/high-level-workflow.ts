@@ -57,8 +57,78 @@ export function orderWorkflowNodeIds(
 export function orderLinkedWorkflowNodeIds(
   linkedIds: string[] | undefined,
   workflowNodes: WorkflowFile["graph"]["nodes"],
+  edges?: Array<{ source: string; target: string }>,
+  layoutNodes?: Record<string, { x: number; y: number }>,
 ) {
-  return orderWorkflowNodeIds(linkedIds || [], workflowNodes);
+  if (!linkedIds || linkedIds.length <= 1) return linkedIds || [];
+
+  const uniqueIds = Array.from(new Set(linkedIds));
+  const idSet = new Set(uniqueIds);
+
+  // 1. If edges are provided, perform topological sort along L2 graph edges
+  if (edges && edges.length > 0) {
+    const inDegree = new Map<string, number>();
+    const adjacency = new Map<string, string[]>();
+
+    uniqueIds.forEach((id) => {
+      inDegree.set(id, 0);
+      adjacency.set(id, []);
+    });
+
+    edges.forEach((edge) => {
+      if (idSet.has(edge.source) && idSet.has(edge.target)) {
+        adjacency.get(edge.source)?.push(edge.target);
+        inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+      }
+    });
+
+    const queue = uniqueIds
+      .filter((id) => (inDegree.get(id) || 0) === 0)
+      .sort((a, b) => {
+        const xA = layoutNodes?.[a]?.x ?? 0;
+        const xB = layoutNodes?.[b]?.x ?? 0;
+        return xA - xB;
+      });
+
+    const ordered: string[] = [];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      ordered.push(current);
+
+      const targets = adjacency.get(current) || [];
+      targets.sort((a, b) => (layoutNodes?.[a]?.x ?? 0) - (layoutNodes?.[b]?.x ?? 0));
+
+      for (const target of targets) {
+        const remaining = (inDegree.get(target) || 0) - 1;
+        inDegree.set(target, remaining);
+        if (remaining === 0) {
+          queue.push(target);
+        }
+      }
+    }
+
+    const unvisited = uniqueIds.filter((id) => !ordered.includes(id));
+    unvisited.sort((a, b) => (layoutNodes?.[a]?.x ?? 0) - (layoutNodes?.[b]?.x ?? 0));
+
+    if (ordered.length > 0) {
+      return [...ordered, ...unvisited];
+    }
+  }
+
+  // 2. Spatial Fallback: Sort strictly by L2 Canvas X position (left to right)
+  if (layoutNodes) {
+    const hasCoordinates = uniqueIds.some((id) => layoutNodes[id]?.x !== undefined);
+    if (hasCoordinates) {
+      return [...uniqueIds].sort((a, b) => {
+        const xA = layoutNodes[a]?.x ?? 0;
+        const xB = layoutNodes[b]?.x ?? 0;
+        return xA - xB;
+      });
+    }
+  }
+
+  // 3. Sequential Fallback: Follow workflowNodes order
+  return orderWorkflowNodeIds(uniqueIds, workflowNodes);
 }
 
 /** Order nodes by the High-Level connections, not by creation order. */

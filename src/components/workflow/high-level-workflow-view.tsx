@@ -222,6 +222,8 @@ function HighLevelCanvasInner({
         const linkedLayer2NodeIds = orderLinkedWorkflowNodeIds(
           node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds,
           file.graph.nodes,
+          file.graph.edges,
+          file.layout.nodes,
         );
         const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
         return {
@@ -257,6 +259,8 @@ function HighLevelCanvasInner({
       highLevelSelection.nodeIds,
       layer2ById,
       file.graph.nodes,
+      file.graph.edges,
+      file.layout.nodes,
     ],
   );
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);

@@ -54,6 +54,8 @@ export function HighLevelInspector() {
     ? orderLinkedWorkflowNodeIds(
         node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds,
         file.graph.nodes,
+        file.graph.edges,
+        file.layout.nodes,
       )
     : [];
   const orderedWorkflowNodeIds = orderWorkflowNodeIds(

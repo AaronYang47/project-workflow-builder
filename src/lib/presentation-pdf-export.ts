@@ -260,7 +260,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   const getLinkedL2Nodes = (l1Node: HighLevelNode): DomainNode[] => {
     const explicitIds = l1Node.linkedLayer2NodeIds ?? l1Node.linkedDetailedNodeIds ?? [];
     if (explicitIds.length > 0) {
-      const orderedIds = orderLinkedWorkflowNodeIds(explicitIds, allNodes);
+      const orderedIds = orderLinkedWorkflowNodeIds(explicitIds, allNodes, file.graph.edges, layout);
       return orderedIds
         .map((id) => allNodes.find((n) => n.id === id))
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
@@ -276,7 +276,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       }
       return n.config?.phaseId === l1Node.id || (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title);
     });
-    if (byParent.length > 0) return byParent;
+    if (byParent.length > 0) {
+      const orderedIds = orderLinkedWorkflowNodeIds(byParent.map((n) => n.id), allNodes, file.graph.edges, layout);
+      return orderedIds
+        .map((id) => allNodes.find((n) => n.id === id))
+        .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
+    }
 
     if (l1Node.type === "end" || l1Node.title.toLowerCase().includes("close") || l1Node.title.toLowerCase().includes("commission")) {
       const closeNodes = allNodes.filter(
