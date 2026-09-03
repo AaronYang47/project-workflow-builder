@@ -223,16 +223,32 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   const { toPng } = await import("html-to-image");
   const { jsPDF } = await import("jspdf");
 
+  const allNodes = file.graph.nodes || [];
+  const startNode = allNodes.find((n) => n.type === "projectStart" || n.id === "project-start");
+  const projectNumber =
+    String(startNode?.customFields?.projectId || "").trim() ||
+    String(startNode?.customFields?.projectNumber || "").trim() ||
+    String(allNodes.find((n) => n.customFields?.projectId)?.customFields?.projectId || "").trim() ||
+    String(file.operations?.identity?.projectNumber || "").trim() ||
+    String(file.operations?.identity?.projectId || "").trim() ||
+    String(file.operations?.projectNumber || "").trim() ||
+    "PRJ-001";
+
   const projectName = file.graph.metadata.name || "Process Workflow Architecture";
-  const projectNumber = file.operations?.projectNumber || "PRJ-001";
   const version = file.graph.metadata.version || "v1.0";
-  const timestamp = new Date().toLocaleDateString("en-US", {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
-
-  const allNodes = file.graph.nodes || [];
+  const timeStr = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const timestamp = `${dateStr} ${timeStr}`;
   const layout = file.layout.nodes || {};
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const highLevelEdges = file.highLevel?.graph.edges || [];
