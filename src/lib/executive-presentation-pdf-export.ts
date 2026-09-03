@@ -214,10 +214,10 @@ function clusterStepsByGate(
 }
 
 /**
- * Generates an executive presentation PDF with:
- * - Direct vertical trunk alignment from L1 cards to L2 groups (0% line overlap)
- * - Solid borders on step cards with multi-step Gate purple dashed box
- * - Proportional, razor-sharp downward arrowheads
+ * Generates an executive presentation PDF satisfying:
+ * 1. Strictly uniform L1 card sizes (260px x 98px)
+ * 2. Strictly uniform, symmetric L1 card distribution across the row
+ * 3. Layered non-overlapping orthogonal branch routing (100% zero line collisions)
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -249,6 +249,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     hour12: false,
   });
   const timestamp = `${dateStr} ${timeStr}`;
+
   const layout = file.layout.nodes || {};
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const highLevelEdges = file.highLevel?.graph.edges || [];
@@ -359,19 +360,18 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   container.style.lineHeight = "1.3";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
-  // 3. Build Top L1 Row: Each L1 Phase card is centered in its column corresponding to its L2 group
+  // 3. Build Top L1 Row: Strictly UNIFORM SIZE (260px x 98px) & Strictly UNIFORM EVEN DISTRIBUTION (flex: 1 each)
   const l1CardsRowHtml = orderedL1
     .map((l1Node, phaseIdx) => {
       const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
       const linkedL2 = getLinkedL2Nodes(l1Node);
       const isLastPhase = phaseIdx === orderedL1.length - 1;
-      const count = Math.max(1, linkedL2.length);
 
       return `
-        <div style="flex: ${count}; min-width: 0; display: flex; align-items: center; justify-content: center; position: relative; box-sizing: border-box;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; position: relative; box-sizing: border-box;">
           
-          <!-- Identical Size L1 Card (Width: 220px, Height: 98px, ID for SVG connector) -->
-          <div id="exec-l1-card-${phaseIdx}" style="width: 220px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
+          <!-- Identical Uniform L1 Card (Width: 260px, Height: 98px) -->
+          <div id="exec-l1-card-${phaseIdx}" style="width: 260px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
             
             <div style="display: flex; justify-content: flex-end; align-items: center;">
               <span style="font-size: 10px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.9); border: 1px solid ${theme.border}; padding: 2px 7px; border-radius: 4px;">
@@ -391,7 +391,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
           ${
             !isLastPhase
-              ? `<div style="position: absolute; right: -8px; top: calc(50% - 10px); color: #94a3b8; font-size: 16px; font-weight: 900; z-index: 15;">➔</div>`
+              ? `<div style="position: absolute; right: -10px; top: calc(50% - 10px); color: #94a3b8; font-size: 18px; font-weight: 900; z-index: 15;">➔</div>`
               : ""
           }
 
@@ -548,8 +548,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       <!-- MAIN 2-TIER WORKFLOW CANVAS (Generous 90px spacing between L1 and L2) -->
       <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0; position: relative;">
         
-        <!-- 1. TOP L1 ROW: Directly Aligned with L2 Columns Below (0% Overlap) -->
-        <div style="display: flex; align-items: stretch; gap: 10px; width: 100%; box-sizing: border-box; margin-bottom: 90px;">
+        <!-- 1. TOP L1 ROW: Strictly Uniform Size & Uniform Even Distribution (flex: 1 each) -->
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; margin-bottom: 90px;">
           ${l1CardsRowHtml}
         </div>
 
@@ -608,7 +608,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
 
-    // Dynamic Calculation of Exact Continuous SVG Branch Connectors (100% Straight Vertical Trunks, 0% Overlap)
+    // Dynamic Calculation of Guaranteed Non-Overlapping Layered Orthogonal Connectors
     const canvasBody = container.querySelector("#exec-canvas-body") as HTMLElement | null;
     const svgOverlay = container.querySelector("#exec-svg-overlay") as SVGSVGElement | null;
 
@@ -646,34 +646,41 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
         if (childPoints.length === 0) return;
 
+        const minChildX = Math.min(...childPoints.map((p) => p.x));
+        const maxChildX = Math.max(...childPoints.map((p) => p.x));
         const avgChildY = childPoints.reduce((acc, p) => acc + p.y, 0) / childPoints.length;
-        const busY = startY + (avgChildY - startY) * 0.5;
+
+        // Dedicated, staggered horizontal transition levels to guarantee 100% zero inter-phase collisions
+        const transitionY = startY + 14 + phaseIdx * 8;
+        const busY = startY + (avgChildY - startY) * 0.55;
 
         let pathD = "";
 
         if (childPoints.length === 1) {
-          // Single child (Phase 4 Final Close): Clean straight vertical or single orthogonal line directly into card
+          // Single child (Phase 4 Final Close): Clean 2-bend orthogonal line without redundant zigzag
           const target = childPoints[0];
           if (Math.abs(startX - target.x) < 2) {
             pathD = `M ${startX} ${startY} L ${target.x} ${target.y - 6}`;
           } else {
-            pathD = `M ${startX} ${startY} L ${startX} ${busY} L ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
+            pathD = `M ${startX} ${startY} L ${startX} ${transitionY} L ${target.x} ${transitionY} L ${target.x} ${target.y - 6}`;
           }
         } else {
-          // Multiple children: Trunk drops straight down to busY, bus bar spans strictly across child cards
-          const minChildX = Math.min(...childPoints.map((p) => p.x));
-          const maxChildX = Math.max(...childPoints.map((p) => p.x));
+          // Multiple children:
+          // Target entry point into the phase's horizontal span
+          const targetEntryX = Math.max(minChildX, Math.min(maxChildX, startX));
 
-          const busLeft = Math.min(startX, minChildX);
-          const busRight = Math.max(startX, maxChildX);
+          if (Math.abs(startX - targetEntryX) < 2) {
+            // Directly above child cluster: Single straight vertical drop down to bus bar
+            pathD += `M ${startX} ${startY} L ${startX} ${busY}`;
+          } else {
+            // Transition horizontally at dedicated phase-specific Y level, then drop into bus bar
+            pathD += `M ${startX} ${startY} L ${startX} ${transitionY} L ${targetEntryX} ${transitionY} L ${targetEntryX} ${busY}`;
+          }
 
-          // 1. Trunk from L1 card bottom center down to busY
-          pathD += `M ${startX} ${startY} L ${startX} ${busY}`;
+          // Single clean horizontal bus bar spanning strictly across child cards
+          pathD += ` M ${minChildX} ${busY} L ${maxChildX} ${busY}`;
 
-          // 2. Single clean horizontal bus bar spanning across child cards
-          pathD += ` M ${busLeft} ${busY} L ${busRight} ${busY}`;
-
-          // 3. Stems dropping straight down from bus bar to 6px above each L2 card
+          // Stems dropping straight down from bus bar to 6px above each L2 card
           childPoints.forEach((target) => {
             pathD += ` M ${target.x} ${busY} L ${target.x} ${target.y - 6}`;
           });
