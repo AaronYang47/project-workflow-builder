@@ -168,9 +168,10 @@ function getNodeGateLabel(
 
 /**
  * Generates an executive presentation PDF with:
- * - Strictly identical uniform height/length for all L2 step cards
- * - Clean, single-level orthogonal branch routing without redundant zigzags
- * - Sharp, perfectly centered downward arrowheads on L2 tops
+ * - Strictly identical uniform height for all L2 Phase outer container boxes
+ * - Strictly identical uniform height for all 10 L2 step cards
+ * - Simplified, single-level orthogonal branch routing without redundant zigzags
+ * - Sharp, centered downward arrowheads on L2 card tops
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -336,7 +337,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     })
     .join("");
 
-  // 4. Build Bottom L2 Row: Strictly IDENTICAL uniform height (175px) across all 10 cards
+  // 4. Build Bottom L2 Row: Strictly IDENTICAL uniform height across all 4 phase containers AND all 10 cards
   let globalStepCounter = 0;
 
   const l2PhaseGroupsHtml = orderedL1
@@ -371,10 +372,10 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           const isOverallLast = globalStepCounter === totalL2Nodes;
 
           return `
-            <div style="flex: 1; min-width: 0; display: flex; align-items: center; position: relative; box-sizing: border-box;">
+            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; position: relative; box-sizing: border-box;">
               
-              <!-- Identical Uniform Height L2 Step Card (Height: 175px) -->
-              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 175px; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
+              <!-- Identical Uniform Height L2 Step Card (Height: 100% of container) -->
+              <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 10px; padding: 10px 9px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
                 
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
@@ -415,11 +416,11 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         .join("");
 
       return `
-        <!-- Phase Sub-Group in Bottom L2 Container -->
-        <div id="exec-l2-group-${phaseIdx}" style="flex: ${count}; min-width: 0; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
+        <!-- Phase Sub-Group in Bottom L2 Container (Uniform Height: 195px) -->
+        <div id="exec-l2-group-${phaseIdx}" style="flex: ${count}; min-width: 0; height: 195px; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
           
-          <!-- L2 Steps Row inside this Phase container -->
-          <div style="width: 100%; display: flex; align-items: flex-start; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
+          <!-- L2 Steps Row inside this Phase container (Strictly Uniform Height: 195px) -->
+          <div style="width: 100%; height: 100%; display: flex; align-items: stretch; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
             ${stepsInPhaseHtml}
           </div>
 
@@ -467,8 +468,8 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           ${l1CardsRowHtml}
         </div>
 
-        <!-- 2. BOTTOM L2 ROW: Identical Uniform Height Cards in 4 Groups -->
-        <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%; box-sizing: border-box;">
+        <!-- 2. BOTTOM L2 ROW: Strictly Identical Uniform Height Across All 4 Phase Boxes & 10 Cards -->
+        <div style="display: flex; align-items: stretch; gap: 10px; width: 100%; box-sizing: border-box;">
           ${l2PhaseGroupsHtml}
         </div>
 
