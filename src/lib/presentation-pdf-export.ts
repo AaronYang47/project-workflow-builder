@@ -1,5 +1,6 @@
 import type { WorkflowFile, DomainNode, HighLevelNode, NodeLayout } from "@/types/workflow";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import { conditionIsSatisfied } from "@/lib/workflow-progress";
 
 // 1:1 Matching colors from the app canvas (Green -> Pink -> Amber -> Yellow)
 const DEFAULT_PHASE_THEMES = [
@@ -453,12 +454,22 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
 
         // 1. Dynamically collect all conditions attached to this node
         const conditions: Array<{ label: string; checked: boolean }> = [];
+        const projectStartNode = allNodes.find((n) => n.type === "projectStart" || n.id === "project-start");
+        const operations = file.operations;
+
         if (node.conditions && node.conditions.length > 0) {
           node.conditions.forEach((c) => {
             if (c.label?.trim()) {
+              const isSatisfied = conditionIsSatisfied(
+                c,
+                node,
+                projectStartNode,
+                executionItems,
+                operations,
+              );
               conditions.push({
                 label: c.label.trim(),
-                checked: Boolean(c.checked),
+                checked: isSatisfied,
               });
             }
           });
@@ -524,23 +535,27 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           condMarkup = `
             <div style="display: grid; grid-template-columns: repeat(${condCols}, 1fr); gap: 3px 8px; flex: 1;">
               ${conditions
-                .map(
-                  (c) => `
-                <div style="display: flex; align-items: flex-start; gap: 4px; font-size: 9px; color: #1e293b; line-height: 1.3;">
-                  <span style="color: ${c.checked ? "#059669" : theme.accent}; font-weight: 800; font-size: 9.5px; flex-shrink: 0;">${c.checked ? "✓" : "☑"}</span>
-                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">
-                    ${escapeHtml(c.label)}
-                  </span>
-                </div>
-              `,
-                )
+                .map((c) => {
+                  const boxHtml = c.checked
+                    ? `<span style="display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 8.5px; font-weight: 900; line-height: 1; flex-shrink: 0; margin-top: 1.5px;">✓</span>`
+                    : `<span style="display: inline-flex; width: 11px; height: 11px; border-radius: 2px; background: #fef08a; border: 1.2px solid #ca8a04; flex-shrink: 0; margin-top: 1.5px; box-sizing: border-box;"></span>`;
+
+                  return `
+                    <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 9px; color: #1e293b; line-height: 1.35;">
+                      ${boxHtml}
+                      <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">
+                        ${escapeHtml(c.label)}
+                      </span>
+                    </div>
+                  `;
+                })
                 .join("")}
             </div>
           `;
         } else {
           condMarkup = `
             <div style="display: flex; align-items: center; gap: 4px; font-size: 9px; color: #64748b; flex: 1;">
-              <span style="color: #059669; font-weight: 800; font-size: 9.5px;">✓</span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; border-radius: 2px; background: #10b981; color: #ffffff; font-size: 8.5px; font-weight: 900; line-height: 1; flex-shrink: 0;">✓</span>
               <span>${isGate ? "Gate approval & verification signoff" : isTerminal ? "Project complete & closeout sign-off" : "Milestone verification"}</span>
             </div>
           `;
