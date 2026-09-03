@@ -68,76 +68,88 @@ function escapeHtml(str?: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function isGateNode(node: DomainNode): boolean {
-  const type = String(node.type || "").toLowerCase();
-  const title = String(node.title || "").toLowerCase();
-  const id = String(node.id || "").toLowerCase();
-  const stage = String(node.config?.stage || "").toLowerCase();
-
-  // Explicit non-gate exclusions
+/**
+ * Universal Gate detector based entirely on node schema, config, and properties.
+ * Works universally across any workflow configuration without hardcoded project names.
+ */
+export function isNodeGate(node: DomainNode): boolean {
+  // 1. Explicit start and terminal/end types are boundary nodes, not decision gates
   if (
-    type === "terminal" ||
-    type === "end" ||
-    type === "projectstart" ||
-    id === "project-complete" ||
-    id === "close-out" ||
-    title === "project complete" ||
-    title === "final close" ||
-    title === "project start" ||
-    title === "sales agreement" ||
-    title.includes("warranty period")
+    node.type === "projectStart" ||
+    node.type === "terminal" ||
+    node.type === "end" ||
+    node.id === "project-start" ||
+    node.id === "project-complete" ||
+    node.id === "close-out"
   ) {
     return false;
   }
 
-  const hasGateRules = Array.isArray(node.config?.gateRules) && node.config.gateRules.length > 0;
-  const hasSignatures = Array.isArray(node.config?.signatureRequirements) && node.config.signatureRequirements.length > 0;
-  const isDecisionMode = node.config?.decisionMode === "approval" || node.config?.decisionMode === "binary";
-
-  // Explicit gate properties
-  if (
-    type === "gate" ||
-    type === "decision" ||
-    stage.includes("gate") ||
-    title.includes("gate") ||
-    id.includes("gate") ||
-    hasGateRules ||
-    hasSignatures ||
-    isDecisionMode
-  ) {
+  // 2. Explicit node type declaration
+  if (node.type === "gate" || node.type === "decision" || node.type === "approval") {
     return true;
   }
 
-  // CEC Class C, Class B, Class A Estimate are Gate release checkpoints; Qualification is G1; Execution & Payments is G3
-  if (
-    title.includes("cec class c") ||
-    title.includes("cec class b") ||
-    title.includes("cec class a") ||
-    title.includes("class c estimate") ||
-    title.includes("class b estimate") ||
-    title.includes("class a estimate") ||
-    title.includes("qualification & commercial") ||
-    title.includes("execution & payment")
-  ) {
+  // 3. Explicit config-level indicators
+  const config = (node.config || {}) as Record<string, unknown>;
+  const stage = String(config.stage || "").toLowerCase();
+  if (stage.includes("gate") || stage.includes("decision") || stage.includes("approval")) {
+    return true;
+  }
+  if (config.decisionMode === "approval" || config.decisionMode === "binary") {
+    return true;
+  }
+  if (Array.isArray(config.gateRules) && config.gateRules.length > 0) {
+    return true;
+  }
+  if (Array.isArray(config.signatureRequirements) && config.signatureRequirements.length > 0) {
+    return true;
+  }
+
+  // 4. Metadata-level indicators
+  const metadata = node.metadata || {};
+  const workflowSection = String(metadata.workflowSection || "").toLowerCase();
+  const metaStage = String(metadata.stage || "").toLowerCase();
+  if (workflowSection.includes("gate") || metaStage.includes("gate")) {
+    return true;
+  }
+
+  // 5. Title / ID regex pattern matching (e.g. contains "Gate", "G1", "G2", "G3", "G4", "G5", "Decision")
+  const title = (node.title || "").trim();
+  const id = (node.id || "").trim();
+  if (/\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(title) || /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(id)) {
     return true;
   }
 
   return false;
 }
 
-function getGateLabelForNode(node: DomainNode, phaseIdx: number, nIdx: number): string {
-  const title = String(node.title || "").toLowerCase();
-  const id = String(node.id || "").toLowerCase();
+/**
+ * Universal Gate label extractor that formats a clean Gate identifier for any node.
+ */
+export function getNodeGateLabel(node: DomainNode, fallbackNumber?: number): string {
+  const config = (node.config || {}) as Record<string, unknown>;
+  if (typeof config.gateLabel === "string" && config.gateLabel.trim()) {
+    return config.gateLabel.trim();
+  }
 
-  const match = title.match(/\b(g[1-5])\b/i) || id.match(/\b(g[1-5])\b/i);
-  if (match) return `Gate ${match[1].toUpperCase()}`;
+  const title = (node.title || "").trim();
+  const id = (node.id || "").trim();
 
-  if (title.includes("qualification")) return "Gate G1";
-  if (title.includes("cec class c") || title.includes("class c")) return "Gate G2-C";
-  if (title.includes("cec class b") || title.includes("class b")) return "Gate G2-B";
-  if (title.includes("cec class a") || title.includes("class a")) return "Gate G2-A";
-  if (title.includes("execution") || title.includes("payment")) return "Gate G3";
-  if (title.includes("factory release")) return "Gate G4";
+  const match =
+    title.match(/\b(g[1-9][a-z0-9-]*)\b/i) ||
+    id.match(/\b(g[1-9][a-z0-9-]*)\b/i) ||
+    title.match(/\b(gate\s*[a-z0-9-]*)\b/i) ||
+    id.match(/\b(gate\s*[a-z0-9-]*)\b/i);
+
+  if (match) {
+    const raw = match[1].replace(/gate\s*/i, "G").toUpperCase();
+    return raw.startsWith("G") ? `Gate ${raw}` : `Gate G${raw}`;
+  }
+
+  if (fallbackNumber !== undefined) {
+    return `Gate G${fallbackNumber}`;
+  }
 
   return "Gate";
 }
@@ -146,8 +158,8 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
   const { jsPDF } = await import("jspdf");
 
-  const projectName = file.graph.metadata.name || "ProFab Modular Process Workflow";
-  const projectNumber = file.operations?.projectNumber || "PRJ-2026-001";
+  const projectName = file.graph.metadata.name || "Process Workflow Architecture";
+  const projectNumber = file.operations?.projectNumber || "PRJ-001";
   const version = file.graph.metadata.version || "v1.0";
   const timestamp = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -161,11 +173,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const highLevelEdges = file.highLevel?.graph.edges || [];
 
-  // 1. Determine L1 Phases from actual project
+  // 1. Dynamically resolve L1 Phases from live project data
   let orderedL1: HighLevelNode[] = [];
   if (highLevelNodes.length > 0) {
     orderedL1 = orderHighLevelNodes(highLevelNodes, highLevelEdges);
   } else {
+    // If HighLevel graph is empty, dynamically group by L2 phase nodes
     const phaseNodes = allNodes.filter((n) => n.type === "phase");
     if (phaseNodes.length > 0) {
       orderedL1 = phaseNodes.map((p, idx) => ({
@@ -178,17 +191,17 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     } else {
       orderedL1 = [
         {
-          id: "hl-all",
+          id: "hl-root",
           type: "phase" as const,
           title: "Project Lifecycle",
-          description: "Full workflow lifecycle",
+          description: "Full end-to-end process lifecycle",
           code: "PHASE-01",
         },
       ];
     }
   }
 
-  // Helper to resolve linked L2 nodes for an L1 phase without filtering out terminal/end nodes
+  // 2. Helper to dynamically resolve linked L2 nodes for any L1 phase
   const getLinkedL2Nodes = (l1Node: HighLevelNode): DomainNode[] => {
     const explicitIds = l1Node.linkedLayer2NodeIds ?? l1Node.linkedDetailedNodeIds ?? [];
     if (explicitIds.length > 0) {
@@ -198,6 +211,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase"));
     }
 
+    // Dynamic matching by parent container in layout or phase reference
     const byParent = allNodes.filter(
       (n) =>
         n.type !== "phase" &&
@@ -207,28 +221,26 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     );
     if (byParent.length > 0) return byParent;
 
-    if (
-      l1Node.type === "end" ||
-      l1Node.title.toLowerCase().includes("final close") ||
-      l1Node.title.toLowerCase().includes("commission")
-    ) {
+    // Terminal / Closeout node association for end phases
+    if (l1Node.type === "end" || l1Node.title.toLowerCase().includes("close") || l1Node.title.toLowerCase().includes("commission")) {
       const closeNodes = allNodes.filter(
         (n) =>
           n.type !== "phase" &&
           (n.type === "terminal" ||
             n.id === "project-complete" ||
             n.id === "close-out" ||
-            n.title.toLowerCase().includes("project complete") ||
+            n.title.toLowerCase().includes("complete") ||
             n.title.toLowerCase().includes("close")),
       );
       if (closeNodes.length > 0) return closeNodes;
     }
 
+    // Start node association for initial phase
     if (l1Node.type === "start" || l1Node.title.toLowerCase().includes("start")) {
       const startNodes = allNodes.filter(
         (n) =>
           n.type !== "phase" &&
-          (n.type === "projectStart" || n.id === "project-start" || n.title.toLowerCase().includes("project start")),
+          (n.type === "projectStart" || n.id === "project-start" || n.title.toLowerCase().includes("start")),
       );
       if (startNodes.length > 0) return startNodes;
     }
@@ -252,7 +264,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.pointerEvents = "none";
   container.style.opacity = "1";
   container.style.visibility = "visible";
-  // Exact 297 : 210 ratio (1485px x 1050px = 5px per mm)
+  // Exact 297 : 210 A4 ratio (1485px x 1050px = 5px per mm)
   container.style.width = "1485px";
   container.style.height = "1050px";
   container.style.backgroundColor = "#ffffff";
@@ -267,6 +279,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.lineHeight = "1.25";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
+  let globalGateCounter = 0;
   let phaseRowsHtml = "";
 
   orderedL1.forEach((l1Node, phaseIdx) => {
@@ -274,14 +287,15 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     const linkedL2 = getLinkedL2Nodes(l1Node);
 
     // Filter actual gate nodes inside this phase
-    const gateNodes = linkedL2.filter(isGateNode);
+    const gateNodes = linkedL2.filter(isNodeGate);
 
-    // Build L1 Gate Badges list
+    // Build L1 Gate Badges list purely from real gate nodes in this phase
     let gateBadgesHtml = "";
     if (gateNodes.length > 0) {
       gateBadgesHtml = gateNodes
-        .map((g, gIdx) => {
-          const gateLabel = getGateLabelForNode(g, phaseIdx, gIdx);
+        .map((g) => {
+          globalGateCounter += 1;
+          const gateLabel = getNodeGateLabel(g, globalGateCounter);
           return `
             <div style="background: #ffffff; border: 1px solid ${theme.border}; border-radius: 2px; padding: 2px 4px; display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 7.5px; font-weight: 800; color: ${theme.accent};">🚦 ${gateLabel}</span>
@@ -298,6 +312,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           🏁 Final Project Milestone
         </div>
       `;
+    } else if (l1Node.type === "start" || phaseIdx === 0) {
+      gateBadgesHtml = `
+        <div style="background: rgba(255,255,255,0.7); border: 1px dashed ${theme.border}; border-radius: 2px; padding: 2px 4px; text-align: center; font-size: 7px; color: ${theme.subtext};">
+          🚀 Project Intake & Start
+        </div>
+      `;
     } else {
       gateBadgesHtml = `
         <div style="background: rgba(255,255,255,0.7); border: 1px dashed ${theme.border}; border-radius: 2px; padding: 2px 4px; text-align: center; font-size: 7px; color: ${theme.subtext};">
@@ -311,22 +331,22 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     if (linkedL2.length === 0) {
       l2StagesHtml = `
         <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 5px; padding: 8px; text-align: center; color: #94a3b8; font-size: 9px;">
-          No L2 steps linked.
+          No detailed L2 workflow nodes linked to this phase.
         </div>
       `;
     } else {
       l2StagesHtml = linkedL2
         .map((node, nIdx) => {
-          const isGate = isGateNode(node);
-          const isStart = node.type === "projectStart" || node.id === "project-start" || node.title.toLowerCase() === "project start";
-          const isTerminal = node.type === "terminal" || node.id === "project-complete" || node.id === "close-out" || node.title.toLowerCase() === "project complete";
+          const isGate = isNodeGate(node);
+          const isStart = node.type === "projectStart" || node.id === "project-start";
+          const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
 
           const subtitle =
             node.description?.trim() ||
-            (node.config?.stage as string) ||
-            (isGate ? "Primary Gate Control Point" : isStart ? "Project Record Entry" : isTerminal ? "Final Project Sign-off" : "Workflow Execution Step");
+            (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
+            (isGate ? "Gate Decision Point" : isStart ? "Project Entry" : isTerminal ? "Completion Sign-off" : "Execution Step");
 
-          const badgeLabel = isGate ? getGateLabelForNode(node, phaseIdx, nIdx) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
+          const gateLabel = isGate ? getNodeGateLabel(node) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
           const badgeStyle = isGate
             ? `background: ${theme.tagBg}; color: ${theme.subtext}; font-weight: 800;`
             : isStart
@@ -342,7 +362,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
                   ${phaseIdx + 1}.${nIdx + 1} ${escapeHtml(node.title)}
                 </span>
                 <span style="font-size: 7px; padding: 1px 4px; border-radius: 2px; text-transform: uppercase; ${badgeStyle}">
-                  ${isGate ? `🚦 ${badgeLabel}` : badgeLabel}
+                  ${isGate ? `🚦 ${gateLabel}` : gateLabel}
                 </span>
               </div>
               <p style="margin: 1px 0 0 0; font-size: 7.5px; color: #64748b; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -369,12 +389,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       `;
     } else {
       const subCards = linkedL2.map((node, nIdx) => {
-        const isGate = isGateNode(node);
-        const isTerminal = node.type === "terminal" || node.id === "project-complete" || node.title.toLowerCase() === "project complete";
-        const isStart = node.type === "projectStart" || node.id === "project-start" || node.title.toLowerCase() === "project start";
-        const gateLabel = isGate ? getGateLabelForNode(node, phaseIdx, nIdx) : "";
+        const isGate = isNodeGate(node);
+        const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+        const isStart = node.type === "projectStart" || node.id === "project-start";
+        const gateLabel = isGate ? getNodeGateLabel(node) : "";
 
-        // 1. Collect conditions
+        // 1. Dynamically collect all conditions attached to this node
         const conditions: Array<{ label: string; checked: boolean }> = [];
         if (node.conditions && node.conditions.length > 0) {
           node.conditions.forEach((c) => {
@@ -387,6 +407,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           });
         }
 
+        // Gate rules from node config
         if (node.config?.gateRules && Array.isArray(node.config.gateRules)) {
           node.config.gateRules.forEach((gr) => {
             if (gr.label?.trim()) {
@@ -398,18 +419,19 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           });
         }
 
+        // Signature requirements from node config
         if (node.config?.signatureRequirements && Array.isArray(node.config.signatureRequirements)) {
           node.config.signatureRequirements.forEach((sr) => {
             if (sr.fullName?.trim() || sr.abbreviation?.trim()) {
               conditions.push({
-                label: `Signoff: ${sr.fullName || sr.abbreviation} (${sr.department || "Auth"})`,
+                label: `Signoff: ${sr.fullName || sr.abbreviation} (${sr.department || "Authorized"})`,
                 checked: Boolean(sr.checked),
               });
             }
           });
         }
 
-        // 2. Collect forms
+        // 2. Dynamically collect execution items and forms linked to this node
         const nodeForms: Array<{ code: string; title: string; role: string }> = [];
         const linkedItems = executionItems.filter(
           (item) =>
@@ -424,13 +446,14 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           });
         });
 
+        // Add node documents if present
         if (node.documents && node.documents.length > 0) {
           node.documents.forEach((docTitle, docIdx) => {
             if (!nodeForms.some((f) => f.title.toLowerCase() === docTitle.toLowerCase())) {
               nodeForms.push({
                 code: `DOC-0${docIdx + 1}`,
                 title: docTitle,
-                role: "Req",
+                role: "Required",
               });
             }
           });
@@ -618,9 +641,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; color: #64748b; height: 22px; box-sizing: border-box;">
         <div style="display: flex; gap: 10px; align-items: center;">
           <span style="font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 8px;">System Traceability:</span>
+          <span>● <strong>Dynamic Model:</strong> 100% data-driven rendering of active L1 phases, L2 workflow nodes, and L3 conditions.</span>
           <span>● <strong>Stage Governance:</strong> Gated release decisions block downstream execution until conditions are verified.</span>
-          <span>● <strong>Node Alignment:</strong> Every L3 condition & form is mapped directly to its owner L2 node.</span>
-          <span>● <strong>Closeout Integrity:</strong> Final Close represents project completion and commercial reconciliation.</span>
+          <span>● <strong>Node Alignment:</strong> Every release condition & controlled form is mapped directly to its owner L2 node.</span>
         </div>
         <div style="font-weight: 600; color: #0f172a;">
           ProFab Process Workflow System · Single-Page Executive Presentation (A4 Landscape)
