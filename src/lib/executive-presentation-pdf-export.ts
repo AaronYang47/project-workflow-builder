@@ -176,10 +176,10 @@ function getNodeGateLabel(
 }
 
 /**
- * Generates an executive Top-to-Bottom Tree Hierarchy presentation PDF:
- * - Root Node at top center
- * - Branches downward into L1 Phase Capsules
- * - Branches downward into L2 Step Capsules (No L3 clutter)
+ * Generates an executive 2-Tier Horizontal Process Architecture PDF:
+ * - Top Tier: L1 Macro Phase Pipeline Cards linked by arrows
+ * - Middle Tier: Vertical branch connector lines linking L1 to L2
+ * - Bottom Tier: L2 Detailed Steps arranged horizontally from left-to-right with flow arrows
  */
 export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
   const { toPng } = await import("html-to-image");
@@ -297,7 +297,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   container.style.color = "#0f172a";
   container.style.fontFamily =
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
-  container.style.padding = "24px 32px";
+  container.style.padding = "24px 30px";
   container.style.boxSizing = "border-box";
   container.style.display = "flex";
   container.style.flexDirection = "column";
@@ -305,98 +305,142 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   container.style.lineHeight = "1.3";
   container.style.setProperty("-webkit-font-smoothing", "antialiased");
 
-  // 3. Build 4 Phase Columns branching downwards from the Root
-  const phaseColumnsHtml = orderedL1
+  // 3. Build Top Tier (L1 Macro Phase Pipeline)
+  const l1PipelineHtml = orderedL1
     .map((l1Node, phaseIdx) => {
       const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
       const linkedL2 = getLinkedL2Nodes(l1Node);
-
-      // Build Step Cards for this column
-      let stepsHtml = "";
-      if (linkedL2.length === 0) {
-        stepsHtml = `
-          <div style="background: #ffffff; border: 1.5px dashed ${theme.border}; border-radius: 8px; padding: 20px; text-align: center; color: #94a3b8; font-size: 11px;">
-            No detailed workflow steps linked.
-          </div>
-        `;
-      } else {
-        stepsHtml = linkedL2
-          .map((node, nodeIdx) => {
-            const isGate = isNodeGate(node, allNodes, layout);
-            const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
-            const isStart = node.type === "projectStart" || node.id === "project-start";
-            const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
-
-            const subtitle =
-              node.description?.trim() ||
-              (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
-              (isGate ? "Quality Gate Verification & Sign-off" : isStart ? "Project Record Entry" : isTerminal ? "Completion & Handover" : "Standard Process Execution");
-
-            const badgeStyle = isGate
-              ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1.5px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
-              : isStart
-                ? `background: #e0f2fe; color: #0369a1; font-weight: 800; border: 1px solid #bae6fd;`
-                : isTerminal
-                  ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
-                  : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
-
-            const badgeText = isGate ? `🚦 ${gateLabel}` : isStart ? "Start" : isTerminal ? "Complete 🏁" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
-
-            return `
-              <div style="background: #ffffff; border: 1.5px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-left: 5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 8px; padding: 11px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 3px;">
-                  <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
-                    <span style="font-size: 10.5px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 6px; border-radius: 3px; font-family: monospace;">
-                      ${phaseIdx + 1}.${nodeIdx + 1}
-                    </span>
-                    <span style="font-size: 13.5px; font-weight: 900; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                      ${escapeHtml(node.title)}
-                    </span>
-                  </div>
-                  <span style="font-size: 9px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
-                    ${badgeText}
-                  </span>
-                </div>
-                <p style="margin: 0; font-size: 11px; color: #475569; line-height: 1.3; font-weight: 500;">
-                  ${escapeHtml(subtitle)}
-                </p>
-              </div>
-            `;
-          })
-          .join("");
-      }
+      const isLast = phaseIdx === orderedL1.length - 1;
+      const count = Math.max(1, linkedL2.length);
 
       return `
-        <!-- Single Phase Branch Column (Top L1 Capsule -> Downward Tree Connector -> L2 Step Stack) -->
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; box-sizing: border-box;">
+        <div style="flex: ${count}; display: flex; align-items: center; justify-content: center; position: relative;">
           
-          <!-- L1 Phase Capsule (Main Headline at Level 1) -->
-          <div style="width: 100%; background: ${theme.bg}; border: 2.5px solid ${theme.border}; border-top: 6px solid ${theme.accent}; border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="background: ${theme.badge}; color: #ffffff; font-size: 10px; font-weight: 900; padding: 2.5px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
+          <!-- L1 Phase Card -->
+          <div style="width: 85%; max-width: 250px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5px solid ${theme.accent}; border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="background: ${theme.badge}; color: #ffffff; font-size: 9.5px; font-weight: 900; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
                 ${escapeHtml(l1Node.code || `PHASE-0${phaseIdx + 1}`)}
               </span>
-              <span style="font-size: 10px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.85); border: 1px solid ${theme.border}; padding: 1.5px 6px; border-radius: 3px;">
+              <span style="font-size: 9.5px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.85); border: 1px solid ${theme.border}; padding: 1.5px 5px; border-radius: 3px;">
                 ${linkedL2.length} Steps
               </span>
             </div>
-            <div style="font-size: 17px; font-weight: 900; color: ${theme.text}; line-height: 1.15; margin-top: 2px;">
+            <div style="font-size: 15px; font-weight: 900; color: ${theme.text}; line-height: 1.15; margin-top: 2px;">
               ${escapeHtml(l1Node.title)}
             </div>
-            <div style="font-size: 11px; color: ${theme.subtext}; font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${escapeHtml(l1Node.description || "Active Process Phase")}
+            <div style="font-size: 10px; color: ${theme.subtext}; font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${escapeHtml(l1Node.description || "Active Phase")}
             </div>
           </div>
 
-          <!-- Downward Connector Arrow -->
-          <div style="display: flex; flex-direction: column; align-items: center; margin: 6px 0; color: ${theme.accent}; font-size: 14px; font-weight: 900; flex-shrink: 0;">
-            <div style="width: 3px; height: 16px; background: ${theme.border};"></div>
-            <div style="margin-top: -3px;">▼</div>
+          ${
+            !isLast
+              ? `<div style="position: absolute; right: -8px; top: calc(50% - 10px); color: #94a3b8; font-size: 16px; font-weight: 900; z-index: 5;">➔</div>`
+              : ""
+          }
+
+        </div>
+      `;
+    })
+    .join("");
+
+  // 4. Build Middle Connectors & Bottom Tier (L2 Detailed Horizontal Sequence)
+  let globalStepCounter = 0;
+  const l2ColumnsHtml = orderedL1
+    .map((l1Node, phaseIdx) => {
+      const theme = DEFAULT_PHASE_THEMES[phaseIdx % DEFAULT_PHASE_THEMES.length];
+      const linkedL2 = getLinkedL2Nodes(l1Node);
+      const count = Math.max(1, linkedL2.length);
+
+      // Build Step cards for this Phase block
+      const stepsInPhaseHtml = linkedL2
+        .map((node, nodeIdx) => {
+          globalStepCounter++;
+          const isGate = isNodeGate(node, allNodes, layout);
+          const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
+          const isStart = node.type === "projectStart" || node.id === "project-start";
+          const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+
+          const subtitle =
+            node.description?.trim() ||
+            (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
+            (isGate ? "Quality Gate Verification & Sign-off" : isStart ? "Project Record Entry" : isTerminal ? "Formal Completion & Handover" : "Standard Process Execution");
+
+          const badgeStyle = isGate
+            ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1.2px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
+            : isStart
+              ? `background: #e0f2fe; color: #0369a1; font-weight: 800; border: 1px solid #bae6fd;`
+              : isTerminal
+                ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
+                : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
+
+          const badgeText = isGate ? `🚦 ${gateLabel}` : isStart ? "Start" : isTerminal ? "Complete 🏁" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
+
+          const isOverallLast = globalStepCounter === totalL2Nodes;
+
+          return `
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; position: relative;">
+              
+              <!-- Step Card (Comfortable Width, Clean Typography) -->
+              <div style="flex: 1; min-width: 0; height: 180px; background: #ffffff; border: 1.5px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 8px; padding: 10px 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+                
+                <!-- Card Header -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 5px;">
+                    <span style="font-size: 9px; font-weight: 900; color: ${theme.subtext}; background: ${theme.tagBg}; padding: 1.5px 5px; border-radius: 3px; font-family: monospace;">
+                      ${phaseIdx + 1}.${nodeIdx + 1}
+                    </span>
+                    <span style="font-size: 7.5px; padding: 1.5px 4px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; line-height: 1; ${badgeStyle}">
+                      ${badgeText}
+                    </span>
+                  </div>
+
+                  <div style="font-size: 11.5px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${escapeHtml(node.title)}
+                  </div>
+
+                  <p style="margin: 0; font-size: 9.5px; color: #64748b; line-height: 1.35; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${escapeHtml(subtitle)}
+                  </p>
+                </div>
+
+                <!-- Card Footer Pill -->
+                <div style="margin-top: 4px; border-top: 1px dashed ${theme.border}; padding-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 8px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">
+                    ${isGate ? "Decision Point" : "Active Stage"}
+                  </span>
+                  <span style="font-size: 8.5px; color: ${theme.accent}; font-weight: 800;">
+                    ● L2 Step
+                  </span>
+                </div>
+
+              </div>
+
+              ${
+                !isOverallLast
+                  ? `<div style="color: #94a3b8; font-size: 13px; font-weight: 900; flex-shrink: 0; padding: 0 3px;">➔</div>`
+                  : ""
+              }
+
+            </div>
+          `;
+        })
+        .join("");
+
+      return `
+        <!-- Phase Sub-Group in Bottom Row -->
+        <div style="flex: ${count}; display: flex; flex-direction: column; align-items: center; position: relative;">
+          
+          <!-- Top Connector Branch dropping down from Phase above -->
+          <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; flex-shrink: 0;">
+            <div style="width: 2.5px; height: 18px; background: ${theme.accent};"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${theme.accent}; margin-top: -2px;"></div>
           </div>
 
-          <!-- L2 Step Cards Stack (Level 2) -->
-          <div style="width: 100%; flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: flex-start; overflow: hidden;">
-            ${stepsHtml}
+          <!-- L2 Steps Row inside this Phase container -->
+          <div style="width: 100%; display: flex; align-items: center; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 8px; box-sizing: border-box;">
+            ${stepsInPhaseHtml}
           </div>
 
         </div>
@@ -408,77 +452,87 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
       
       <!-- TOP HEADER BAR -->
-      <div style="border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-end; height: 50px; box-sizing: border-box; flex-shrink: 0;">
+      <div style="border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-end; height: 48px; box-sizing: border-box; flex-shrink: 0;">
         <div>
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
             <span style="background: #0f172a; color: #ffffff; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2.5px 7px; border-radius: 4px;">
-              Executive Architecture Hierarchy
+              Executive Process Pipeline
             </span>
             <span style="background: #7c3aed; color: #ffffff; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; padding: 2.5px 7px; border-radius: 4px;">
-              ${totalPhases} Milestone Phases · ${totalL2Nodes} Workflow Steps
+              ${totalPhases} Lifecycle Phases · ${totalL2Nodes} Sequential Workflow Stages
             </span>
           </div>
-          <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
+          <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
             ${escapeHtml(projectName)}
           </h1>
         </div>
         
-        <div style="text-align: right; font-size: 10.5px; color: #475569; display: flex; gap: 12px; align-items: center;">
+        <div style="text-align: right; font-size: 10px; color: #475569; display: flex; gap: 12px; align-items: center;">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 3px 9px; text-align: left;">
             <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Project Number</div>
-            <div style="font-weight: 900; font-family: monospace; font-size: 13px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
+            <div style="font-weight: 900; font-family: monospace; font-size: 12px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 3px 9px; text-align: left;">
             <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Revision / Date</div>
-            <div style="font-weight: 800; font-size: 12px; color: #0f172a;">${escapeHtml(version)} · ${timestamp}</div>
+            <div style="font-weight: 800; font-size: 11px; color: #0f172a;">${escapeHtml(version)} · ${timestamp}</div>
           </div>
         </div>
       </div>
 
-      <!-- ROOT NODE AT TOP CENTER -->
-      <div style="display: flex; flex-direction: column; align-items: center; margin-top: 10px; margin-bottom: 2px; flex-shrink: 0;">
+      <!-- MAIN 2-TIER WORKFLOW CANVAS -->
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; overflow: hidden; min-height: 0; padding: 8px 0;">
         
-        <!-- Root Pill Node -->
-        <div style="background: #0f172a; color: #ffffff; border-radius: 24px; padding: 8px 24px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 18px rgba(15,23,42,0.2);">
-          <span style="background: #7c3aed; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.08em;">
-            PROJECT CORE
-          </span>
-          <span style="font-size: 16px; font-weight: 900; letter-spacing: -0.01em;">
-            ${escapeHtml(projectName)}
-          </span>
+        <!-- SECTION TITLE: L1 MACRO LIFECYCLE PIPELINE -->
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding-left: 4px; margin-bottom: 4px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span>
+          L1 · Lifecycle Macro Phases
         </div>
 
-        <!-- Trunk Vertical Line down to Horizontal Distribution Bar -->
-        <div style="width: 3px; height: 16px; background: #0f172a;"></div>
-
-        <!-- Horizontal Distribution Bar spanning all 4 columns -->
-        <div style="width: calc(100% - 280px); height: 3px; background: #0f172a; position: relative;">
-          <!-- 4 downward stem connectors onto columns -->
-          <div style="position: absolute; left: 0; top: 0; width: 3px; height: 12px; background: #0f172a;"></div>
-          <div style="position: absolute; left: 33.33%; top: 0; width: 3px; height: 12px; background: #0f172a;"></div>
-          <div style="position: absolute; left: 66.66%; top: 0; width: 3px; height: 12px; background: #0f172a;"></div>
-          <div style="position: absolute; right: 0; top: 0; width: 3px; height: 12px; background: #0f172a;"></div>
+        <!-- TOP ROW (L1 Macro Phases with Flow Arrows) -->
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          ${l1PipelineHtml}
         </div>
 
-        <div style="height: 12px;"></div>
+        <!-- SECTION TITLE: L2 DETAILED WORKFLOW SEQUENCE -->
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding-left: 4px; margin-top: 14px; margin-bottom: 2px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #6366f1;"></span>
+          L2 · Sequential Workflow Steps & Gate Decision Points
+        </div>
 
-      </div>
+        <!-- BOTTOM ROW (L2 Detailed Sequential Steps with Branch Connectors) -->
+        <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%;">
+          ${l2ColumnsHtml}
+        </div>
 
-      <!-- MAIN 4 VERTICAL TREE COLUMNS (L1 Phase Capsule -> Downward Arrows -> L2 Step Cards) -->
-      <div style="flex: 1; display: flex; gap: 16px; overflow: hidden; min-height: 0;">
-        ${phaseColumnsHtml}
       </div>
 
       <!-- BOTTOM EXECUTIVE FOOTER -->
-      <div style="border-top: 1px solid #cbd5e1; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 9.5px; color: #64748b; height: 26px; box-sizing: border-box; flex-shrink: 0; margin-top: 6px;">
+      <div style="border-top: 1px solid #cbd5e1; padding-top: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; height: 24px; box-sizing: border-box; flex-shrink: 0;">
         <div style="display: flex; gap: 16px; align-items: center;">
-          <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 10px;">Executive Architecture:</span>
-          <span>● <strong>Root Authority:</strong> Unified enterprise project governance.</span>
-          <span>● <strong>4 Lifecycle Phases:</strong> Sequential stage-gate progression.</span>
-          <span>● <strong>Quality Decision Gates:</strong> 🚦 Purple badges highlight formal review gates.</span>
+          <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 9.5px;">Executive Legend:</span>
+          <span style="display: flex; align-items: center; gap: 5px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+            <strong>Phase 1:</strong> Start & Qualification
+          </span>
+          <span style="display: flex; align-items: center; gap: 5px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f43f5e;"></span>
+            <strong>Phase 2:</strong> Pre-Construction
+          </span>
+          <span style="display: flex; align-items: center; gap: 5px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ea580c;"></span>
+            <strong>Phase 3:</strong> Construction
+          </span>
+          <span style="display: flex; align-items: center; gap: 5px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ca8a04;"></span>
+            <strong>Phase 4:</strong> Final Close
+          </span>
+          <span style="display: flex; align-items: center; gap: 5px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #7c3aed;"></span>
+            <strong style="color: #6d28d9;">🚦 Purple Tag:</strong> Formal Gate Decision
+          </span>
         </div>
-        <div style="font-weight: 800; color: #0f172a; font-size: 10px;">
-          ProFab Process Workflow System · Single-Page Executive Presentation Tree (A4 Landscape)
+        <div style="font-weight: 800; color: #0f172a; font-size: 9.5px;">
+          ProFab Process Workflow System · Single-Page Executive Presentation Architecture (A4 Landscape)
         </div>
       </div>
 
@@ -514,7 +568,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
-    pdf.save(`${safeProjectName}-Executive-Vertical-Tree.pdf`);
+    pdf.save(`${safeProjectName}-Executive-Presentation-Architecture.pdf`);
   } finally {
     document.body.removeChild(container);
   }
