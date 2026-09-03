@@ -419,7 +419,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
                     ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
                     : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
 
-              const badgeText = isGate ? `🚦 ${gateLabel}` : isStart ? "Start" : isTerminal ? "Complete 🏁" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
+              const badgeText = isGate ? gateLabel : isStart ? "Start" : isTerminal ? "Complete" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
               const isOverallLast = globalStepCounter === totalL2Nodes;
 
               return `
@@ -449,7 +449,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
                     <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
                       <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
-                        ${isGate ? "🚦 Gate Decision" : "● Workflow Stage"}
+                        ${isGate ? "Gate Decision" : "Workflow Stage"}
                       </span>
                     </div>
 
@@ -570,7 +570,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           </span>
           <span style="display: flex; align-items: center; gap: 5px;">
             <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #7c3aed;"></span>
-            <strong style="color: #6d28d9;">🚦 Purple Dashed Box:</strong> Gate Multi-Step Scope
+            <strong style="color: #6d28d9;">Purple Dashed Box:</strong> Gate Multi-Step Scope
           </span>
         </div>
         <div style="font-weight: 800; color: #0f172a; font-size: 10px;">
