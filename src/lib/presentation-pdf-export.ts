@@ -2,35 +2,49 @@ import type { WorkflowFile, DomainNode, HighLevelNode, NodeLayout } from "@/type
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { conditionIsSatisfied } from "@/lib/workflow-progress";
 
-// High-contrast, crystal-clear Phase themes (Green -> Pink -> Amber -> Sky Blue)
+// 1:1 Exact Matching colors from the project canvas (薄荷绿 -> 玫瑰粉红 -> 橘黄色 -> 金黄色)
 const DEFAULT_PHASE_THEMES = [
+  // 1. Phase 1 (Start / Qualification): 薄荷绿
   {
     badge: "#10b981",
     bg: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
-    border: "#a7f3d0",
+    border: "#6ee7b7",
     text: "#064e3b",
     accent: "#10b981",
     subtext: "#047857",
     tagBg: "#d1fae5",
   },
+  // 2. Phase 2 (Phase-01 / Pre-Construction): 玫瑰粉红
   {
     badge: "#f43f5e",
     bg: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)",
-    border: "#fecdd3",
+    border: "#fda4af",
     text: "#881337",
     accent: "#f43f5e",
     subtext: "#be123c",
     tagBg: "#ffe4e6",
   },
+  // 3. Phase 3 (Phase-02 / Construction): 橘黄色 (Vivid Warm Orange)
   {
-    badge: "#f59e0b",
-    bg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-    border: "#fde68a",
-    text: "#78350f",
-    accent: "#f59e0b",
-    subtext: "#b45309",
-    tagBg: "#fef3c7",
+    badge: "#ea580c",
+    bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)",
+    border: "#fdba74",
+    text: "#7c2d12",
+    accent: "#f97316",
+    subtext: "#c2410c",
+    tagBg: "#ffedd5",
   },
+  // 4. Phase 4 (Final Close / Commission): 金黄色 (Luminous Golden Yellow)
+  {
+    badge: "#ca8a04",
+    bg: "linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)",
+    border: "#fde047",
+    text: "#713f12",
+    accent: "#eab308",
+    subtext: "#a16207",
+    tagBg: "#fef9c3",
+  },
+  // 5. Sky Blue
   {
     badge: "#0284c7",
     bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
@@ -40,15 +54,7 @@ const DEFAULT_PHASE_THEMES = [
     subtext: "#0369a1",
     tagBg: "#e0f2fe",
   },
-  {
-    badge: "#0d9488",
-    bg: "linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)",
-    border: "#99f6e4",
-    text: "#134e4a",
-    accent: "#0d9488",
-    subtext: "#0f766e",
-    tagBg: "#ccfbf1",
-  },
+  // 6. Slate
   {
     badge: "#475569",
     bg: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
