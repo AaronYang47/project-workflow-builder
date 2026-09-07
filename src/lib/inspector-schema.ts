@@ -42,12 +42,6 @@ const document: InspectorField[] = [
 ];
 const gate: InspectorField[] = [
   {
-    key: "config.gateLabel",
-    label: "Module label",
-    type: "text",
-    section: "Decision configuration",
-  },
-  {
     key: "config.gateIconKey",
     label: "Module icon",
     type: "select",
@@ -75,19 +69,6 @@ const gate: InspectorField[] = [
     type: "color",
     section: "Appearance",
   },
-  { key: "config.conditionsTitle", label: "Conditions heading", type: "text", section: "Interface text" },
-  { key: "config.conditionsSubtitle", label: "Progress suffix", type: "text", section: "Interface text" },
-  { key: "config.checklistTitle", label: "Checklist heading", type: "text", section: "Interface text" },
-  { key: "config.checklistHint", label: "Checklist instruction", type: "text", section: "Interface text" },
-  { key: "config.conditionLabel", label: "Condition item label", type: "text", section: "Interface text" },
-  { key: "config.addConditionLabel", label: "Add condition button", type: "text", section: "Interface text" },
-  { key: "config.documentsLabel", label: "Documents heading", type: "text", section: "Interface text" },
-  { key: "config.addDocumentLabel", label: "Add document button", type: "text", section: "Interface text" },
-  { key: "config.decisionTitle", label: "Decision heading", type: "text", section: "Interface text" },
-  { key: "config.decisionSubtitle", label: "Decision subheading", type: "text", section: "Interface text" },
-  { key: "config.departmentLabel", label: "Department field", type: "text", section: "Interface text" },
-  { key: "config.approverLabel", label: "Approver field", type: "text", section: "Interface text" },
-  { key: "config.detailsNeededLabel", label: "Incomplete status", type: "text", section: "Interface text" },
 ];
 const general: InspectorField[] = [
   { key: "config.stage", label: "Stage", type: "text", section: "General" },

@@ -726,7 +726,6 @@ function DetailedInspector({
     Configuration: true,
     "Document details": true,
     Controls: true,
-    "Decision configuration": true,
   });
   return (
     <aside className="flex h-full min-h-0 w-[304px] max-w-[calc(100vw-16px)] shrink-0 flex-col border-l bg-panel">
