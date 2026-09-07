@@ -392,10 +392,13 @@ test("L3 Customer Selection Form is in File Library and can be added with Falcon
 
   await page.getByRole("button", { name: "Open Customer Selection Form" }).click();
   await expect(page.getByRole("heading", { name: "Customer Selection Form" })).toBeVisible();
-  await page.getByLabel("Customer Category").selectOption("Government & Crown Agency");
-  await page.getByLabel("Customer Specific Name").selectOption("Canada Mortgage and Housing Corporation");
-  await page.getByRole("button", { name: "Save Selection" }).click();
-  await expect(page.getByText("Government & Crown Agency · Canada Mortgage and Housing Corporation")).toBeVisible();
+  await page.getByLabel("Customer Name Lookup").fill("CMHC");
+  await expect(page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ })).toBeVisible();
+  await page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ }).click();
+  await expect(page.getByRole("heading", { name: "Canada Mortgage and Housing Corporation" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm This Customer" }).click();
+  await expect(page.getByLabel("Customer confirmed")).toBeVisible();
+  await expect(page.getByText(/Canada Mortgage and Housing Corporation/)).toBeVisible();
 });
 
 

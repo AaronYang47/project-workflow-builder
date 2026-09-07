@@ -37,7 +37,10 @@ import {
   fetchUploadedFilesFromR2,
   downloadFile,
 } from "@/lib/file-storage";
-import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
+import {
+  isCustomerSelectionForm,
+  type FalconCustomerProfile,
+} from "@/lib/falcon-customer-intelligence";
 import { CustomerSelectionForm } from "@/components/workflow/customer-selection-form";
 
 export interface DocRecord {
@@ -56,6 +59,7 @@ export interface DocRecord {
   formKind?: "customer-selection";
   customerCategory?: string;
   customerName?: string;
+  customerProfile?: FalconCustomerProfile;
 }
 
 // Modal for adding a new form/document to L3 from R2 file library or custom
@@ -327,6 +331,7 @@ export function ExecutionView({
 }) {
   const file = useWorkflowStore((state) => state.file);
   const updateNode = useWorkflowStore((state) => state.updateNode);
+  const updateOperations = useWorkflowStore((state) => state.updateOperations);
   const updateExecutionItem = useWorkflowStore(
     (state) => state.updateExecutionItem,
   );
@@ -1060,17 +1065,27 @@ export function ExecutionView({
                       : "border-border/80 bg-background hover:border-sky-500/40",
                   )}
                 >
-                  <input
-                    type="checkbox"
-                    aria-label={`Required file: ${doc.title}`}
-                    checked={doc.checked}
-                    onChange={() => {
-                      const updated = [...customCustomerDocs];
-                      updated[index] = { ...doc, checked: !doc.checked };
-                      saveCustomerDocs(updated);
-                    }}
-                    className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer"
-                  />
+                  {isCustomerSelectionForm(doc) && doc.checked ? (
+                    <span
+                      title="Customer confirmed for this project"
+                      aria-label="Customer confirmed"
+                      className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400"
+                    >
+                      <CheckCircle2 className="size-4" />
+                    </span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      aria-label={`Required file: ${doc.title}`}
+                      checked={doc.checked}
+                      onChange={() => {
+                        const updated = [...customCustomerDocs];
+                        updated[index] = { ...doc, checked: !doc.checked };
+                        saveCustomerDocs(updated);
+                      }}
+                      className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1103,9 +1118,12 @@ export function ExecutionView({
                     <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
                       {doc.title}
                     </p>
-                    {isCustomerSelectionForm(doc) && (doc.customerCategory || doc.customerName) ? (
+                    {isCustomerSelectionForm(doc) && doc.customerName ? (
                       <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                         {[doc.customerCategory, doc.customerName].filter(Boolean).join(" · ")}
+                        {doc.customerProfile
+                          ? ` · Fit ${doc.customerProfile.customerQualityScore ?? "—"} / Opp ${doc.customerProfile.opportunityScore ?? "—"} / Conf ${doc.customerProfile.confidenceScore ?? "—"}`
+                          : ""}
                       </p>
                     ) : doc.notes ? (
                       <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
@@ -1356,10 +1374,10 @@ export function ExecutionView({
           <CustomerSelectionForm
             key={selectionFormDoc.id}
             open
-            initialCategory={selectionFormDoc.customerCategory || ""}
             initialName={selectionFormDoc.customerName || ""}
+            initialProfile={selectionFormDoc.customerProfile}
             onClose={() => setSelectionFormDocId(null)}
-            onSave={({ customerCategory, customerName }) => {
+            onConfirm={({ customerCategory, customerName, customerProfile }) => {
               saveCustomerDocs(
                 customCustomerDocs.map((doc) =>
                   doc.id === selectionFormDoc.id
@@ -1367,11 +1385,43 @@ export function ExecutionView({
                         ...doc,
                         customerCategory,
                         customerName,
+                        customerProfile,
                         notes: `${customerCategory} · ${customerName}`,
+                        checked: true,
+                        required: true,
+                        status: "Verified",
                       }
                     : doc,
                 ),
               );
+              updateOperations((current) => ({
+                ...current,
+                identity: {
+                  ...current.identity,
+                  clientName: customerName,
+                  customerCompanyId: customerProfile.companyId,
+                  customerCategory,
+                  customerFitScore: customerProfile.customerQualityScore,
+                  customerOpportunityScore: customerProfile.opportunityScore,
+                  customerConfidenceScore: customerProfile.confidenceScore,
+                  customerWebsite: customerProfile.website || customerProfile.domain,
+                },
+                clientPath: {
+                  ...current.clientPath,
+                  relationship: customerName,
+                  classificationReason: `Confirmed from Falcon Customer Intelligence Database (${customerCategory}).`,
+                },
+              }));
+              if (projectStartNode) {
+                updateNode(projectStartNode.id, {
+                  customFields: {
+                    ...projectStartNode.customFields,
+                    customerName,
+                    customerCompanyId: customerProfile.companyId,
+                    customerCategory,
+                  },
+                });
+              }
               setSelectionFormDocId(null);
             }}
           />
