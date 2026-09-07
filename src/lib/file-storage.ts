@@ -1,3 +1,8 @@
+import {
+  CUSTOMER_SELECTION_FORM_FILE_NAME,
+  CUSTOMER_SELECTION_FORM_ID,
+} from "@/lib/falcon-customer-intelligence";
+
 export interface UploadedFileRecord {
   id: string;
   key?: string;
@@ -12,7 +17,39 @@ export interface UploadedFileRecord {
   dataUrl?: string;
 }
 
+export const CUSTOMER_SELECTION_FORM: UploadedFileRecord = {
+  id: CUSTOMER_SELECTION_FORM_ID,
+  fileName: CUSTOMER_SELECTION_FORM_FILE_NAME,
+  fileSize: 2048,
+  fileType: "application/json",
+  category: "customer",
+  title: "Customer Selection Form",
+  description:
+    "Select a customer category and specific customer name from Falcon Customer Intelligence Database.",
+  uploadedAt: "2026-09-07T00:00:00.000Z",
+};
+
 const STORAGE_KEY = "profab_r2_uploaded_files";
+
+function persistLibraryFiles(files: UploadedFileRecord[]): void {
+  if (typeof window === "undefined") return;
+  const persistable = files.filter(
+    (item) => item.id !== CUSTOMER_SELECTION_FORM_ID,
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
+}
+
+function withBuiltInLibraryForms(
+  files: UploadedFileRecord[],
+  category?: "legal" | "customer" | "supporting",
+): UploadedFileRecord[] {
+  const withoutBuiltIn = files.filter(
+    (item) => item.id !== CUSTOMER_SELECTION_FORM_ID,
+  );
+  const merged = [CUSTOMER_SELECTION_FORM, ...withoutBuiltIn];
+  if (!category) return merged;
+  return merged.filter((item) => item.category === category);
+}
 
 // Generate a dummy text/pdf data URL for files that don't have binary payload
 function createPlaceholderDataUrl(name: string, title: string) {
@@ -39,15 +76,12 @@ export function getUploadedFiles(category?: "legal" | "customer" | "supporting")
         item.fileName !== "Class_CD_Cost_Estimate_Model.xlsx"
     );
     if (cleaned.length !== files.length || !raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+      persistLibraryFiles(cleaned);
       files = cleaned;
     }
-    if (category) {
-      return files.filter((item) => item.category === category);
-    }
-    return files;
+    return withBuiltInLibraryForms(files, category);
   } catch {
-    return [];
+    return withBuiltInLibraryForms([], category);
   }
 }
 
@@ -73,11 +107,9 @@ export async function fetchUploadedFilesFromR2(
               dataUrl: localMatch?.dataUrl || remote.dataUrl,
             };
           });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          persistLibraryFiles(merged);
         }
-        return category
-          ? data.files.filter((item) => item.category === category)
-          : data.files;
+        return withBuiltInLibraryForms(data.files, category);
       }
     }
   } catch {
@@ -90,12 +122,13 @@ export function saveUploadedFile(file: UploadedFileRecord): void {
   if (typeof window === "undefined") return;
   const current = getUploadedFiles();
   const updated = [file, ...current.filter((item) => item.id !== file.id)];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  persistLibraryFiles(updated);
   window.dispatchEvent(new CustomEvent("workflow:uploaded-files-changed", { detail: file }));
 }
 
 export async function deleteUploadedFile(fileId: string, key?: string): Promise<void> {
   if (typeof window === "undefined") return;
+  if (fileId === CUSTOMER_SELECTION_FORM_ID) return;
   const current = getUploadedFiles();
   const fileToDelete = current.find((item) => item.id === fileId);
   const targetKey = key || fileToDelete?.key;
@@ -111,7 +144,7 @@ export async function deleteUploadedFile(fileId: string, key?: string): Promise<
   }
 
   const updated = current.filter((item) => item.id !== fileId);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  persistLibraryFiles(updated);
   window.dispatchEvent(
     new CustomEvent("workflow:uploaded-files-changed", {
       detail: { id: fileId, action: "deleted" },

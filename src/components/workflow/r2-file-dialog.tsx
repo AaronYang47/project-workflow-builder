@@ -24,6 +24,7 @@ import {
   downloadFile,
   deleteUploadedFile,
 } from "@/lib/file-storage";
+import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import { cn } from "@/lib/utils";
 
 export function R2FileDialog({
@@ -381,34 +382,42 @@ export function R2FileDialog({
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => downloadFile(file)}
-                          title={`Download ${file.fileName}`}
-                          aria-label={`Download ${file.fileName}`}
-                          className="h-8 gap-1 text-xs font-medium cursor-pointer"
-                        >
-                          <Download className="size-3.5" />
-                          Download
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            if (window.confirm(`Delete "${file.fileName}" from R2 Library?`)) {
-                              await deleteUploadedFile(file.id, file.key);
-                              const latest = await fetchUploadedFilesFromR2();
-                              setFileList(latest);
-                            }
-                          }}
-                          title={`Delete ${file.fileName}`}
-                          aria-label={`Delete ${file.fileName}`}
-                          className="h-8 gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 cursor-pointer"
-                        >
-                          <Trash2 className="size-3.5" />
-                          <span className="hidden sm:inline">Delete</span>
-                        </Button>
+                        {isCustomerSelectionForm(file) ? (
+                          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-sky-500/15 text-sky-700 dark:text-sky-300">
+                            Built-in Form
+                          </span>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => downloadFile(file)}
+                              title={`Download ${file.fileName}`}
+                              aria-label={`Download ${file.fileName}`}
+                              className="h-8 gap-1 text-xs font-medium cursor-pointer"
+                            >
+                              <Download className="size-3.5" />
+                              Download
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                if (window.confirm(`Delete "${file.fileName}" from R2 Library?`)) {
+                                  await deleteUploadedFile(file.id, file.key);
+                                  const latest = await fetchUploadedFilesFromR2();
+                                  setFileList(latest);
+                                }
+                              }}
+                              title={`Delete ${file.fileName}`}
+                              aria-label={`Delete ${file.fileName}`}
+                              className="h-8 gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 cursor-pointer"
+                            >
+                              <Trash2 className="size-3.5" />
+                              <span className="hidden sm:inline">Delete</span>
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

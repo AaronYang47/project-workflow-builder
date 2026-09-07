@@ -1,0 +1,4102 @@
+[
+  {
+    "category": "Cost Consulting & Project Advisory",
+    "organizationName": "BTY Group"
+  },
+  {
+    "category": "Engineering & Architecture Advisory",
+    "organizationName": "Stantec Inc."
+  },
+  {
+    "category": "Engineering & Project Management Custodian",
+    "organizationName": "WSP Global Inc. (Canada)"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Aecon Group Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Alberici Constructors Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Aquicon Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Avondale Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Axiom Builders"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Ball Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Bird Construction Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Black & McDonald Limited"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Bockstael Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Broccolini Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Buttcon Limited"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "CANA Group of Companies"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Campbell Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Carlson Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Clark Builders"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Collaborative Structures Limited"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Construction Beauce-Atlas"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Construction Citadelle"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Construction Dinamo"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Construction Verreault"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "DMA Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Dawson Wallace Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Decarel Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Delnor Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Divco Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Dorsey Contracting"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "EBC Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "ETRO Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Eastern Construction Company"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "EllisDon Corporation"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Farmer Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Flynn Group of Companies"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Gillam Group"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Graham Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Harbour Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Honco Buildings"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "ITC Construction Group"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Island West Coast Developments (IWCD)"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Jen-Col Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Kenaidan Contracting Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Kinetic Construction Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Ledcor Group of Companies"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Lindsay Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Magil Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Maple Reinders Group"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Marco Group of Companies"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Marcon Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Marwest Group of Companies"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Maystar General Contractors Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Melloul-Blamey Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Modern Niagara Group"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Olympic Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "PCL Construction Enterprises"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Percon Construction Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Pomerleau Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Quorex Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Reliance Construction Company"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Rutherford Contracting Ltd."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Scott Construction Group"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Structura General Contractors"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Stuart Olson Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Syscomax Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "TGCC Inc."
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Traugott Building Contractors"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Urban One Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Ventana Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Vergo Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Wales McLelland Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Westridge Construction"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "Wright Construction Western"
+  },
+  {
+    "category": "General Contractor / Construction Manager",
+    "organizationName": "rcs construction inc."
+  },
+  {
+    "category": "General Contractor / Structural Steel",
+    "organizationName": "Groupe Canam"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Alberta Infrastructure"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Alberta Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Association of Manitoba Bilingual Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Association of Manitoba Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Association of Municipalities of Ontario"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Association of Yukon Communities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "BC Housing"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "BC Hydro"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Canada Mortgage and Housing Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Cape Breton Regional Municipality"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Abbotsford"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Airdrie"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Barrie"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Bathurst"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Belleville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Brampton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Brandon"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Brantford"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Brooks"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Burlington"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Burnaby"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Calgary"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Cambridge"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Campbell River"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Campbellton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Camrose"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Castlegar"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Charlottetown"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Chilliwack"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Cold Lake"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Coquitlam"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Corner Brook"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Cornwall"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Courtenay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Cranbrook"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Dauphin"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Dawson"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Delta"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Dieppe"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Edmonton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Edmundston"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Estevan"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Flin Flon"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Fort Saskatchewan"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Fort St. John"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Fredericton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Grande Prairie"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Guelph"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Iqaluit"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Kamloops"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Kelowna"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Kingston"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Kitchener"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Leduc"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Lethbridge"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Lloydminster"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of London"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Maple Ridge"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Markham"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Martensville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Medicine Hat"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Miramichi"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Mississauga"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Moncton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Moose Jaw"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Morden"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Mount Pearl"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Nanaimo"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Nelson"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Niagara Falls"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of North Battleford"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of North Bay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of North Vancouver"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Oshawa"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Ottawa"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Parksville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Penticton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Peterborough"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Pickering"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Port Alberni"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Port Coquitlam"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Port Moody"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Portage la Prairie"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Prince Albert"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Prince George"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Prince Rupert"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Quesnel"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Red Deer"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Regina"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Richmond"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Saint John"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Salmon Arm"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Sarnia"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Saskatoon"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Sault Ste. Marie"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Selkirk"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Spruce Grove"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of St. Albert"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of St. Catharines"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of St. John's"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Steinbach"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Summerside"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Surrey"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Swift Current"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Terrace"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Thompson"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Thunder Bay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Timmins"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Toronto"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Vaughan"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Vernon"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Victoria"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Warman"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Waterloo"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Wetaskiwin"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Weyburn"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Whitehorse"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Williams Lake"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Windsor"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Winkler"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Winnipeg"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Yellowknife"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "City of Yorkton"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "County of Simcoe"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Defence Construction Canada"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "District of Mission"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "District of Squamish"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "District of West Vancouver"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Federation of PEI Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Fédération québécoise des municipalités"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Halifax Regional Municipality"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Housing NWT"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Housing Nova Scotia"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Hydro-Québec"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Infrastructure BC"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Infrastructure Ontario"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Manitoba Housing and Renewal Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Metrolinx"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Municipalities Newfoundland and Labrador"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "New Brunswick Housing Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Newfoundland and Labrador Housing Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Northwest Territories Association of Communities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Nova Scotia Federation of Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Nunavut Association of Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Nunavut Housing Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ontario Power Generation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Public Services and Procurement Canada"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Regional Municipality of Niagara"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Regional Municipality of Wood Buffalo"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Resort Municipality of Whistler"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Rural Municipalities of Alberta"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "SaskPower"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Saskatchewan Housing Corporation"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Saskatchewan Urban Municipalities Association"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Société d'habitation du Québec"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Société québécoise des infrastructures"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Strathcona County"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Ajax"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Amherst"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Antigonish"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Bridgewater"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Canmore"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Cochrane"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Conception Bay South"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Cornwall PEI"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Fort Smith"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Gander"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Grand Falls-Windsor"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Happy Valley-Goose Bay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Hay River"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Humboldt"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Inuvik"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Kentville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Kindersley"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Labrador City"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Lunenburg"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Melfort"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of New Glasgow"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Nipawin"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Oakville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Paradise"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Qualicum Beach"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Richmond Hill"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Stratford"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Swan River"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of The Pas"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Truro"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Whitby"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Wolfville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Town of Yarmouth"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Township of Langley"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Union des municipalités du Québec"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Union of BC Municipalities"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Union of Municipalities of New Brunswick"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Baie-Comeau"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Blainville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Brossard"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Châteauguay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Drummondville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Gatineau"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Granby"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Laval"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Longueuil"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Lévis"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Magog"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Mirabel"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Montréal"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Québec"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Repentigny"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Rimouski"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Rouyn-Noranda"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Saguenay"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Saint-Eustache"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Saint-Hyacinthe"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Saint-Jean-sur-Richelieu"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Saint-Jérôme"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Salaberry-de-Valleyfield"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Sept-Îles"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Shawinigan"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Sherbrooke"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Sorel-Tracy"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Terrebonne"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Thetford Mines"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Trois-Rivières"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Val-d'Or"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Vaudreuil-Dorion"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Ville de Victoriaville"
+  },
+  {
+    "category": "Government & Crown Agency",
+    "organizationName": "Yukon Housing Corporation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Abegweit First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Adams Lake Indian Band"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Alexander First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Alexis Nakota Sioux Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Assembly of First Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Assembly of Manitoba Chiefs"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Athabasca Chipewyan First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Atlantic Policy Congress of First Nations Chiefs"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Attawapiskat First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Batchewana First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Blood Tribe (Kainai First Nation)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Brokenhead Ojibway Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Champagne and Aishihik First Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Chiefs of Ontario"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Cold Lake First Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Conseil de la Nation Anishnabe de Lac Simon"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Conseil des Atikamekw de Manawan"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Conseil des Atikamekw de Wemotaci"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Conseil des Innus de Mashteuiatsh"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Conseil des Innus de Pessamit"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Council of Yukon First Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Cowessess First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Cowichan Tribes"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Cree Nation Government (Eeyou Istchee)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Cross Lake Band of Indians (Pimicikamak)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Curve Lake First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Elsipogtog First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Enoch Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Eskasoni First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Federation of Sovereign Indigenous Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "First Nations Summit"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Fisher River Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Flying Dust First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Fort McKay First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Fort William First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Garden River First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Grand Council Treaty #3"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Gwich'in Tribal Council"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Haida Nation (Council of the Haida Nation)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Haisla Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Inuvialuit Regional Corporation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Kativik Municipal Housing Bureau (Nunavik)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Kitchenuhmaykoosib Inninuwug"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Kitikmeot Inuit Association"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Kivalliq Inuit Association"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Kwanlin Dün First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Lac La Ronge Indian Band"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Lennox Island First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Lil'wat Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Manitoba Keewatinowi Okimakanak"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Membertou First Nation Development Corporation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Miawpukek First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Mikisew Cree First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Millbrook First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Mnjikaning (Chippewas of Rama First Nation)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Mohawk Council of Akwesasne"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Mohawk Council of Kahnawà:ke"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Mohawks of the Bay of Quinte Housing"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Moose Cree First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Muskowekwan First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Musqueam Indian Band"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Nipissing First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Nisga'a Lisims Government"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Nishnawbe Aski Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Norway House Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Nunatsiavut Government"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Nunavut Tunngavik Incorporated"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Onion Lake Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Opaskwayak Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Osoyoos Indian Band"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Peguis First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Peter Ballantyne Cree Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Qalipu First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Qikiqtani Inuit Association"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Sagkeeng First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Sahtu Secretariat Incorporated"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Sandy Lake First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Seabird Island Band"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Siksika Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Six Nations of the Grand River Housing"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Snuneymuxw First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Southern Chiefs' Organization"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Splatsin First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Squamish Nation Housing Department"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tk'emlúps te Secwépemc"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tla'amin Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tobique First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Treaty 6 First Nations"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Treaty 7 Management Corporation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Treaty 8 First Nations of Alberta"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tsleil-Waututh Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tsuut'ina Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Tłı̨chǫ Government"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Union of BC Indian Chiefs"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Union of Ontario Indians (Anishinabek Nation)"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Westbank First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Whitecap Dakota First Nation"
+  },
+  {
+    "category": "Indigenous Housing & First Nations",
+    "organizationName": "Wikwemikong Unceded Territory"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Allied Properties REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Alterra Group of Companies"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Anthem Properties Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Aquilini Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Aragon Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Aspen Ridge Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Beedie Living"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Boardwalk REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Bosa Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Brivia Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Brookfield Residential Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Cachet Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Cadillac Fairview"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Canadian Apartment Properties REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Canderel Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Cantiro Communities"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Carbonleo"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Centurion Asset Management"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Chard Development"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Choice Properties REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Cogir Real Estate"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Concert Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "CountryWide Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Coventry Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Cressey Development Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Crombie REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Daytona Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Deveraux Group of Companies"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Devimco Immobilier"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Dexel Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Dream Unlimited Corp"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Empire Communities"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Fieldgate Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "First Capital REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Geranium Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Graywood Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Great Gulf"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Groupe Bâtimo"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Groupe Mach"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Groupe Montoni"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "H&R REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Harvard Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Hazelview Investments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Hopewell Residential"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "InterRent REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Intracorp Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Ironclad Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Kevric Real Estate Corporation"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Killam Apartment REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Kylemore Communities"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Landmark Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Lanterra Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Ledingham McAllister"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Lifetime Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Madison Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Mainstreet Equity Corp"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Mattamy Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Melcor Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Menkes Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Minto Communities Canada"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Mondev Construction"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Morguard Corporation"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Mosaic Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Onni Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Oxford Properties Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "PC Urban Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "PCI Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Pinnacle International"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Plaza Partners"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Polygon Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Primont Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Prével"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "QuadReal Property Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Qualex-Landmark"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Qualico Communities"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Rachel Julien"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Reliance Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "RioCan REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Rohit Group of Companies"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Samcon"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Shape Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "SmartCentres REIT"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Southwest Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Stafford Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Starlight Investments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "State Building Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Strand Development"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Strategic Group"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Streetcar Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "TAS Developments"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "The Daniels Corporation"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Townline Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Treasure Hill Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Tribute Communities"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Trico Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Tricon Residential"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Tridel"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Truman Homes"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Universal Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Wesbild Holdings"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Wesgroup Properties"
+  },
+  {
+    "category": "Private Developer",
+    "organizationName": "Westbank Corp"
+  },
+  {
+    "category": "Project Management & Owners Advisory",
+    "organizationName": "Colliers Project Leaders"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Affordable Housing Societies (BC)"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Algoma District Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Atira Women's Resource Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "BC Non-Profit Housing Association"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Brightside Community Homes Foundation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Calgary Housing Company"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Canadian Housing and Renewal Association"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Capital Region Housing Corporation (Victoria)"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Catalyst Community Developments Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "City of Hamilton Housing Services"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "City of Vancouver Affordable Housing Agency"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Civida (Capital Region Housing)"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Coast Mental Health"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Community Land Trust (BC)"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "District of Cochrane Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "District of Nipissing Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "District of Timiskaming Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Durham Regional Local Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Fred Victor Centre"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Grande Prairie Regional Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Greater Sudbury Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Greater Victoria Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Halton Community Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Housing York Inc."
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Kenora District Services Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Kingston Frontenac Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Lethbridge Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "London & Middlesex Community Housing"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Lookout Housing and Health Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Lu'ma Native Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Mainstay Housing"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Manitoulin-Sudbury District Services Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Medicine Hat Community Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Metro Vancouver Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Moose Jaw Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "More Than a Roof Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Niagara Regional Housing"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Drummond"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Laval"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Longueuil"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Lévis"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Rouyn-Noranda"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de Saguenay"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de l'Outaouais"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de la Haute-Yamaska"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de la Vallée-de-l'Or"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation de la Vallée-du-Richelieu"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office d'habitation du Haut-Saint-François"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Montréal"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Québec"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Rimouski-Neigette"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Saint-Jérôme"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Sherbrooke"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Office municipal d'habitation de Trois-Rivières"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Ontario Non-Profit Housing Association"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Options Bytown Non-Profit Housing"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Options for Homes"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Ottawa Community Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Pacifica Housing Advisory Association"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Parry Sound District Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Peel Living (Peel Housing Corporation)"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Prince Albert Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "RainCity Housing and Support Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Rainy River District Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Red Deer Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Regina Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Réseau québécois des OSBL d'habitation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Sanford Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Saskatoon Housing Authority"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Sault Ste. Marie Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Thunder Bay District Social Services Administration Board"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Toronto Community Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Vancouver Native Housing Society"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Waterloo Region Community Housing"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Windsor Essex Community Housing Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Winnipeg Housing and Rehabilitation Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "Wood Buffalo Housing and Development Corporation"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "WoodGreen Community Services"
+  },
+  {
+    "category": "Public Housing / Housing Corporation",
+    "organizationName": "YWCA Toronto Housing"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Alberta Purchasing Connection"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "BC Bid"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Buyandsell.gc.ca (CanadaBuys)"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Canadian Council for Public-Private Partnerships"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Canoe Procurement Group of Canada"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Centre d'acquisitions gouvernementales"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Federation of Canadian Municipalities Green Municipal Fund"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "HealthPRO Procurement Services Inc."
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Kinetic GPO"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Local Authority Services (LAS)"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "MERX Canadian Public Tenders"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Municipal Association of Victoria (Purchasing Australia / GPO Canada)"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "New Brunswick Opportunities Network"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Nova Scotia Procurement Services"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Ontario Education Collaborative Marketplace"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "SaskTenders"
+  },
+  {
+    "category": "Public Procurement & Sourcing Intermediary",
+    "organizationName": "Système électronique d'appel d'offres (SEAO)"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Abbotsford School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Acadia University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Algonquin College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Algonquin and Lakeshore Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Anglophone East School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Anglophone North School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Anglophone South School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Anglophone West School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Annapolis Valley Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Assiniboine Community College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Aurora College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Beaufort Delta District Education Council"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Bow Valley College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Brandon School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Brandon University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "British Columbia Institute of Technology"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Brock University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Burnaby School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "CHANDOS"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Calgary Board of Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Calgary Catholic School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cambrian College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Camosun College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Campbell River School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Canadore College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cape Breton University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cape Breton-Victoria Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Capilano University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Carleton University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Catholic District School Board of Eastern Ontario"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centennial College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Central Okanagan Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Central Quebec School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire Marguerite-Bourgeoys"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire Marie-Victorin"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de Laval"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de Saint-Hyacinthe"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de l'Or-et-des-Bois"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de l'Énergie"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de la Beauce-Etchemin"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de la Capitale"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de la Pointe-de-l'Île"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de la Rivière-du-Nord"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire de la Région-de-Sherbrooke"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Affluents"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Chênes"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Draveurs"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Découvreurs"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Grandes-Seigneuries"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Mille-Îles"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Navigateurs"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Patriotes"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Phares"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Portages-de-l'Outaouais"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Premières-Seigneuries"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Rives-du-Saguenay"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Samares"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire des Sommets"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire du Chemin-du-Roy"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire du Fer"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Centre de services scolaire du Val-des-Cerfs"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Chignecto Central Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Chilliwack School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Coast Mountain College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Coast Mountains School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "College of New Caledonia"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "College of the North Atlantic"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "College of the Rockies"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Collège Boréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Collège La Cité"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Collège communautaire du Nouveau-Brunswick"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Commission scolaire de langue française de l'Île-du-Prince-Édouard"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Comox Valley Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Concordia University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conestoga College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Confederation College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil des écoles catholiques du Centre-Est"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil des écoles publiques de l'Est de l'Ontario"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire Viamonde"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire catholique MonAvenir"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire catholique de district des Grandes Rivières"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire catholique du Nouvel-Ontario"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire francophone provincial de Terre-Neuve-et-Labrador"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Conseil scolaire public du Nord-Est de l'Ontario"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Coquitlam School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cowichan Valley School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep André-Laurendeau"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep Beauce-Appalaches"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep Garneau"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep Limoilou"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep Marie-Victorin"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Baie-Comeau"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Chicoutimi"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Drummondville"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Granby"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Jonquière"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Lévis"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Maisonneuve"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Matane"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Rimouski"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Rivière-du-Loup"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Saint-Félicien"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Saint-Jérôme"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Saint-Laurent"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Sainte-Foy"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Sept-Îles"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Shawinigan"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Sherbrooke"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Sorel-Tracy"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Thetford"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Trois-Rivières"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de Victoriaville"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de l'Abitibi-Témiscamingue"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de l'Outaouais"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep de la Gaspésie et des Îles"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Cégep du Vieux Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Dalhousie University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Dawson College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Dehcho Divisional Education Council"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Delta School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "District School Board of Niagara"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Douglas College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Dufferin-Peel Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Durham Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Durham College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Durham District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Eastern Townships School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Edmonton Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Edmonton Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Elk Island Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Elk Island Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Emily Carr University of Art + Design"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "English Montreal School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Fanshawe College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "First Nations University of Canada"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Fleming College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Foothills School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Fort McMurray Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Fort McMurray Public School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Francophone Nord-Est District Scolaire"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Francophone Nord-Ouest District Scolaire"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Francophone Sud District Scolaire"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Garden Valley School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "George Brown College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Georgian College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Grande Prairie Catholic School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Grande Prairie Public School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Greater Essex County District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Greater Saskatoon Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Greater St. Albert Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Greater Victoria School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "HEC Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Halifax Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Halton Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Halton District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Hamilton-Wentworth Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Hamilton-Wentworth District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Hanover School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Hastings and Prince Edward District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Holland College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Holy Spirit Catholic School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Holy Trinity Catholic School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Humber College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "John Abbott College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Justice Institute of British Columbia"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Kamloops-Thompson School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Kawartha Pine Ridge District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Keyano College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Kootenay Lake School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Kwantlen Polytechnic University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lakehead District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lakehead University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lakeland College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lambton College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Langara College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Langley School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Laurentian University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lester B. Pearson School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lethbridge College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lethbridge School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Limestone District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "London District Catholic School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Lord Selkirk School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Louis Riel School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Loyalist College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "MacEwan University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Maple Ridge - Pitt Meadows School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "McGill University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "McMaster University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Medicine Hat Catholic Board of Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Medicine Hat College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Medicine Hat Public School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Memorial University of Newfoundland"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Mohawk College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Mount Allison University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Mount Royal University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Nanaimo Ladysmith Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Near North District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "New Brunswick Community College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "New Frontiers School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Newfoundland and Labrador English School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Niagara Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Niagara College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Nipissing University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Nipissing-Parry Sound Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "North Island College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "North Vancouver School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Northern Alberta Institute of Technology"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Northern College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Northern Lights College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Northwestern Polytechnic"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Nova Scotia Community College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Nunavut Arctic College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "OCAD University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Okanagan College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Ontario Tech University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Ottawa Catholic School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Ottawa-Carleton District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Parkland School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Peace River North School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Peel District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Pembina Trails School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Peterborough Victoria Northumberland and Clarington Catholic DSB"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Prairie South School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Prairie Valley School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Prince Albert Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Prince George School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Public Schools Branch (PEI)"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Queen's University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Rainbow District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Red Deer Catholic Regional Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Red Deer Polytechnic"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Red Deer Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Red River College Polytech"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Regina Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Regina Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Richmond School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "River East Transcona School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Riverside School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Rocky View Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Saanich School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Saint Mary's University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Saskatchewan Polytechnic"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Saskatchewan Rivers Public School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Saskatoon Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Sault College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Selkirk College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Seneca Polytechnic"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Seven Oaks School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Sheridan College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Simcoe County District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Simcoe Muskoka Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Simon Fraser University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Sir Wilfrid Laurier School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Sooke School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "South Shore Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "South Slave District Education Council"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Southeast Kootenay School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Southern Alberta Institute of Technology"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. Albert Public Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. Clair College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. Francis Xavier University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. James-Assiniboia School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. Lawrence College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "St. Thomas University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Straight Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Sudbury Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Surrey Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Thames Valley District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Thompson Rivers University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Thunder Bay Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Toronto Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Toronto District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Toronto Metropolitan University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Trent University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Tri-County Regional Centre for Education"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Alberta"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of British Columbia"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Calgary"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Guelph"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Lethbridge"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Manitoba"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of New Brunswick"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Northern British Columbia"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Ottawa"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Prince Edward Island"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Regina"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Saskatchewan"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Toronto"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Victoria"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Waterloo"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Windsor"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of Winnipeg"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "University of the Fraser Valley"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université Laval"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université Sainte-Anne"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université de Hearst"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université de Moncton"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université de Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université de Sherbrooke"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec en Abitibi-Témiscamingue"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec en Outaouais"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec à Chicoutimi"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec à Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec à Rimouski"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Université du Québec à Trois-Rivières"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Upper Canada District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Upper Grand District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Vancouver Island University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Vancouver School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Vanier College"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Vernon School District"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Waterloo Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Waterloo Region District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Wellington Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "West Vancouver Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Western Quebec School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Western School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Western University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Wilfrid Laurier University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Windsor-Essex Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Winnipeg School Division"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Yellowknife Catholic Schools"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Yellowknife Education District No. 1"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "York Catholic District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "York Region District School Board"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "York University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "Yukon University"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "École Polytechnique de Montréal"
+  },
+  {
+    "category": "School Board / College / University",
+    "organizationName": "École de technologie supérieure"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Alberta Health Services"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Amica Senior Lifestyles"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Baptist Housing"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Baycrest Health Sciences"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Belmont House"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Bethany Care Society"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Broadmead Care Society"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Bruyère Continuing Care"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CHU de Québec-Université Laval"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de Chaudière-Appalaches"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de Lanaudière"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de Laval"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de l'Abitibi-Témiscamingue"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de l'Outaouais"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS de la Montérégie-Est"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS des Laurentides"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS du Bas-Saint-Laurent"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CISSS du Saguenay-Lac-Saint-Jean"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS de l'Est-de-l'Île-de-Montréal"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS de l'Ouest-de-l'Île-de-Montréal"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS de la Capitale-Nationale"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS de la Mauricie-et-du-Centre-du-Québec"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS du Centre-Sud-de-l'Île-de-Montréal"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CIUSSS du Nord-de-l'Île-de-Montréal"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "CapitalCare"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Carewest Calgary"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Centre hospitalier de l'Université de Montréal"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Chartwell Retirement Residences"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Christenson Communities"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Covenant Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Elim Village"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Extendicare Canada"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Fraser Health Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Grand River Hospital"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Groupe Château Bellevue"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Halton Healthcare"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Hamilton Health Sciences"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Health PEI"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Health Sciences North"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Horizon Health Network"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "IWK Health Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Interior Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Interlake-Eastern Regional Health Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Island Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Kensington Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "KinVillage Association"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Kingston Health Sciences Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Lakeridge Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Le Groupe Maurice"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "London Health Sciences Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Mackenzie Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "McGill University Health Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Menno Place"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Mon Sheong Foundation"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Newfoundland and Labrador Health Services"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Niagara Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Northern Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Northern Health Region"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Nova Scotia Health Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Perley Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Prairie Mountain Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Provincial Health Services Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Revera Living"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Réseau Sélection"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Résidences Soleil (Groupe Savoie)"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Résidences des Bâtisseurs"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Saskatchewan Health Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Schlegel Villages"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Seasons Retirement Communities"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Shannex Incorporated"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Shared Health Manitoba"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Shepherd's Care Foundation"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Sienna Senior Living"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Silvera for Seniors"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Sinai Health System"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Southern Health-Santé Sud"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Southlake Regional Health Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "St. Mary's General Hospital"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Sunnybrook Health Sciences Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Tabor Village"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "The Brenda Strafford Foundation"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "The Ottawa Hospital"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Thunder Bay Regional Health Sciences Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Trillium Health Partners"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Unity Health Toronto"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "University Health Network"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Vancouver Coastal Health"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Verve Senior Living"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Vitalité Health Network"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "William Osler Health System"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Windsor Regional Hospital"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Wing Kei Care Centre"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Winnipeg Regional Health Authority"
+  },
+  {
+    "category": "Senior Living & Long-Term Care (LTC)",
+    "organizationName": "Yee Hong Centre for Geriatric Care"
+  }
+]

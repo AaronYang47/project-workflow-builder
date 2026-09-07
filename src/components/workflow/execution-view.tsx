@@ -37,6 +37,8 @@ import {
   fetchUploadedFilesFromR2,
   downloadFile,
 } from "@/lib/file-storage";
+import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
+import { CustomerSelectionForm } from "@/components/workflow/customer-selection-form";
 
 export interface DocRecord {
   id: string;
@@ -51,6 +53,9 @@ export interface DocRecord {
   required: boolean;
   notes?: string;
   sourceItemId?: string;
+  formKind?: "customer-selection";
+  customerCategory?: string;
+  customerName?: string;
 }
 
 // Modal for adding a new form/document to L3 from R2 file library or custom
@@ -115,6 +120,7 @@ function AddDocumentModal({
     const selectedFile = availableFiles.find((f) => f.id === selectedFileId);
     const title = customTitle.trim() || selectedFile?.title || "New Document Form";
     const prefix = category === "legal" ? "LEG" : category === "customer" ? "CUST" : "SUP";
+    const customerSelection = isCustomerSelectionForm(selectedFile || {});
     const newDoc: DocRecord = {
       id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       title,
@@ -127,6 +133,7 @@ function AddDocumentModal({
       checked: false,
       required: isRequired,
       notes: selectedFile?.description,
+      ...(customerSelection ? { formKind: "customer-selection" as const } : {}),
     };
     onAdd(newDoc);
     onClose();
@@ -326,6 +333,7 @@ export function ExecutionView({
   const [addModalCategory, setAddModalCategory] = useState<
     "legal" | "customer" | "supporting" | null
   >(null);
+  const [selectionFormDocId, setSelectionFormDocId] = useState<string | null>(null);
 
   const node = file.graph.nodes.find((item) => item.id === nodeId);
   const highLevelNodes = useWorkflowStore(
@@ -1095,7 +1103,11 @@ export function ExecutionView({
                     <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
                       {doc.title}
                     </p>
-                    {doc.notes ? (
+                    {isCustomerSelectionForm(doc) && (doc.customerCategory || doc.customerName) ? (
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                        {[doc.customerCategory, doc.customerName].filter(Boolean).join(" · ")}
+                      </p>
+                    ) : doc.notes ? (
                       <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                         {doc.notes}
                       </p>
@@ -1104,7 +1116,21 @@ export function ExecutionView({
 
                   {/* Actions: Download and Delete */}
                   <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                    {doc.fileName ? (
+                    {isCustomerSelectionForm(doc) ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectionFormDocId(doc.id);
+                        }}
+                        title="Open Customer Selection Form"
+                        aria-label="Open Customer Selection Form"
+                        className="size-6 text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10"
+                      >
+                        <Building2 className="size-3.5" />
+                      </Button>
+                    ) : doc.fileName ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -1321,6 +1347,36 @@ export function ExecutionView({
           }
         }}
       />
+      {(() => {
+        const selectionFormDoc = customCustomerDocs.find(
+          (doc) => doc.id === selectionFormDocId,
+        );
+        if (!selectionFormDoc) return null;
+        return (
+          <CustomerSelectionForm
+            key={selectionFormDoc.id}
+            open
+            initialCategory={selectionFormDoc.customerCategory || ""}
+            initialName={selectionFormDoc.customerName || ""}
+            onClose={() => setSelectionFormDocId(null)}
+            onSave={({ customerCategory, customerName }) => {
+              saveCustomerDocs(
+                customCustomerDocs.map((doc) =>
+                  doc.id === selectionFormDoc.id
+                    ? {
+                        ...doc,
+                        customerCategory,
+                        customerName,
+                        notes: `${customerCategory} · ${customerName}`,
+                      }
+                    : doc,
+                ),
+              );
+              setSelectionFormDocId(null);
+            }}
+          />
+        );
+      })()}
     </section>
   );
 }
