@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Building2,
   Gauge,
@@ -157,7 +158,12 @@ export function CustomerSelectionForm({
   );
   const canSave = customerFormIsComplete(profile, answers);
 
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   const patchAnswers = (patch: Partial<CustomerFormAnswers>) => {
     setAnswers((current) => ({ ...current, ...patch }));
@@ -176,8 +182,8 @@ export function CustomerSelectionForm({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
       <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-300/90 dark:border-slate-700 bg-card shadow-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 bg-muted/30">
           <div className="flex items-center gap-2">
@@ -491,6 +497,7 @@ export function CustomerSelectionForm({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
