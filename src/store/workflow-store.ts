@@ -628,13 +628,20 @@ export const useWorkflowStore = create<WorkflowState>()(
       selectNodes: (nodeIds) =>
         set((state) => {
           const current = state.selection;
-          if (
+          const selectionUnchanged =
             current.edgeId === undefined &&
             current.nodeIds.length === nodeIds.length &&
-            current.nodeIds.every((id, index) => id === nodeIds[index])
-          ) {
-            return state;
+            current.nodeIds.every((id, index) => id === nodeIds[index]);
+          if (nodeIds.length > 0) {
+            if (selectionUnchanged && state.rightOpen) return state;
+            return {
+              ...(selectionUnchanged
+                ? {}
+                : { selection: { nodeIds, edgeId: undefined } }),
+              rightOpen: true,
+            };
           }
+          if (selectionUnchanged) return state;
           return { selection: { nodeIds, edgeId: undefined } };
         }),
       selectEdge: (edgeId) =>
@@ -647,13 +654,20 @@ export const useWorkflowStore = create<WorkflowState>()(
       selectHighLevelNodes: (nodeIds) =>
         set((state) => {
           const current = state.highLevelSelection;
-          if (
+          const selectionUnchanged =
             current.edgeId === undefined &&
             current.nodeIds.length === nodeIds.length &&
-            current.nodeIds.every((id, index) => id === nodeIds[index])
-          ) {
-            return state;
+            current.nodeIds.every((id, index) => id === nodeIds[index]);
+          if (nodeIds.length > 0) {
+            if (selectionUnchanged && state.rightOpen) return state;
+            return {
+              ...(selectionUnchanged
+                ? {}
+                : { highLevelSelection: { nodeIds, edgeId: undefined } }),
+              rightOpen: true,
+            };
           }
+          if (selectionUnchanged) return state;
           return { highLevelSelection: { nodeIds, edgeId: undefined } };
         }),
       selectHighLevelEdge: (edgeId) =>
