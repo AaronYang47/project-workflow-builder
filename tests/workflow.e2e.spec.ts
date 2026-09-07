@@ -369,7 +369,7 @@ test("Export dropdown provides Image and PDF export options", async ({ page }) =
   await expect(menu.getByText("Export SVG (Vector)")).toBeVisible();
 });
 
-test("L3 Customer Selection Form is in File Library and can be added with Falcon customer dropdowns", async ({ page }) => {
+test("L3 customer Form is in File Library and cannot be checked until filled", async ({ page }) => {
   await seedE2EWorkflow(page);
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
@@ -378,27 +378,35 @@ test("L3 Customer Selection Form is in File Library and can be added with Falcon
   await page.getByRole("button", { name: "Upload Forms" }).click();
   await expect(page.getByText("Cloudflare R2 Document Center")).toBeVisible();
   await page.getByRole("button", { name: /R2 File Library/ }).click();
-  await expect(page.getByText("Customer Selection Form")).toBeVisible();
+  await expect(page.getByText("Form").first()).toBeVisible();
   await page.getByRole("button", { name: "customer", exact: true }).click();
-  await expect(page.getByText("Customer Selection Form")).toBeVisible();
+  await expect(page.getByText("Form").first()).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
 
   await page.getByRole("button", { name: /Open L3 details for release condition/ }).first().click();
   await page.getByRole("button", { name: "Add Customer Information Form" }).click();
   await expect(page.getByRole("heading", { name: "Add Customer Information Form" })).toBeVisible();
-  await expect(page.getByText("Customer Selection Form")).toBeVisible();
+  await expect(page.getByText("Form").first()).toBeVisible();
   await page.getByRole("button", { name: "Add to L3 List" }).click();
-  await expect(page.getByRole("button", { name: "Open Customer Selection Form" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Form" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Open Customer Selection Form" }).click();
-  await expect(page.getByRole("heading", { name: "Customer Selection Form" })).toBeVisible();
-  await page.getByLabel("Customer Name Lookup").fill("CMHC");
+  const checkbox = page.getByRole("checkbox", { name: "Required file: Form" });
+  await expect(checkbox).toBeDisabled();
+
+  await page.getByRole("button", { name: "Open Form" }).click();
+  await expect(page.getByRole("heading", { name: "Form", exact: true })).toBeVisible();
+  await page.getByLabel("Company name").fill("CMHC");
   await expect(page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ })).toBeVisible();
   await page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ }).click();
-  await expect(page.getByRole("heading", { name: "Canada Mortgage and Housing Corporation" })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm This Customer" }).click();
-  await expect(page.getByLabel("Customer confirmed")).toBeVisible();
-  await expect(page.getByText(/Canada Mortgage and Housing Corporation/)).toBeVisible();
+  await page.getByLabel("Contact name").fill("Jane Smith");
+  await page.getByLabel("Site / project location").fill("Ottawa, ON");
+  await page.getByLabel("Project type").selectOption("Affordable / Social Housing");
+  await page.getByRole("button", { name: "Save Form" }).click();
+
+  await expect(checkbox).toBeEnabled();
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  await expect(checkbox).toBeChecked();
 });
 
 

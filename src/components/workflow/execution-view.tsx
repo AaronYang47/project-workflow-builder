@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Building2,
   Check,
-  CheckCircle2,
   CloudUpload,
   Download,
   FileCheck2,
@@ -41,7 +40,7 @@ import {
   isCustomerSelectionForm,
   type FalconCustomerProfile,
 } from "@/lib/falcon-customer-intelligence";
-import { CustomerSelectionForm } from "@/components/workflow/customer-selection-form";
+import { CustomerSelectionForm, customerFormIsComplete, type CustomerFormAnswers } from "@/components/workflow/customer-selection-form";
 
 export interface DocRecord {
   id: string;
@@ -60,6 +59,7 @@ export interface DocRecord {
   customerCategory?: string;
   customerName?: string;
   customerProfile?: FalconCustomerProfile;
+  customerForm?: CustomerFormAnswers;
 }
 
 // Modal for adding a new form/document to L3 from R2 file library or custom
@@ -331,7 +331,6 @@ export function ExecutionView({
 }) {
   const file = useWorkflowStore((state) => state.file);
   const updateNode = useWorkflowStore((state) => state.updateNode);
-  const updateOperations = useWorkflowStore((state) => state.updateOperations);
   const updateExecutionItem = useWorkflowStore(
     (state) => state.updateExecutionItem,
   );
@@ -1065,27 +1064,33 @@ export function ExecutionView({
                       : "border-border/80 bg-background hover:border-sky-500/40",
                   )}
                 >
-                  {isCustomerSelectionForm(doc) && doc.checked ? (
-                    <span
-                      title="Customer confirmed for this project"
-                      aria-label="Customer confirmed"
-                      className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400"
-                    >
-                      <CheckCircle2 className="size-4" />
-                    </span>
-                  ) : (
-                    <input
-                      type="checkbox"
-                      aria-label={`Required file: ${doc.title}`}
-                      checked={doc.checked}
-                      onChange={() => {
-                        const updated = [...customCustomerDocs];
-                        updated[index] = { ...doc, checked: !doc.checked };
-                        saveCustomerDocs(updated);
-                      }}
-                      className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer"
-                    />
-                  )}
+                  <input
+                    type="checkbox"
+                    aria-label={`Required file: ${doc.title}`}
+                    checked={doc.checked}
+                    disabled={
+                      isCustomerSelectionForm(doc) &&
+                      !customerFormIsComplete(doc.customerProfile, doc.customerForm)
+                    }
+                    onChange={() => {
+                      if (
+                        isCustomerSelectionForm(doc) &&
+                        !customerFormIsComplete(doc.customerProfile, doc.customerForm)
+                      ) {
+                        return;
+                      }
+                      const updated = [...customCustomerDocs];
+                      updated[index] = { ...doc, checked: !doc.checked };
+                      saveCustomerDocs(updated);
+                    }}
+                    title={
+                      isCustomerSelectionForm(doc) &&
+                      !customerFormIsComplete(doc.customerProfile, doc.customerForm)
+                        ? "Open and complete the form before checking this box"
+                        : undefined
+                    }
+                    className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1142,8 +1147,8 @@ export function ExecutionView({
                           e.preventDefault();
                           setSelectionFormDocId(doc.id);
                         }}
-                        title="Open Customer Selection Form"
-                        aria-label="Open Customer Selection Form"
+                        title="Open Form"
+                        aria-label="Open Form"
                         className="size-6 text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10"
                       >
                         <Building2 className="size-3.5" />
@@ -1376,49 +1381,46 @@ export function ExecutionView({
             open
             initialName={selectionFormDoc.customerName || ""}
             initialProfile={selectionFormDoc.customerProfile}
+            initialAnswers={selectionFormDoc.customerForm}
             onClose={() => setSelectionFormDocId(null)}
-            onConfirm={({ customerCategory, customerName, customerProfile }) => {
-              saveCustomerDocs(
-                customCustomerDocs.map((doc) =>
-                  doc.id === selectionFormDoc.id
-                    ? {
-                        ...doc,
-                        customerCategory,
-                        customerName,
-                        customerProfile,
-                        notes: `${customerCategory} · ${customerName}`,
-                        checked: true,
-                        required: true,
-                        status: "Verified",
-                      }
-                    : doc,
-                ),
+            onSave={({ customerCategory, customerName, customerProfile, customerForm }) => {
+              if (!node) return;
+              const updatedDocs = customCustomerDocs.map((doc) =>
+                doc.id === selectionFormDoc.id
+                  ? {
+                      ...doc,
+                      customerCategory,
+                      customerName,
+                      customerProfile,
+                      customerForm,
+                      notes: `${customerName} · ${customerForm.projectType} · ${customerForm.siteLocation}`,
+                      checked: doc.checked,
+                      required: true,
+                      status: doc.checked ? "Verified" : "Required",
+                    }
+                  : doc,
               );
-              updateOperations((current) => ({
-                ...current,
-                identity: {
-                  ...current.identity,
-                  clientName: customerName,
-                  customerCompanyId: customerProfile.companyId,
-                  customerCategory,
-                  customerFitScore: customerProfile.customerQualityScore,
-                  customerOpportunityScore: customerProfile.opportunityScore,
-                  customerConfidenceScore: customerProfile.confidenceScore,
-                  customerWebsite: customerProfile.website || customerProfile.domain,
+              const docsKey = `customerDocuments::release-condition::${conditionStorageKey}`;
+              const customerIdentityFields = {
+                customerName,
+                customerCompanyId: customerProfile.companyId,
+                customerCategory,
+                customerContactName: customerForm.contactName,
+                customerSiteLocation: customerForm.siteLocation,
+                customerProjectType: customerForm.projectType,
+              };
+              updateNode(node.id, {
+                customFields: {
+                  ...node.customFields,
+                  [docsKey]: JSON.stringify(updatedDocs),
+                  ...(projectStartNode?.id === node.id ? customerIdentityFields : {}),
                 },
-                clientPath: {
-                  ...current.clientPath,
-                  relationship: customerName,
-                  classificationReason: `Confirmed from Falcon Customer Intelligence Database (${customerCategory}).`,
-                },
-              }));
-              if (projectStartNode) {
+              });
+              if (projectStartNode && projectStartNode.id !== node.id) {
                 updateNode(projectStartNode.id, {
                   customFields: {
                     ...projectStartNode.customFields,
-                    customerName,
-                    customerCompanyId: customerProfile.companyId,
-                    customerCategory,
+                    ...customerIdentityFields,
                   },
                 });
               }

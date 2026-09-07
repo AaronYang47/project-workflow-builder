@@ -23,9 +23,9 @@ export const CUSTOMER_SELECTION_FORM: UploadedFileRecord = {
   fileSize: 2048,
   fileType: "application/json",
   category: "customer",
-  title: "Customer Selection Form",
+  title: "Form",
   description:
-    "Select a customer category and specific customer name from Falcon Customer Intelligence Database.",
+    "Customer information form. Company lookup is one required field among other project questions.",
   uploadedAt: "2026-09-07T00:00:00.000Z",
 };
 
