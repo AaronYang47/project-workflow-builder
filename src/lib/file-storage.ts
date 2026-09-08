@@ -25,7 +25,7 @@ export const CUSTOMER_SELECTION_FORM: UploadedFileRecord = {
   category: "customer",
   title: "Form",
   description:
-    "Customer information form. Company lookup is one required field among other project questions.",
+    "Sales qualification form. Select a customer, answer 9 dropdowns, then save the recommended next service.",
   uploadedAt: "2026-09-07T00:00:00.000Z",
 };
 

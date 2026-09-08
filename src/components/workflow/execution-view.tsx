@@ -1393,7 +1393,7 @@ export function ExecutionView({
                       customerName,
                       customerProfile,
                       customerForm,
-                      notes: `${customerName} · ${customerForm.projectType} · ${customerForm.siteLocation}`,
+                        notes: `${customerName} · ${customerForm.decisionAuthority || "Sales"} · ${customerForm.siteMunicipality || customerForm.siteStatus}`,
                       checked: doc.checked,
                       required: true,
                       status: doc.checked ? "Verified" : "Required",
@@ -1405,9 +1405,9 @@ export function ExecutionView({
                 customerName,
                 customerCompanyId: customerProfile.companyId,
                 customerCategory,
-                customerContactName: customerForm.contactName,
-                customerSiteLocation: customerForm.siteLocation,
-                customerProjectType: customerForm.projectType,
+                customerContactName: customerForm.decisionMakerName,
+                customerSiteLocation: customerForm.siteMunicipality,
+                customerProjectType: customerForm.designStage,
               };
               updateNode(node.id, {
                 customFields: {

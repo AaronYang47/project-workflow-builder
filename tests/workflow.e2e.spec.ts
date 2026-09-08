@@ -398,9 +398,15 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await page.getByLabel("Company name").fill("CMHC");
   await expect(page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ })).toBeVisible();
   await page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ }).click();
-  await page.getByLabel("Contact name").fill("Jane Smith");
-  await page.getByLabel("Site / project location").fill("Ottawa, ON");
-  await page.getByLabel("Project type").selectOption("Affordable / Social Housing");
+  await page.getByLabel("Decision Authority").selectOption("Unknown");
+  await page.getByLabel("Site Status").selectOption("No Site");
+  await page.getByLabel("Design Stage").selectOption("No Design");
+  await page.getByLabel("Modular Compatibility").selectOption("Compatible");
+  await page.getByLabel("Project Definition").selectOption("Undefined / Early");
+  await page.getByLabel("Budget Status").selectOption("Missing");
+  await page.getByLabel("Funding Status").selectOption("Unknown");
+  await page.getByLabel("Customer Relationship").selectOption("New");
+  await page.getByLabel("Commercial Commitment").selectOption("None");
   await page.getByRole("button", { name: "Save Form" }).click();
 
   await expect(checkbox).toBeEnabled();
