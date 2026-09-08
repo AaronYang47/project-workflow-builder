@@ -12,6 +12,7 @@ import {
 } from "@/lib/falcon-customer-intelligence";
 import {
   QUALIFICATION_DROPDOWNS,
+  QUALIFICATION_FILL_FIELDS,
   evaluateSalesQualification,
   normalizeSalesQualificationAnswers,
   requiredConditionalFields,
@@ -239,10 +240,15 @@ export function CustomerSelectionForm({
             )}
           </section>
 
-          <section className="space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Qualification dropdowns
-            </p>
+          <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-muted/10 p-4 space-y-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                1 · Dropdowns
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Click each field and choose one option.
+              </p>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {QUALIFICATION_DROPDOWNS.map((field) => (
                 <div key={field.key}>
@@ -271,19 +277,26 @@ export function CustomerSelectionForm({
             </div>
           </section>
 
-          {extras.length ? (
-            <section className="space-y-3">
+          <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-muted/10 p-4 space-y-3">
+            <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Required for this path
+                2 · Fill in
               </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {extras.map((field) => (
-                  <div key={field.key} className={field.key === "approxGfaStoreys" ? "sm:col-span-2" : ""}>
+              <p className="text-[11px] text-muted-foreground">
+                Type these answers. A red * means it is required for the current path.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {QUALIFICATION_FILL_FIELDS.map((field) => {
+                const required = extras.some((item) => item.key === field.key);
+                return (
+                  <div key={field.key}>
                     <label
                       htmlFor={`sales-${field.key}`}
                       className="block text-xs font-semibold text-foreground mb-1.5"
                     >
-                      {field.label} <span className="text-destructive">*</span>
+                      {field.label}
+                      {required ? <span className="text-destructive"> *</span> : null}
                     </label>
                     <input
                       id={`sales-${field.key}`}
@@ -291,21 +304,13 @@ export function CustomerSelectionForm({
                       value={answers[field.key]}
                       onChange={(event) => patchAnswers({ [field.key]: event.target.value })}
                       className={fieldClass}
-                      placeholder={
-                        field.key === "approxGfaStoreys"
-                          ? "e.g. 4 storeys / 48,000 sf"
-                          : field.key === "budgetAmount"
-                            ? "e.g. $12M"
-                            : field.key === "siteMunicipality"
-                              ? "City, municipality"
-                              : "Full name"
-                      }
+                      placeholder={field.placeholder}
                     />
                   </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+                );
+              })}
+            </div>
+          </section>
 
           <section className={`rounded-xl border p-4 space-y-3 ${statusTone(qualification.qualificationStatus)}`}>
             <p className="text-[10px] font-bold uppercase tracking-wider">

@@ -20,7 +20,8 @@ function answers(patch: Partial<SalesQualificationAnswers>): SalesQualificationA
     commercialCommitment: "None",
     decisionMakerName: "Jane Smith",
     siteMunicipality: "Ottawa, ON",
-    approxGfaStoreys: "4 storeys / 48,000 sf",
+    storeys: "4",
+    approxGfa: "48000",
     budgetAmount: "12M",
     ...patch,
   };
@@ -47,7 +48,8 @@ test("No Design routes to CSA and is never automatic No-Go", () => {
   const result = evaluateSalesQualification(
     answers({
       designStage: "No Design",
-      approxGfaStoreys: "",
+      storeys: "",
+      approxGfa: "",
     }),
   );
   expect(result.recommendedService).toBe("CSA");
@@ -118,8 +120,14 @@ test("Standard client cannot use governed LOI", () => {
   expect(result.hardRuleApplied).toBe(true);
 });
 
-test("Form is complete only when company, 9 dropdowns, and required extras are filled", () => {
+test("Storeys and Approx. GFA are required separately once design exists", () => {
   expect(salesQualificationIsComplete(false, answers({}))).toBe(false);
   expect(salesQualificationIsComplete(true, answers({ decisionMakerName: "" }))).toBe(false);
+  expect(
+    salesQualificationIsComplete(true, answers({ storeys: "", approxGfa: "48000" })),
+  ).toBe(false);
+  expect(
+    salesQualificationIsComplete(true, answers({ storeys: "4", approxGfa: "" })),
+  ).toBe(false);
   expect(salesQualificationIsComplete(true, answers({}))).toBe(true);
 });

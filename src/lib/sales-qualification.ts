@@ -66,6 +66,14 @@ export const COMMERCIAL_COMMITMENT = [
   "Governed LOI Requested",
 ] as const;
 
+export const QUALIFICATION_FILL_FIELDS = [
+  { key: "decisionMakerName", label: "Decision Maker Name", placeholder: "Full name" },
+  { key: "siteMunicipality", label: "Site / Municipality", placeholder: "City, municipality" },
+  { key: "storeys", label: "Storeys", placeholder: "e.g. 4" },
+  { key: "approxGfa", label: "Approx. GFA", placeholder: "e.g. 48,000 sf" },
+  { key: "budgetAmount", label: "Budget Amount", placeholder: "e.g. $12M" },
+] as const;
+
 export const QUALIFICATION_DROPDOWNS = [
   { key: "decisionAuthority", label: "Decision Authority", options: DECISION_AUTHORITY },
   { key: "siteStatus", label: "Site Status", options: SITE_STATUS },
@@ -107,7 +115,8 @@ export type SalesQualificationAnswers = {
   commercialCommitment: string;
   decisionMakerName: string;
   siteMunicipality: string;
-  approxGfaStoreys: string;
+  storeys: string;
+  approxGfa: string;
   budgetAmount: string;
 };
 
@@ -133,7 +142,8 @@ export const emptySalesQualificationAnswers = (): SalesQualificationAnswers => (
   commercialCommitment: "",
   decisionMakerName: "",
   siteMunicipality: "",
-  approxGfaStoreys: "",
+  storeys: "",
+  approxGfa: "",
   budgetAmount: "",
 });
 
@@ -158,7 +168,8 @@ export function normalizeSalesQualificationAnswers(
     commercialCommitment: raw.commercialCommitment || "",
     decisionMakerName: raw.decisionMakerName || raw.contactName || "",
     siteMunicipality: raw.siteMunicipality || raw.siteLocation || "",
-    approxGfaStoreys: raw.approxGfaStoreys || "",
+    storeys: raw.storeys || "",
+    approxGfa: raw.approxGfa || "",
     budgetAmount: raw.budgetAmount || "",
   };
 }
@@ -180,7 +191,8 @@ export function requiredConditionalFields(answers: SalesQualificationAnswers) {
     required.push({ key: "siteMunicipality", label: "Site / Municipality" });
   }
   if (answers.designStage && answers.designStage !== "No Design") {
-    required.push({ key: "approxGfaStoreys", label: "Approx. GFA + Storeys" });
+    required.push({ key: "storeys", label: "Storeys" });
+    required.push({ key: "approxGfa", label: "Approx. GFA" });
   }
   if (
     answers.budgetStatus === "Confirmed" ||
@@ -387,7 +399,8 @@ function computeReadinessScore(answers: SalesQualificationAnswers) {
   }
   if (filled(answers.decisionMakerName)) score += 2;
   if (filled(answers.siteMunicipality)) score += 2;
-  if (filled(answers.approxGfaStoreys)) score += 3;
+  if (filled(answers.storeys)) score += 2;
+  if (filled(answers.approxGfa)) score += 2;
   if (filled(answers.budgetAmount)) score += 3;
   return Math.max(0, Math.min(100, score));
 }
