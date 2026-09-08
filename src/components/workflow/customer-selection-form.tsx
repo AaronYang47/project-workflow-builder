@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Building2, MapPin, Search, X } from "lucide-react";
+import { Building2, ChevronDown, MapPin, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   type FalconCustomerProfile,
@@ -39,6 +39,46 @@ export function customerFormIsComplete(
 const fieldClass =
   "w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background px-3.5 py-2.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
+function FormSection({
+  panelId,
+  title,
+  hint,
+  open,
+  onToggle,
+  children,
+}: {
+  panelId: string;
+  title: string;
+  hint: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-muted/10 p-4 space-y-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 text-left cursor-pointer rounded-lg -m-1 p-1 hover:bg-muted/40 transition-colors"
+      >
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {title}
+          </p>
+          <p className="text-[11px] text-muted-foreground">{hint}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 shrink-0 mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {open ? "Hide" : "Show"}
+          <ChevronDown className={`size-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
+        </span>
+      </button>
+      {open ? <div id={panelId}>{children}</div> : null}
+    </section>
+  );
+}
+
 function statusTone(status: string) {
   if (status === "No-Go") return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
   if (status === "Hold" || status === "Incomplete") {
@@ -55,6 +95,7 @@ export function CustomerSelectionForm({
   initialName = "",
   initialProfile,
   initialAnswers,
+  leadNumber = "",
   onClose,
   onSave,
 }: {
@@ -62,6 +103,7 @@ export function CustomerSelectionForm({
   initialName?: string;
   initialProfile?: FalconCustomerProfile;
   initialAnswers?: CustomerFormAnswers;
+  leadNumber?: string;
   onClose: () => void;
   onSave: (selection: CustomerSelectionResult) => void;
 }) {
@@ -76,6 +118,8 @@ export function CustomerSelectionForm({
     normalizeSalesQualificationAnswers(initialAnswers),
   );
   const [mounted, setMounted] = useState(false);
+  const [showCriteria, setShowCriteria] = useState(true);
+  const [showDetails, setShowDetails] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -83,7 +127,49 @@ export function CustomerSelectionForm({
 
   useEffect(() => {
     if (!open) return;
+    setQuery(initialName);
+    setProfile(initialProfile || null);
+    setAnswers(normalizeSalesQualificationAnswers(initialAnswers));
+    setShowCriteria(true);
+    setShowDetails(true);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !leadNumber) return;
+    let cancelled = false;
+    void fetch(`/api/falcon/leads/${encodeURIComponent(leadNumber)}`, {
+      credentials: "include",
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        const data = payload as {
+          exists?: boolean;
+          customer?: FalconCustomerProfile;
+          form?: CustomerFormAnswers;
+        } | null;
+        if (cancelled || !data?.exists) return;
+        if (data.customer) {
+          setProfile(data.customer);
+          setQuery(data.customer.organizationName || initialName);
+        }
+        if (data.form) {
+          setAnswers(normalizeSalesQualificationAnswers(data.form));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, leadNumber, initialName]);
+
+  useEffect(() => {
+    if (!open) return;
     const q = query.trim();
+    if (profile && q === profile.organizationName) {
+      setMatches([]);
+      setSearching(false);
+      return;
+    }
     if (q.length < 2) {
       setMatches([]);
       setSearching(false);
@@ -102,7 +188,7 @@ export function CustomerSelectionForm({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, query]);
+  }, [open, query, profile]);
 
   const location = useMemo(
     () => (profile ? customerLocation(profile) : ""),
@@ -142,7 +228,7 @@ export function CustomerSelectionForm({
             <div>
               <h2 className="text-sm font-bold text-foreground">Form</h2>
               <p className="text-[11px] text-muted-foreground">
-                Sales qualification. Select the customer, then answer the dropdowns.
+                Sales qualification. Select the customer, then complete the customer profile.
               </p>
             </div>
           </div>
@@ -240,15 +326,13 @@ export function CustomerSelectionForm({
             )}
           </section>
 
-          <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-muted/10 p-4 space-y-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                1 · Dropdowns
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Click each field and choose one option.
-              </p>
-            </div>
+          <FormSection
+            panelId="sales-qualification-criteria"
+            title="1 · Qualification criteria"
+            hint="Decision, site, design, budget, funding, and commercial standing."
+            open={showCriteria}
+            onToggle={() => setShowCriteria((current) => !current)}
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {QUALIFICATION_DROPDOWNS.map((field) => (
                 <div key={field.key}>
@@ -275,17 +359,15 @@ export function CustomerSelectionForm({
                 </div>
               ))}
             </div>
-          </section>
+          </FormSection>
 
-          <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-muted/10 p-4 space-y-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                2 · Fill in
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Type these answers. A red * means it is required for the current path.
-              </p>
-            </div>
+          <FormSection
+            panelId="sales-customer-project-details"
+            title="2 · Customer & project details"
+            hint="Decision maker, site, building size, and budget. A red * is required for the current path."
+            open={showDetails}
+            onToggle={() => setShowDetails((current) => !current)}
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {QUALIFICATION_FILL_FIELDS.map((field) => {
                 const required = extras.some((item) => item.key === field.key);
@@ -310,7 +392,7 @@ export function CustomerSelectionForm({
                 );
               })}
             </div>
-          </section>
+          </FormSection>
 
           <section className={`rounded-xl border p-4 space-y-3 ${statusTone(qualification.qualificationStatus)}`}>
             <p className="text-[10px] font-bold uppercase tracking-wider">
@@ -357,7 +439,7 @@ export function CustomerSelectionForm({
           <p className="text-[10px] text-muted-foreground">
             {canSave
               ? "Save the qualification, then check the L3 box."
-              : "Required: customer + 9 dropdowns + any fields this path needs."}
+              : "Required: customer, qualification criteria, and any extra details this path needs."}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
