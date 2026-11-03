@@ -70,7 +70,7 @@ test("full Gantt report keeps task labels readable on one 11 x 17 sheet", async 
         }),
         documentColumns: Array.from(root.querySelectorAll<HTMLElement>(".gantt-department-card")).map((card) => ({
           department: card.querySelector(".department-label")?.textContent || "",
-          columns: Number(getComputedStyle(card.querySelector<HTMLElement>("[data-department-documents] ul") || card).columnCount) || 1,
+          columns: card.querySelectorAll("[data-department-documents] ul").length || 1,
         })),
       };
       return original.apply(this, args);

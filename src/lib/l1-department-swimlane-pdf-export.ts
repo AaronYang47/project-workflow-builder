@@ -560,6 +560,8 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     .gantt-department-card .department-document-groups{min-width:0}
     .gantt-department-card .dual-document-groups{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);column-gap:12px;align-items:start}
     .gantt-department-card .department-document-item ul{margin:3px 0 0;padding-left:18px;list-style:disc outside}
+    .department-document-columns{display:flex;gap:14px;min-width:0}
+    .department-document-columns ul{flex:1 1 0;min-width:0}
     .gantt-department-card .department-document-item li{display:list-item;margin:1px 0;line-height:1.08;break-inside:avoid-column;overflow-wrap:anywhere}
     .department-duration{align-self:flex-end;margin-top:auto;padding-top:8px;text-align:right;color:var(--department-duration-color);max-width:100%}
     .department-duration-main{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px 6px}
@@ -752,14 +754,11 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       const grid = container.querySelector<HTMLElement>(".department-grid");
       const cards = Array.from(grid?.querySelectorAll<HTMLElement>(".gantt-department-card") || []);
       if (grid && cards.length) {
-        // Measure each card at its natural height before the shared grid row
-        // stretches it. Narrow cards establish a useful height for the wider
-        // document lists; the print layout can then use its spare width.
+        // Measure each card at its natural width before the shared grid row
+        // stretches it, so only wide cards split long document lists.
         grid.style.alignItems = "start";
         cards.forEach((card) => { card.style.minHeight = ""; });
         const widest = Math.max(...cards.map((card) => card.offsetWidth));
-        const narrow = cards.filter((card) => card.offsetWidth < widest * .68);
-        const referenceHeight = Math.max(...(narrow.length ? narrow : cards).map((card) => card.offsetHeight));
         cards.forEach((card) => {
           const legalList = card.querySelector<HTMLElement>("[data-department-documents] ul");
           const itemCount = legalList?.children.length || 0;
@@ -767,11 +766,18 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
           ? (coverage!.cards.at(-1)!.end - coverage!.cards.at(-1)!.start) / coverage!.total * container.querySelector<HTMLElement>(".gantt-axis")!.offsetWidth
           : card.offsetWidth;
         if (!legalList || itemCount < 5 || legalList.offsetWidth < 210 || originalWidth < widest * .78) return;
-          legalList.style.columnCount = "2";
-          legalList.style.columnFill = "balance";
-          legalList.style.columnGap = "14px";
-          if (itemCount >= 9 && legalList.offsetWidth >= 360 && card.offsetHeight > referenceHeight + 8) {
-            legalList.style.columnCount = "3";
+          // Real lists side by side, not CSS columns: the PNG snapshot pins the
+          // list height, and a CSS column that no longer fits spills sideways
+          // over Customer Information. Two columns keep more rows per list.
+          const items = Array.from(legalList.children);
+          const perColumn = Math.ceil(items.length / 2);
+          const columns = document.createElement("div");
+          columns.className = "department-document-columns";
+          legalList.replaceWith(columns);
+          for (let index = 0; index < items.length; index += perColumn) {
+            const list = document.createElement("ul");
+            items.slice(index, index + perColumn).forEach((item) => list.appendChild(item));
+            columns.appendChild(list);
           }
         });
         grid.style.alignItems = "stretch";
