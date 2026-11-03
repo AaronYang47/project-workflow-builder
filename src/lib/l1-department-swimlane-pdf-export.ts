@@ -438,11 +438,14 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       : countedTasks.length
       ? `<div class="phase-duration-main">${calendarDurationParts(days).map((part, index, parts) => `<span class="phase-duration-part"><span class="phase-duration-number">${part.value}${partial && index === parts.length - 1 ? "+" : ""}</span><span class="phase-duration-unit">${part.unit}</span></span>`).join("")}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
       : '<span class="phase-duration-pending">Duration not set</span>';
+    const actualProductionNote = options.gantt && countedTasks.length && tasks.some((task) => isProductionDepartmentName(task.department))
+      ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>' : "";
     return `<div class="phase-card" data-pdf-phase-id="${escapeHtml(phase.node.id)}" style="--phase-color:${phase.color};--phase-tint:${rgba(phase.color, 0.09)};">
       <div class="phase-meta"><span>${escapeHtml(phase.node.title || `PHASE ${index + 1}`)}</span><span class="phase-involvement">${departmentCount} ${departmentCount === 1 ? "Department" : "Departments"} Involved</span></div>
       <div class="phase-title">${escapeHtml(title)}</div>
       ${phase.node.code?.trim() ? `<div class="phase-code">${escapeHtml(phase.node.code.trim())}</div>` : ""}
       <div class="phase-duration">${durationHtml}</div>
+      ${actualProductionNote}
     </div>`;
   }).join("");
 
@@ -541,6 +544,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     .phase-duration-unit{display:inline-block;margin-left:4px;font:800 11px/1.3 Arial,sans-serif;letter-spacing:.04em}
     .phase-duration-note{display:block;margin-top:2px;color:#92400e;font:700 8px/1.3 Arial,sans-serif}
     .phase-duration-pending{font:700 10px/1.3 Arial,sans-serif;color:#64748b}
+    .phase-actual-production-note{position:absolute;left:12px;right:12px;bottom:8px;text-align:right;font:800 10px/1.3 Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#dc2626}
     .phase-code{margin-top:3px;font-size:11px;color:#64748b;overflow-wrap:anywhere}
     .department-grid,.down-arrow-grid,.evidence-grid{display:grid;grid-template-columns:repeat(${columns.length},minmax(0,1fr));column-gap:${gap}px;align-items:stretch}
     .department-card{min-width:0;min-height:62px;padding:10px 9px;border:2px solid transparent;border-radius:9px;background:var(--department-fill) padding-box,var(--department-gradient) border-box;box-shadow:0 3px 10px rgba(15,23,42,.06);display:flex;flex-direction:column;justify-content:center}
@@ -816,6 +820,12 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
         alignTimeline();
       }
     }
+    // The production note is pinned to the card bottom so the card keeps its
+    // height; the duration moves up by the note's height instead.
+    container.querySelectorAll<HTMLElement>("[data-phase-actual-production-time]").forEach((note) => {
+      const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
+      if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
+    });
     // Labels sit after their bars; one near the chart end moves before its bar.
     container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-bar-text").forEach((text) => {
       const track = text.parentElement!.getBoundingClientRect();

@@ -92,7 +92,8 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
           bottomRightDays: frames.every((frame) => {
             const card = frame.getBoundingClientRect();
             const duration = frame.querySelector(".phase-duration")!.getBoundingClientRect();
-            return Math.abs(card.right - duration.right - 13) < 1 && Math.abs(card.bottom - duration.bottom - 11) < 1;
+            const lift = frame.querySelector<HTMLElement>("[data-phase-actual-production-time]")?.offsetHeight ?? 0;
+            return Math.abs(card.right - duration.right - 13) < 1 && Math.abs(card.bottom - duration.bottom - 11 - lift) < 1;
           }),
           partialPhase: frames.at(-1)?.querySelector(".phase-duration-note")?.textContent,
           phaseTags: Array.from(root.querySelectorAll(".gantt-phase-tag")).map((element) => element.textContent),
