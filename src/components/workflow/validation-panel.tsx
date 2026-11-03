@@ -8,10 +8,14 @@ import {
   Info,
   ShieldCheck,
 } from "lucide-react";
+import { useMemo } from "react";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { validateWorkflow } from "@/lib/validation";
+import { validateHighLevelWorkflow } from "@/lib/high-level-workflow";
 
 export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boolean }) {
-  const { issues, togglePanel, selectNodes, selectEdge } = useWorkflowStore();
+  const { file, togglePanel, selectNodes, selectEdge } = useWorkflowStore();
+  const issues = useMemo(() => highLevelMode ? validateHighLevelWorkflow(file.highLevel) : validateWorkflow(file), [file, highLevelMode]);
   const selectHighLevelNodes = useWorkflowStore((state) => state.selectHighLevelNodes);
   const selectHighLevelEdge = useWorkflowStore((state) => state.selectHighLevelEdge);
   const errors = issues.filter((issue) => issue.severity === "error").length;

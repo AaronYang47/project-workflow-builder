@@ -55,6 +55,17 @@ export function legacyJobNumberFromProjectId(projectId: string): string {
   return `${match[1]}${match[2]}`;
 }
 
+export function syncProjectNameIdentity(name: string, number?: string, companyCode?: string): string {
+  const match = name.match(/^(\d{5})([_ -])([A-Za-z]{4})(?=[_ -]|$)/);
+  if (!match) {
+    // Projects created before a job number exists still use the normal name
+    // once the number is assigned later.
+    return number && /^\d{5}$/.test(number) && /^[A-Za-z]{4}(?=[_ -]|$)/.test(name)
+      ? `${number} ${name}` : name;
+  }
+  return name.replace(match[0], `${number && /^\d{5}$/.test(number) ? number : match[1]}${match[2]}${companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : match[3]}`);
+}
+
 /** Five-digit Legacy number stored as the cloud `project_number`. Follows Project ID. */
 export function workflowLegacyJobNumber(file: WorkflowFile): string {
   const start = file.graph.nodes.find((node) => node.type === "projectStart");

@@ -7,6 +7,8 @@ import type {
   ValidationIssue,
   WorkflowFile,
 } from "@/types/workflow";
+import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { spacePhaseFrames } from "@/lib/phase-layout";
 
 function conditionNumber(title: string) {
   const match = title.trim().match(/^condition\s+(\d+)\b/i);
@@ -60,75 +62,287 @@ export function orderLinkedWorkflowNodeIds(
   edges?: Array<{ source: string; target: string }>,
   layoutNodes?: Record<string, { x: number; y: number }>,
 ) {
-  if (!linkedIds || linkedIds.length <= 1) return linkedIds || [];
+  void workflowNodes;
+  void edges;
+  void layoutNodes;
+  return Array.from(new Set(linkedIds ?? []));
+}
 
-  const uniqueIds = Array.from(new Set(linkedIds));
-  const idSet = new Set(uniqueIds);
+/** Resolve the L2 Gate that contains a linked step, including nested frames. */
+export function linkedWorkflowGate(
+  nodeId: string,
+  workflowNodes: WorkflowFile["graph"]["nodes"],
+  layouts: WorkflowFile["layout"]["nodes"],
+): { id: string; title: string } | undefined {
+  const nodeById = new Map(workflowNodes.map((node) => [node.id, node]));
+  const current = nodeById.get(nodeId);
+  if (current?.type === "gate") return { id: current.id, title: current.title };
+  const seen = new Set<string>([nodeId]);
+  let parentId = layouts[nodeId]?.parentId;
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
+    const parent = nodeById.get(parentId);
+    if (parent?.type === "gate") return { id: parent.id, title: parent.title };
+    parentId = layouts[parentId]?.parentId;
+  }
+  return undefined;
+}
 
-  // 1. If edges are provided, perform topological sort along L2 graph edges
-  if (edges && edges.length > 0) {
-    const inDegree = new Map<string, number>();
-    const adjacency = new Map<string, string[]>();
+/** Keep the L1 sequence authoritative for L2 card positions and simple mainline edges. */
+export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile {
+  const highLevel = file.highLevel;
+  if (!highLevel) return spacePhaseFrames(file);
+  const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));
+  const allLinkedIds = Array.from(new Set(
+    orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).flatMap(
+      (node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? [],
+    ),
+  )).filter((id) => nodeById.has(id));
+  if (allLinkedIds.length < 2) return spacePhaseFrames(file);
 
-    uniqueIds.forEach((id) => {
-      inDegree.set(id, 0);
-      adjacency.set(id, []);
-    });
-
-    edges.forEach((edge) => {
-      if (idSet.has(edge.source) && idSet.has(edge.target)) {
-        adjacency.get(edge.source)?.push(edge.target);
-        inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
-      }
-    });
-
-    const queue = uniqueIds
-      .filter((id) => (inDegree.get(id) || 0) === 0)
-      .sort((a, b) => {
-        const xA = layoutNodes?.[a]?.x ?? 0;
-        const xB = layoutNodes?.[b]?.x ?? 0;
-        return xA - xB;
-      });
-
-    const ordered: string[] = [];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      ordered.push(current);
-
-      const targets = adjacency.get(current) || [];
-      targets.sort((a, b) => (layoutNodes?.[a]?.x ?? 0) - (layoutNodes?.[b]?.x ?? 0));
-
-      for (const target of targets) {
-        const remaining = (inDegree.get(target) || 0) - 1;
-        inDegree.set(target, remaining);
-        if (remaining === 0) {
-          queue.push(target);
+  // Chapter numbers are user-authored identifiers, not layout positions.
+  const graphNodes = file.graph.nodes;
+  const layouts = { ...file.layout.nodes };
+  // A Gate is a contiguous span in its L1 phase. Older projects can have an
+  // intermediate card inside the L2 Gate frame but still parented to Phase.
+  // Adopt those cards so both views and the Gate step count describe the same span.
+  for (const highLevelNode of orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges)) {
+    const linkedIds = (highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? [])
+      .filter((id) => nodeById.has(id));
+    const gatePositions = new Map<string, number[]>();
+    for (const [index, id] of linkedIds.entries()) {
+      const gate = linkedWorkflowGate(id, file.graph.nodes, layouts);
+      if (gate) gatePositions.set(gate.id, [...(gatePositions.get(gate.id) ?? []), index]);
+    }
+    for (const [gateId, positions] of gatePositions) {
+      if (positions.length < 2) continue;
+      const phaseId = layouts[gateId]?.parentId;
+      if (!phaseId) continue;
+      for (const id of linkedIds.slice(positions[0] + 1, positions.at(-1))) {
+        const layout = layouts[id];
+        if (layout?.parentId === phaseId && !linkedWorkflowGate(id, file.graph.nodes, layouts)) {
+          layouts[id] = { ...layout, parentId: gateId };
         }
       }
     }
+  }
+  const positionedIds = allLinkedIds.filter((id) => layouts[id]);
+  // L2 stores absolute canvas coordinates even when parentId marks membership.
+  // Reuse the existing slots so a reorder does not collapse later phases.
+  const slots = positionedIds.map((id) => layouts[id].x).sort((a, b) => a - b);
+  let previousRight = Number.NEGATIVE_INFINITY;
+  for (const [index, id] of positionedIds.entries()) {
+    const layout = layouts[id];
+    const node = nodeById.get(id)!;
+    const width = layout.width || getAdaptiveNodeSize(node, layout).width;
+    const x = Math.max(slots[index], previousRight + 72);
+    if (x !== layout.x) layouts[id] = { ...layout, x };
+    previousRight = x + width;
+  }
 
-    const unvisited = uniqueIds.filter((id) => !ordered.includes(id));
-    unvisited.sort((a, b) => (layoutNodes?.[a]?.x ?? 0) - (layoutNodes?.[b]?.x ?? 0));
-
-    if (ordered.length > 0) {
-      return [...ordered, ...unvisited];
+  // Nested Gate frames are measured first, then their enclosing Phase frames.
+  for (const type of ["gate", "phase"] as const) {
+    for (const container of graphNodes.filter((node) => node.type === type)) {
+      const layout = layouts[container.id];
+      if (!layout) continue;
+      const children = Object.values(layouts).filter((child) => child.parentId === container.id);
+      if (!children.length) {
+        if (type === "gate") {
+          const siblings = Object.values(layouts).filter((sibling) =>
+            sibling.parentId === layout.parentId && sibling.nodeId !== container.id);
+          const x = siblings.length
+            ? Math.max(...siblings.map((sibling) => sibling.x + sibling.width)) + 72
+            : layout.x;
+          if (layout.x !== x || layout.width !== 340 || layout.height !== 160) {
+            layouts[container.id] = { ...layout, x, width: 340, height: 160 };
+          }
+        }
+        continue;
+      }
+      const padX = type === "gate" ? 24 : 36;
+      const left = Math.min(...children.map((child) => child.x)) - padX;
+      const right = Math.max(...children.map((child) => child.x + child.width)) + padX;
+      const bottom = Math.max(...children.map((child) => child.y + child.height)) + 48;
+      const next = {
+        ...layout,
+        x: left,
+        width: Math.max(type === "gate" ? 340 : 380, right - left),
+        height: Math.max(layout.height, bottom - layout.y),
+      };
+      if (next.x !== layout.x || next.width !== layout.width || next.height !== layout.height) {
+        layouts[container.id] = next;
+      }
     }
   }
 
-  // 2. Spatial Fallback: Sort strictly by L2 Canvas X position (left to right)
-  if (layoutNodes) {
-    const hasCoordinates = uniqueIds.some((id) => layoutNodes[id]?.x !== undefined);
-    if (hasCoordinates) {
-      return [...uniqueIds].sort((a, b) => {
-        const xA = layoutNodes[a]?.x ?? 0;
-        const xB = layoutNodes[b]?.x ?? 0;
-        return xA - xB;
-      });
-    }
+  // A plain linear chain encodes the same progression as L1. Rewire it so
+  // Auto arrange and arrow direction keep the user-selected order as well.
+  const linkedSet = new Set(allLinkedIds);
+  const chainEdges = file.graph.edges.filter((edge) =>
+    linkedSet.has(edge.source) && linkedSet.has(edge.target) &&
+    edge.type === "normal" && !edge.label && !edge.condition &&
+    (!edge.sourceHandle || edge.sourceHandle === "out") &&
+    (!edge.targetHandle || edge.targetHandle === "in") &&
+    !Object.keys(edge.customFields ?? {}).length,
+  );
+  const incoming = new Map<string, number>();
+  const outgoing = new Map<string, number>();
+  for (const edge of chainEdges) {
+    incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1);
+    outgoing.set(edge.source, (outgoing.get(edge.source) ?? 0) + 1);
+  }
+  const starts = allLinkedIds.filter((id) => !incoming.has(id));
+  const bySource = new Map(chainEdges.map((edge) => [edge.source, edge.target]));
+  const visited = new Set<string>();
+  let cursor: string | undefined = starts[0];
+  while (cursor && !visited.has(cursor)) {
+    visited.add(cursor);
+    cursor = bySource.get(cursor);
+  }
+  const isLinear = starts.length === 1 && visited.size === allLinkedIds.length &&
+    chainEdges.length === allLinkedIds.length - 1 &&
+    allLinkedIds.every((id) => (incoming.get(id) ?? 0) <= 1 && (outgoing.get(id) ?? 0) <= 1);
+  const oldChain = isLinear ? [...chainEdges].sort((a, b) =>
+    (file.layout.nodes[a.source]?.x ?? 0) - (file.layout.nodes[b.source]?.x ?? 0),
+  ) : [];
+  const replacement = new Map(oldChain.map((edge, index) => [edge.id, {
+    ...edge, source: allLinkedIds[index], target: allLinkedIds[index + 1],
+  }]));
+  const graphEdges = file.graph.edges.map((edge) => replacement.get(edge.id) ?? edge);
+
+  const edgeLayouts = { ...file.layout.edges };
+  let changed = graphNodes.some((node, index) => node !== file.graph.nodes[index]) ||
+    Object.entries(layouts).some(([id, layout]) => layout !== file.layout.nodes[id]) ||
+    graphEdges.some((edge, index) => edge.source !== file.graph.edges[index].source || edge.target !== file.graph.edges[index].target);
+  if (!changed) return spacePhaseFrames(file);
+  for (const edge of graphEdges) {
+    if (!linkedSet.has(edge.source) && !linkedSet.has(edge.target)) continue;
+    const route = edgeLayouts[edge.id];
+    if (route) edgeLayouts[edge.id] = { ...route, points: [] };
   }
 
-  // 3. Sequential Fallback: Follow workflowNodes order
-  return orderWorkflowNodeIds(uniqueIds, workflowNodes);
+  return spacePhaseFrames({
+    ...file,
+    graph: { ...file.graph, nodes: graphNodes, edges: graphEdges },
+    layout: { ...file.layout, nodes: layouts, edges: edgeLayouts },
+  });
+}
+
+/** Persist a card reorder, then mirror the entire L1 sequence in L2. */
+export function reorderLinkedWorkflowNodes(
+  file: WorkflowFile,
+  highLevelNodeId: string,
+  draggedNodeId: string,
+  targetNodeId: string,
+): WorkflowFile {
+  const highLevel = file.highLevel;
+  if (!highLevel || draggedNodeId === targetNodeId) return file;
+  const current = highLevel.graph.nodes.find((node) => node.id === highLevelNodeId);
+  if (!current) return file;
+  const linkedIds = Array.from(new Set(
+    current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? [],
+  ));
+  const from = linkedIds.indexOf(draggedNodeId);
+  const to = linkedIds.indexOf(targetNodeId);
+  if (from < 0 || to < 0) return file;
+  linkedIds.splice(to, 0, linkedIds.splice(from, 1)[0]);
+  const draggedGate = linkedWorkflowGate(draggedNodeId, file.graph.nodes, file.layout.nodes);
+  const targetGate = linkedWorkflowGate(targetNodeId, file.graph.nodes, file.layout.nodes);
+  const layout = file.layout.nodes[draggedNodeId];
+  const parentId = targetGate?.id ?? (draggedGate ? file.layout.nodes[draggedGate.id]?.parentId : undefined);
+  const reorderedFile = layout && draggedGate?.id !== targetGate?.id && parentId
+    ? {
+      ...file,
+      layout: {
+        ...file.layout,
+        nodes: { ...file.layout.nodes, [draggedNodeId]: { ...layout, parentId } },
+      },
+    }
+    : file;
+  return withLinkedWorkflowOrder(reorderedFile, highLevelNodeId, linkedIds);
+}
+
+/** Edit a Gate from L1 while keeping its members consecutive in both layers. */
+export function setLinkedWorkflowGateMember(
+  file: WorkflowFile,
+  highLevelNodeId: string,
+  gateId: string,
+  nodeId: string,
+  included: boolean,
+): WorkflowFile {
+  const highLevelNode = file.highLevel?.graph.nodes.find((node) => node.id === highLevelNodeId);
+  const gate = file.graph.nodes.find((node) => node.id === gateId && node.type === "gate");
+  const gateLayout = file.layout.nodes[gateId];
+  const nodeLayout = file.layout.nodes[nodeId];
+  if (!highLevelNode || !gate || !gateLayout?.parentId || !nodeLayout) return file;
+  const linkedIds = Array.from(new Set(highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? []));
+  const originalIndex = linkedIds.indexOf(nodeId);
+  if (originalIndex < 0) return file;
+  const currentGateId = linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes)?.id;
+  const currentPhaseId = currentGateId
+    ? file.layout.nodes[currentGateId]?.parentId
+    : nodeLayout.parentId;
+  if (currentPhaseId !== gateLayout.parentId) return file;
+  if ((currentGateId === gateId) === included) return file;
+
+  const withoutNode = linkedIds.filter((id) => id !== nodeId);
+  const gateMemberIndices = withoutNode.flatMap((id, index) =>
+    linkedWorkflowGate(id, file.graph.nodes, file.layout.nodes)?.id === gateId ? [index] : [],
+  );
+  // Insert at the end of the Gate block when adding. When removing, place the
+  // step immediately after that block so a gap cannot split the Gate frame.
+  const insertionIndex = gateMemberIndices.length
+    ? gateMemberIndices[gateMemberIndices.length - 1] + 1
+    : Math.min(originalIndex, withoutNode.length);
+  withoutNode.splice(insertionIndex, 0, nodeId);
+  const parentId = included ? gateId : gateLayout.parentId;
+  const nextFile = {
+    ...file,
+    layout: {
+      ...file.layout,
+      nodes: { ...file.layout.nodes, [nodeId]: { ...nodeLayout, parentId } },
+    },
+  };
+  return withLinkedWorkflowOrder(nextFile, highLevelNodeId, withoutNode);
+}
+
+/** Move a contiguous L2 Gate's linked steps together inside their L1 phase. */
+export function reorderLinkedWorkflowGate(
+  file: WorkflowFile,
+  highLevelNodeId: string,
+  gateId: string,
+  targetNodeId: string,
+  position: "before" | "after",
+): WorkflowFile {
+  const current = file.highLevel?.graph.nodes.find((node) => node.id === highLevelNodeId);
+  if (!current) return file;
+  const linkedIds = Array.from(new Set(current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? []));
+  const gateIds = linkedIds.filter((id) => linkedWorkflowGate(id, file.graph.nodes, file.layout.nodes)?.id === gateId);
+  if (!gateIds.length || gateIds.includes(targetNodeId)) return file;
+  const remaining = linkedIds.filter((id) => !gateIds.includes(id));
+  const targetIndex = remaining.indexOf(targetNodeId);
+  if (targetIndex < 0) return file;
+  remaining.splice(targetIndex + Number(position === "after"), 0, ...gateIds);
+  if (remaining.every((id, index) => id === linkedIds[index])) return file;
+  return withLinkedWorkflowOrder(file, highLevelNodeId, remaining);
+}
+
+function withLinkedWorkflowOrder(
+  file: WorkflowFile,
+  highLevelNodeId: string,
+  linkedIds: string[],
+): WorkflowFile {
+  const highLevel = file.highLevel;
+  if (!highLevel) return file;
+  const highLevelNodes = highLevel.graph.nodes.map((node) =>
+    node.id === highLevelNodeId
+      ? { ...node, linkedLayer2NodeIds: linkedIds, linkedDetailedNodeIds: [...linkedIds] }
+      : node,
+  );
+  return synchronizeLinkedWorkflowOrder({
+    ...file,
+    highLevel: { ...highLevel, graph: { ...highLevel.graph, nodes: highLevelNodes } },
+  });
 }
 
 /** Order nodes by the High-Level connections, not by creation order. */

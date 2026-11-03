@@ -37,7 +37,7 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
     color: def.color,
     metadata: {},
     conditions: projectStart
-      ? [{ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true }]
+      ? [{ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true }]
       : type === "terminal"
         ? createDefaultTerminalConditions()
       : [],
@@ -102,6 +102,8 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
         }
       : type === "phase"
         ? { locked: false }
+        : type === "terminal"
+          ? { chapterNumber: "", reference: clone(referenceDefaults.terminal!) }
         : matrixKind
           ? {
               stage: "Governance",
@@ -111,6 +113,6 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
             }
         : referenceDefaults[type]
           ? { reference: clone(referenceDefaults[type]!) }
-          : { stage: "Stage", iconKey: "activity" },
+          : { stage: "Department", iconKey: "activity" },
   };
 }

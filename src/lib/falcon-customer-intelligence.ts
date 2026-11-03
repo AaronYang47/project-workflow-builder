@@ -10,6 +10,7 @@ export type FalconCustomerContact = {
 
 export type FalconCustomerProfile = {
   companyId: string;
+  customerCode: string;
   organizationName: string;
   legalName: string;
   tradeName: string;
@@ -46,11 +47,16 @@ export function isCustomerSelectionForm(record: {
   id?: string;
   fileName?: string;
   formKind?: string;
+  code?: string;
+  title?: string;
 }): boolean {
+  const fileName = String(record.fileName || "");
   return (
     record.formKind === "customer-selection" ||
     record.id === CUSTOMER_SELECTION_FORM_ID ||
-    record.fileName === CUSTOMER_SELECTION_FORM_FILE_NAME
+    fileName === CUSTOMER_SELECTION_FORM_FILE_NAME ||
+    /^Customer_Selection_Form\./i.test(fileName) ||
+    String(record.code || "").toUpperCase().startsWith("CUST-38")
   );
 }
 
@@ -79,6 +85,7 @@ function asContacts(value: unknown): FalconCustomerContact[] {
 function normalizeCatalogRecord(raw: Partial<FalconCustomerProfile>): FalconCustomerProfile {
   return {
     companyId: String(raw.companyId || "").trim(),
+    customerCode: String(raw.customerCode || "").trim().toUpperCase(),
     organizationName: String(raw.organizationName || "").trim(),
     legalName: String(raw.legalName || raw.organizationName || "").trim(),
     tradeName: String(raw.tradeName || "").trim(),
@@ -130,6 +137,7 @@ export function mapApiCompany(raw: Record<string, unknown>): FalconCustomerProfi
       : asNumber(breakdown.confidence_score));
   return {
     companyId: String(raw.company_id || "").trim(),
+    customerCode: String(raw.customer_code || "").trim().toUpperCase(),
     organizationName: String(raw.organization_name || "").trim(),
     legalName: String(raw.legal_name || raw.organization_name || "").trim(),
     tradeName: String(raw.trade_name || "").trim(),
@@ -170,6 +178,7 @@ export function searchFalconCustomersLocal(query: string, limit = 12): FalconCus
 
   return FALCON_CUSTOMER_CATALOG.map((company) => {
     const haystack = [
+      company.customerCode,
       company.organizationName,
       company.legalName,
       company.tradeName,
@@ -196,25 +205,37 @@ export function searchFalconCustomersLocal(query: string, limit = 12): FalconCus
     .map((item) => item.company);
 }
 
+async function fetchJson(url: string): Promise<unknown | null> {
+  try {
+    const response = await fetch(url, { credentials: "include" });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function searchFalconCustomers(
   query: string,
   limit = 12,
 ): Promise<FalconCustomerProfile[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  try {
-    const response = await fetch(
-      `${CUSTOMER_CMS_ORIGIN}/api/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`,
-    );
-    if (response.ok) {
-      const data = (await response.json()) as { results?: Record<string, unknown>[] };
-      if (Array.isArray(data.results) && data.results.length) {
-        return data.results.map(mapApiCompany);
-      }
-    }
-  } catch {
-    // Offline or CORS fallback
+
+  const d1 = (await fetchJson(
+    `/api/falcon/customers/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+  )) as { results?: Record<string, unknown>[] } | null;
+  if (Array.isArray(d1?.results) && d1.results.length) {
+    return d1.results.map(mapApiCompany);
   }
+
+  const cms = (await fetchJson(
+    `${CUSTOMER_CMS_ORIGIN}/api/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+  )) as { results?: Record<string, unknown>[] } | null;
+  if (Array.isArray(cms?.results) && cms.results.length) {
+    return cms.results.map(mapApiCompany);
+  }
+
   return searchFalconCustomersLocal(q, limit);
 }
 
@@ -223,17 +244,15 @@ export async function fetchFalconCustomerProfile(
 ): Promise<FalconCustomerProfile> {
   const targets = [company.companyId, company.organizationName].filter(Boolean);
   for (const target of targets) {
-    try {
-      const response = await fetch(
-        `${CUSTOMER_CMS_ORIGIN}/api/companies/${encodeURIComponent(target)}`,
-      );
-      if (response.ok) {
-        const data = (await response.json()) as Record<string, unknown>;
-        if (data && !data.error) return mapApiCompany(data);
-      }
-    } catch {
-      // continue
-    }
+    const d1 = (await fetchJson(
+      `/api/falcon/customers/${encodeURIComponent(target)}`,
+    )) as Record<string, unknown> | null;
+    if (d1 && !d1.error) return mapApiCompany(d1);
+
+    const cms = (await fetchJson(
+      `${CUSTOMER_CMS_ORIGIN}/api/companies/${encodeURIComponent(target)}`,
+    )) as Record<string, unknown> | null;
+    if (cms && !cms.error) return mapApiCompany(cms);
   }
   return (
     FALCON_CUSTOMER_CATALOG.find(

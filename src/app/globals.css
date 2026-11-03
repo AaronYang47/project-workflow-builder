@@ -232,6 +232,22 @@ button:disabled { cursor: not-allowed; }
 .scroll-thin::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--muted-foreground) 58%, transparent); }
 .details-marker-hidden::-webkit-details-marker { display: none; }
 .workflow-flow .react-flow__node { transition: opacity 160ms ease; }
+.process-selection-glow {
+  border-color: #39ff14 !important;
+  background-color: color-mix(in srgb, #39ff14 7%, var(--background)) !important;
+  animation: process-selection-breathe 2.8s ease-in-out infinite;
+}
+@keyframes process-selection-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(57 255 20 / 42%), 0 0 7px rgb(57 255 20 / 24%);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgb(57 255 20 / 65%), 0 0 15px rgb(57 255 20 / 42%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .process-selection-glow { animation: none; }
+}
 .workflow-flow .react-flow {
   background:
     radial-gradient(circle at 16% 12%, rgb(37 94 155 / 28%), transparent 34%),
@@ -732,6 +748,15 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* Container frames (Phase, Gate) must strictly stay behind step cards, even when selected */
+[data-release-condition-chapter] {
+  transition: background-color 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+[data-release-condition-chapter][data-drop-chapter="true"] {
+  border-color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.13);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 16px 40px rgba(14, 165, 233, 0.16);
+}
+
 .react-flow__node:has([data-container-node="true"]) {
   z-index: 0 !important;
 }
@@ -740,4 +765,17 @@ button:disabled { cursor: not-allowed; }
 }
 .react-flow__node:not(:has([data-container-node="true"])).selected {
   z-index: 20 !important;
+}
+@keyframes collaboration-viewer-pulse {
+  0%, 100% { box-shadow: inset 0 0 22px rgba(34, 211, 238, .38), 0 0 20px rgba(34, 211, 238, .4); }
+  50% { box-shadow: inset 0 0 42px rgba(34, 211, 238, .66), 0 0 38px rgba(34, 211, 238, .68); }
+}
+
+.collaboration-viewer-frame {
+  border: 3px solid rgba(34, 211, 238, .9);
+  animation: collaboration-viewer-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collaboration-viewer-frame { animation: none; }
 }

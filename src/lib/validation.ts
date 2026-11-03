@@ -7,6 +7,8 @@ import {
 } from "@/types/workflow";
 import { readPath } from "@/lib/object-path";
 import { getProfabForm } from "@/lib/profab-forms";
+import { RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
+import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   document: ["title"],
@@ -79,9 +81,66 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
       });
     }
   }
+  // Chapter numbers are user-entered identifiers. Read the same sources used
+  // by L1 badges. Repeats are valid, but the sequence cannot skip or go back.
+  const chapterNumberEntry = (node: DomainNode | undefined) => {
+    if (!node || !["projectStart", "general", "terminal", "end"].includes(node.type)) return undefined;
+    const manualChapter = node.type === "terminal" ? String(node.config.chapterNumber ?? "").trim() : "";
+    const titleMatch = node.title.trim().match(/^chapter\s*(\d+)$/i);
+    const stageMatch = String(node.config.stage ?? "").trim().match(/^(?:(?:chapter|department)\s*)?(\d+)$/i);
+    const raw = manualChapter || titleMatch?.[1] || stageMatch?.[1];
+    const match = raw?.match(/^(\d+)$/);
+    return match ? { number: Number(match[1]), label: raw } : undefined;
+  };
+  const chapterNumber = (node: DomainNode | undefined) => chapterNumberEntry(node)?.number;
+  for (const node of nodes) {
+    if (chapterNumber(node) !== 0) continue;
+    const value = chapterNumberEntry(node)?.label;
+    issues.push({
+      id: `chapter-number-zero-${node.id}`,
+      severity: "error",
+      code: "INVALID_CHAPTER_NUMBER",
+      message: `Chapter “${node.title}” has number ${value}. Chapter numbers must be 01 or greater.`,
+      nodeId: node.id,
+    });
+  }
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const highLevel = file.highLevel;
+  const linked = highLevel ? Array.from(new Set(orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges)
+    .flatMap((node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []))) : [];
+  const numbered = linked.map((id) => nodeById.get(id)).filter((node): node is DomainNode => chapterNumber(node) !== undefined);
+  const reportedPairs = new Set<string>();
+  const reportOrder = (previous: DomainNode, current: DomainNode) => {
+    const before = chapterNumber(previous);
+    const after = chapterNumber(current);
+    if (before === undefined || after === undefined || after === before || after === before + 1) return;
+    const pair = `${previous.id}\0${current.id}`;
+    if (reportedPairs.has(pair)) return;
+    reportedPairs.add(pair);
+    const previousChapter = chapterNumberEntry(previous)?.label;
+    const currentChapter = chapterNumberEntry(current)?.label;
+    issues.push({
+      id: `chapter-order-${previous.id}-${current.id}`,
+      severity: "warning",
+      code: "CHAPTER_NUMBER_ORDER",
+      message: `Chapter “${current.title}” has number ${currentChapter}; it must repeat the preceding Chapter number (${previousChapter}) or increase by exactly 1.`,
+      nodeId: current.id,
+    });
+  };
+  for (let index = 1; index < numbered.length; index++) reportOrder(numbered[index - 1], numbered[index]);
+  // When chapters are not in L1, only compare directly connected forward
+  // chapters; disconnected or branching paths should not be sorted by position.
+  for (const edge of edges) {
+    if (["rework", "reopen", "failure", "dependency", "supporting"].includes(edge.type)) continue;
+    const source = nodeById.get(edge.source);
+    const target = nodeById.get(edge.target);
+    if (source && target) reportOrder(source, target);
+  }
   const executionItems = file.execution?.items || [];
   const executionItemIds = new Set(executionItems.map((item) => item.id));
+  const unassignedItemIds = new Set((file.releaseConditionInbox ?? []).map((condition) => condition.linkedExecutionItemId));
   for (const item of executionItems) {
+    if (item.linkedLayer2NodeId === RELEASE_CONDITION_INBOX_ID && unassignedItemIds.has(item.id)) continue;
     if (!ids.has(item.linkedLayer2NodeId)) {
       issues.push({
         id: `broken-l3-l2-${item.id}-${item.linkedLayer2NodeId}`,

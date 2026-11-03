@@ -1,4 +1,5 @@
 "use client";
+import { conditionDurationLabel } from "@/lib/condition-duration";
 
 import { CircleCheck, CircleDot, Layers3, Milestone, Settings2, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { orderLinkedWorkflowNodeIds, orderWorkflowNodeIds } from "@/lib/high-level-workflow";
+import { departmentDisplayName } from "@/lib/department-label";
 import type { HighLevelNodeType } from "@/types/workflow";
 
 const phaseColorOptions = [
@@ -59,7 +61,7 @@ export function HighLevelInspector() {
       )
     : [];
   const orderedWorkflowNodeIds = orderWorkflowNodeIds(
-    file.graph.nodes.map((workflowNode) => workflowNode.id),
+    file.graph.nodes.filter((workflowNode) => workflowNode.type !== "phase").map((workflowNode) => workflowNode.id),
     file.graph.nodes,
   );
   const workflowNodeById = new Map(file.graph.nodes.map((workflowNode) => [workflowNode.id, workflowNode]));
@@ -235,7 +237,10 @@ export function HighLevelInspector() {
                           className="mt-0.5 accent-primary"
                         />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium">{detailedNode.title}</span>
+                          <span className="block truncate font-medium">{departmentDisplayName(detailedNode)}</span>
+                          {departmentDisplayName(detailedNode) !== detailedNode.title ? (
+                            <span className="block truncate text-[10px] text-muted-foreground">{detailedNode.title}</span>
+                          ) : null}
                           {linkedTo && !checked ? (
                             <span className="block truncate text-[10px] text-muted-foreground">
                               Linked to {linkedTo}
@@ -271,6 +276,32 @@ export function HighLevelInspector() {
                       </div>
                     ))}
                 </div>
+                {linkedIds.some((id) => (workflowNodeById.get(id)?.conditions.length ?? 0) > 0) ? (
+                  <div className="rounded-md border bg-card p-2.5">
+                    <p className="text-xs font-semibold">Release conditions in linked Departments</p>
+                    <div className="mt-2 max-h-56 space-y-2 overflow-y-auto text-[11px]">
+                      {linkedIds.map((id) => {
+                        const chapter = workflowNodeById.get(id);
+                        if (!chapter?.conditions.length) return null;
+                        return (
+                          <div key={id}>
+                            <p className="font-semibold text-primary">{departmentDisplayName(chapter)} · {chapter.conditions.length}</p>
+                            {departmentDisplayName(chapter) !== chapter.title ? (
+                              <p className="text-[10px] text-muted-foreground">{chapter.title}</p>
+                            ) : null}
+                            <ol className="mt-0.5 list-inside list-decimal space-y-0.5 text-muted-foreground">
+                              {chapter.conditions.map((condition, index) => (
+                                <li key={condition.id || index} className="break-words">
+                                  {conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}{condition.label || condition.description || `Condition ${index + 1}`}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
             </div>
           </div>
         </div>

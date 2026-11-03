@@ -1,0 +1,40 @@
+{
+  "id": "/",
+  "name": "Falcon Process Building System",
+  "short_name": "Falcon Process Building System",
+  "description": "Build and manage project workflows, release conditions, and execution records.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "background_color": "#050505",
+  "theme_color": "#0b1220",
+  "icons": [
+    {
+      "src": "/falcon-app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/falcon-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/falcon-app-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/store-screenshots/falcon-workflow-overview.png",
+      "sizes": "1600x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Build and inspect a Falcon project workflow"
+    }
+  ]
+}

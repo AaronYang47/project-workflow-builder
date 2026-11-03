@@ -154,7 +154,8 @@ export function isRemovedOpportunityNode(node: DomainNode) {
   return (
     isRetiredOpportunityId(node.id) ||
     String(node.type) === "opportunityValidation" ||
-    (title.includes("opportunity") && title.includes("qualification")) ||
+    title === "opportunity qualification" ||
+    title === "opportunity qualification module" ||
     workflowSection.includes("opportunity validation") ||
     workflowSection.includes("opportunity qualification") ||
     config.opportunity !== undefined ||

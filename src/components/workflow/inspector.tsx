@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { wholeDayCondition } from "@/lib/condition-duration";
 import {
   ChevronDown,
   ChevronRight,
@@ -18,7 +19,8 @@ import {
 } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
-  normalizeProjectIdInput,
+  legacyJobNumberFromProjectId,
+  syncProjectNameIdentity,
   promoteToPaidService,
   shouldAutoPromoteToPaid,
   syncPaidConditions,
@@ -31,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { HighLevelInspector } from "./high-level-inspector";
 import { getExecutionSummary } from "@/lib/execution";
+import { chapterLabel } from "@/lib/chapter-label";
 
 const applyPromoteToPaid = (node: DomainNode): DomainNode => {
   const promoted = promoteToPaidService(node);
@@ -57,13 +60,23 @@ function Field({
   };
   const set = (value: unknown, transient = false) => {
     const store = useWorkflowStore.getState();
-    const next = writePath(node, field.key, value);
+    let next = writePath(node, field.key, value);
+    if (field.key === "customFields.projectId") {
+      next = { ...next, customFields: { ...next.customFields, legacyJobNumber: legacyJobNumberFromProjectId(String(value || "")) } };
+    }
     if (transient) {
       if (!initial.current) initial.current = structuredClone(node);
       store.commitTransient((file) => ({
         ...file,
         graph: {
           ...file.graph,
+          metadata: field.key === "customFields.projectId" || field.key === "customFields.customerCode"
+            ? { ...file.graph.metadata, name: syncProjectNameIdentity(
+                file.graph.metadata.name,
+                field.key === "customFields.projectId" ? legacyJobNumberFromProjectId(String(value || "")) : undefined,
+                field.key === "customFields.customerCode" ? String(value || "") : undefined,
+              ) }
+            : file.graph.metadata,
           nodes: file.graph.nodes.map((item) =>
             item.id === node.id ? next : item,
           ),
@@ -90,6 +103,10 @@ function Field({
   const textValue =
     field.type === "tags" && Array.isArray(raw)
       ? raw.join(", ")
+      : field.key === "customFields.projectId"
+        ? legacyJobNumberFromProjectId(String(raw || "")) || String(raw || "").replace(/\D/g, "").slice(0, 5)
+      : field.key === "config.stage"
+        ? chapterLabel(String(raw || ""))
       : field.type === "text" && field.mask === "digits"
         ? String(raw || "").replace(/\D/g, "")
         : String(raw || "");
@@ -173,12 +190,8 @@ function Field({
           aria-label={field.label}
           value={textValue}
           placeholder={field.placeholder}
-          maxLength={
-            field.mask === "digits" && field.maxLength
-              ? field.maxLength
-              : field.maxLength
-          }
-          inputMode={field.mask === "digits" ? "numeric" : undefined}
+          maxLength={field.key === "customFields.projectId" ? 5 : field.maxLength}
+          inputMode={field.mask === "digits" || field.key === "customFields.projectId" ? "numeric" : undefined}
           readOnly={field.readOnly}
           onChange={(e) => {
             const raw = e.target.value;
@@ -193,7 +206,13 @@ function Field({
                   : field.readOnly
                     ? textValue
                     : field.key === "customFields.projectId"
-                      ? normalizeProjectIdInput(raw, String(node.config?.serviceType || ""))
+                      ? (() => {
+                          const digits = raw.replace(/\D/g, "").slice(0, 5);
+                          const prefix = String(node.config?.serviceType || "") === "Paid Service" ? "P" : "L";
+                          return digits.length === 5 ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}` : digits;
+                        })()
+                      : field.key === "customFields.customerCode"
+                        ? raw.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4)
                       : raw;
             set(value, true);
             // Typing a complete B-XX / M-XXX value implicitly means this is
@@ -213,6 +232,11 @@ function Field({
           {...textProps}
         />
       )}
+      {field.helpText ? (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          {field.helpText}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -293,14 +317,14 @@ function ConditionEditor({
   update: (node: DomainNode) => void;
   onDelete: () => void;
 }) {
-  const condition = node.conditions[conditionIndex];
+  const condition = node.conditions[conditionIndex] && wholeDayCondition(node.conditions[conditionIndex]);
   if (!condition) return null;
 
   const updateCondition = (patch: Partial<Condition>) => {
     update({
       ...node,
       conditions: node.conditions.map((item, index) =>
-        index === conditionIndex ? { ...item, ...patch } : item,
+        index === conditionIndex ? wholeDayCondition({ ...item, ...patch }) : item,
       ),
     });
   };
@@ -338,6 +362,25 @@ function ConditionEditor({
 
       <div className="mt-3 space-y-3">
         <div className="space-y-1.5">
+          <Label>Duration to complete</Label>
+          <div className="flex gap-2">
+            <input type="number" min="1" step="1" aria-label={`Release condition ${conditionIndex + 1} duration`}
+              value={condition.duration ?? ""} disabled={condition.locked} placeholder="e.g. 3"
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+                updateCondition({ duration: Number.isFinite(value) && value > 0 ? value : undefined });
+              }}
+              className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs" />
+            <select aria-label={`Release condition ${conditionIndex + 1} duration unit`}
+              value={condition.durationUnit || "days"} disabled={condition.locked}
+              onChange={(event) => updateCondition({ durationUnit: event.target.value as "days" | "weeks" })}
+              className="h-9 rounded-md border bg-background px-2 text-xs">
+              <option value="days">Days</option>
+              <option value="weeks">Weeks</option>
+            </select>
+          </div>
+        </div>
+        <div className="space-y-1.5">
           <Label>Condition text</Label>
           <Textarea
             aria-label={`Release condition ${conditionIndex + 1} text`}
@@ -359,6 +402,9 @@ function ConditionEditor({
             className="min-h-14 resize-y bg-background/75 text-xs"
           />
         </div>
+        {condition.id === "project-id-required" ? (
+          <p className="rounded-md border bg-muted/50 px-2 py-2 text-xs text-muted-foreground">Checked automatically when the five-digit Job Number is entered.</p>
+        ) : (
         <button
           type="button"
           role="switch"
@@ -377,6 +423,7 @@ function ConditionEditor({
           </span>
           {condition.required !== false ? "Required" : "Optional"}
         </button>
+        )}
       </div>
     </section>
   );
@@ -650,7 +697,7 @@ function PhaseStepsManager({
                   </p>
                   {node.config?.stage ? (
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {node.config.stage}
+                      {chapterLabel(node.config.stage)}
                     </p>
                   ) : null}
                 </div>

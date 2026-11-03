@@ -6,6 +6,7 @@ import {
   type NodeLayout,
 } from "@/types/workflow";
 import { matrixKindForNode } from "@/lib/matrix-config";
+import { chapterLabel } from "@/lib/chapter-label";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -17,9 +18,9 @@ export const NODE_HEADER_HEIGHT = 56;
 /** Keep the standard L2 cards aligned so the drag affordance has a consistent footprint. */
 export const L2_NODE_CARD_WIDTH = 384;
 
-/** Width needed so Stage text is not clipped by the Project ID badge. */
+/** Width needed so Chapter text is not clipped by the Project ID badge. */
 export function estimateNodeHeaderWidth(node: DomainNode) {
-  const stage = String(node.config.stage || "Stage");
+  const stage = chapterLabel(node.config.stage);
   const stagePx = Math.max(56, Math.ceil(stage.length * 7.6) + 12);
   const badgePx = 112;
   const chrome = 20 + 24 + 48 + 16 + 10 + 24;
@@ -100,7 +101,7 @@ export function getAdaptiveNodeSize(
       height = Math.max(height, 90 + lineCount(reference.rules) * 24);
     if (node.type === "terminal") {
       const releaseConditionsHeight = node.conditions?.length
-        ? 112 + node.conditions.length * 48
+        ? 112 + node.conditions.reduce((height, condition) => height + Math.max(48, Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24), 0)
         : 0;
       height = Math.max(
         height,
@@ -145,7 +146,7 @@ export function getAdaptiveNodeSize(
           ),
         );
   const releaseConditionsHeight = generalCard
-    ? 72 + Math.max(1, node.conditions?.length || 0) * 48
+    ? 72 + Math.max(48, (node.conditions || []).reduce((sum, condition) => sum + Math.max(48, Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24), 0))
     : 0;
   const height = Math.max(
     generalCard ? 224 : terminal ? 104 : 112,
@@ -179,4 +180,3 @@ export function getL1FallbackColor(title: string, index: number): string {
   ];
   return palette[index % palette.length];
 }
-

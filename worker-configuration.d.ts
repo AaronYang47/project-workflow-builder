@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260811.1 2026-08-13 nodejs_compat
 interface __BaseEnv_Env {
 	DB: D1Database;
+	FALCON_DB?: D1Database;
 	SESSION_SECRET?: string;
 }
 declare namespace Cloudflare {

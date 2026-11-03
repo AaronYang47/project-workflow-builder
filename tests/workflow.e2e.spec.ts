@@ -52,13 +52,87 @@ test("app loads the exact L1 lifecycle without browser, request, or collaboratio
   expect(consoleErrors).toEqual([]);
 });
 
+test("dragging a linked node in L1 updates the saved L2 sequence, layout, and STAGE values", async ({ page }) => {
+  const file = createE2EWorkflow();
+  const orderedIds = file.highLevel!.graph.nodes.flatMap(
+    (node) => node.linkedLayer2NodeIds ?? [],
+  );
+  orderedIds.forEach((id, index) => {
+    const node = file.graph.nodes.find((candidate) => candidate.id === id);
+    if (node) node.config.stage = String(index).padStart(2, "0");
+  });
+  await page.addInitScript(
+    ({ key, persistedFile }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({ state: { file: persistedFile, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, persistedFile: file },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  const phaseCard = page.locator('[data-id="high-level-2"]');
+  const gateTwo = phaseCard.locator('[data-linked-workflow-node-id="gate-g2-technical-commitment"]');
+  const gateOne = phaseCard.locator('[data-linked-workflow-node-id="gate-g1-qualified"]');
+  const [handleBox, targetBox] = await Promise.all([
+    gateTwo.locator("[data-reorder-handle]").boundingBox(),
+    gateOne.boundingBox(),
+  ]);
+  expect(handleBox).toBeTruthy();
+  expect(targetBox).toBeTruthy();
+  await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 8 });
+  await expect(phaseCard.locator('[data-linked-workflow-row="gate-g2-technical-commitment"]')).toHaveCSS("transform", /matrix\(/);
+  await expect(gateOne).toHaveClass(/ring-primary/);
+  await page.mouse.up();
+
+  await expect.poll(() =>
+    phaseCard.locator("[data-linked-workflow-node-id]").evaluateAll((items) =>
+      items.map((item) => item.getAttribute("data-linked-workflow-node-id")),
+    ),
+  ).toEqual([
+    "gate-g2-technical-commitment",
+    "gate-g1-qualified",
+    "pre-construction",
+  ]);
+
+  const saved = await page.evaluate((key) => {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value).state.file : null;
+  }, WORKFLOW_STORAGE_KEY);
+  expect(saved.highLevel.graph.nodes.find((node: { id: string }) => node.id === "high-level-2").linkedLayer2NodeIds).toEqual([
+    "gate-g2-technical-commitment",
+    "gate-g1-qualified",
+    "pre-construction",
+  ]);
+  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "gate-g2-technical-commitment").config.stage).toBe("01");
+  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "gate-g1-qualified").config.stage).toBe("02");
+  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "pre-construction").config.stage).toBe("03");
+  expect(saved.layout.nodes["gate-g2-technical-commitment"].x).toBeLessThan(
+    saved.layout.nodes["gate-g1-qualified"].x,
+  );
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  const [gateTwoBox, gateOneBox, preConstructionBox] = await Promise.all([
+    page.locator('[data-id="gate-g2-technical-commitment"]').boundingBox(),
+    page.locator('[data-id="gate-g1-qualified"]').boundingBox(),
+    page.locator('[data-id="pre-construction"]').boundingBox(),
+  ]);
+  expect(gateTwoBox).toBeTruthy();
+  expect(gateOneBox).toBeTruthy();
+  expect(preConstructionBox).toBeTruthy();
+  expect(gateTwoBox!.x).toBeLessThan(gateOneBox!.x);
+  expect(gateOneBox!.x).toBeLessThan(preConstructionBox!.x);
+});
+
 test("L1, L2, and the execution view are connected and G1 cannot be bypassed visually", async ({ page }) => {
   await openLayer2(page);
   await expect(page.locator('[data-id="pre-construction"]')).toBeVisible();
 
   await page.locator('[data-id="pre-construction"]').click();
-  await expect(page.getByRole("button", { name: "L3 · Execution View" })).toBeEnabled();
-  await page.getByRole("button", { name: "L3 · Execution View" }).click();
+  await expect(page.getByRole("button", { name: "RC · Forms & execution" })).toBeEnabled();
+  await page.getByRole("button", { name: "RC · Forms & execution" }).click();
 
   await expect(page.getByText("PRE-CONSTRUCTION", { exact: true })).toBeVisible();
   await expect(page.getByText("Required files", { exact: true })).toBeVisible();
@@ -414,5 +488,3 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await checkbox.check();
   await expect(checkbox).toBeChecked();
 });
-
-

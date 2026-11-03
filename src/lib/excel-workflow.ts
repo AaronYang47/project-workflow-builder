@@ -34,7 +34,7 @@ export async function workflowToExcelBuffer(
 ): Promise<ArrayBuffer> {
   const ExcelJS = await exceljs();
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Project Workflow Builder";
+  workbook.creator = "Falcon Process Building System";
   workbook.created = new Date(file.graph.metadata.createdAt || Date.now());
   workbook.modified = new Date();
   writePhaseWorkbook(workbook, file);
@@ -44,9 +44,9 @@ export async function workflowToExcelBuffer(
 }
 
 export const MISSING_WORKFLOW_PAYLOAD =
-  "This Excel file is missing the hidden workflow payload. Export from Project Workflow Builder, then import that file.";
+  "This Excel file is missing the hidden workflow payload. Export from Falcon Process Building System, then import that file.";
 export const DAMAGED_WORKFLOW_PAYLOAD =
-  "This Excel file's workflow payload is damaged and cannot be imported. Export a fresh copy from Project Workflow Builder.";
+  "This Excel file's workflow payload is damaged and cannot be imported. Export a fresh copy from Falcon Process Building System.";
 
 export async function parseWorkflowExcel(
   data: ArrayBuffer | Uint8Array | Buffer,

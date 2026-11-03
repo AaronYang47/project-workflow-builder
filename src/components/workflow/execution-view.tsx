@@ -1,6 +1,7 @@
 "use client";
+import { conditionDurationLabel } from "@/lib/condition-duration";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Building2,
@@ -26,7 +27,7 @@ import {
   type DomainNode,
   type ExecutionItem,
 } from "@/types/workflow";
-import { conditionHasL3Forms, nodeReleaseReady } from "@/lib/workflow-progress";
+import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady, sequentialExecutionBlocker } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { getNodeDefinition } from "@/lib/node-catalog";
@@ -40,6 +41,8 @@ import {
   isCustomerSelectionForm,
   type FalconCustomerProfile,
 } from "@/lib/falcon-customer-intelligence";
+import { workflowLegacyJobNumber } from "@/lib/project-id";
+import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { CustomerSelectionForm, customerFormIsComplete, type CustomerFormAnswers } from "@/components/workflow/customer-selection-form";
 
 export interface DocRecord {
@@ -64,49 +67,32 @@ export interface DocRecord {
 
 // Modal for adding a new form/document to L3 from R2 file library or custom
 function AddDocumentModal({
-  open,
   category,
   onClose,
   onAdd,
 }: {
-  open: boolean;
-  category: "legal" | "customer" | "supporting" | null;
+  category: "legal" | "customer" | "supporting";
   onClose: () => void;
   onAdd: (doc: DocRecord) => void;
 }) {
-  const [selectedFileId, setSelectedFileId] = useState<string>("custom");
-  const [customTitle, setCustomTitle] = useState("");
+  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>(() => getUploadedFiles(category));
+  const [selectedFileId, setSelectedFileId] = useState(() => availableFiles[0]?.id || "custom");
+  const [customTitle, setCustomTitle] = useState(() => availableFiles[0]?.title || "");
   const [isRequired, setIsRequired] = useState(true);
-  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>([]);
+  const userEdited = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    if (open && category) {
-      const files = getUploadedFiles(category);
-      setAvailableFiles(files);
-      if (files.length > 0) {
-        setSelectedFileId(files[0].id);
-        setCustomTitle(files[0].title);
-      } else {
-        setSelectedFileId("custom");
-        setCustomTitle("");
+    void fetchUploadedFilesFromR2(category).then((remoteFiles) => {
+      if (cancelled) return;
+      setAvailableFiles(remoteFiles);
+      if (!userEdited.current && remoteFiles.length > 0) {
+        setSelectedFileId(remoteFiles[0].id);
+        setCustomTitle((current) => current.trim() ? current : remoteFiles[0].title);
       }
-      setIsRequired(true);
-      void fetchUploadedFilesFromR2(category).then((remoteFiles) => {
-        if (cancelled) return;
-        setAvailableFiles(remoteFiles);
-        if (remoteFiles.length > 0) {
-          setSelectedFileId(remoteFiles[0].id);
-          setCustomTitle((current) => current.trim() ? current : remoteFiles[0].title);
-        }
-      });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [open, category]);
-
-  if (!open || !category) return null;
+    });
+    return () => { cancelled = true; };
+  }, [category]);
 
   const categoryLabel =
     category === "legal"
@@ -116,6 +102,7 @@ function AddDocumentModal({
         : "Supporting Document";
 
   const handleSelectFile = (file: UploadedFileRecord) => {
+    userEdited.current = true;
     setSelectedFileId(file.id);
     setCustomTitle(file.title);
   };
@@ -255,7 +242,7 @@ function AddDocumentModal({
                 ))}
 
                 <div
-                  onClick={() => setSelectedFileId("custom")}
+                  onClick={() => { userEdited.current = true; setSelectedFileId("custom"); }}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
                     selectedFileId === "custom"
@@ -267,7 +254,7 @@ function AddDocumentModal({
                     type="radio"
                     name="selectedFile"
                     checked={selectedFileId === "custom"}
-                    onChange={() => setSelectedFileId("custom")}
+                    onChange={() => { userEdited.current = true; setSelectedFileId("custom"); }}
                     className="size-3.5 accent-primary"
                   />
                   <span className="font-medium text-muted-foreground">
@@ -286,7 +273,7 @@ function AddDocumentModal({
             <input
               type="text"
               value={customTitle}
-              onChange={(e) => setCustomTitle(e.target.value)}
+              onChange={(e) => { userEdited.current = true; setCustomTitle(e.target.value); }}
               placeholder="e.g. Master Services Agreement 2026"
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background px-3.5 py-2.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
@@ -380,7 +367,7 @@ export function ExecutionView({
     }
 
     return highLevelNodes[0] || null;
-  }, [highLevelNodes, nodeId, node?.config?.stage, file.layout.nodes, file.graph.nodes]);
+  }, [highLevelNodes, nodeId, node, file.layout.nodes, file.graph.nodes]);
 
   const l1Title = owningL1Node?.title?.trim() || "High Level";
 
@@ -431,10 +418,11 @@ export function ExecutionView({
   const conditionStorageKey = currentCondition?.id?.trim() || "default";
   const useLegacyDocumentKeys =
     conditions.length === 0 || currentCondition?.id === firstConditionId;
-  const customFieldForCondition = (field: string) =>
+  const customFieldForCondition = useCallback((field: string) =>
     node?.customFields?.[
       `${field}::release-condition::${conditionStorageKey}`
-    ] ?? (useLegacyDocumentKeys ? node?.customFields?.[field] : undefined);
+    ] ?? (useLegacyDocumentKeys ? node?.customFields?.[field] : undefined),
+  [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
 
   const items = useMemo(
     () =>
@@ -443,6 +431,18 @@ export function ExecutionView({
       ),
     [file.execution?.items, nodeId],
   );
+  // A release condition may link to one execution task. Keep the chapter-wide
+  // item list for the progress summary, but only use the selected condition's
+  // linked task when calculating its L2 completion state.
+  const conditionItems = useMemo(() => {
+    if (!currentCondition) return [];
+    if (currentCondition.linkedExecutionItemId) {
+      return items.filter((item) => item.id === currentCondition.linkedExecutionItemId);
+    }
+    // Older workflows can have node-level tasks without condition links.
+    const hasConditionLinks = conditions.some((condition) => condition.linkedExecutionItemId);
+    return hasConditionLinks ? [] : items;
+  }, [conditions, currentCondition, items]);
 
   const projectStartNode = file.graph.nodes.find(
     (item) => item.type === "projectStart",
@@ -465,25 +465,10 @@ export function ExecutionView({
     : false;
 
   // 1. Legal Documents Data
-  const customLegalDocs: DocRecord[] = useMemo(() => {
-    const raw = customFieldForCondition("legalDocuments");
-    if (typeof raw === "string") {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(
-            (doc) =>
-              !doc.id?.startsWith("legal-") &&
-              doc.fileName !== "Master_Services_Agreement_2026.pdf" &&
-              doc.fileName !== "NDA_Standard_Mutual_v2.pdf",
-          );
-        }
-      } catch {
-        // fallthrough
-      }
-    }
-    return [];
-  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
+  const customLegalDocs: DocRecord[] = useMemo(
+    () => node ? releaseConditionForms(node, currentCondition) : [],
+    [node, currentCondition],
+  );
 
   // 2. Customer Information Forms Data (Redesigned as Form/Doc List)
   const customCustomerDocs: DocRecord[] = useMemo(() => {
@@ -504,7 +489,7 @@ export function ExecutionView({
       }
     }
     return [];
-  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
+  }, [customFieldForCondition]);
 
   // 3. Supporting Documents Data
   const customSupportingDocs: DocRecord[] = useMemo(() => {
@@ -525,7 +510,7 @@ export function ExecutionView({
       }
     }
     return [];
-  }, [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
+  }, [customFieldForCondition]);
 
   const saveLegalDocs = (docs: DocRecord[]) => {
     if (!node) return;
@@ -537,7 +522,7 @@ export function ExecutionView({
     });
   };
 
-  const saveCustomerDocs = (docs: DocRecord[]) => {
+  const saveCustomerDocs = useCallback((docs: DocRecord[]) => {
     if (!node) return;
     updateNode(node.id, {
       customFields: {
@@ -545,7 +530,33 @@ export function ExecutionView({
         [`customerDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
       },
     });
-  };
+  }, [node, updateNode, conditionStorageKey]);
+
+  const skippedFormAutoCheck = useRef(new Set<string>());
+  useEffect(() => {
+    if (!node) return;
+    const next: DocRecord[] = customCustomerDocs.map((doc) => {
+      if (!isCustomerSelectionForm(doc)) return doc;
+      const complete = customerFormIsComplete(doc.customerProfile, doc.customerForm);
+      if (!complete) {
+        skippedFormAutoCheck.current.delete(doc.id);
+        if (!doc.checked) return doc;
+        return {
+          ...doc,
+          checked: false,
+          status: (doc.required ? "Required" : "Optional") as DocRecord["status"],
+        };
+      }
+      if (doc.checked || skippedFormAutoCheck.current.has(doc.id)) return doc;
+      return { ...doc, checked: true, status: "Verified" as const };
+    });
+    const changed = next.some(
+      (doc, index) =>
+        doc.checked !== customCustomerDocs[index]?.checked ||
+        doc.status !== customCustomerDocs[index]?.status,
+    );
+    if (changed) saveCustomerDocs(next);
+  }, [customCustomerDocs, node, saveCustomerDocs]);
 
   const saveSupportingDocs = (docs: DocRecord[]) => {
     if (!node) return;
@@ -566,33 +577,71 @@ export function ExecutionView({
     [customLegalDocs, customCustomerDocs, customSupportingDocs],
   );
 
-  const hasRequiredForms = requiredDocs.length > 0 || items.length > 0;
+  const hasRequiredForms = requiredDocs.length > 0 || conditionItems.length > 0;
 
-  // Check if all Required items across all 3 boxes and execution items are checked
+  // A condition passes only when its own required documents and linked tasks pass.
   const allRequiredChecked = useMemo(() => {
     if (!hasRequiredForms) return false;
 
     const docsChecked = requiredDocs.length === 0 || requiredDocs.every((d) => d.checked);
     const itemsChecked =
-      items.length === 0 ||
-      items.every(
+      conditionItems.length === 0 ||
+      conditionItems.every(
         (item) =>
           executionItemProgress(item, file.operations, { checklistOnly: true }) === "complete",
       );
 
     return docsChecked && itemsChecked;
-  }, [hasRequiredForms, requiredDocs, items, file.operations]);
+  }, [hasRequiredForms, requiredDocs, conditionItems, file.operations]);
 
-  // Automatically update L2 Release Condition when all required items pass
+  // Keep every linked L2 condition in sync with its own L3 task and required
+  // documents. This also repairs older saved projects where a task was checked
+  // before the condition flag was written.
   useEffect(() => {
-    if (!node || !currentCondition || !hasRequiredForms) return;
-    if (currentCondition.checked !== allRequiredChecked) {
-      const updatedConditions = (node.conditions || []).map((c) =>
-        c.id === currentCondition.id ? { ...c, checked: allRequiredChecked } : c,
+    if (!node || !conditions.length) return;
+    const blocked = sequentialExecutionBlocker(file, node.id);
+    let changed = false;
+    const updatedConditions = conditions.map((condition, index) => {
+      if (!condition.linkedExecutionItemId) return condition;
+      const linkedItem = file.execution?.items.find(
+        (item) => item.id === condition.linkedExecutionItemId,
       );
-      updateNode(node.id, { conditions: updatedConditions });
-    }
-  }, [allRequiredChecked, currentCondition, node, updateNode, hasRequiredForms]);
+      if (!linkedItem) return condition;
+
+      const fields = ["customerDocuments", "supportingDocuments"];
+      const documents = [...releaseConditionForms(node, condition), ...fields.flatMap((field) => {
+        const key = `${field}::release-condition::${condition.id?.trim() || "default"}`;
+        const raw = node.customFields?.[key] ??
+          (index === 0 ? node.customFields?.[field] : undefined);
+        if (typeof raw !== "string") return [];
+        try {
+          const docs = JSON.parse(raw);
+          return Array.isArray(docs) ? docs : [];
+        } catch {
+          return [];
+        }
+      })];
+      const requiredDocuments = documents.filter((doc) => doc.required !== false);
+      const documentsComplete = requiredDocuments.every((doc) => doc.checked);
+      // Specified Forms are the checklist for this step, not a second task
+      // checkbox that the user must also tick inside Legal Documents.
+      if (documents.length && linkedItem.checklistComplete !== documentsComplete &&
+          (!documentsComplete || !blocked)) {
+        updateExecutionItem(linkedItem.id, { checklistComplete: documentsComplete });
+      }
+      const taskComplete = documents.length ? documentsComplete : executionItemProgress(
+        linkedItem,
+        file.operations,
+        { checklistOnly: true },
+      ) === "complete";
+      const complete = taskComplete && requiredDocuments.every((doc) => doc.checked);
+      const nextChecked = complete && blocked ? condition.checked === true : complete;
+      if (condition.checked === nextChecked) return condition;
+      changed = true;
+      return { ...condition, checked: nextChecked };
+    });
+    if (changed) updateNode(node.id, { conditions: updatedConditions });
+  }, [conditions, file, node, updateNode, updateExecutionItem]);
 
   // Toggle checks on execution items
   const handleToggleExecutionItem = (item: ExecutionItem) => {
@@ -652,6 +701,7 @@ export function ExecutionView({
   const legalCheckedCount = customLegalDocs.filter((d) => d.checked).length;
   const customerCheckedCount = customCustomerDocs.filter((d) => d.checked).length;
   const supportingCheckedCount = customSupportingDocs.filter((d) => d.checked).length;
+  const sequenceBlocker = sequentialExecutionBlocker(file, node.id);
 
   return (
     <section
@@ -718,7 +768,7 @@ export function ExecutionView({
                   type="button"
                   aria-label={currentCondition.checked ? "Uncheck release condition" : "Check release condition"}
                   title={currentCondition.checked ? "Uncheck release condition" : "Mark release condition complete"}
-                  disabled={currentConditionHasL3Forms}
+                  disabled={(currentConditionHasL3Forms && currentCondition.id !== "project-id-required") || Boolean(sequenceBlocker && !currentCondition.checked)}
                   onClick={() => {
                     const nextChecked = !currentCondition.checked;
                     const updatedConditions = (node.conditions || []).map((c) =>
@@ -740,7 +790,7 @@ export function ExecutionView({
               ) : null}
 
               <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground font-sans">
-                Required files
+                Condition requirements
               </span>
             </div>
             {currentCondition?.description && currentCondition.description.trim() !== l3Title ? (
@@ -767,6 +817,12 @@ export function ExecutionView({
         </div>
       </header>
 
+      {sequenceBlocker ? (
+        <p role="status" className="shrink-0 border-b border-amber-500/25 bg-amber-500/10 px-6 py-2 text-xs text-amber-700 dark:text-amber-300">
+          {sequenceBlocker}
+        </p>
+      ) : null}
+
       {/* Conditions Selector Bar with Green Breathing Light on Pass */}
       {conditions.length > 0 ? (
         <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-background/50 px-4 py-2 scroll-thin sm:px-6">
@@ -777,7 +833,9 @@ export function ExecutionView({
             const isSelected =
               currentCondition?.id === condition.id ||
               (!currentCondition && idx === 0);
-            const isPassed = Boolean(condition.checked) || (isSelected && allRequiredChecked);
+            const isPassed = condition.id === "project-id-required" && node
+              ? conditionIsSatisfied(condition, node, projectStartNode, file.execution?.items, file.operations)
+              : Boolean(condition.checked) || (isSelected && allRequiredChecked);
             const hasL3Forms = node ? conditionHasL3Forms(condition, node) : false;
 
             return (
@@ -799,10 +857,9 @@ export function ExecutionView({
                 <span
                   role="checkbox"
                   aria-checked={Boolean(isPassed)}
+                  aria-disabled={condition.id === "project-id-required" || hasL3Forms}
                   title={
-                    condition.id === "project-id-required"
-                      ? "Complete the project ID field first"
-                      : isPassed
+                    condition.id === "project-id-required" ? "Automatically checked when a complete Job Number is entered" : isPassed
                         ? "Click to uncheck condition"
                         : "Click to mark condition complete"
                   }
@@ -829,7 +886,7 @@ export function ExecutionView({
                   {isPassed ? <Check className="size-2.5" /> : idx + 1}
                 </span>
                 <span className="truncate max-w-[14rem]">
-                  {condition.label || condition.description || `Condition ${idx + 1}`}
+                  {conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}{condition.label || condition.description || `Condition ${idx + 1}`}
                 </span>
                 {isPassed ? (
                   <Sparkles className="size-3 text-emerald-500 animate-pulse" />
@@ -845,6 +902,61 @@ export function ExecutionView({
         data-testid="required-file-checklist"
         className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 lg:p-5"
       >
+        {conditionItems.length > 0 && customLegalDocs.length + customCustomerDocs.length + customSupportingDocs.length === 0 ? (
+          <div className="mb-4 rounded-xl border bg-card p-3">
+              {conditionItems.length > 0 ? (
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3">
+                  <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Execution Requirements
+                  </h3>
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    Complete this step when its execution requirements are satisfied.
+                  </p>
+                </div>
+              ) : null}
+              {conditionItems.map((item) => {
+                const checked =
+                  executionItemProgress(item, file.operations, {
+                    checklistOnly: true,
+                  }) === "complete";
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 transition-colors",
+                      checked
+                        ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                        : "border-border/80 bg-background hover:border-indigo-500/40",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Required task: ${item.title || item.type}`}
+                      checked={checked}
+                      onChange={() => handleToggleExecutionItem(item)}
+                      disabled={Boolean(sequenceBlocker && !checked)}
+                      title={sequenceBlocker}
+                      className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {item.documentCode || item.catalogId || "CONTROLLED"}
+                        </span>
+                        <span className="rounded px-1.5 py-0.2 text-[9px] font-bold uppercase bg-muted text-muted-foreground">
+                          {checked ? "Checked" : "Required"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
+                        {item.title || item.type}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+
+          </div>
+        ) : null}
         <div className="grid h-full min-h-[560px] grid-cols-1 gap-4 lg:grid-cols-3">
           
           {/* ============================================================ */}
@@ -861,7 +973,7 @@ export function ExecutionView({
                     Legal Documents
                   </h2>
                   <p className="text-[10px] text-muted-foreground">
-                    Contracts, deeds & regulatory permits
+                    Forms / Documents for this release condition
                   </p>
                 </div>
               </div>
@@ -871,7 +983,7 @@ export function ExecutionView({
             </header>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
-              {customLegalDocs.length === 0 && items.length === 0 ? (
+              {customLegalDocs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
                   <FileText className="size-8 opacity-30 mb-2" />
                   <p className="text-xs font-medium">No legal documents added yet.</p>
@@ -892,6 +1004,8 @@ export function ExecutionView({
                     type="checkbox"
                     aria-label={`Required file: ${doc.title}`}
                     checked={doc.checked}
+                    disabled={Boolean(sequenceBlocker && !doc.checked)}
+                    title={sequenceBlocker}
                     onChange={() => {
                       const updated = [...customLegalDocs];
                       updated[index] = { ...doc, checked: !doc.checked };
@@ -903,7 +1017,7 @@ export function ExecutionView({
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {doc.code || `LEG-0${index + 1}`}
+                          {doc.code || "FORM"}
                         </span>
                         {doc.fileName ? (
                           <span
@@ -972,45 +1086,6 @@ export function ExecutionView({
                 </div>
               ))}
 
-              {/* Items from execution layer belonging to this node */}
-              {items.map((item) => {
-                const checked =
-                  executionItemProgress(item, file.operations, {
-                    checklistOnly: true,
-                  }) === "complete";
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 transition-colors",
-                      checked
-                        ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                        : "border-border/80 bg-background hover:border-indigo-500/40",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Required file: ${item.title || item.type}`}
-                      checked={checked}
-                      onChange={() => handleToggleExecutionItem(item)}
-                      className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {item.documentCode || item.catalogId || "CONTROLLED"}
-                        </span>
-                        <span className="rounded px-1.5 py-0.2 text-[9px] font-bold uppercase bg-muted text-muted-foreground">
-                          {checked ? "Checked" : "Required"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                        {item.title || item.type}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
 
               <button
                 type="button"
@@ -1079,8 +1154,17 @@ export function ExecutionView({
                       ) {
                         return;
                       }
+                      const nextChecked = !doc.checked;
+                      if (isCustomerSelectionForm(doc)) {
+                        if (nextChecked) skippedFormAutoCheck.current.delete(doc.id);
+                        else skippedFormAutoCheck.current.add(doc.id);
+                      }
                       const updated = [...customCustomerDocs];
-                      updated[index] = { ...doc, checked: !doc.checked };
+                      updated[index] = {
+                        ...doc,
+                        checked: nextChecked,
+                        status: (nextChecked ? "Verified" : doc.required ? "Required" : "Optional") as DocRecord["status"],
+                      };
                       saveCustomerDocs(updated);
                     }}
                     title={
@@ -1341,13 +1425,15 @@ export function ExecutionView({
           <span
             className={cn(
               "size-2 rounded-full",
-              allRequiredChecked || releaseReady ? "bg-emerald-500" : "bg-amber-500",
+              releaseReady || allRequiredChecked ? "bg-emerald-500" : "bg-amber-500",
             )}
           />
           <span>
-            {allRequiredChecked || releaseReady
+            {releaseReady
               ? `${node.title.toUpperCase()} is ready to release.`
-              : "Complete and verify all required documents to release this node."}
+              : allRequiredChecked
+                ? "This release condition is complete. Complete the remaining department requirements to release this node."
+                : "Complete this release condition’s required documents and tasks to continue."}
           </span>
         </div>
         <p className="text-[11px] font-mono text-muted-foreground">
@@ -1356,8 +1442,7 @@ export function ExecutionView({
       </footer>
 
       {/* Add Document Modal */}
-      <AddDocumentModal
-        open={addModalCategory !== null}
+      {addModalCategory ? <AddDocumentModal
         category={addModalCategory}
         onClose={() => setAddModalCategory(null)}
         onAdd={(newDoc) => {
@@ -1369,7 +1454,7 @@ export function ExecutionView({
             saveSupportingDocs([...customSupportingDocs, newDoc]);
           }
         }}
-      />
+      /> : null}
       {(() => {
         const selectionFormDoc = customCustomerDocs.find(
           (doc) => doc.id === selectionFormDocId,
@@ -1379,12 +1464,15 @@ export function ExecutionView({
           <CustomerSelectionForm
             key={selectionFormDoc.id}
             open
+            leadNumber={workflowLegacyJobNumber(file)}
             initialName={selectionFormDoc.customerName || ""}
             initialProfile={selectionFormDoc.customerProfile}
             initialAnswers={selectionFormDoc.customerForm}
             onClose={() => setSelectionFormDocId(null)}
             onSave={({ customerCategory, customerName, customerProfile, customerForm }) => {
               if (!node) return;
+              const complete = customerFormIsComplete(customerProfile, customerForm);
+              if (complete) skippedFormAutoCheck.current.delete(selectionFormDoc.id);
               const updatedDocs = customCustomerDocs.map((doc) =>
                 doc.id === selectionFormDoc.id
                   ? {
@@ -1394,9 +1482,9 @@ export function ExecutionView({
                       customerProfile,
                       customerForm,
                         notes: `${customerName} · ${customerForm.decisionAuthority || "Sales"} · ${customerForm.siteMunicipality || customerForm.siteStatus}`,
-                      checked: doc.checked,
+                      checked: complete,
                       required: true,
-                      status: doc.checked ? "Verified" : "Required",
+                      status: complete ? "Verified" : "Required",
                     }
                   : doc,
               );
@@ -1423,6 +1511,19 @@ export function ExecutionView({
                     ...customerIdentityFields,
                   },
                 });
+              }
+              const leadNumber = workflowLegacyJobNumber(useWorkflowStore.getState().file);
+              if (leadNumber) {
+                void fetch(`/api/falcon/leads/${encodeURIComponent(leadNumber)}`, {
+                  method: "PUT",
+                  credentials: "include",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    customer: customerProfile,
+                    form: customerForm,
+                    projectId: useWorkflowStore.getState().activeProjectId,
+                  }),
+                }).catch(() => undefined);
               }
               setSelectionFormDocId(null);
             }}

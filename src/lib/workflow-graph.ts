@@ -331,7 +331,7 @@ export function groupNodesIntoPhase(file: WorkflowFile, ids: string[], groupId: 
     id: groupId,
     type: "phase",
     title: "New phase",
-    description: "Grouped workflow stage",
+    description: "Grouped workflow department",
     color: "#64748b",
     metadata: {},
     conditions: [],

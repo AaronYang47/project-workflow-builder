@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clone } from "@/lib/clone";
@@ -13,10 +15,17 @@ import {
   createHighLevelNode,
   isDefaultHighLevelProcess,
   isLegacyDefaultHighLevelFamily,
+  reorderLinkedWorkflowNodes,
+  reorderLinkedWorkflowGate,
+  setLinkedWorkflowGateMember,
+  synchronizeLinkedWorkflowOrder,
   validateHighLevelWorkflow,
 } from "@/lib/high-level-workflow";
 import { DETAILED_LIFECYCLE_IDS } from "@/lib/detailed-workflow";
 import { createExecutionItem } from "@/lib/execution";
+import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
+import { parseReleaseConditionLines, RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
+import { applyReleaseConditionImport, type ReleaseConditionImportResult, type ReleaseConditionImportRow } from "@/lib/release-condition-import";
 import { createEmptyExecutionLayer } from "@/types/workflow";
 import {
   addOrReplaceEdge,
@@ -35,7 +44,7 @@ import {
   debouncedJSONStorage,
 } from "@/store/workflow-persist";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
-import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import type { SyncMessage } from "@/lib/collaboration/collaboration-types";
 import {
   appendOperationsAudit,
@@ -54,6 +63,7 @@ import type {
 } from "@/types/project-operations";
 import type {
   DomainEdge,
+  Condition,
   DomainNode,
   ExecutionItem,
   ExecutionItemType,
@@ -74,6 +84,25 @@ function broadcastIfLocal(createMessage: (senderId: string) => SyncMessage) {
     const senderId = useCollaborationStore.getState().localUser.peerId;
     collaborationManager.broadcast(createMessage(senderId));
   }
+}
+
+let lastTextEdit: { key: string; at: number; file: WorkflowFile } | undefined;
+
+function textEditKey(node: DomainNode, patch: Partial<DomainNode>): string | undefined {
+  const changed = Object.keys(patch).filter((key) =>
+    JSON.stringify(patch[key as keyof DomainNode]) !== JSON.stringify(node[key as keyof DomainNode]));
+  if (changed.length !== 1) return undefined;
+  if (changed[0] === "title" || changed[0] === "description") return `${node.id}:${changed[0]}`;
+  if (changed[0] !== "conditions" || !patch.conditions || patch.conditions.length !== node.conditions.length) return undefined;
+  const conditionIndex = node.conditions.findIndex((condition, index) =>
+    JSON.stringify(condition) !== JSON.stringify(patch.conditions?.[index]));
+  if (conditionIndex < 0) return undefined;
+  const oldCondition = node.conditions[conditionIndex];
+  const nextCondition = patch.conditions[conditionIndex];
+  const fields = Object.keys(nextCondition).filter((key) =>
+    JSON.stringify(nextCondition[key as keyof typeof nextCondition]) !== JSON.stringify(oldCondition[key as keyof typeof oldCondition]));
+  if (fields.length !== 1 || !["label", "description"].includes(fields[0])) return undefined;
+  return `${node.id}:condition:${oldCondition.id ?? conditionIndex}:${fields[0]}`;
 }
 
 function findAvailableNodePosition(
@@ -109,17 +138,37 @@ function findAvailableNodePosition(
   };
 }
 
+function isViewOnlyFileChange(current: WorkflowFile, next: WorkflowFile | undefined) {
+  if (!next) return false;
+  return current.graph === next.graph &&
+    current.releaseConditionInbox === next.releaseConditionInbox &&
+    current.execution === next.execution &&
+    current.operations === next.operations &&
+    current.layout.nodes === next.layout.nodes &&
+    current.layout.edges === next.layout.edges &&
+    current.layout.snapToGrid === next.layout.snapToGrid &&
+    current.layout.gridSize === next.layout.gridSize &&
+    current.highLevel?.graph === next.highLevel?.graph &&
+    current.highLevel?.layout.nodes === next.highLevel?.layout.nodes;
+}
+
 function normalizeHighLevelLayer2Links(
   highLevel: NonNullable<WorkflowFile["highLevel"]>,
   nodeId: string,
   linkedIds: string[],
+  workflowNodes: DomainNode[],
 ) {
   const alreadyClaimed = new Set(
     highLevel.graph.nodes
       .filter((node) => node.id !== nodeId)
       .flatMap((node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []),
   );
-  return Array.from(new Set(linkedIds)).filter((linkedId) => !alreadyClaimed.has(linkedId));
+  const workflowNodeById = new Map(workflowNodes.map((node) => [node.id, node]));
+  return Array.from(new Set(linkedIds)).filter((linkedId) =>
+    !alreadyClaimed.has(linkedId) &&
+    workflowNodeById.has(linkedId) &&
+    workflowNodeById.get(linkedId)?.type !== "phase",
+  );
 }
 
 function isBlankWorkflow(file: WorkflowFile) {
@@ -181,6 +230,24 @@ function removePrimaryGates(file: WorkflowFile) {
   };
 }
 
+function removePhaseSelfLinks(file: WorkflowFile) {
+  if (!file.highLevel) return { file, removed: false };
+  const phaseIds = new Set(file.graph.nodes.filter((node) => node.type === "phase").map((node) => node.id));
+  if (!phaseIds.size) return { file, removed: false };
+  let removed = false;
+  const nodes = file.highLevel.graph.nodes.map((node) => {
+    const linked = node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? [];
+    const filtered = linked.filter((id) => !phaseIds.has(id));
+    if (filtered.length === linked.length) return node;
+    removed = true;
+    return { ...node, linkedLayer2NodeIds: filtered, linkedDetailedNodeIds: filtered };
+  });
+  return removed ? {
+    file: { ...file, highLevel: { ...file.highLevel, graph: { ...file.highLevel.graph, nodes } } },
+    removed,
+  } : { file, removed };
+}
+
 function normalizeLoadedWorkflow(file: WorkflowFile) {
   if (
     isDefaultHighLevelProcess(file.highLevel) ||
@@ -201,7 +268,9 @@ function normalizeLoadedWorkflow(file: WorkflowFile) {
     return { file: clearDefaultWorkflow(migrated), clearedDefault: true };
   }
   const sanitized = removePrimaryGates(migrated);
-  return { file: sanitized.file, clearedDefault: sanitized.removed };
+  const withoutSelfLinks = removePhaseSelfLinks(sanitized.file);
+  const ordered = synchronizeLinkedWorkflowOrder(withoutSelfLinks.file);
+  return { file: ordered, clearedDefault: sanitized.removed || withoutSelfLinks.removed || ordered !== withoutSelfLinks.file };
 }
 
 function withOperationalIdentity(file: WorkflowFile, operations: ProjectOperations) {
@@ -283,6 +352,7 @@ export interface WorkflowState {
   commitTransient: (updater: (file: WorkflowFile) => WorkflowFile) => void;
   recordSnapshot: (snapshot: WorkflowFile) => void;
   replaceFile: (file: WorkflowFile) => void;
+  applyCollaborativeFile: (file: WorkflowFile) => void;
   loadProject: (file: WorkflowFile, projectId: string, userId: string) => void;
   resetWorkspace: (userId?: string) => void;
   clearDetailedNodes: () => void;
@@ -331,6 +401,11 @@ export interface WorkflowState {
     conditionId?: string,
     conditionIndex?: number,
   ) => void;
+  addReleaseConditionLines: (input: string) => number;
+  ensureReleaseConditionIds: () => void;
+  importReleaseConditions: (rows: ReleaseConditionImportRow[]) => ReleaseConditionImportResult;
+  setReleaseConditionInbox: (conditions: Condition[]) => void;
+  moveNodeCondition: (sourceNodeId: string, sourceIndex: number, targetNodeId: string, targetIndex: number) => void;
   deleteNodes: (ids: string[]) => void;
   deleteSelected: () => void;
   showActionBlocked: (
@@ -360,6 +435,23 @@ export interface WorkflowState {
   ) => void;
   addHighLevelNode: (type: HighLevelNodeType, position: { x: number; y: number }) => string;
   updateHighLevelNode: (id: string, patch: Partial<HighLevelNode>) => void;
+  reorderHighLevelLinkedNodes: (
+    highLevelNodeId: string,
+    draggedNodeId: string,
+    targetNodeId: string,
+  ) => void;
+  reorderHighLevelLinkedGate: (
+    highLevelNodeId: string,
+    gateId: string,
+    targetNodeId: string,
+    position: "before" | "after",
+  ) => void;
+  setHighLevelGateMember: (
+    highLevelNodeId: string,
+    gateId: string,
+    nodeId: string,
+    included: boolean,
+  ) => void;
   deleteHighLevelNodes: (ids: string[]) => void;
   addHighLevelEdge: (edge: HighLevelEdge) => void;
   deleteHighLevelEdge: (id: string) => void;
@@ -416,11 +508,65 @@ export interface WorkflowState {
 
 export const useWorkflowStore = create<WorkflowState>()(
   persist(
-    (set, get) => ({
+    (write, get) => {
+      const set = ((partial: Parameters<typeof write>[0], replace?: Parameters<typeof write>[1]) => {
+        const next = typeof partial === "function" ? partial(get()) : partial;
+        const collaboration = useCollaborationStore.getState();
+        if (
+          next &&
+          typeof next === "object" &&
+          "file" in next &&
+          !collaboration.isRemoteApplying &&
+          !canEditCollaborativeWorkflow(collaboration) &&
+          !isViewOnlyFileChange(get().file, next.file)
+        ) {
+          return;
+        }
+        if (replace === true) {
+          write(next as WorkflowState, true);
+        } else {
+          write(next as Partial<WorkflowState>);
+        }
+      }) as typeof write;
+
+      return ({
       file: createEmptyWorkspace(),
       workspaceOwnerId: "dev-bypass",
       authUser: null,
-      setAuthUser: (authUser) => set({ authUser }),
+      setAuthUser: (authUser) => {
+        const previous = get().authUser;
+        const accountChanged = previous?.id !== authUser?.id;
+        if ((accountChanged && previous) || (authUser && get().workspaceOwnerId !== authUser.id)) {
+          collaborationManager.leaveRoom();
+          if (typeof window !== "undefined") {
+            try {
+              const previousOwner = previous?.id ?? get().workspaceOwnerId;
+              if (previousOwner) localStorage.removeItem(`falcon_uploaded_files_${previousOwner}`);
+              localStorage.removeItem("falcon_uploaded_files");
+            } catch {
+              // API authorization remains mandatory even without local storage.
+            }
+          }
+          if (previous && typeof window !== "undefined" && window.location && window.history) {
+            const url = new URL(window.location.href);
+            for (const key of ["room", "editor", "executionNode", "condition"]) url.searchParams.delete(key);
+            window.history.replaceState(null, "", url);
+          }
+          get().resetWorkspace(authUser?.id);
+        }
+        // Retain the same object for an unchanged session so in-flight file
+        // requests can distinguish a real logout/account switch from a refresh.
+        set({ authUser: previous && authUser && previous.id === authUser.id &&
+          previous.email === authUser.email && previous.name === authUser.name
+          ? previous : authUser });
+        if (accountChanged && typeof window !== "undefined") {
+          try {
+            localStorage.setItem("workflow:account-changed", crypto.randomUUID());
+          } catch {
+            // Focus revalidation still handles disabled/full browser storage.
+          }
+        }
+      },
       activeProjectId: undefined,
       past: [],
       future: [],
@@ -445,7 +591,9 @@ export const useWorkflowStore = create<WorkflowState>()(
               // fallback adds Project Start for older workflow files, but it
               // must not recreate content in the blank starting state.
               file: normalized.file,
-              dirty: state.dirty || normalized.clearedDefault,
+              // Hydration migrations are not new user edits. A clean local
+              // cache must still yield to the saved cloud project on startup.
+              dirty: state.dirty,
             };
           } catch {
             // A malformed legacy field must never discard the user's entire
@@ -485,6 +633,18 @@ export const useWorkflowStore = create<WorkflowState>()(
           future: [],
           dirty: true,
           selection: { nodeIds: [] },
+          };
+        }),
+      applyCollaborativeFile: (file) =>
+        set(() => {
+          const normalized = normalizeLoadedWorkflow(file);
+          return {
+            file: normalized.file,
+            past: [],
+            future: [],
+            dirty: true,
+            selection: { nodeIds: [] },
+            highLevelSelection: { nodeIds: [] },
           };
         }),
       loadProject: (file, activeProjectId, workspaceOwnerId) =>
@@ -1043,7 +1203,25 @@ export const useWorkflowStore = create<WorkflowState>()(
         });
       },
       updateNode: (id, patch) => {
-        get().commit((file) => patchNode(file, id, patch));
+        const currentFile = get().file;
+        const currentNode = currentFile.graph.nodes.find((item) => item.id === id);
+        const completing = patch.conditions?.some((condition) => condition.checked &&
+          !currentNode?.conditions.find((item) => item.id === condition.id)?.checked);
+        const blocker = completing && sequentialExecutionBlocker(currentFile, id);
+        if (blocker) {
+          set({ deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] } });
+          return;
+        }
+        set((state) => {
+          const node = state.file.graph.nodes.find((item) => item.id === id);
+          if (!node) return state;
+          const key = textEditKey(node, patch);
+          const now = Date.now();
+          const group = Boolean(key && lastTextEdit?.key === key && lastTextEdit.file === state.file && now - lastTextEdit.at < 1200);
+          const file = patchNode(state.file, id, patch);
+          lastTextEdit = key ? { key, at: now, file } : undefined;
+          return { file, past: group ? state.past : appendHistory(state.past, state.file), future: [], dirty: true };
+        });
         broadcastIfLocal((senderId) => ({
           type: "PATCH_NODE",
           senderId,
@@ -1101,6 +1279,160 @@ export const useWorkflowStore = create<WorkflowState>()(
           patch: { conditions: nextConditions },
           timestamp: Date.now(),
         }));
+      },
+      addReleaseConditionLines: (input) => {
+        const added = parseReleaseConditionLines(input);
+        if (!added.length) return 0;
+        get().setReleaseConditionInbox([...(get().file.releaseConditionInbox ?? []), ...added]);
+        return added.length;
+      },
+      ensureReleaseConditionIds: () => {
+        const current = get().file;
+        const inboxNeedsIds = (current.releaseConditionInbox ?? []).some((condition) => !condition.id);
+        const chapterIds = current.graph.nodes.filter((node) => (node.type === "general" || node.type === "projectStart") && node.conditions.some((condition) => !condition.id)).map((node) => node.id);
+        if (!inboxNeedsIds && !chapterIds.length) return;
+        get().commitTransient((file) => ({
+          ...file,
+          releaseConditionInbox: (file.releaseConditionInbox ?? []).map((condition) => condition.id ? condition : { ...condition, id: `condition-${crypto.randomUUID()}` }),
+          graph: { ...file.graph, nodes: file.graph.nodes.map((node) => chapterIds.includes(node.id)
+            ? { ...node, conditions: node.conditions.map((condition) => condition.id ? condition : { ...condition, id: `condition-${crypto.randomUUID()}` }) }
+            : node) },
+        }));
+        const latest = get().file;
+        if (inboxNeedsIds) broadcastIfLocal((senderId) => ({
+          type: "PATCH_RELEASE_CONDITION_INBOX", senderId,
+          conditions: latest.releaseConditionInbox ?? [], timestamp: Date.now(),
+        }));
+        for (const nodeId of chapterIds) {
+          const node = latest.graph.nodes.find((item) => item.id === nodeId);
+          if (node) broadcastIfLocal((senderId) => ({
+            type: "PATCH_NODE", senderId, nodeId, patch: { conditions: node.conditions }, timestamp: Date.now(),
+          }));
+        }
+      },
+      importReleaseConditions: (rows) => {
+        const applied = applyReleaseConditionImport(get().file, rows);
+        if (applied.file === get().file) return applied.result;
+        get().commit(() => applied.file);
+        const latest = get().file;
+        if (applied.result.inboxChanged) broadcastIfLocal((senderId) => ({
+          type: "PATCH_RELEASE_CONDITION_INBOX", senderId,
+          conditions: latest.releaseConditionInbox ?? [], timestamp: Date.now(),
+        }));
+        for (const chapterId of applied.result.changedNodeIds) {
+          const node = latest.graph.nodes.find((item) => item.id === chapterId);
+          if (node) broadcastIfLocal((senderId) => ({
+            type: "PATCH_NODE", senderId, nodeId: chapterId,
+            patch: { conditions: node.conditions }, timestamp: Date.now(),
+          }));
+        }
+        return applied.result;
+      },
+      setReleaseConditionInbox: (conditions) => {
+        const previous = get().file.releaseConditionInbox ?? [];
+        if (JSON.stringify(previous) === JSON.stringify(conditions)) return;
+        get().commit((file) => {
+          const retainedItemIds = new Set([
+            ...conditions.map((condition) => condition.linkedExecutionItemId),
+            ...file.graph.nodes.flatMap((node) => node.conditions.map((condition) => condition.linkedExecutionItemId)),
+          ]);
+          const removedItemIds = new Set(previous
+            .map((condition) => condition.linkedExecutionItemId)
+            .filter((id) => id && !retainedItemIds.has(id)));
+          return {
+            ...file,
+            releaseConditionInbox: conditions,
+            execution: file.execution ? { ...file.execution, items: file.execution.items.filter((item) =>
+              !removedItemIds.has(item.id) || Boolean(item.catalogId)) } : file.execution,
+          };
+        });
+        broadcastIfLocal((senderId) => ({
+          type: "PATCH_RELEASE_CONDITION_INBOX", senderId, conditions, timestamp: Date.now(),
+        }));
+      },
+      moveNodeCondition: (sourceNodeId, sourceIndex, targetNodeId, targetIndex) => {
+        const previousFile = get().file;
+        set((state) => {
+          const fromInbox = sourceNodeId === RELEASE_CONDITION_INBOX_ID;
+          const toInbox = targetNodeId === RELEASE_CONDITION_INBOX_ID;
+          const source = state.file.graph.nodes.find((node) => node.id === sourceNodeId);
+          const target = state.file.graph.nodes.find((node) => node.id === targetNodeId);
+          const sourceConditionsAll = fromInbox ? state.file.releaseConditionInbox ?? [] : source?.conditions ?? [];
+          if ((!target && !toInbox) || !sourceConditionsAll[sourceIndex]) return state;
+          if (sourceNodeId === targetNodeId && sourceIndex === targetIndex) return state;
+          const original = sourceConditionsAll[sourceIndex];
+          if (original.locked && !(original.id === "project-id-required" && source?.type === "projectStart" && sourceNodeId === targetNodeId)) return state;
+          const documentFields = { ...original.unassignedDocumentFields };
+          const sourceFields = { ...source?.customFields };
+          const suffix = `::release-condition::${original.id?.trim() || "default"}`;
+          if (sourceNodeId !== targetNodeId && !fromInbox) {
+            for (const [key, value] of Object.entries(sourceFields)) {
+              if (key.endsWith(suffix)) {
+                documentFields[key] = value;
+                delete sourceFields[key];
+              }
+            }
+            if (sourceIndex === 0) {
+              for (const field of ["legalDocuments", "customerDocuments", "supportingDocuments"]) {
+                if (sourceFields[field] !== undefined) {
+                  documentFields[`${field}${suffix}`] ??= sourceFields[field];
+                  delete sourceFields[field];
+                }
+              }
+            }
+          }
+          const { unassignedDocumentFields: _parkedFields, ...condition } = original;
+          void _parkedFields;
+          const moved = toInbox ? { ...condition, unassignedDocumentFields: documentFields } : condition;
+          const sourceConditions = sourceConditionsAll.filter((_, index) => index !== sourceIndex);
+          const targetConditions = sourceNodeId === targetNodeId
+            ? sourceConditions
+            : toInbox ? [...(state.file.releaseConditionInbox ?? [])] : [...target!.conditions];
+          targetConditions.splice(Math.max(0, Math.min(targetIndex, targetConditions.length)), 0, moved);
+          const nodes = state.file.graph.nodes.map((node) => node.id === sourceNodeId
+            ? { ...node, conditions: sourceNodeId === targetNodeId ? targetConditions : sourceConditions,
+              ...(sourceNodeId !== targetNodeId ? { customFields: sourceFields } : {}) }
+            : node.id === targetNodeId && !toInbox ? { ...node, conditions: targetConditions,
+              customFields: { ...node.customFields, ...documentFields } } : node);
+          const relocatePredecessor = (item: Condition): Condition =>
+            sourceNodeId !== targetNodeId && original.id && item.predecessor?.nodeId === sourceNodeId && item.predecessor.conditionId === original.id
+              ? { ...item, predecessor: { ...item.predecessor, nodeId: targetNodeId } } : item;
+          const relocatedNodes = nodes.map((node) => {
+            const conditions = node.conditions.map(relocatePredecessor);
+            return conditions.some((condition, index) => condition !== node.conditions[index]) ? { ...node, conditions } : node;
+          });
+          const nextInbox = toInbox ? targetConditions : fromInbox ? sourceConditions : state.file.releaseConditionInbox;
+          const execution = state.file.execution;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: normalizePreviousPhaseDependencies({
+              ...state.file,
+              releaseConditionInbox: nextInbox?.map(relocatePredecessor),
+              graph: { ...state.file.graph, nodes: relocatedNodes },
+              execution: execution && moved.linkedExecutionItemId && sourceNodeId !== targetNodeId
+                ? { ...execution, items: execution.items.map((item) => item.id === moved.linkedExecutionItemId
+                  ? { ...item, linkedLayer2NodeId: targetNodeId } : item) }
+                : execution,
+            }),
+            future: [], dirty: true,
+          };
+        });
+        if (get().file !== previousFile) {
+          if (sourceNodeId === RELEASE_CONDITION_INBOX_ID || targetNodeId === RELEASE_CONDITION_INBOX_ID ||
+            JSON.stringify(previousFile.releaseConditionInbox) !== JSON.stringify(get().file.releaseConditionInbox)) {
+            broadcastIfLocal((senderId) => ({
+              type: "PATCH_RELEASE_CONDITION_INBOX", senderId,
+              conditions: get().file.releaseConditionInbox ?? [], timestamp: Date.now(),
+            }));
+          }
+          const changedIds = get().file.graph.nodes.filter((node) => node !== previousFile.graph.nodes.find((previous) => previous.id === node.id)).map((node) => node.id);
+          for (const nodeId of new Set([sourceNodeId, targetNodeId, ...changedIds])) {
+            const node = get().file.graph.nodes.find((node) => node.id === nodeId);
+            if (node) broadcastIfLocal((senderId) => ({
+              type: "PATCH_NODE", senderId, nodeId, patch: { conditions: node.conditions, customFields: node.customFields }, timestamp: Date.now(),
+            }));
+          }
+        }
       },
       deleteNodes: (ids) => {
         if (!ids.length) return;
@@ -1253,6 +1585,8 @@ export const useWorkflowStore = create<WorkflowState>()(
         set((state) => {
           const nodes = { ...state.file.layout.nodes };
           let changed = false;
+          let positionChanged = false;
+          const movedIds = new Set<string>();
           for (const [id, patch] of Object.entries(patches)) {
             const current = nodes[id];
             if (!current) continue;
@@ -1264,13 +1598,23 @@ export const useWorkflowStore = create<WorkflowState>()(
             ) {
               nodes[id] = next;
               changed = true;
+              positionChanged ||= next.x !== current.x || next.y !== current.y;
+              if (next.x !== current.x || next.y !== current.y) movedIds.add(id);
             }
           }
           return changed
             ? {
+                dirty: state.dirty || positionChanged,
                 file: {
                   ...state.file,
-                  layout: { ...state.file.layout, nodes },
+                  layout: {
+                    ...state.file.layout,
+                    nodes,
+                    edges: positionChanged ? Object.fromEntries(Object.entries(state.file.layout.edges ?? {}).map(([id, route]) => {
+                      const edge = state.file.graph.edges.find((item) => item.id === id);
+                      return [id, edge && (movedIds.has(edge.source) || movedIds.has(edge.target)) ? { ...route, points: [] } : route];
+                    })) : state.file.layout.edges,
+                  },
                 },
               }
             : state;
@@ -1396,17 +1740,19 @@ export const useWorkflowStore = create<WorkflowState>()(
                   highLevel,
                   id,
                   patch.linkedLayer2NodeIds,
+                  state.file.graph.nodes,
                 ),
                 linkedDetailedNodeIds: normalizeHighLevelLayer2Links(
                   highLevel,
                   id,
                   patch.linkedLayer2NodeIds,
+                  state.file.graph.nodes,
                 ),
               }
             : patch;
           return {
             past: appendHistory(state.past, state.file),
-            file: {
+            file: normalizePreviousPhaseDependencies({
               ...state.file,
               highLevel: {
                 ...highLevel,
@@ -1417,7 +1763,57 @@ export const useWorkflowStore = create<WorkflowState>()(
                   ),
                 },
               },
-            },
+            }),
+            future: [],
+            dirty: true,
+          };
+        }),
+      reorderHighLevelLinkedNodes: (highLevelNodeId, draggedNodeId, targetNodeId) =>
+        set((state) => {
+          const nextFile = reorderLinkedWorkflowNodes(
+            state.file,
+            highLevelNodeId,
+            draggedNodeId,
+            targetNodeId,
+          );
+          if (nextFile === state.file) return state;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: nextFile,
+            future: [],
+            dirty: true,
+          };
+        }),
+      reorderHighLevelLinkedGate: (highLevelNodeId, gateId, targetNodeId, position) =>
+        set((state) => {
+          const nextFile = reorderLinkedWorkflowGate(
+            state.file,
+            highLevelNodeId,
+            gateId,
+            targetNodeId,
+            position,
+          );
+          if (nextFile === state.file) return state;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: nextFile,
+            future: [],
+            dirty: true,
+          };
+        }),
+      setHighLevelGateMember: (highLevelNodeId, gateId, nodeId, included) =>
+        set((state) => {
+          const nextFile = setLinkedWorkflowGateMember(
+            state.file,
+            highLevelNodeId,
+            gateId,
+            nodeId,
+            included,
+          );
+          if (nextFile === state.file) return state;
+          return {
+            past: appendHistory(state.past, state.file),
+            file: nextFile,
             future: [],
             dirty: true,
           };
@@ -1582,6 +1978,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           const execution = state.file.execution;
           const current = execution?.items.find((item) => item.id === id);
           if (!execution || !current) return state;
+          const blocker = patch.checklistComplete === true && !current.checklistComplete &&
+            sequentialExecutionBlocker(state.file, patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId);
+          if (blocker) return { deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] } };
           if (
             patch.linkedLayer2NodeId !== undefined &&
             !state.file.graph.nodes.some(
@@ -1901,7 +2300,8 @@ export const useWorkflowStore = create<WorkflowState>()(
               : { validationOpen: !state.validationOpen },
         ),
       setSearch: (search) => set({ search }),
-    }),
+      });
+    },
     {
       name: "project-workflow-builder:v43-no-default-workspace",
       storage: debouncedJSONStorage(),
@@ -1916,3 +2316,9 @@ export const useWorkflowStore = create<WorkflowState>()(
     },
   ),
 );
+
+useWorkflowStore.subscribe((state, previousState) => {
+  if (state.file === previousState.file) return;
+  if (useCollaborationStore.getState().isRemoteApplying) return;
+  collaborationManager.scheduleFullStateSync(state.file);
+});

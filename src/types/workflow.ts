@@ -156,11 +156,25 @@ export interface DocumentConfig {
 export interface Condition {
   id?: string;
   label?: string;
+  displayDate?: string;
+  duration?: number;
+  durationUnit?: "days" | "weeks";
+  /** Start this many whole days after the phase begins when no predecessor is selected. */
+  startOffsetDays?: number;
+  predecessor?: {
+    nodeId: string;
+    conditionId: string;
+    /** Legacy dependencies default to finish-to-start with no delay. */
+    relation?: "start" | "finish";
+    lagDays?: number;
+  };
   required?: boolean;
   checked?: boolean;
   locked?: boolean;
   /** The L3 form that supplies evidence for this release condition. */
   linkedExecutionItemId?: string;
+  /** Per-condition L3 documents retained while this condition is unassigned. */
+  unassignedDocumentFields?: Record<string, string | number | boolean>;
   expression?: string;
   description?: string;
 }
@@ -174,6 +188,8 @@ export interface DomainNode {
   icon?: string;
   metadata: Record<string, string>;
   conditions: Condition[];
+  /** Supplemental conditions are documented in L3/PDF and do not enter the Gantt schedule. */
+  optionalConditions?: Condition[];
   documents: string[];
   criteria: string[];
   customFields: Record<string, string | number | boolean>;
@@ -209,6 +225,7 @@ export interface DomainNode {
     collapsed?: boolean;
     locked?: boolean;
     serviceType?: string;
+    chapterNumber?: string;
     buildingCode?: string;
     moduleCode?: string;
     paidServiceType?: unknown;
@@ -503,6 +520,8 @@ export const createEmptyExecutionLayer = (): ExecutionLayer => ({
 export interface WorkflowFile {
   graph: WorkflowGraph;
   layout: CanvasLayout;
+  /** Conditions drafted before they are assigned to an L2 chapter. */
+  releaseConditionInbox?: Condition[];
   highLevel?: HighLevelWorkflow;
   execution?: ExecutionLayer;
   operations?: import("@/types/project-operations").ProjectOperations;

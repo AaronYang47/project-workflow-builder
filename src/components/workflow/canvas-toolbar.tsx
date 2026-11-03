@@ -1,12 +1,15 @@
 "use client";
 
+import { useMemo } from "react";
+import { validateWorkflow } from "@/lib/validation";
 import { PanelBottomOpen } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 
 export function CanvasToolbar({ className }: { className?: string }) {
   const togglePanel = useWorkflowStore((state) => state.togglePanel);
-  const issues = useWorkflowStore((state) => state.issues);
+  const file = useWorkflowStore((state) => state.file);
+  const issueCount = useMemo(() => validateWorkflow(file).length, [file]);
 
   return (
     <div
@@ -22,9 +25,9 @@ export function CanvasToolbar({ className }: { className?: string }) {
       >
         <PanelBottomOpen className="size-3.5" />
         Validation
-        {issues.length ? (
+        {issueCount ? (
           <span className="rounded-full bg-destructive px-1.5 text-[9px] text-white">
-            {issues.length}
+            {issueCount}
           </span>
         ) : null}
       </button>

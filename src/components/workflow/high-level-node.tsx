@@ -1,20 +1,23 @@
 "use client";
 
-import { memo, type CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   Boxes,
   CircleCheck,
   Factory,
   Flag,
+  GripVertical,
   Layers3,
   Milestone,
+  Pencil,
   Ruler,
   ShieldCheck,
   Truck,
   Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { PhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import type { HighLevelNodeType } from "@/types/workflow";
 
 export type HighLevelFlowNode = Node<
@@ -25,9 +28,13 @@ export type HighLevelFlowNode = Node<
     backgroundColor?: string;
     type: HighLevelNodeType;
     linkedDetailedNodeIds?: string[];
-    linkedLayer2Nodes?: Array<{ id: string; title: string }>;
+    linkedLayer2Nodes?: Array<{ id: string; title: string; chapterTitle: string; gate?: { id: string; title: string }; conditionLabels: string[]; phaseGradientColors?: PhaseGradientColors }>;
+    availableGates?: Array<{ id: string; title: string; eligibleNodeIds: string[] }>;
     onLinkedLayer2NodeClick?: (id: string) => void;
     onViewAllLinkedLayer2Nodes?: () => void;
+    onReorderLinkedLayer2Nodes?: (draggedId: string, targetId: string) => void;
+    onReorderLinkedLayer2Gate?: (gateId: string, targetId: string, position: "before" | "after") => void;
+    onSetLinkedLayer2GateMember?: (gateId: string, nodeId: string, included: boolean) => void;
   },
   HighLevelNodeType
 >;
@@ -123,6 +130,73 @@ function getHighLevelVisual(type: HighLevelNodeType, title: string) {
 }
 
 function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
+  const linkedNodeListRef = useRef<HTMLDivElement | null>(null);
+  const [dragVisual, setDragVisual] = useState<{
+    nodeId: string;
+    deltaY: number;
+    targetId?: string;
+    sourceIndex: number;
+    targetIndex: number;
+    rowStep: number;
+  } | null>(null);
+  const [gateDragVisual, setGateDragVisual] = useState<{ gateId: string; deltaY: number; targetId?: string } | null>(null);
+  const dragFrame = useRef<number | null>(null);
+  const gateDragFrame = useRef<number | null>(null);
+  const pendingDragVisual = useRef<typeof dragVisual>(null);
+  const pendingGateDragVisual = useRef<typeof gateDragVisual>(null);
+  const [openGateEditor, setOpenGateEditor] = useState<string | null>(null);
+  const linkedGateDrag = useRef<{
+    gateId: string;
+    pointerId: number;
+    startY: number;
+    sourceTop: number;
+    sourceBottom: number;
+    candidates: Array<{ id: string; centerY: number }>;
+    targetId?: string;
+    position: "before" | "after";
+  } | null>(null);
+  const linkedNodeDrag = useRef<{
+    nodeId: string;
+    pointerId: number;
+    startY: number;
+    sourceIndex: number;
+    rowStep: number;
+    rowCenters: Array<{ id: string; y: number }>;
+    active: boolean;
+    targetId?: string;
+  } | null>(null);
+  const queueDragVisual = (next: NonNullable<typeof dragVisual>) => {
+    pendingDragVisual.current = next;
+    if (dragFrame.current !== null) return;
+    dragFrame.current = requestAnimationFrame(() => {
+      dragFrame.current = null;
+      setDragVisual(pendingDragVisual.current);
+    });
+  };
+  const clearDragVisual = () => {
+    if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+    dragFrame.current = null;
+    pendingDragVisual.current = null;
+    setDragVisual(null);
+  };
+  const queueGateDragVisual = (next: NonNullable<typeof gateDragVisual>) => {
+    pendingGateDragVisual.current = next;
+    if (gateDragFrame.current !== null) return;
+    gateDragFrame.current = requestAnimationFrame(() => {
+      gateDragFrame.current = null;
+      setGateDragVisual(pendingGateDragVisual.current);
+    });
+  };
+  const clearGateDragVisual = () => {
+    if (gateDragFrame.current !== null) cancelAnimationFrame(gateDragFrame.current);
+    gateDragFrame.current = null;
+    pendingGateDragVisual.current = null;
+    setGateDragVisual(null);
+  };
+  useEffect(() => () => {
+    if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+    if (gateDragFrame.current !== null) cancelAnimationFrame(gateDragFrame.current);
+  }, []);
   const visual = getHighLevelVisual(data.type, data.title);
   const code = data.code?.trim() || visual.code;
   const nodeColor = data.type === "phase" || data.type === "start" || data.type === "end"
@@ -130,11 +204,32 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
     : undefined;
   const VisualIcon = visual.Icon;
   const linkedNodes = data.linkedLayer2Nodes || [];
+  const gateMemberCounts = new Map<string, number>();
+  for (const node of linkedNodes) {
+    if (node.gate) gateMemberCounts.set(node.gate.id, (gateMemberCounts.get(node.gate.id) ?? 0) + 1);
+  }
+  const linkedGroups = linkedNodes.reduce<Array<{
+    gate?: { id: string; title: string };
+    nodes: Array<{ node: (typeof linkedNodes)[number]; index: number }>;
+  }>>((groups, node, index) => {
+    const previous = groups[groups.length - 1];
+    if (previous && previous.gate?.id === node.gate?.id) {
+      previous.nodes.push({ node, index });
+    } else {
+      groups.push({ gate: node.gate, nodes: [{ node, index }] });
+    }
+    return groups;
+  }, []);
+  for (const gate of data.availableGates ?? []) {
+    if (!linkedGroups.some((group) => group.gate?.id === gate.id)) {
+      linkedGroups.push({ gate: { id: gate.id, title: gate.title }, nodes: [] });
+    }
+  }
   const linkedNodeList = linkedNodes.length ? (
-    <div className="nodrag mt-3 border-t pt-2.5" style={{ borderColor: nodeColor ? `rgb(var(--node-glass-tint) / 24%)` : "var(--border)" }}>
+    <div ref={linkedNodeListRef} className="nodrag mt-3 border-t pt-2.5" style={{ borderColor: nodeColor ? `rgb(var(--node-glass-tint) / 24%)` : "var(--border)" }}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Linked workflow nodes
+          Linked Departments
         </p>
         <span
           className="rounded-full px-2 py-0.5 text-[9px] font-bold border"
@@ -151,22 +246,189 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
           {linkedNodes.length}
         </span>
       </div>
+      {linkedNodes.some((item) => item.conditionLabels.length) ? (
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {linkedNodes.reduce((count, item) => count + item.conditionLabels.length, 0)} release conditions across linked Departments
+        </p>
+      ) : null}
       <div className="mt-2 space-y-1.5">
-        {linkedNodes.map((linkedNode, index) => (
-          <div key={linkedNode.id}>
+        {linkedGroups.map((group, groupIndex) => (
+          <div key={`${group.gate?.id ?? "ungated"}-${group.nodes[0]?.node.id ?? "empty"}`}>
             <div
-              className="flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 shadow-2xs transition-all hover:border-primary/40"
+              data-linked-gate-id={group.gate?.id}
+              data-gate-dragging={gateDragVisual?.gateId === group.gate?.id || undefined}
+              aria-label={group.gate ? `${group.gate.title} Gate frame` : undefined}
+              className={cn(
+                group.gate && "rounded-lg",
+                gateDragVisual?.gateId === group.gate?.id && "opacity-70",
+              )}
               style={{
+                transform: gateDragVisual && group.gate && gateDragVisual.gateId === group.gate.id
+                  ? `translateY(${gateDragVisual.deltaY}px)`
+                  : undefined,
+                position: gateDragVisual && group.gate && gateDragVisual.gateId === group.gate.id ? "relative" : undefined,
+                zIndex: gateDragVisual && group.gate && gateDragVisual.gateId === group.gate.id ? 30 : undefined,
+              }}
+            >
+            {group.gate ? (
+              <div className="mb-1.5 flex items-center gap-1.5 px-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-300">
+                <ShieldCheck aria-hidden className="size-3.5 shrink-0" />
+                <span className="min-w-0 truncate">{group.gate.title}</span>
+                <span className="ml-auto shrink-0 font-medium opacity-80">
+                  Gate · {group.nodes.length}{group.nodes.length < (gateMemberCounts.get(group.gate.id) ?? 0)
+                    ? ` of ${gateMemberCounts.get(group.gate.id)}`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Edit ${group.gate.title} Gate members`}
+                  aria-expanded={openGateEditor === group.gate.id}
+                  title="Add or remove linked workflow nodes"
+                  className="nodrag flex size-5 shrink-0 items-center justify-center rounded border border-violet-500/40 hover:bg-violet-500/20"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpenGateEditor((current) => current === group.gate!.id ? null : group.gate!.id);
+                  }}
+                >
+                  <Pencil aria-hidden className="size-3" />
+                </button>
+                {group.nodes.length === gateMemberCounts.get(group.gate.id) && linkedNodes.length > group.nodes.length ? (
+                  <button
+                    type="button"
+                    data-gate-reorder-handle
+                    aria-label={`Drag ${group.gate.title} Gate group to reorder`}
+                    title="Drag this Gate and its linked workflow nodes"
+                    className={cn("nodrag flex size-5 shrink-0 touch-none cursor-grab items-center justify-center rounded border border-violet-500/40 hover:bg-violet-500/20 active:cursor-grabbing", gateDragVisual?.gateId === group.gate.id && "cursor-grabbing bg-violet-500/20")}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const sourceRect = event.currentTarget.closest<HTMLElement>("[data-linked-gate-id]")?.getBoundingClientRect();
+                      const candidates = Array.from(linkedNodeListRef.current
+                        ?.querySelectorAll<HTMLElement>("[data-linked-workflow-node-id]") ?? [])
+                        .filter((row) => !linkedNodes.some((node) =>
+                          node.id === row.dataset.linkedWorkflowNodeId && node.gate?.id === group.gate!.id))
+                        .map((row) => {
+                          const rect = row.getBoundingClientRect();
+                          return { id: row.dataset.linkedWorkflowNodeId!, centerY: rect.top + rect.height / 2 };
+                        });
+                      linkedGateDrag.current = {
+                        gateId: group.gate!.id,
+                        pointerId: event.pointerId,
+                        startY: event.clientY,
+                        sourceTop: sourceRect?.top ?? event.clientY,
+                        sourceBottom: sourceRect?.bottom ?? event.clientY,
+                        candidates,
+                        position: "before",
+                      };
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                    }}
+                    onPointerMove={(event) => {
+                      const drag = linkedGateDrag.current;
+                      if (!drag || drag.pointerId !== event.pointerId) return;
+                      event.stopPropagation();
+                      const beyondGroup = event.clientY < drag.sourceTop - 8 || event.clientY > drag.sourceBottom + 8;
+                      const target = beyondGroup && drag.candidates.length
+                        ? drag.candidates.reduce((nearest, candidate) =>
+                            Math.abs(candidate.centerY - event.clientY) < Math.abs(nearest.centerY - event.clientY)
+                              ? candidate : nearest)
+                        : undefined;
+                      drag.targetId = target?.id;
+                      if (target) drag.position = event.clientY > target.centerY ? "after" : "before";
+                      queueGateDragVisual({ gateId: drag.gateId, deltaY: event.clientY - drag.startY, targetId: drag.targetId });
+                    }}
+                    onPointerUp={(event) => {
+                      const drag = linkedGateDrag.current;
+                      if (!drag || drag.pointerId !== event.pointerId) return;
+                      event.stopPropagation();
+                      if (drag.targetId) data.onReorderLinkedLayer2Gate?.(drag.gateId, drag.targetId, drag.position);
+                      linkedGateDrag.current = null;
+                      clearGateDragVisual();
+                    }}
+                    onPointerCancel={(event) => {
+                      event.stopPropagation();
+                      linkedGateDrag.current = null;
+                      clearGateDragVisual();
+                    }}
+                  >
+                    <GripVertical aria-hidden className="size-3" />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {group.gate && openGateEditor === group.gate.id ? (
+              <div
+                className="nodrag mb-2 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-violet-500/30 bg-card/95 p-2 text-[10px]"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <p className="pb-1 font-semibold text-violet-700 dark:text-violet-300">Gate members</p>
+                {linkedNodes.filter((candidate) => data.availableGates
+                  ?.find((gate) => gate.id === group.gate!.id)
+                  ?.eligibleNodeIds.includes(candidate.id)).map((candidate) => {
+                  const checked = candidate.gate?.id === group.gate!.id;
+                  return (
+                    <label key={candidate.id} className="flex cursor-pointer items-start gap-1.5 rounded px-1 py-1 hover:bg-violet-500/10">
+                      <input
+                        type="checkbox"
+                        aria-label={`${checked ? "Remove" : "Add"} ${candidate.title} ${checked ? "from" : "to"} ${group.gate!.title}`}
+                        checked={checked}
+                        onChange={() => data.onSetLinkedLayer2GateMember?.(group.gate!.id, candidate.id, !checked)}
+                        className="mt-0.5 accent-violet-600"
+                      />
+                      <span className="min-w-0 truncate" title={candidate.title}>{candidate.title}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : null}
+            {group.nodes.map(({ node: linkedNode, index }, groupNodeIndex) => (
+          <div
+            key={linkedNode.id}
+            data-linked-workflow-row={linkedNode.id}
+            className={cn("relative", dragVisual?.nodeId === linkedNode.id ? "transition-none" : "transition-transform duration-150")}
+            style={{
+              transform: dragVisual?.nodeId === linkedNode.id
+                ? `translateY(${dragVisual.deltaY}px)`
+                : dragVisual && dragVisual.sourceIndex < dragVisual.targetIndex &&
+                    index > dragVisual.sourceIndex && index <= dragVisual.targetIndex
+                  ? `translateY(-${dragVisual.rowStep}px)`
+                  : dragVisual && dragVisual.targetIndex < dragVisual.sourceIndex &&
+                      index >= dragVisual.targetIndex && index < dragVisual.sourceIndex
+                    ? `translateY(${dragVisual.rowStep}px)`
+                    : undefined,
+              zIndex: dragVisual?.nodeId === linkedNode.id ? 20 : undefined,
+              willChange: dragVisual?.nodeId === linkedNode.id ? "transform" : undefined,
+            }}
+          >
+            <div
+              data-linked-workflow-node-id={linkedNode.id}
+              aria-label={`Reorder ${linkedNode.title}`}
+              data-dragging={dragVisual?.nodeId === linkedNode.id || undefined}
+              data-drop-target={dragVisual?.targetId === linkedNode.id || undefined}
+              onPointerDown={(event) => event.stopPropagation()}
+              className={cn(
+                "nodrag flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 shadow-2xs transition-[background-color,border-color,box-shadow,opacity] duration-200 hover:border-primary/40 hover:bg-primary/[0.025]",
+                (dragVisual?.targetId === linkedNode.id || gateDragVisual?.targetId === linkedNode.id) && "!border-primary bg-primary/[0.10] ring-2 ring-primary/20 shadow-md",
+                dragVisual?.nodeId === linkedNode.id && "!border-primary bg-primary/[0.12] opacity-65 shadow-lg",
+              )}
+              style={{
+                backgroundImage: linkedNode.phaseGradientColors
+                  ? `linear-gradient(90deg, color-mix(in srgb, ${linkedNode.phaseGradientColors.left} 24%, transparent), color-mix(in srgb, ${linkedNode.phaseGradientColors.right} 24%, transparent))`
+                  : undefined,
                 backgroundColor: nodeColor
                   ? "color-mix(in srgb, var(--card) 92%, rgb(var(--node-glass-tint)) 8%)"
                   : "var(--card)",
                 borderColor: nodeColor
-                  ? "rgb(var(--node-glass-tint) / 25%)"
+                  ? linkedNode.phaseGradientColors
+                    ? `color-mix(in srgb, ${linkedNode.phaseGradientColors.left} 50%, ${linkedNode.phaseGradientColors.right})`
+                    : "rgb(var(--node-glass-tint) / 25%)"
                   : "var(--border)",
               }}
             >
               <span
-                className="flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold border"
+                title={linkedNode.chapterTitle}
+                aria-label={linkedNode.chapterTitle}
+                className="flex w-7 shrink-0 flex-col items-center justify-center rounded-md border py-1 text-[7px] font-bold leading-[1.05] tracking-tight"
                 style={{
                   backgroundColor: nodeColor
                     ? "rgb(var(--node-glass-tint) / 20%)"
@@ -177,11 +439,83 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
                   color: "var(--foreground)",
                 }}
               >
-                {index + 1}
+                <>
+                  <span>CH</span>
+                  <span>{linkedNode.chapterTitle.match(/^chapter\s+(.+)$/i)?.[1] ?? linkedNode.chapterTitle}</span>
+                </>
               </span>
               <button
                 type="button"
-                className="nodrag min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors"
+                data-reorder-handle
+                aria-label={`Drag to reorder ${linkedNode.title}`}
+                title="Drag to reorder"
+                className={cn("nodrag flex size-5 shrink-0 touch-none items-center justify-center rounded-md text-muted-foreground/70 cursor-grab hover:bg-primary/10 hover:text-primary active:cursor-grabbing", dragVisual?.nodeId === linkedNode.id && "cursor-grabbing bg-primary/15 text-primary")}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const rows = Array.from(linkedNodeListRef.current
+                    ?.querySelectorAll<HTMLElement>("[data-linked-workflow-row]") ?? []);
+                  const row = event.currentTarget.closest<HTMLElement>("[data-linked-workflow-row]");
+                  const rect = row?.getBoundingClientRect();
+                  const sourceIndex = linkedNodes.findIndex((node) => node.id === linkedNode.id);
+                  linkedNodeDrag.current = {
+                    nodeId: linkedNode.id,
+                    pointerId: event.pointerId,
+                    startY: event.clientY,
+                    sourceIndex,
+                    rowStep: (rect?.height ?? 32) + 6,
+                    rowCenters: rows.map((item) => {
+                      const bounds = item.getBoundingClientRect();
+                      return { id: item.dataset.linkedWorkflowRow!, y: bounds.top + bounds.height / 2 };
+                    }),
+                    active: false,
+                  };
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  const drag = linkedNodeDrag.current;
+                  if (!drag || drag.pointerId !== event.pointerId) return;
+                  event.stopPropagation();
+                  if (!drag.active && Math.abs(event.clientY - drag.startY) < 4) return;
+                  drag.active = true;
+                  const target = drag.rowCenters.reduce((nearest, item) =>
+                    Math.abs(item.y - event.clientY) < Math.abs(nearest.y - event.clientY) ? item : nearest,
+                  );
+                  const targetIndex = linkedNodes.findIndex((node) => node.id === target.id);
+                  drag.targetId = target.id;
+                  queueDragVisual({
+                    nodeId: drag.nodeId,
+                    deltaY: event.clientY - drag.startY,
+                    targetId: target.id,
+                    sourceIndex: drag.sourceIndex,
+                    targetIndex,
+                    rowStep: drag.rowStep,
+                  });
+                }}
+                onPointerUp={(event) => {
+                  const drag = linkedNodeDrag.current;
+                  if (!drag || drag.pointerId !== event.pointerId) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (drag.active && drag.targetId && drag.targetId !== drag.nodeId) {
+                    data.onReorderLinkedLayer2Nodes?.(drag.nodeId, drag.targetId);
+                  }
+                  linkedNodeDrag.current = null;
+                  clearDragVisual();
+                }}
+                onPointerCancel={(event) => {
+                  event.stopPropagation();
+                  linkedNodeDrag.current = null;
+                  clearDragVisual();
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <GripVertical aria-hidden className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="nodrag min-w-0 flex-1 whitespace-normal break-words text-left text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors"
                 onClick={(event) => {
                   event.stopPropagation();
                   data.onLinkedLayer2NodeClick?.(linkedNode.id);
@@ -191,11 +525,26 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
               >
                 {linkedNode.title}
               </button>
+              {linkedNode.conditionLabels.length ? (
+                <span
+                  title={linkedNode.conditionLabels.join("\n")}
+                  aria-label={`${linkedNode.conditionLabels.length} release conditions: ${linkedNode.conditionLabels.join(", ")}`}
+                  className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary"
+                >
+                  RC {linkedNode.conditionLabels.length}
+                </span>
+              ) : null}
             </div>
-            {index < linkedNodes.length - 1 ? (
+            {groupNodeIndex < group.nodes.length - 1 ? (
               <span aria-hidden className="block py-0.5 text-center text-[9px] font-bold text-muted-foreground/60">
                 ↓
               </span>
+            ) : null}
+          </div>
+            ))}
+            </div>
+            {groupIndex < linkedGroups.length - 1 ? (
+              <span aria-hidden className="block pt-1.5 text-center text-[9px] font-bold text-muted-foreground/60">↓</span>
             ) : null}
           </div>
         ))}

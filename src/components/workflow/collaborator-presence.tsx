@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, Copy, Link2, Sparkles, Users, User } from "lucide-react";
+import { Users, User } from "lucide-react";
 import {
   DEFAULT_COLLAB_PEER_ID,
+  canEditCollaborativeWorkflow,
   getRandomCollaborator,
   useCollaborationStore,
 } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
-import { Button } from "@/components/ui/button";
+import { useWorkflowStore } from "@/store/workflow-store";
 import { useCurrentTime } from "@/lib/use-current-time";
 
 const PRESET_COLORS = [
@@ -24,9 +25,11 @@ const PRESET_COLORS = [
 ];
 
 export function CollaboratorPresence() {
-  const { roomId, isConnected, localUser, remotePeers, setLocalUser, setRoomId } =
+  const { roomId, isConnected, editorPeerId, localUser, remotePeers, setLocalUser, setRoomId, setEditControl } =
     useCollaborationStore();
-  const [copied, setCopied] = useState(false);
+  const authUser = useWorkflowStore((state) => state.authUser);
+  const projectName = useWorkflowStore((state) => state.file.graph.metadata.name);
+  const activeProjectId = useWorkflowStore((state) => state.activeProjectId);
   const [editingName, setEditingName] = useState(localUser.name);
   const now = useCurrentTime();
 
@@ -39,69 +42,59 @@ export function CollaboratorPresence() {
       if (cancelled) return;
 
       const state = useCollaborationStore.getState();
+      // A browser profile can open multiple tabs. Keep one transport identity
+      // per tab across route changes, rather than sharing the persisted ID.
+      const peerId = sessionStorage.getItem("workflow-collab-peer-id") ||
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random()}`);
+      sessionStorage.setItem("workflow-collab-peer-id", peerId);
       if (state.localUser.peerId === DEFAULT_COLLAB_PEER_ID) {
-        const generated = getRandomCollaborator();
-        state.setLocalUser({
-          peerId:
-            typeof crypto !== "undefined" && crypto.randomUUID
-              ? crypto.randomUUID().slice(0, 8)
-              : DEFAULT_COLLAB_PEER_ID,
-          ...generated,
-        });
+        state.setLocalUser({ peerId, ...getRandomCollaborator() });
+      } else if (state.localUser.peerId !== peerId) {
+        state.setLocalUser({ peerId });
       }
+      if (!state.localUser.joinedAt) state.setLocalUser({ joinedAt: Date.now() });
 
       const roomParam =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("room")
           : null;
-      if (!roomParam) {
+      const editorParam =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("editor")
+          : null;
+      const projectRoomId = activeProjectId ? `project-${activeProjectId}` : null;
+      const roomToJoin = roomParam || projectRoomId;
+      if (!roomToJoin) {
+        collaborationManager.leaveRoom();
         setRoomId("local-only");
+        setEditControl(useCollaborationStore.getState().localUser.peerId, true);
         state.setIsConnected(false);
         return;
       }
-      setRoomId(roomParam);
-
-      // Keep the mobile browser focused on the workflow editor. WebRTC mesh
-      // setup opens several relay connections and can exhaust WebKit's page
-      // process on smaller devices before the first frame is painted.
-      if (
-        typeof window !== "undefined" &&
-        window.matchMedia("(max-width: 767px)").matches
-      ) {
-        state.setIsConnected(false);
-        return;
-      }
-
-      collaborationManager.initRoom(roomParam);
+      setRoomId(roomToJoin);
+      collaborationManager.initRoom(roomToJoin, editorParam ?? undefined);
     };
 
     void initializeCollaboration();
     return () => {
       cancelled = true;
     };
-  }, [setRoomId]);
+  }, [activeProjectId, setEditControl, setRoomId]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const preferredName = localUser.name.includes(" #") ? authUser.name : localUser.name;
+    if (localUser.userId !== authUser.id || localUser.name !== preferredName) {
+      setLocalUser({ userId: authUser.id, name: preferredName });
+    }
+  }, [authUser, localUser.name, localUser.userId, setLocalUser]);
 
   const peersList = Object.values(remotePeers).filter(
     (p) => now - p.lastActiveAt < 30000,
   );
   const totalUsers = 1 + peersList.length;
-
-  const copyShareLink = () => {
-    if (typeof window === "undefined") return;
-    const sharedRoomId =
-      roomId && roomId !== "local-only"
-        ? roomId
-        : `project-${crypto.randomUUID().slice(0, 8)}`;
-    if (sharedRoomId !== roomId) {
-      setRoomId(sharedRoomId);
-      collaborationManager.initRoom(sharedRoomId);
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", sharedRoomId);
-    navigator.clipboard.writeText(url.toString());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleNameBlur = () => {
     const trimmed = editingName.trim();
@@ -117,7 +110,7 @@ export function CollaboratorPresence() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          title={isConnected ? `Real-Time Multiplayer: ${totalUsers} online in room "${roomId}"` : "Collaboration is off until a share link is created or opened"}
+          title={isConnected ? `Real-Time Multiplayer: ${totalUsers} online · ${projectName || "Shared workflow"}` : "Collaboration is off until a share link is created or opened"}
           className="flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-muted/80 hover:border-primary/40 cursor-pointer"
         >
           <div className="relative flex items-center">
@@ -171,53 +164,22 @@ export function CollaboratorPresence() {
         >
           <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Users className="size-4" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="text-xs font-bold leading-none">Multiplayer Collaboration</h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Room: <span className="font-mono font-bold text-foreground">{roomId}</span>
+                  <p className="mt-1 truncate text-[10px] text-muted-foreground" title={projectName || "Shared workflow"}>
+                    Room: <span className="font-semibold text-foreground">{projectName || "Shared workflow"}</span>
                   </p>
                 </div>
               </div>
-              <div className={isConnected ? "flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full" : "flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"}>
+              <div className={isConnected ? "flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full" : "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"}>
                 <span className={isConnected ? "size-1.5 animate-pulse rounded-full bg-emerald-500" : "size-1.5 rounded-full bg-amber-500"} />
                 {isConnected ? "Real-Time" : "Local only"}
               </div>
-            </div>
-
-            {/* Share Room Link Card */}
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
-                  <Link2 className="size-3.5 text-primary" />
-                  Invite Collaborators
-                </span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Anyone with this room link can join this project and edit simultaneously in real time.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copyShareLink}
-                className="w-full justify-center gap-1.5 h-7 text-xs font-semibold bg-background hover:bg-muted"
-              >
-                {copied ? (
-                  <>
-                    <Check className="size-3.5 text-emerald-600" />
-                    <span>Copied Link!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5" />
-                    <span>Copy Shareable Room Link</span>
-                  </>
-                )}
-              </Button>
             </div>
 
             {/* Your Profile Settings */}
@@ -271,7 +233,7 @@ export function CollaboratorPresence() {
                       style={{ backgroundColor: localUser.color }}
                     />
                     <span className="font-semibold text-foreground truncate">
-                      {localUser.name} <span className="text-[10px] text-muted-foreground font-normal">(You)</span>
+                      {localUser.name} <span className="text-[10px] text-muted-foreground font-normal">(You · {canEditCollaborativeWorkflow(useCollaborationStore.getState()) ? "Editor" : "Viewer"})</span>
                     </span>
                   </div>
                   <span className="text-[10px] text-emerald-600 font-bold">Online</span>
@@ -293,7 +255,7 @@ export function CollaboratorPresence() {
                       </span>
                     </div>
                     <span className="text-[10px] text-muted-foreground">
-                      {peer.focusedNodeId ? "Editing" : "Viewing"}
+                      {editorPeerId === peer.peerId ? "Editor" : peer.focusedNodeId ? "Viewing · Active" : "Viewer"}
                     </span>
                   </div>
                 ))}

@@ -76,18 +76,14 @@ export function useCanvasExport(
   useEffect(() => {
     const capture = async (
       event: Event & {
-        detail?: { format: "png" | "svg" | "pdf" | "l1-pdf" | "l2-pdf" };
+        detail?: { format: string };
       },
     ) => {
       const detail = event.detail ?? { format: "png" };
 
-      // Handle layer-specific PDF requests
-      if (
-        (detail.format as string) === "l3-pdf" ||
-        (detail.format as string) === "tech-pdf" ||
-        (detail.format as string) === "presentation-pdf"
-      )
-        return;
+      // Specialized document exporters own every other format. Unknown
+      // requests must never fall through to an SVG with a misleading suffix.
+      if (!["png", "svg", "pdf", "l1-pdf", "l2-pdf"].includes(detail.format)) return;
       if (detail.format === "l1-pdf" && viewType !== "l1") return;
       if (detail.format === "l2-pdf" && viewType !== "l2") return;
 
@@ -104,14 +100,16 @@ export function useCanvasExport(
       const targetHeight = Math.max(1, Math.round(bounds.height + padding * 2));
 
       const original = {
-        flowWidth: flowElement.style.width,
-        flowHeight: flowElement.style.height,
-        viewportTransform: viewport.style.transform,
+        viewportTransform: viewport.style.getPropertyValue("transform"),
+        viewportTransformPriority: viewport.style.getPropertyPriority("transform"),
       };
 
-      flowElement.style.width = `${targetWidth}px`;
-      flowElement.style.height = `${targetHeight}px`;
-      viewport.style.transform = `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`;
+      // Keep the live React Flow container at its original size. Resizing it
+      // triggers its ResizeObserver and can change the viewport during capture.
+      viewport.style.setProperty("transform", `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`, "important");
+      // Stay below browser canvas dimension and area limits for large projects.
+      const pixelRatio = Math.min(2, 12000 / Math.max(targetWidth, targetHeight), Math.sqrt(32000000 / (targetWidth * targetHeight)));
+      const captureStyle = { width: `${targetWidth}px`, height: `${targetHeight}px` };
 
       try {
         const backgroundColor =
@@ -128,7 +126,8 @@ export function useCanvasExport(
           const { jsPDF } = await import("jspdf");
           const data = await toPng(flowElement, {
             backgroundColor,
-            pixelRatio: 2,
+            pixelRatio,
+            style: captureStyle,
             width: targetWidth,
             height: targetHeight,
             filter: (node: HTMLElement) =>
@@ -138,12 +137,17 @@ export function useCanvasExport(
 
           const orientation =
             targetWidth >= targetHeight ? "landscape" : "portrait";
+          // PDF readers impose a page size limit as well; scale the page and
+          // its image together without changing the workflow's proportions.
+          const pageScale = Math.min(1, 12000 / Math.max(targetWidth, targetHeight));
+          const pdfWidth = targetWidth * pageScale;
+          const pdfHeight = targetHeight * pageScale;
           const pdf = new jsPDF({
             orientation,
             unit: "px",
-            format: [targetWidth, targetHeight],
+            format: [pdfWidth, pdfHeight],
           });
-          pdf.addImage(data, "PNG", 0, 0, targetWidth, targetHeight);
+          pdf.addImage(data, "PNG", 0, 0, pdfWidth, pdfHeight);
 
           const downloadName =
             detail.format === "l1-pdf"
@@ -161,7 +165,8 @@ export function useCanvasExport(
           detail.format === "png"
             ? await toPng(flowElement, {
                 backgroundColor,
-                pixelRatio: 2,
+                pixelRatio,
+                style: captureStyle,
                 width: targetWidth,
                 height: targetHeight,
                 filter: (node: HTMLElement) =>
@@ -170,6 +175,7 @@ export function useCanvasExport(
               })
             : await toSvg(flowElement, {
                 backgroundColor,
+                style: captureStyle,
                 width: targetWidth,
                 height: targetHeight,
                 filter: (node: HTMLElement) =>
@@ -182,14 +188,12 @@ export function useCanvasExport(
         anchor.href = data;
         anchor.click();
       } finally {
-        flowElement.style.width = original.flowWidth;
-        flowElement.style.height = original.flowHeight;
-        viewport.style.transform = original.viewportTransform;
+        viewport.style.setProperty("transform", original.viewportTransform, original.viewportTransformPriority);
       }
     };
 
     window.addEventListener("workflow:export", capture as EventListener);
     return () =>
       window.removeEventListener("workflow:export", capture as EventListener);
-  }, [flow, wrapper]);
+  }, [flow, wrapper, viewType]);
 }

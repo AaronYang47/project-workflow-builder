@@ -6,7 +6,7 @@ import type {
 } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
 import { getAdaptiveNodeSize, getL1FallbackColor } from "@/lib/node-layout";
-import { absoluteLayoutPosition } from "@/lib/layout-geometry";
+import { synchronizeLinkedWorkflowOrder } from "@/lib/high-level-workflow";
 import {
   expandGapsForLabeledEdges,
   normalizeGateHandles,
@@ -65,13 +65,15 @@ const sizeForAutoLayout = (
 };
 
 export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
+  file = synchronizeLinkedWorkflowOrder(file);
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
   const elk = new ELK();
   const original = file.layout.nodes;
   const nodes: Record<string, NodeLayout> = Object.fromEntries(
     file.graph.nodes.map((node) => {
       const current = original[node.id];
-      const position = absoluteLayoutPosition(original, node.id);
+      // Canvas layouts use absolute positions; parentId records frame membership.
+      const position = { x: current?.x ?? 0, y: current?.y ?? 0 };
       const size = sizeForAutoLayout(node, current);
       return [
         node.id,
@@ -193,9 +195,6 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
 
     // Automatically box all L2 steps belonging to this L1 phase into this Phase!
     for (const stepId of linkedIds) {
-      if (!original[stepId]?.parentId) {
-        original[stepId] = { ...original[stepId], parentId: phaseId };
-      }
       const parentId = original[stepId]?.parentId;
       if (parentId && parentId !== phaseId) {
         const parentNode = updatedGraphNodes.find((n) => n.id === parentId);
@@ -204,7 +203,11 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
             ...original[parentNode.id],
             parentId: phaseId,
           };
+        } else {
+          original[stepId] = { ...original[stepId], parentId: phaseId };
         }
+      } else if (!parentId) {
+        original[stepId] = { ...original[stepId], parentId: phaseId };
       }
     }
   }
@@ -334,7 +337,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }
   }
 
-  return {
+  return synchronizeLinkedWorkflowOrder({
     ...file,
     graph: {
       ...file.graph,
@@ -352,5 +355,5 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       edges: file.layout.edges,
       viewport: file.layout.viewport,
     },
-  };
+  });
 }

@@ -23,6 +23,7 @@ export function useNodeDragHandlers(
   const dragStartLayouts = useRef<Record<string, NodeLayout>>({});
   const flow = useReactFlow();
   const onNodeDragStart: OnNodeDrag = useCallback((_, node) => {
+    window.dispatchEvent(new Event("workflow:node-drag-start"));
     const current = useWorkflowStore.getState();
     const domain = current.file.graph.nodes.find((n) => n.id === node.id);
     const isContainer =
@@ -122,6 +123,7 @@ export function useNodeDragHandlers(
       }
       commitLayoutDrag(patches, before);
       dragStartLayouts.current = {};
+      window.dispatchEvent(new Event("workflow:node-drag-stop"));
     },
     [commitLayoutDrag, flow],
   );

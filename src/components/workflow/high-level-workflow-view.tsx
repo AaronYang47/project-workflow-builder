@@ -16,10 +16,13 @@ import {
 import { CheckCircle2, CircleDot, Layers3, Milestone } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { createEmptyHighLevelWorkflow } from "@/types/workflow";
-import type { HighLevelEdge, HighLevelNode } from "@/types/workflow";
-import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import type { DomainNode, HighLevelEdge, HighLevelNode } from "@/types/workflow";
+import { linkedWorkflowGate, orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { departmentDisplayName } from "@/lib/department-label";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { HighLevelNode as HighLevelNodeComponent, type HighLevelFlowNode } from "./high-level-node";
 
 import { useShallow } from "zustand/react/shallow";
@@ -35,14 +38,20 @@ const highLevelNodeTypes = {
 
 const emptyHighLevel = createEmptyHighLevelWorkflow();
 
+function linkedWorkflowDisplayName(node: DomainNode) {
+  return departmentDisplayName(node);
+}
+
 function LifecycleOverview({
   nodes,
   edges,
+  workflowGateCount,
   selectedNodeId,
   onFocusNode,
 }: {
   nodes: HighLevelNode[];
   edges: HighLevelEdge[];
+  workflowGateCount: number;
   selectedNodeId?: string;
   onFocusNode: (nodeId: string) => void;
 }) {
@@ -63,11 +72,12 @@ function LifecycleOverview({
       <div className="flex items-center gap-3 px-3 py-2.5">
         <div className="min-w-0 flex-1">
           <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Lifecycle overview</p>
-          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{nodes.length} lifecycle steps · {gateCount} primary gates · Initial Contact to Final Close</p>
+          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{nodes.length} lifecycle steps · {gateCount} primary gates · {workflowGateCount} workflow gates</p>
         </div>
         <div className="hidden shrink-0 items-center gap-2 text-[8px] font-semibold text-muted-foreground sm:flex">
           <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-slate-400" />Phase</span>
           <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-primary" />Primary Gate</span>
+          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm border border-dashed border-violet-500" />Workflow Gate</span>
         </div>
         <button
           type="button"
@@ -142,6 +152,7 @@ function HighLevelCanvasInner({
   focusNodeId?: string | null;
   onFocusRequestHandled?: () => void;
 }) {
+  const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
   const {
     file,
     highLevelSelection,
@@ -150,6 +161,9 @@ function HighLevelCanvasInner({
     selectHighLevelEdge,
     addHighLevelNode,
     addHighLevelEdge,
+    reorderHighLevelLinkedNodes,
+    reorderHighLevelLinkedGate,
+    setHighLevelGateMember,
     deleteHighLevelNodes,
     deleteHighLevelEdge,
   } = useWorkflowStore(
@@ -161,6 +175,9 @@ function HighLevelCanvasInner({
       selectHighLevelEdge: state.selectHighLevelEdge,
       addHighLevelNode: state.addHighLevelNode,
       addHighLevelEdge: state.addHighLevelEdge,
+      reorderHighLevelLinkedNodes: state.reorderHighLevelLinkedNodes,
+      reorderHighLevelLinkedGate: state.reorderHighLevelLinkedGate,
+      setHighLevelGateMember: state.setHighLevelGateMember,
       deleteHighLevelNodes: state.deleteHighLevelNodes,
       deleteHighLevelEdge: state.deleteHighLevelEdge,
     })),
@@ -193,6 +210,16 @@ function HighLevelCanvasInner({
     () => new Map(file.graph.nodes.map((node) => [node.id, node])),
     [file.graph.nodes],
   );
+  const workflowGateCount = useMemo(() => {
+    const gateIds = new Set<string>();
+    for (const highLevelNode of highLevel.graph.nodes) {
+      for (const nodeId of highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? []) {
+        const gate = linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes);
+        if (gate) gateIds.add(gate.id);
+      }
+    }
+    return gateIds.size;
+  }, [file.graph.nodes, file.layout.nodes, highLevel.graph.nodes]);
 
   const focusLayer2Node = useCallback(
     (nodeId: string) => {
@@ -224,7 +251,35 @@ function HighLevelCanvasInner({
           file.graph.nodes,
           file.graph.edges,
           file.layout.nodes,
-        );
+        ).filter((id) => {
+          const type = layer2ById.get(id)?.type;
+          return type !== "phase";
+        });
+        const linkedPhaseIds = new Set<string>();
+        const linkedPhaseById = new Map<string, string>();
+        for (const linkedId of linkedLayer2NodeIds) {
+          const seen = new Set<string>();
+          let parentId = file.layout.nodes[linkedId]?.parentId;
+          while (parentId && !seen.has(parentId)) {
+            seen.add(parentId);
+            const parent = layer2ById.get(parentId);
+            if (parent?.type === "phase") {
+              linkedPhaseIds.add(parentId);
+              linkedPhaseById.set(linkedId, parentId);
+              break;
+            }
+            parentId = file.layout.nodes[parentId]?.parentId;
+          }
+        }
+        const availableGates = file.graph.nodes
+          .filter((layer2Node) => layer2Node.type === "gate" &&
+            linkedPhaseIds.has(file.layout.nodes[layer2Node.id]?.parentId ?? ""))
+          .map((gate) => ({
+            id: gate.id,
+            title: gate.title,
+            eligibleNodeIds: linkedLayer2NodeIds.filter((id) =>
+              linkedPhaseById.get(id) === file.layout.nodes[gate.id]?.parentId),
+          }));
         const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
         return {
           id: node.id,
@@ -238,13 +293,52 @@ function HighLevelCanvasInner({
             code: node.code,
             backgroundColor: node.backgroundColor,
             type: node.type,
-            linkedDetailedNodeIds: node.linkedDetailedNodeIds,
-            linkedLayer2Nodes: linkedLayer2NodeIds.flatMap((nodeId) => {
+            linkedDetailedNodeIds: linkedLayer2NodeIds,
+            availableGates,
+            linkedLayer2Nodes: linkedLayer2NodeIds.flatMap((nodeId, linkedIndex) => {
               const layer2Node = layer2ById.get(nodeId);
-              return layer2Node ? [{ id: nodeId, title: layer2Node.title }] : [];
+              if (!layer2Node) return [];
+              const parentPhase = file.graph.nodes.find(
+                (candidate) => candidate.id === linkedPhaseById.get(nodeId),
+              );
+              const parentPhaseNumber = parentPhase?.title.match(/\d+/)?.[0];
+              const manualChapterNumber = String(layer2Node.config.chapterNumber ?? "").replace(/\D/g, "");
+              const phaseGradientColors =
+                (layer2Node.type === "general" || layer2Node.type === "projectStart") &&
+                layer2Node.config.blendAdjacentPhaseColors === true
+                  ? chapterPhaseGradientColors(
+                      layer2Node,
+                      file.graph.nodes,
+                      file.layout.nodes,
+                      highLevel.graph.nodes,
+                    )
+                  : undefined;
+              return [{
+                id: nodeId,
+                chapterTitle: manualChapterNumber
+                  ? `CHAPTER ${manualChapterNumber.padStart(2, "0")}`
+                  : /^chapter\s+\d+$/i.test(layer2Node.title.trim())
+                  ? layer2Node.title.trim().toUpperCase()
+                  : (layer2Node.type === "end" || layer2Node.type === "terminal") && parentPhaseNumber
+                    ? `CHAPTER ${parentPhaseNumber.padStart(2, "0")}`
+                  : `CHAPTER ${String(linkedIndex + 1).padStart(2, "0")}`,
+                title: linkedWorkflowDisplayName(layer2Node),
+                gate: linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes),
+                conditionLabels: layer2Node.conditions.map((condition) => condition.label || condition.description || "Release condition"),
+                phaseGradientColors,
+              }];
             }),
             onLinkedLayer2NodeClick: focusLayer2Node,
             onViewAllLinkedLayer2Nodes: () => focusLayer2Nodes(linkedLayer2NodeIds),
+            onReorderLinkedLayer2Nodes: (draggedId, targetId) => {
+              if (canEditWorkflow) reorderHighLevelLinkedNodes(node.id, draggedId, targetId);
+            },
+            onReorderLinkedLayer2Gate: (gateId, targetId, position) => {
+              if (canEditWorkflow) reorderHighLevelLinkedGate(node.id, gateId, targetId, position);
+            },
+            onSetLinkedLayer2GateMember: (gateId, nodeId, included) => {
+              if (canEditWorkflow) setHighLevelGateMember(node.id, gateId, nodeId, included);
+            },
           },
           draggable: true,
           selectable: true,
@@ -254,6 +348,10 @@ function HighLevelCanvasInner({
     [
       focusLayer2Node,
       focusLayer2Nodes,
+      canEditWorkflow,
+      reorderHighLevelLinkedNodes,
+      reorderHighLevelLinkedGate,
+      setHighLevelGateMember,
       highLevel.graph.nodes,
       highLevel.layout.nodes,
       highLevelSelection.nodeIds,
@@ -366,6 +464,7 @@ function HighLevelCanvasInner({
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      if (!canEditWorkflow) return;
       const type = event.dataTransfer.getData("application/high-level-node") as HighLevelNode["type"];
       if (!type) return;
       addHighLevelNode(
@@ -373,11 +472,12 @@ function HighLevelCanvasInner({
         flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
       );
     },
-    [addHighLevelNode, flow],
+    [addHighLevelNode, canEditWorkflow, flow],
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (!canEditWorkflow) return;
       if (!connection.source || !connection.target) return;
       addHighLevelEdge({
         id: `high-level-edge-${crypto.randomUUID().slice(0, 8)}`,
@@ -385,7 +485,7 @@ function HighLevelCanvasInner({
         target: connection.target,
       });
     },
-    [addHighLevelEdge],
+    [addHighLevelEdge, canEditWorkflow],
   );
 
   return (
@@ -406,10 +506,12 @@ function HighLevelCanvasInner({
         nodeTypes={highLevelNodeTypes}
         onNodesChange={onNodesChange}
         onNodeDragStart={(_, node) => {
+          if (!canEditWorkflow) return;
           const layout = useWorkflowStore.getState().file.highLevel?.layout.nodes[node.id];
           if (layout) dragBefore.current = { [node.id]: { ...layout } };
         }}
         onNodeDragStop={(_, node) => {
+          if (!canEditWorkflow) return;
           const before = dragBefore.current;
           if (before[node.id]) {
             useWorkflowStore.getState().commitHighLevelLayoutDrag(
@@ -419,8 +521,12 @@ function HighLevelCanvasInner({
           }
           dragBefore.current = {};
         }}
-        onNodesDelete={(deleted) => deleteHighLevelNodes(deleted.map((node) => node.id))}
-        onEdgesDelete={(deleted) => deleted.forEach((edge) => deleteHighLevelEdge(edge.id))}
+        onNodesDelete={(deleted) => {
+          if (canEditWorkflow) deleteHighLevelNodes(deleted.map((node) => node.id));
+        }}
+        onEdgesDelete={(deleted) => {
+          if (canEditWorkflow) deleted.forEach((edge) => deleteHighLevelEdge(edge.id));
+        }}
         onNodeClick={(_, node) => selectHighLevelNodes([node.id])}
         onEdgeClick={(_, edge) => selectHighLevelEdge(edge.id)}
         onPaneClick={() => {
@@ -453,11 +559,11 @@ function HighLevelCanvasInner({
         zoomActivationKeyCode={null}
         panOnScroll={false}
         selectionOnDrag={false}
-        nodesDraggable
-        nodesConnectable
+        nodesDraggable={canEditWorkflow}
+        nodesConnectable={canEditWorkflow}
         nodesFocusable={false}
         edgesFocusable={false}
-        deleteKeyCode={null}
+        deleteKeyCode={canEditWorkflow ? ["Backspace", "Delete"] : null}
         className="workflow-flow"
       >
         <Background
@@ -477,6 +583,7 @@ function HighLevelCanvasInner({
           <LifecycleOverview
             nodes={highLevel.graph.nodes}
             edges={highLevel.graph.edges}
+            workflowGateCount={workflowGateCount}
             selectedNodeId={highLevelSelection.nodeIds[0]}
             onFocusNode={focusHighLevelNode}
           />

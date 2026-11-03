@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CloudUpload,
   Download,
@@ -23,9 +23,15 @@ import {
   uploadFileToR2,
   downloadFile,
   deleteUploadedFile,
+  isFormReferenceRecord,
 } from "@/lib/file-storage";
 import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import { cn } from "@/lib/utils";
+
+function titleIsFileName(title: string, fileName: string) {
+  const withoutExtension = (value: string) => value.trim().replace(/\.[^.]+$/, "").toLocaleLowerCase();
+  return Boolean(title.trim()) && withoutExtension(title) === withoutExtension(fileName);
+}
 
 export function R2FileDialog({
   open,
@@ -41,24 +47,29 @@ export function R2FileDialog({
     initialCategory || "legal",
   );
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [fileList, setFileList] = useState<UploadedFileRecord[]>([]);
+  const uploadInput = useRef<HTMLInputElement>(null);
+
+  const titleFromFileName = (fileName: string) => {
+    const name = fileName.split(/[\\/]/).pop() || fileName;
+    return name.replace(/\.[^.]+$/, "").trim() || name;
+  };
 
   useEffect(() => {
-    if (open) {
-      setFileList(getUploadedFiles());
-      setUploadSuccess(false);
-      if (initialCategory) setCategory(initialCategory);
-
-      fetchUploadedFilesFromR2().then((remoteFiles) => {
-        setFileList(remoteFiles);
-      });
-    }
-  }, [open, initialCategory]);
+    if (!open) return;
+    let active = true;
+    void fetchUploadedFilesFromR2().then((remoteFiles) => {
+      if (active) setFileList(remoteFiles);
+    });
+    return () => { active = false; };
+  }, [open]);
 
   useEffect(() => {
     if (activeTab === "library") {
@@ -69,36 +80,87 @@ export function R2FileDialog({
   }, [activeTab]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      if (!title) {
-        setTitle(file.name);
-      }
-    }
+    const files = Array.from(e.target.files ?? []);
+    setSelectedFiles(files);
+    setTitle(files.length === 1 ? titleFromFileName(files[0].name) : "");
+    setUploadSuccess(false);
+    setUploadError("");
+    e.target.value = "";
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFiles.length) return;
     setUploading(true);
+    setUploadProgress(0);
+    setUploadError("");
+    const failedFiles: File[] = [];
+    const failureMessages: string[] = [];
+    let uploadedCount = 0;
     try {
-      await uploadFileToR2(selectedFile, {
-        category,
-        title: title || selectedFile.name,
-        description,
-      });
+      const currentFiles = await fetchUploadedFilesFromR2();
+      setFileList(currentFiles);
+      const normalizeName = (fileName: string) => fileName.normalize("NFKC").trim().toLocaleLowerCase();
+      const existingByName = new Map<string, UploadedFileRecord>();
+      for (const existing of currentFiles) {
+        if (existing.category === category && existing.key && !existingByName.has(normalizeName(existing.fileName))) {
+          existingByName.set(normalizeName(existing.fileName), existing);
+        }
+      }
+      const batchNames = new Set<string>();
+      const batchDuplicates = new Set<string>();
+      const libraryDuplicates = new Set<string>();
+      for (const file of selectedFiles) {
+        const name = normalizeName(file.name);
+        if (batchNames.has(name)) batchDuplicates.add(file.name);
+        batchNames.add(name);
+        if (existingByName.has(name)) libraryDuplicates.add(file.name);
+      }
+      if (libraryDuplicates.size || batchDuplicates.size) {
+        const details = [
+          libraryDuplicates.size ? `Already in this Library category:\n${[...libraryDuplicates].map((name) => `• ${name}`).join("\n")}` : "",
+          batchDuplicates.size ? `Selected more than once:\n${[...batchDuplicates].map((name) => `• ${name}`).join("\n")}` : "",
+        ].filter(Boolean).join("\n\n");
+        const batchNote = batchDuplicates.size ? " Later selected files with the same name will replace earlier ones." : "";
+        if (!window.confirm(`${details}\n\nReplace matching Library files? Replacing keeps the existing Library link and updates its contents.${batchNote}`)) return;
+      }
+
+      for (const [index, file] of selectedFiles.entries()) {
+        try {
+          const existing = existingByName.get(normalizeName(file.name));
+          const uploaded = await uploadFileToR2(file, {
+            category,
+            title: selectedFiles.length === 1 && title.trim() ? title.trim() : titleFromFileName(file.name),
+            description,
+            ...(existing?.key ? { replaceKey: existing.key } : {}),
+          });
+          existingByName.set(normalizeName(uploaded.fileName), uploaded);
+          uploadedCount += 1;
+        } catch (error) {
+          failedFiles.push(file);
+          failureMessages.push(`${file.name}: ${error instanceof Error ? error.message : "Upload failed."}`);
+        }
+        setUploadProgress(index + 1);
+      }
       const latest = await fetchUploadedFilesFromR2();
       setFileList(latest);
+      if (failedFiles.length) {
+        setSelectedFiles(failedFiles);
+        setTitle(failedFiles.length === 1 ? titleFromFileName(failedFiles[0].name) : "");
+        setUploadProgress(0);
+        setUploadError(`${uploadedCount} uploaded; ${failedFiles.length} failed. ${failureMessages[0]}`);
+        return;
+      }
       setUploadSuccess(true);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setTitle("");
       setDescription("");
+      setUploadProgress(0);
       setTimeout(() => {
         setUploadSuccess(false);
         setActiveTab("library");
       }, 1000);
-    } catch {
-      alert("Upload failed. Please try again.");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -143,7 +205,7 @@ export function R2FileDialog({
         <div className="flex border-b bg-muted/10 px-5 pt-2">
           <button
             type="button"
-            onClick={() => setActiveTab("upload")}
+            onClick={() => { setUploadSuccess(false); setUploadError(""); setActiveTab("upload"); }}
             className={cn(
               "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition-colors cursor-pointer",
               activeTab === "upload"
@@ -152,7 +214,7 @@ export function R2FileDialog({
             )}
           >
             <Upload className="size-3.5" />
-            Upload File
+            Upload Files
           </button>
           <button
             type="button"
@@ -168,7 +230,7 @@ export function R2FileDialog({
             )}
           >
             <FolderArchive className="size-3.5" />
-            R2 File Library ({fileList.length})
+            Library ({fileList.length})
           </button>
         </div>
 
@@ -227,33 +289,32 @@ export function R2FileDialog({
               {/* File Dropzone */}
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Select File <span className="text-destructive">*</span>
+                  Select Files <span className="text-destructive">*</span>
                 </label>
                 <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background/50 p-6 text-center hover:border-primary/50 hover:bg-primary/[0.02] cursor-pointer transition-colors">
                   <input
+                    ref={uploadInput}
                     type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.png,.jpg,.jpeg,.json"
                     onChange={handleFileChange}
                     className="hidden"
-                    aria-label="Choose file to upload to R2"
+                    aria-label="Choose one or more files to upload to Library"
                   />
-                  {selectedFile ? (
+                  {selectedFiles.length ? (
                     <div className="flex flex-col items-center gap-1">
                       <FileCheck className="size-8 text-primary" />
-                      <p className="text-xs font-bold text-foreground mt-1">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {(selectedFile.size / 1024).toFixed(1)} KB · Click to change file
-                      </p>
+                      <p className="text-xs font-bold text-foreground mt-1">{selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected</p>
+                      <p className="text-[11px] text-muted-foreground">Click to change files · document names are taken from filenames</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-1">
                       <CloudUpload className="size-8 text-muted-foreground/60" />
                       <p className="text-xs font-semibold text-foreground mt-1">
-                        Click or drag file here to upload
+                        Click or drag files here to upload
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        PDF, DOCX, XLSX, DWG, PNG, or JSON up to 50MB
+                        PDF, DOCX, XLSX, DWG, PNG, or JSON · up to 50 MB per file
                       </p>
                     </div>
                   )}
@@ -264,15 +325,21 @@ export function R2FileDialog({
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
-                    Document / Form Title <span className="text-destructive">*</span>
+                    {selectedFiles.length > 1 ? "Detected Document / Form Titles" : "Document / Form Title"}{selectedFiles.length <= 1 ? <span className="text-destructive"> *</span> : null}
                   </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Master Services & Route Agreement 2026"
-                    className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-                  />
+                  {selectedFiles.length > 1 ? (
+                    <div className="max-h-32 space-y-1 overflow-y-auto rounded-md border bg-background/60 p-2">
+                      {selectedFiles.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex min-w-0 items-center gap-2 text-[11px]"><FileCheck className="size-3 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate font-medium">{titleFromFileName(file.name)}</span><span className="shrink-0 text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span><button type="button" aria-label={`Remove ${file.name} from upload batch`} onClick={() => { const next = selectedFiles.filter((_, selectedIndex) => selectedIndex !== index); setSelectedFiles(next); setTitle(next.length === 1 ? titleFromFileName(next[0].name) : ""); }} className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3.5" /></button></div>)}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder={selectedFiles.length === 1 ? titleFromFileName(selectedFiles[0].name) : "Enter a document name or select a file"}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
@@ -293,13 +360,13 @@ export function R2FileDialog({
                 <Button
                   type="button"
                   onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
+                  disabled={!selectedFiles.length || (selectedFiles.length === 1 && !title.trim()) || uploading}
                   className="w-full gap-2 h-9 text-xs font-bold"
                 >
                   {uploading ? (
                     <>
                       <Loader2 className="size-3.5 animate-spin" />
-                      Uploading to R2 Storage…
+                      Uploading {uploadProgress} of {selectedFiles.length} to Library…
                     </>
                   ) : uploadSuccess ? (
                     <>
@@ -309,10 +376,11 @@ export function R2FileDialog({
                   ) : (
                     <>
                       <Upload className="size-3.5" />
-                      Upload to R2 Storage
+                      Upload to Library{selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}
                     </>
                   )}
                 </Button>
+                {uploadError ? <p role="alert" className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{uploadError}</p> : null}
               </div>
             </div>
           ) : (
@@ -364,25 +432,25 @@ export function R2FileDialog({
                             {file.category}
                           </span>
                           <span className="font-mono text-xs font-bold text-foreground truncate">
-                            {file.fileName}
+                            {isFormReferenceRecord(file) ? `Form code: ${file.fileName}` : file.fileName}
                           </span>
                         </div>
-                        <p className="text-xs font-semibold text-foreground mt-1">
-                          {file.title}
-                        </p>
+                        {!titleIsFileName(file.title, file.fileName) ? <p className="text-xs font-semibold text-foreground mt-1">{file.title}</p> : null}
                         {file.description ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                             {file.description}
                           </p>
                         ) : null}
-                        <p className="text-[10px] text-muted-foreground/80 mt-1 font-mono">
+                        {isFormReferenceRecord(file) ? <p className="text-[10px] text-muted-foreground/80 mt-1">Title only · File can be uploaded later</p> : <p className="text-[10px] text-muted-foreground/80 mt-1 font-mono">
                           {(file.fileSize / 1024).toFixed(1)} KB · Uploaded{" "}
                           {new Date(file.uploadedAt).toLocaleDateString()}
-                        </p>
+                        </p>}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {isCustomerSelectionForm(file) ? (
+                        {isFormReferenceRecord(file) ? (
+                          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-muted text-muted-foreground">Title only</span>
+                        ) : isCustomerSelectionForm(file) ? (
                           <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-sky-500/15 text-sky-700 dark:text-sky-300">
                             Built-in Form
                           </span>
@@ -403,10 +471,14 @@ export function R2FileDialog({
                               size="sm"
                               variant="outline"
                               onClick={async () => {
-                                if (window.confirm(`Delete "${file.fileName}" from R2 Library?`)) {
-                                  await deleteUploadedFile(file.id, file.key);
-                                  const latest = await fetchUploadedFilesFromR2();
-                                  setFileList(latest);
+                                if (window.confirm(`Delete "${file.fileName}" from Library?`)) {
+                                  try {
+                                    await deleteUploadedFile(file.id, file.key);
+                                    const latest = await fetchUploadedFilesFromR2();
+                                    setFileList(latest);
+                                  } catch (error) {
+                                    window.alert(error instanceof Error ? error.message : "Could not delete file.");
+                                  }
                                 }
                               }}
                               title={`Delete ${file.fileName}`}

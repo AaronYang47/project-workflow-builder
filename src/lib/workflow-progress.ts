@@ -5,6 +5,7 @@ import type {
   GateRule,
   GateSignatureRequirement,
   WorkflowNodeType,
+  WorkflowFile,
 } from "@/types/workflow";
 import { REFERENCE_NODE_TYPES } from "@/types/workflow";
 import {
@@ -17,6 +18,7 @@ import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
 import type { ExecutionItem } from "@/types/workflow";
 import { operationsGateStatus } from "@/lib/project-operations";
 import type { ProjectOperations } from "@/types/project-operations";
+import { releaseConditionForms } from "@/lib/release-condition-forms";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
@@ -49,7 +51,7 @@ const L3_DOCUMENT_FIELDS = [
 
 function conditionL3FormState(condition: Condition, node: DomainNode) {
   const suffix = `::release-condition::${condition.id || "default"}`;
-  const documents = L3_DOCUMENT_FIELDS.flatMap((field) => {
+  const documents = [...releaseConditionForms(node, condition), ...L3_DOCUMENT_FIELDS.filter((field) => field !== "legalDocuments").flatMap((field) => {
     const raw = node.customFields[`${field}${suffix}`];
     if (typeof raw !== "string") return [];
     try {
@@ -58,7 +60,7 @@ function conditionL3FormState(condition: Condition, node: DomainNode) {
     } catch {
       return [];
     }
-  });
+  })];
   return {
     hasForms: documents.length > 0,
     requiredComplete: documents
@@ -154,6 +156,12 @@ export function conditionIsSatisfied(
   executionItems?: ExecutionItem[],
   operations?: ProjectOperations,
 ) {
+  // The Job Number reminder is informational for release, but its checkmark
+  // always reflects whether a complete five-digit number has been entered.
+  if (condition.id === "project-id-required") {
+    const source = computedConditionSource(node, projectStart);
+    return PROJECT_ID_PATTERN.test(String(source.customFields.projectId || ""));
+  }
   if (condition.linkedExecutionItemId) {
     const linkedItem = executionItems?.find(
       (item) => item.id === condition.linkedExecutionItemId,
@@ -174,16 +182,6 @@ export function conditionIsSatisfied(
     return condition.checked === true && l3Forms.requiredComplete;
   }
   const source = computedConditionSource(node, projectStart);
-  const projectId = String(
-    source.customFields.projectId || source.customFields.projectNumber || "",
-  ).trim();
-  if (condition.id === "project-id-required") {
-    return Boolean(
-      operations?.identity?.clientId ||
-        operations?.identity?.leadId ||
-        PROJECT_ID_PATTERN.test(projectId),
-    );
-  }
   if (condition.id === "paid-building-required") {
     return BUILDING_PATTERN.test(String(source.config.buildingCode || ""));
   }
@@ -221,20 +219,8 @@ export function nodeReleaseReady(
     const operationalGate = operationsGateStatus(node.id, operations);
     return operationalGate.ready;
   }
-  if (
-    node.type === "projectStart" &&
-    !conditionIsSatisfied(
-      { id: "project-id-required", required: true },
-      node,
-      node,
-      executionItems,
-      operations,
-    )
-  ) {
-    return false;
-  }
   const required = (node.conditions || []).filter(
-    (condition) => condition.required !== false,
+    (condition) => condition.required !== false && condition.id !== "project-id-required",
   );
   const conditionsReady = required.every((condition) =>
     conditionIsSatisfied(condition, node, projectStart, executionItems, operations),
@@ -274,7 +260,7 @@ export function nodeStatusLabel(
     return "In Progress";
   }
   const required = (node.conditions || []).filter(
-    (item) => item.required !== false,
+    (item) => item.required !== false && item.id !== "project-id-required",
   );
   if (!required.length) return "Open";
   const ready = required.filter((item) =>
@@ -375,4 +361,13 @@ export function getWorkflowProgress(
   }
 
   return { reachedNodeIds, activeEdgeIds };
+}
+
+/** Opt-in policy for workflows that require a single execution sequence. */
+export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
+  const node = file.graph.nodes.find((item) => item.id === nodeId);
+  if (node?.metadata.executionOrder !== "strict-sequential") return undefined;
+  const progress = getWorkflowProgress(file.graph.nodes, file.graph.edges, file.execution?.items, file.operations);
+  if (progress.reachedNodeIds.has(nodeId)) return undefined;
+  return "Complete the preceding department and its required release conditions before completing this department.";
 }

@@ -41,6 +41,7 @@ export const createProjectWorkflow = (
       snapToGrid: true,
       gridSize: 16,
     },
+    releaseConditionInbox: [],
     highLevel: createEmptyHighLevelWorkflow(),
     execution: createEmptyExecutionLayer(),
     operations: normalizeProjectOperations(undefined, name, projectId),
@@ -72,6 +73,7 @@ export const createEmptyWorkspace = (): WorkflowFile => {
       snapToGrid: true,
       gridSize: 16,
     },
+    releaseConditionInbox: [],
     highLevel: createEmptyHighLevelWorkflow(),
     execution: createEmptyExecutionLayer(),
   };

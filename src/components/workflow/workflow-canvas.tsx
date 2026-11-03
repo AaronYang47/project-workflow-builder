@@ -16,6 +16,9 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { WorkflowNode } from "./workflow-node";
+import { chapterLabel } from "@/lib/chapter-label";
+import { routeChapterConnections } from "@/lib/chapter-edge-routing";
+import { estimatePhaseHeaderHeight } from "@/lib/phase-layout";
 import { PhaseNode } from "./phase-node";
 import { ReferenceNode } from "./reference-node";
 import { CanvasToolbar } from "./canvas-toolbar";
@@ -37,6 +40,7 @@ import {
   getL1FallbackColor,
 } from "@/lib/node-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
+import { chapterPhaseGradientColors, DEFAULT_STAGE_COLORS } from "@/lib/chapter-phase-gradient";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
@@ -46,7 +50,7 @@ import { isReferenceNodeType, type DomainEdge, type DomainNode, type WorkflowNod
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
-import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { getExecutionSummary } from "@/lib/execution";
 import { matrixKindForNode } from "@/lib/matrix-config";
@@ -96,6 +100,7 @@ function CanvasInner({
   const activationCentered = useRef(false);
   const focusNodeIdsRef = useRef(focusNodeIds);
   const flow = useReactFlow();
+  const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
 
   useEffect(() => {
     focusNodeIdsRef.current = focusNodeIds;
@@ -220,19 +225,6 @@ function CanvasInner({
     };
   }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
 
-const DEFAULT_STAGE_COLORS: Record<string, string> = {
-  "stage 00": "#10b981",
-  "stage 01": "#059669",
-  "stage 02": "#0284c7",
-  "stage 03": "#2563eb",
-  "stage 04": "#7c3aed",
-  "stage 05": "#9333ea",
-  "stage 06": "#c026d3",
-  "stage 07": "#db2777",
-  "stage 08": "#d97706",
-  "stage 09": "#475569",
-};
-
   const modelNodes = useMemo<Node[]>(() => {
     const highLevelNodes = file.highLevel?.graph.nodes || [];
     const l1PhaseColorByL2NodeId = new Map<string, string>();
@@ -264,7 +256,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
             : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
               ? "reference"
             : "workflow";
-        const stageKey = (domain.config?.stage || "").toLowerCase();
+        const stageKey = chapterLabel(domain.config?.stage, "").toLowerCase();
         const stageFallback = DEFAULT_STAGE_COLORS[stageKey];
 
         // 1. Direct L1 link for the step
@@ -308,6 +300,16 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
             : isContainer
               ? resolvedContainerColor || l1ResolvedColor || stageFallback || "#0d9488"
               : l1ResolvedColor || domain.color || stageFallback || "#0d9488";
+        const phaseGradientColors =
+          (domain.type === "general" || domain.type === "projectStart") &&
+          domain.config.blendAdjacentPhaseColors === true
+            ? chapterPhaseGradientColors(
+                domain,
+                file.graph.nodes,
+                file.layout.nodes,
+                highLevelNodes,
+              )
+            : undefined;
         return {
           id: domain.id,
           type: rendererType,
@@ -326,6 +328,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
             emphasized: Boolean(searchMatch),
             dimmed: Boolean(q && !searchMatch),
             phaseColor,
+            phaseGradientColors,
             executionSummary: getExecutionSummary(
               domain.id,
               file.execution?.items,
@@ -376,7 +379,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
           x: layout?.x || 0,
           y: layout?.y || 0,
           width: layout?.width || 720,
-          height: PHASE_HEADER_HEIGHT,
+          height: Math.max(PHASE_HEADER_HEIGHT, estimatePhaseHeaderHeight(node, layout?.width || 720)),
           kind: "phase-header" as const,
         };
       });
@@ -400,6 +403,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
   }, [file.graph.edges]);
 
   const edges = useMemo<Edge[]>(() => {
+    const chapterConnections = routeChapterConnections(file);
     const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
     const supportingEdgeLanes = new Map(
       file.graph.edges
@@ -458,10 +462,11 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
             ? undefined
             : {
                 type: MarkerType.ArrowClosed,
-                color: active ? activeColor : "#94a3b8",
+                color: activeColor,
               },
         data: {
           domain,
+          chapterConnection: chapterConnections[domain.id],
           route: file.layout.edges?.[domain.id]?.points,
           active,
           obstacles: labelObstacles,
@@ -482,10 +487,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
     });
   }, [
     edgeIndexes,
-    file.graph.edges,
-    file.graph.nodes,
-    file.layout.edges,
-    file.layout.nodes,
+    file,
     labelObstacles,
     progress.activeEdgeIds,
     selection.edgeId,
@@ -542,7 +544,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
             };
           }
           return {
-            title: String(targetNode.config.stage),
+            title: chapterLabel(String(targetNode.config.stage)),
             color: targetNode.color || "#0d9488",
           };
         }
@@ -1006,21 +1008,22 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onConnect={onConnect}
-        onConnectEnd={onConnectEnd}
-        onReconnect={onReconnect}
-        onReconnectEnd={onReconnectEnd}
+        onConnect={canEditWorkflow ? onConnect : undefined}
+        onConnectEnd={canEditWorkflow ? onConnectEnd : undefined}
+        onReconnect={canEditWorkflow ? onReconnect : undefined}
+        onReconnectEnd={canEditWorkflow ? onReconnectEnd : undefined}
         isValidConnection={isValidConnection}
         connectionRadius={32}
         reconnectRadius={32}
         onNodesChange={onNodesChange}
-        onNodeDragStart={onNodeDragStart}
-        onNodeDragStop={onNodeDragStop}
-        onNodesDelete={(deleted) =>
+        nodesDraggable={canEditWorkflow}
+        nodesConnectable={canEditWorkflow}
+        onNodeDragStart={canEditWorkflow ? onNodeDragStart : undefined}
+        onNodeDragStop={canEditWorkflow ? onNodeDragStop : undefined}
+        onNodesDelete={canEditWorkflow ? (deleted) =>
           useWorkflowStore
             .getState()
-            .deleteNodes(deleted.map((node) => node.id))
-        }
+            .deleteNodes(deleted.map((node) => node.id)) : undefined}
         onNodeClick={(_, node) => {
           selectNodes([node.id]);
           updateFocusedNode(node.id, true);
@@ -1029,7 +1032,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
           selectEdge(edge.id);
           updateFocusedNode();
         }}
-        onDoubleClick={quickAdd}
+        onDoubleClick={canEditWorkflow ? quickAdd : undefined}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
         defaultViewport={file.layout.viewport}
         fitViewOptions={{
@@ -1045,7 +1048,7 @@ const DEFAULT_STAGE_COLORS: Record<string, string> = {
         selectionOnDrag={false}
         multiSelectionKeyCode={null}
         deleteKeyCode={null}
-        className="workflow-flow"
+        className={canEditWorkflow ? "workflow-flow" : "workflow-flow workflow-read-only"}
       >
         <Background
           variant={BackgroundVariant.Dots}

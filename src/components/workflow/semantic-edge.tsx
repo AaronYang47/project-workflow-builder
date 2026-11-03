@@ -19,6 +19,7 @@ import {
   phaseHeaderObstacles,
 } from "@/lib/edge-routing";
 import { estimateEdgeLabelChip } from "@/lib/layout-geometry";
+import type { ChapterConnection } from "@/lib/chapter-edge-routing";
 
 type Point = { x: number; y: number };
 export type LabelObstacle = Point & {
@@ -32,6 +33,7 @@ export type SemanticFlowEdge = Edge<
   {
     domain: DomainEdge;
     route?: EdgeRoutePoint[];
+    chapterConnection?: ChapterConnection;
     active?: boolean;
     obstacles?: LabelObstacle[];
     labelLane?: number;
@@ -541,7 +543,7 @@ function EditableEdgeLabel({
           style={{
             borderColor:
               active === false ? "#cbd5e1" : selected ? "#2563eb" : `${color}55`,
-            opacity: active === false ? 0.4 : 1,
+            opacity: active === false ? 0.8 : 1,
             maxWidth: approved ? approvedLabelMaxWidth : 360,
           }}
         >
@@ -1012,7 +1014,15 @@ export function SemanticEdge({
   const storedDetour =
     Boolean(routed && automaticRoute) &&
     (routedCollides || pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40);
-  const visibleRoute = withMinEndStub(
+  const chapterConnection = data?.chapterConnection;
+  const chapterRoute = chapterConnection?.points.map((point, index, points) => {
+    if (index === 0) return { x: sourceX, y: sourceY };
+    if (index === points.length - 1) return { x: targetX, y: targetY };
+    if (index === 1) return { x: point.x, y: sourceY };
+    if (index === points.length - 2) return { x: point.x, y: targetY };
+    return point;
+  });
+  const visibleRoute = chapterRoute ?? withMinEndStub(
     preGateSalesRoute ??
       deniedRoute ??
       approvedRoute ??
@@ -1031,7 +1041,7 @@ export function SemanticEdge({
     { x: bezierLabelX, y: bezierLabelY },
     { x: targetX, y: targetY },
   ];
-  const placement = placeLabel(
+  const placement = chapterConnection?.label ? { point: chapterConnection.label, avoided: false } : placeLabel(
     labelGuide,
     displayLabel,
     data?.obstacles ?? [],
@@ -1064,7 +1074,7 @@ export function SemanticEdge({
   );
   const rawColor = getSemanticEdgeColor(domain);
   const active = data?.active;
-  const color = active === false ? "#94a3b8" : rawColor;
+  const color = rawColor;
 
   return (
     <>
@@ -1074,7 +1084,7 @@ export function SemanticEdge({
         style={{
           stroke: color,
           strokeWidth: selected ? 3.8 : active ? 3.2 : 2.0,
-          opacity: active === false ? 0.3 : 1,
+          opacity: active === false ? 0.65 : 1,
           filter: active ? `drop-shadow(0 0 3px ${color}55)` : undefined,
           strokeLinejoin: "round",
           strokeLinecap: "round",

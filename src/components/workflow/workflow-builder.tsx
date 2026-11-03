@@ -1,12 +1,18 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { CollaborativeViewState } from "@/lib/collaboration/collaboration-types";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { AuthGate } from "./auth-gate";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { exportPresentationPdf } from "@/lib/presentation-pdf-export";
 import { exportExecutivePresentationPdf } from "@/lib/executive-presentation-pdf-export";
 import type { DomainNode, NodeLayout } from "@/types/workflow";
+import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
+import { CollaborationControlOverlay } from "./collaboration-control-overlay";
+import { useShallow } from "zustand/react/shallow";
 
 const TopToolbar = dynamic(() => import("./top-toolbar").then((module) => module.TopToolbar), { ssr: false });
 const NodeLibrary = dynamic(() => import("./node-library").then((module) => module.NodeLibrary), { ssr: false });
@@ -19,6 +25,53 @@ const CommandPalette = dynamic(() => import("./command-palette").then((module) =
 const DeleteBlockedDialog = dynamic(() => import("./delete-blocked-dialog").then((module) => module.DeleteBlockedDialog), { ssr: false });
 const ConfirmClearDialog = dynamic(() => import("./confirm-clear-dialog").then((module) => module.ConfirmClearDialog), { ssr: false });
 const PyramidLocationWidget = dynamic(() => import("./pyramid-location-widget").then((module) => module.PyramidLocationWidget), { ssr: false });
+
+function RemoteCollaboratorCursors({ view }: { view: CollaborativeViewState }) {
+  const [viewport, setViewport] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const surface = document.querySelector("[data-collaboration-surface]");
+    if (!surface) return;
+    const update = () => setViewport(surface.querySelector<HTMLElement>(".react-flow__viewport"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(surface, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [view.layer, view.executionNodeId]);
+  const { isConnected, roomId, remotePeers } = useCollaborationStore(
+    useShallow((state) => ({
+      isConnected: state.isConnected,
+      roomId: state.roomId,
+      remotePeers: state.remotePeers,
+    })),
+  );
+  if (!isConnected || roomId === "local-only") return null;
+
+  const visiblePeers = Object.values(remotePeers).filter(
+    (peer) => peer.cursor?.view?.layer === view.layer &&
+      (view.layer !== "L3" || peer.cursor.view.executionNodeId === view.executionNodeId) &&
+      Date.now() - (peer.cursorAt ?? 0) < 30000,
+  );
+  if (!visiblePeers.length) return null;
+
+  return <>{visiblePeers.map((peer) => {
+    const cursor = peer.cursor!;
+    const canvas = cursor.space === "canvas";
+    if (canvas && !viewport) return null;
+    const zoom = viewport ? new DOMMatrix(getComputedStyle(viewport).transform).a || 1 : 1;
+    const marker = (
+      <div key={peer.peerId} data-remote-cursor={peer.peerId}
+        className="pointer-events-none absolute z-[9999]"
+        style={{ left: canvas ? cursor.x : `${cursor.x * 100}%`, top: canvas ? cursor.y : `${cursor.y * 100}%`, transform: canvas ? `scale(${1 / zoom})` : undefined, transformOrigin: "0 0" }}>
+        <svg className="size-5 drop-shadow" viewBox="0 0 20 24" fill="none">
+          <path d="M2 1.5v18l4.8-4.2 3.1 6.4 3-1.4-3.2-6.3 6.5-.4L2 1.5Z" fill={peer.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+        <span className="ml-3 -mt-1 block max-w-40 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold text-white shadow-md" style={{ backgroundColor: peer.color }}>{peer.name}</span>
+      </div>
+    );
+    return canvas ? createPortal(marker, viewport!, peer.peerId) : marker;
+  })}</>;
+
+}
 
 function subscribeToMediaQuery(
   query: MediaQueryList,
@@ -40,16 +93,89 @@ function subscribeToMediaQuery(
 }
 
 export default function WorkflowBuilder() {
+  const workspaceSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const { isCollaborationConnected, editControlReady, editorViewState, remotePeerCount } =
+    useCollaborationStore(
+      useShallow((state) => ({
+        isCollaborationConnected: state.isConnected,
+        editControlReady: state.editControlReady,
+        editorViewState: state.editorViewState,
+        remotePeerCount: Object.keys(state.remotePeers).length,
+      })),
+    );
+  const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
+  const editorName = useCollaborationStore((state) =>
+    state.editorPeerId ? state.remotePeers[state.editorPeerId]?.name : undefined,
+  );
+  const editorExecutionNodeAvailable = useWorkflowStore((state) =>
+    Boolean(editorViewState?.executionNodeId && state.file.graph.nodes.some(
+      (node) => node.id === editorViewState.executionNodeId,
+    )),
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop" | null>(null);
   const [isHighLevelView, setIsHighLevelView] = useState(true);
+  useEffect(() => {
+    const returnView = sessionStorage.getItem("release-conditions:return-view");
+    const layer = new URLSearchParams(window.location.search).get("layer");
+    if (layer === "L2" || (!layer && returnView === "l2")) setIsHighLevelView(false);
+    sessionStorage.removeItem("release-conditions:return-view");
+  }, []);
   const [executionNodeId, setExecutionNodeId] = useState<string | null>(null);
   const [executionItemId, setExecutionItemId] = useState<string | null>(null);
   const [executionConditionId, setExecutionConditionId] = useState<string | null>(null);
+  const workflowHydrated = useWorkflowStore((state) => state.hydrated);
+  useEffect(() => {
+    if (!workflowHydrated || !canEditWorkflow) return;
+    const params = new URLSearchParams(window.location.search);
+    const nodeId = params.get("executionNode");
+    if (!nodeId || !useWorkflowStore.getState().file.graph.nodes.some((node) => node.id === nodeId)) return;
+    setIsHighLevelView(false);
+    setExecutionNodeId(nodeId);
+    setExecutionConditionId(params.get("condition") || null);
+  }, [workflowHydrated, canEditWorkflow]);
   const isExecutionView = executionNodeId !== null;
+  const currentLayer = isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2";
+
+  useEffect(() => {
+    if (!editControlReady || !canEditWorkflow) return;
+    collaborationManager.broadcastViewState({
+      layer: currentLayer,
+      ...(currentLayer === "L3" && executionNodeId ? { executionNodeId } : {}),
+    });
+  }, [canEditWorkflow, currentLayer, editControlReady, executionNodeId, isCollaborationConnected, remotePeerCount]);
+
+  const applyEditorView = useCallback((view: NonNullable<typeof editorViewState>) => {
+    if (view.page && view.page !== "workflow") return;
+    if (view.layer === "L1") {
+      setIsHighLevelView(true);
+      setExecutionNodeId(null);
+      setExecutionItemId(null);
+      setExecutionConditionId(null);
+      return;
+    }
+    setIsHighLevelView(false);
+    if (view.layer === "L3" && view.executionNodeId) {
+      const nodeExists = useWorkflowStore.getState().file.graph.nodes.some(
+        (node) => node.id === view.executionNodeId,
+      );
+      if (nodeExists) {
+        setExecutionNodeId(view.executionNodeId);
+        return;
+      }
+    }
+    setExecutionNodeId(null);
+    setExecutionItemId(null);
+    setExecutionConditionId(null);
+  }, []);
+  useEffect(() => {
+    if (!editControlReady || canEditWorkflow || !editorViewState) return;
+    applyEditorView(editorViewState);
+  }, [applyEditorView, canEditWorkflow, editControlReady, editorViewState, editorExecutionNodeAvailable, isCollaborationConnected]);
   const [layer1FocusRequest, setLayer1FocusRequest] = useState<string | null>(null);
   const [layer2FocusRequest, setLayer2FocusRequest] = useState<string[] | null>(null);
   const requestLayer2Focus = useCallback((nodeIds: string[]) => {
+    if (!canEditCollaborativeWorkflow()) return;
     setLayer2FocusRequest(nodeIds);
   }, []);
   const clearLayer2FocusRequest = useCallback(() => {
@@ -58,7 +184,28 @@ export default function WorkflowBuilder() {
   const clearLayer1FocusRequest = useCallback(() => {
     setLayer1FocusRequest(null);
   }, []);
+  const broadcastEditorCursor = useCallback((event: React.PointerEvent<HTMLDivElement>, force = false) => {
+    if (!canEditCollaborativeWorkflow()) return;
+    const surface = workspaceSurfaceRef.current;
+    if (!surface) return;
+    const view: CollaborativeViewState = { layer: currentLayer, ...(executionNodeId ? { executionNodeId } : {}) };
+    const canvas = (event.target as HTMLElement).closest<HTMLElement>(".react-flow");
+    const viewport = canvas?.querySelector<HTMLElement>(".react-flow__viewport");
+    if (canvas && viewport) {
+      const bounds = canvas.getBoundingClientRect();
+      const matrix = new DOMMatrix(getComputedStyle(viewport).transform);
+      collaborationManager.broadcastCursor(
+        (event.clientX - bounds.left - matrix.e) / matrix.a,
+        (event.clientY - bounds.top - matrix.f) / matrix.d,
+        view, "canvas", force,
+      );
+    } else if (currentLayer === "L3") {
+      const bounds = surface.getBoundingClientRect();
+      collaborationManager.broadcastCursor((event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height, view, "surface", force);
+    }
+  }, [currentLayer, executionNodeId]);
   const openLayer1Context = useCallback((nodeId: string) => {
+    if (!canEditCollaborativeWorkflow()) return;
     if (nodeId) {
       useWorkflowStore.getState().selectHighLevelNodes([nodeId]);
       setLayer1FocusRequest(nodeId);
@@ -68,7 +215,9 @@ export default function WorkflowBuilder() {
     setIsHighLevelView(true);
   }, []);
   const openExecutionView = useCallback((nodeId?: string) => {
-    const selectedId = nodeId || useWorkflowStore.getState().selection.nodeIds[0];
+    if (!canEditCollaborativeWorkflow()) return;
+    const workflow = useWorkflowStore.getState();
+    const selectedId = nodeId || workflow.selection.nodeIds[0] || workflow.file.graph.nodes[0]?.id;
     if (
       !selectedId ||
       !useWorkflowStore
@@ -82,11 +231,13 @@ export default function WorkflowBuilder() {
     setExecutionNodeId(selectedId);
   }, []);
   const closeExecutionView = useCallback(() => {
+    if (!canEditCollaborativeWorkflow()) return;
     setExecutionNodeId(null);
     setExecutionItemId(null);
     setExecutionConditionId(null);
   }, []);
   const focusLayer2Node = useCallback((nodeId: string) => {
+    if (!canEditCollaborativeWorkflow()) return;
     setExecutionNodeId(null);
     setExecutionItemId(null);
     setExecutionConditionId(null);
@@ -120,22 +271,39 @@ export default function WorkflowBuilder() {
           | "svg"
           | "pdf"
           | "l1-pdf"
+          | "l1-swimlane-pdf"
+          | "l1-gantt-pdf"
           | "l2-pdf"
           | "l3-pdf"
           | "tech-pdf"
-          | "presentation-pdf";
+          | "presentation-pdf"
+          | "presentation-no-conditions-pdf";
         switched?: boolean;
       }>;
       const format = custom.detail?.format;
       if (!format || custom.detail?.switched) return;
+
+      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf") {
+        void import("@/lib/l1-department-swimlane-pdf-export")
+          .then(({ exportL1DepartmentSwimlanePdf }) =>
+            exportL1DepartmentSwimlanePdf(useWorkflowStore.getState().file, { gantt: format === "l1-gantt-pdf" }),
+          )
+          .catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : "Could not export the High Level Process System Flowchart PDF.";
+            window.alert(message);
+          });
+        return;
+      }
 
       if (format === "tech-pdf") {
         void exportPresentationPdf(useWorkflowStore.getState().file);
         return;
       }
 
-      if (format === "presentation-pdf") {
-        void exportExecutivePresentationPdf(useWorkflowStore.getState().file);
+      if (format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
+        void exportExecutivePresentationPdf(useWorkflowStore.getState().file, {
+          includeReleaseConditions: format === "presentation-pdf",
+        });
         return;
       }
 
@@ -219,10 +387,14 @@ export default function WorkflowBuilder() {
         target.isContentEditable;
       if (command && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setPaletteOpen(true);
+        if (canEditCollaborativeWorkflow()) setPaletteOpen(true);
         return;
       }
       if (editing) return;
+      if (!canEditCollaborativeWorkflow()) {
+        if (command || ["Backspace", "Delete"].includes(event.key)) event.preventDefault();
+        return;
+      }
       const store = useWorkflowStore.getState();
       if (command && event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -329,16 +501,29 @@ export default function WorkflowBuilder() {
         isHighLevelView={isHighLevelView}
         isExecutionView={isExecutionView}
         canOpenExecutionView={
-          !isHighLevelView && selection.nodeIds.length === 1
+          useWorkflowStore.getState().file.graph.nodes.length > 0
         }
         onOpenExecutionView={() => openExecutionView()}
         onCloseExecutionView={closeExecutionView}
         onToggleHighLevelView={() => {
+          if (!canEditCollaborativeWorkflow()) return;
           setExecutionNodeId(null);
           setIsHighLevelView((active) => !active);
         }}
       />
-      <div className="relative flex min-h-0 min-w-0 flex-1">
+      <div
+        ref={workspaceSurfaceRef}
+        data-collaboration-surface
+        className="relative flex min-h-0 min-w-0 flex-1"
+        onPointerMove={broadcastEditorCursor}
+        onPointerDown={(event) => broadcastEditorCursor(event, true)}
+      >
+        {isCollaborationConnected && editControlReady && !canEditWorkflow ? (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-[70] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-cyan-400/50 bg-background/90 px-3 py-1.5 text-[11px] font-medium text-cyan-700 shadow-lg backdrop-blur dark:text-cyan-200 sm:hidden" role="status" aria-live="polite">
+            <Eye className="size-3.5" />
+            <span>Following {editorName || "the editor"} · {currentLayer}{currentLayer === "L3" ? " Conditions · Forms & execution" : currentLayer === "L2" ? " Detailed Workflow" : " High-Level Process"}</span>
+          </div>
+        ) : null}
         {leftOpen && !isExecutionView ? (
           <div className="absolute inset-y-0 left-0 z-30 block md:relative md:inset-auto md:z-20">
             <NodeLibrary highLevelMode={isHighLevelView} />
@@ -364,7 +549,7 @@ export default function WorkflowBuilder() {
             ) : null}
             {isHighLevelView ? (
               <HighLevelWorkflowView
-                onExit={() => setIsHighLevelView(false)}
+                onExit={() => { if (canEditCollaborativeWorkflow()) setIsHighLevelView(false); }}
                 onFocusLayer2Nodes={requestLayer2Focus}
                 focusNodeId={layer1FocusRequest}
                 onFocusRequestHandled={clearLayer1FocusRequest}
@@ -423,6 +608,8 @@ export default function WorkflowBuilder() {
             />
           </div>
         ) : null}
+        <RemoteCollaboratorCursors view={{ layer: currentLayer, ...(executionNodeId ? { executionNodeId } : {}) }} />
+        <CollaborationControlOverlay />
       </div>
       <CommandPalette
         open={paletteOpen}

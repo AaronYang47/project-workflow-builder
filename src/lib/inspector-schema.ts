@@ -15,6 +15,7 @@ export type InspectorField = {
   type: "text" | "textarea" | "color" | "boolean" | "select" | "tags";
   options?: string[];
   placeholder?: string;
+  helpText?: string;
   section: string;
   mask?: "digits";
   maxLength?: number;
@@ -71,7 +72,14 @@ const gate: InspectorField[] = [
   },
 ];
 const general: InspectorField[] = [
-  { key: "config.stage", label: "Stage", type: "text", section: "General" },
+  { key: "config.stage", label: "Department", type: "text", section: "General" },
+  {
+    key: "config.blendAdjacentPhaseColors",
+    label: "Blend adjacent Phase colors",
+    type: "boolean",
+    section: "Appearance",
+    helpText: "Uses the nearest Phase color on each side and blends them across the Department card.",
+  },
   {
     key: "config.iconKey",
     label: "Icon",
@@ -91,6 +99,18 @@ const general: InspectorField[] = [
 ];
 const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
   general,
+  terminal: [
+    {
+      key: "config.chapterNumber",
+      label: "Chapter number",
+      type: "text",
+      placeholder: "04",
+      mask: "digits",
+      maxLength: 2,
+      section: "General",
+      helpText: "Shown in the L1 linked-node badge. Leave blank to use the Phase number.",
+    },
+  ],
   projectStart: [
     ...general,
     {
@@ -118,10 +138,19 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
     },
     {
       key: "customFields.projectId",
-      label: "Project ID (L-YY-XXX or P-YY-XXX)",
+      label: "Job Number (5 digits)",
       type: "text",
-      placeholder: "L-26-001",
+      placeholder: "27084",
       pattern: "^[LP]-\\d{2}-\\d{3}$",
+      section: "Project details",
+    },
+    {
+      key: "customFields.customerCode",
+      label: "Company code (4 letters)",
+      type: "text",
+      placeholder: "FDBR",
+      maxLength: 4,
+      pattern: "^[A-Z]{4}$",
       section: "Project details",
     },
     {

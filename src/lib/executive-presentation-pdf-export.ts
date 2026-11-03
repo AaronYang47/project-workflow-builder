@@ -1,5 +1,9 @@
+import { conditionDurationLabel } from "@/lib/condition-duration";
 import type { WorkflowFile, DomainNode, HighLevelNode, NodeLayout } from "@/types/workflow";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import { chapterLabel } from "@/lib/chapter-label";
+import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { conditionIsSatisfied, ruleComplete, signatureComplete } from "@/lib/workflow-progress";
 
 // 1:1 Matching colors from the project canvas (薄荷绿 -> 玫瑰粉红 -> 橘黄色 -> 金黄色)
 const DEFAULT_PHASE_THEMES = [
@@ -219,7 +223,10 @@ function clusterStepsByGate(
  * 2. Strictly uniform, symmetric L1 card distribution across the row
  * 3. Layered non-overlapping orthogonal branch routing (100% zero line collisions)
  */
-export async function exportExecutivePresentationPdf(file: WorkflowFile): Promise<void> {
+export async function exportExecutivePresentationPdf(
+  file: WorkflowFile,
+  { includeReleaseConditions = true }: { includeReleaseConditions?: boolean } = {},
+): Promise<void> {
   const { toPng } = await import("html-to-image");
   const { jsPDF } = await import("jspdf");
 
@@ -351,8 +358,9 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
   container.style.opacity = "1";
   container.style.visibility = "visible";
   // Exact 297 : 210 A4 ratio (1485px x 1050px = 5px per mm)
-  container.style.width = "1485px";
-  container.style.height = "1050px";
+  const canvasWidth = Math.max(1485, totalL2Nodes * 210 + totalPhases * 20 + 72);
+  container.style.width = `${canvasWidth}px`;
+  container.style.minHeight = "1050px";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#0f172a";
   container.style.fontFamily =
@@ -376,7 +384,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; position: relative; box-sizing: border-box;">
           
           <!-- Identical Uniform L1 Card (Width: 260px, Height: 98px) -->
-          <div id="exec-l1-card-${phaseIdx}" style="width: 260px; height: 98px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
+          <div id="exec-l1-card-${phaseIdx}" style="width: 260px; min-height: 140px; background: ${theme.bg}; border: 2px solid ${theme.border}; border-top: 5.5px solid ${theme.accent}; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; text-align: center; position: relative; z-index: 10;">
             
             <div style="display: flex; justify-content: flex-end; align-items: center;">
               <span style="font-size: 10px; font-weight: 800; color: ${theme.subtext}; background: rgba(255,255,255,0.9); border: 1px solid ${theme.border}; padding: 2px 7px; border-radius: 4px;">
@@ -388,7 +396,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
               ${escapeHtml(l1Node.title)}
             </div>
 
-            <div style="font-size: 11px; color: ${theme.subtext}; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <div style="font-size: 11px; color: ${theme.subtext}; font-weight: 600; overflow-wrap: anywhere; white-space: normal;">
               ${escapeHtml(l1Node.description || "Active Phase")}
             </div>
 
@@ -426,10 +434,26 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
               const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
               const isStart = node.type === "projectStart" || node.id === "project-start";
               const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+              const departmentGradient =
+                (node.type === "general" || node.type === "projectStart") &&
+                node.config.blendAdjacentPhaseColors === true
+                  ? chapterPhaseGradientColors(node, allNodes, layout, highLevelNodes)
+                  : undefined;
+              const stageName =
+                (node.type === "general" || node.type === "projectStart") && typeof node.config.stage === "string"
+                  ? node.config.stage.trim().replace(/^(?:department|chapter)\s*/i, "").replace(/\s+department$/i, "")
+                  : "";
+              const departmentLabel = stageName ? `${stageName} Department` : "";
+              const departmentBorder = departmentGradient
+                ? `color-mix(in srgb, ${departmentGradient.left} 50%, ${departmentGradient.right})`
+                : theme.border;
+              const departmentBackground = departmentGradient
+                ? `linear-gradient(90deg, color-mix(in srgb, ${departmentGradient.left} 18%, #ffffff), color-mix(in srgb, ${departmentGradient.right} 18%, #ffffff))`
+                : "#ffffff";
 
               const subtitle =
                 node.description?.trim() ||
-                (typeof node.config?.stage === "string" && node.config.stage.trim()) ||
+                (typeof node.config?.stage === "string" && node.config.stage.trim() && chapterLabel(node.config.stage)) ||
                 (isGate ? "Quality Gate Verification & Decision Sign-off" : isStart ? "Project Record Initiation & Entry" : isTerminal ? "Formal Handover & Closeout" : "Standard Process Execution");
 
               const badgeStyle = isGate
@@ -440,14 +464,49 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
                     ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
                     : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
 
+              const conditions = includeReleaseConditions ? [
+                ...(node.conditions || []).flatMap((condition) => {
+                  const label = (condition.label || condition.description || "").trim();
+                  if (!label) return [];
+                  const satisfied = conditionIsSatisfied(condition, node, startNode, file.execution?.items, file.operations);
+                  return [{
+                    label: `${conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}${label}`,
+                    checked: condition.required === false && condition.id !== "project-id-required"
+                      ? Boolean(condition.checked) && satisfied : satisfied,
+                  }];
+                }),
+                ...(node.config?.gateRules || []).filter((rule) => rule.label?.trim()).map((rule) => ({
+                  label: rule.label.trim(), checked: ruleComplete(rule),
+                })),
+                ...(node.config?.signatureRequirements || []).filter((signature) => signature.fullName?.trim() || signature.abbreviation?.trim()).map((signature) => ({
+                  label: `Signoff: ${signature.fullName || signature.abbreviation}${signature.department ? ` (${signature.department})` : ""}`,
+                  checked: signatureComplete(signature),
+                })),
+              ] : [];
+              const conditionsHtml = conditions.length ? `
+                <div data-presentation-conditions style="margin-top: 9px; padding-top: 7px; border-top: 1px solid ${theme.border};">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 5px; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: ${theme.subtext};">
+                    <span>Release Conditions</span><span>${conditions.length}</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    ${conditions.map((condition) => `
+                      <div data-presentation-condition style="display: flex; align-items: flex-start; gap: 4px; font-size: 9px; font-weight: 600; line-height: 1.35; color: #334155;">
+                        <span aria-hidden="true" style="display: inline-flex; flex: 0 0 9px; width: 9px; height: 9px; margin-top: 1px; border-radius: 2px; box-sizing: border-box; border: 1px solid ${condition.checked ? "#059669" : "#94a3b8"}; background: ${condition.checked ? "#059669" : "#ffffff"}; color: #ffffff; align-items: center; justify-content: center; font-size: 7px; line-height: 1;">${condition.checked ? "✓" : ""}</span>
+                        <span style="min-width: 0; overflow-wrap: anywhere;">${escapeHtml(condition.label)}</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              ` : "";
               const badgeText = isGate ? gateLabel : isStart ? "Start" : isTerminal ? "Complete" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
               const isOverallLast = globalStepCounter === totalL2Nodes;
 
+              const noReleaseConditions = conditions.length === 0;
               return `
-                <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; position: relative; box-sizing: border-box;">
+                <div style="flex: 1; min-width: 0; display: flex; align-items: stretch; position: relative; box-sizing: border-box;">
                   
                   <!-- Solid-Border L2 Step Card (Height: 100% of container) -->
-                  <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; height: 100%; background: #ffffff; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : theme.border}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : theme.accent}; border-radius: 8px; padding: 10px 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
+                  <div id="exec-l2-card-${phaseIdx}-${nodeIdx}" style="flex: 1; min-width: 0; align-self: ${noReleaseConditions ? "flex-start" : "stretch"}; background: ${departmentBackground}; border: 2px solid ${isGate ? GATE_TAG_VISUAL.border : departmentBorder}; border-top: 4.5px solid ${isGate ? GATE_TAG_VISUAL.badgeBg : departmentGradient ? departmentBorder : theme.accent}; border-radius: 8px; padding: 10px 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative; z-index: 10;">
                     
                     <div>
                       <div style="display: flex; justify-content: space-between; align-items: center; gap: 3px; margin-bottom: 5px;">
@@ -459,18 +518,19 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
                         </span>
                       </div>
 
-                      <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                      <div style="font-size: 12px; font-weight: 900; color: #0f172a; line-height: 1.25; margin-bottom: 4px; overflow-wrap: anywhere;">
                         ${escapeHtml(node.title)}
                       </div>
 
-                      <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+                      <p style="margin: 0; font-size: 9.5px; color: #475569; line-height: 1.35; font-weight: 500; overflow-wrap: anywhere;">
                         ${escapeHtml(subtitle)}
                       </p>
+                      ${conditionsHtml}
                     </div>
 
                     <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px dashed ${theme.border}; padding-top: 4px; margin-top: 2px;">
                       <span style="font-size: 8px; color: ${isGate ? "#7c3aed" : theme.subtext}; font-weight: 800;">
-                        ${isGate ? "Gate Decision" : "Workflow Stage"}
+                        ${isGate ? "Gate Decision" : escapeHtml(departmentLabel || "Workflow Department")}
                       </span>
                     </div>
 
@@ -490,7 +550,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           if (group.isGateCluster && group.nodes.length > 1) {
             // Multiple Steps inside a Gate: Wrapped in a Purple Dashed Border Box INSIDE the Phase Box!
             return `
-              <div style="flex: ${group.nodes.length}; min-width: 0; height: 100%; display: flex; align-items: stretch; gap: 4px; border: 2px dashed #8b5cf6; border-radius: 8px; padding: 4px; background: rgba(243, 232, 255, 0.4); box-sizing: border-box; position: relative;">
+              <div style="flex: ${group.nodes.length}; min-width: 0; display: flex; align-items: stretch; gap: 4px; border: 2px dashed #8b5cf6; border-radius: 8px; padding: 4px; background: rgba(243, 232, 255, 0.4); box-sizing: border-box; position: relative;">
                 ${groupCardsHtml}
               </div>
             `;
@@ -498,7 +558,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
           // Single step or non-gate cluster
           return `
-            <div style="flex: ${group.nodes.length}; min-width: 0; height: 100%; display: flex; align-items: stretch; gap: 4px; box-sizing: border-box;">
+            <div style="flex: ${group.nodes.length}; min-width: 0; display: flex; align-items: stretch; gap: 4px; box-sizing: border-box;">
               ${groupCardsHtml}
             </div>
           `;
@@ -507,10 +567,10 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
 
       return `
         <!-- Phase Sub-Group in Bottom L2 Container (Uniform Height: 195px) -->
-        <div id="exec-l2-group-${phaseIdx}" style="flex: ${count}; min-width: 0; height: 195px; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
+        <div id="exec-l2-group-${phaseIdx}" style="flex: ${count}; min-width: 0; min-height: ${includeReleaseConditions ? "240px" : "0"}; display: flex; flex-direction: column; align-items: center; position: relative; box-sizing: border-box;">
           
           <!-- L2 Steps Row inside this Phase container (Strictly Uniform Height: 195px) -->
-          <div style="width: 100%; height: 100%; display: flex; align-items: stretch; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
+          <div style="width: 100%; flex: ${includeReleaseConditions ? "1" : "0 0 auto"}; display: flex; align-items: stretch; gap: 4px; background: ${theme.bg}; border: 1.5px dashed ${theme.border}; border-radius: 10px; padding: 6px; box-sizing: border-box;">
             ${stepGroupsHtml}
           </div>
 
@@ -520,7 +580,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     .join("");
 
   const html = `
-    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; overflow: hidden; position: relative;">
+    <div style="width: 100%; min-height: 986px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; position: relative;">
       
       <!-- TOP HEADER BAR -->
       <div style="border-bottom: 3px solid #0f172a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end; height: 56px; box-sizing: border-box; flex-shrink: 0;">
@@ -540,7 +600,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         
         <div style="text-align: right; font-size: 10.5px; color: #475569; display: flex; gap: 12px; align-items: center;">
           <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 5px; padding: 3px 10px; text-align: left;">
-            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Project Number</div>
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 800;">Job Number</div>
             <div style="font-weight: 900; font-family: monospace; font-size: 13px; color: #0f172a;">${escapeHtml(projectNumber)}</div>
           </div>
           <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 5px; padding: 3px 10px; text-align: left;">
@@ -551,7 +611,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       </div>
 
       <!-- MAIN 2-TIER WORKFLOW CANVAS (Generous 90px spacing between L1 and L2) -->
-      <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; overflow: hidden; padding: 10px 0; position: relative;">
+      <div id="exec-canvas-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; min-height: 0; padding: 10px 0; position: relative;">
         
         <!-- 1. TOP L1 ROW: Strictly Uniform Size & Uniform Even Distribution (flex: 1 each) -->
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; margin-bottom: 90px;">
@@ -559,7 +619,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
         </div>
 
         <!-- 2. BOTTOM L2 ROW: Strictly Identical Uniform Height Across All 4 Phase Boxes & 10 Cards -->
-        <div style="display: flex; align-items: stretch; gap: 10px; width: 100%; box-sizing: border-box;">
+        <div style="display: flex; align-items: ${includeReleaseConditions ? "stretch" : "flex-start"}; gap: 10px; width: 100%; box-sizing: border-box;">
           ${l2PhaseGroupsHtml}
         </div>
 
@@ -570,7 +630,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
       </div>
 
       <!-- BOTTOM EXECUTIVE FOOTER -->
-      <div style="border-top: 1.5px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; height: 32px; box-sizing: border-box; flex-shrink: 0; line-height: 1; white-space: nowrap;">
+      <div style="border-top: 1.5px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; min-height: 32px; box-sizing: border-box; flex-shrink: 0; line-height: 1.3; gap: 16px;">
         <div style="display: flex; gap: 18px; align-items: center; white-space: nowrap;">
           <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 10.5px; white-space: nowrap; letter-spacing: 0.05em;">
             EXECUTIVE LEGEND:
@@ -597,7 +657,7 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
           </span>
         </div>
         <div style="font-weight: 800; color: #0f172a; font-size: 10px; white-space: nowrap;">
-          ProFab Process Workflow System · Single-Page Executive Presentation Architecture (A4 Landscape)
+          Falcon Process Building System · Executive Presentation Architecture
         </div>
       </div>
 
@@ -713,24 +773,24 @@ export async function exportExecutivePresentationPdf(file: WorkflowFile): Promis
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
       pixelRatio: 2,
-      width: 1485,
-      height: 1050,
+      width: canvasWidth,
+      height: container.offsetHeight,
       cacheBust: true,
     });
 
     const pdf = new jsPDF({
       orientation: "landscape",
       unit: "mm",
-      format: "a4",
+      format: [canvasWidth / 5, container.offsetHeight / 5],
     });
 
     // 297mm x 210mm A4 exact fit
-    pdf.addImage(dataUrl, "PNG", 0, 0, 297, 210, undefined, "FAST");
-    const safeProjectName = (projectName || "ProFab")
+    pdf.addImage(dataUrl, "PNG", 0, 0, canvasWidth / 5, container.offsetHeight / 5, undefined, "FAST");
+    const safeProjectName = (projectName || "Falcon Process Building System")
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
-    pdf.save(`${safeProjectName}-Executive-Presentation-Architecture.pdf`);
+    pdf.save(`${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Release-Conditions"}.pdf`);
   } finally {
     document.body.removeChild(container);
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Node, NodeChange } from "@xyflow/react";
 
 /**
@@ -8,7 +8,7 @@ import type { Node, NodeChange } from "@xyflow/react";
  * Purely derives React Flow nodes from modelNodes, tracking only active
  * position displacements during user dragging while preserving measured dimensions
  * so React Flow never hides nodes with visibility:hidden during drag.
- * Zero internal setState loops, zero useEffect.
+ * Pointer updates are coalesced to one React update per animation frame.
  */
 export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
   const [dragPositions, setDragPositions] = useState<
@@ -17,6 +17,32 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
   const [measuredDimensions, setMeasuredDimensions] = useState<
     Record<string, { width: number; height: number }>
   >({});
+  const pendingPositions = useRef<Record<string, { x: number; y: number } | null>>({});
+  const frame = useRef<number | null>(null);
+
+  const flushPositions = useCallback(() => {
+    frame.current = null;
+    const pending = pendingPositions.current;
+    pendingPositions.current = {};
+    setDragPositions((prev) => {
+      let next: typeof prev | undefined;
+      for (const [id, position] of Object.entries(pending)) {
+        if (position) {
+          if (prev[id]?.x === position.x && prev[id]?.y === position.y) continue;
+          next ??= { ...prev };
+          next[id] = position;
+        } else if (prev[id]) {
+          next ??= { ...prev };
+          delete next[id];
+        }
+      }
+      return next ?? prev;
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+  }, []);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     // 1. Capture measured dimensions so nodes never revert to unmeasured state during drag
@@ -26,42 +52,35 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
     );
     if (dimensionChanges.length > 0) {
       setMeasuredDimensions((prev) => {
-        let changed = false;
-        const next = { ...prev };
+        let next: typeof prev | undefined;
         for (const change of dimensionChanges) {
           if (change.dimensions) {
+            const old = prev[change.id];
+            if (old?.width === change.dimensions.width && old?.height === change.dimensions.height) continue;
+            next ??= { ...prev };
             next[change.id] = change.dimensions;
-            changed = true;
           }
         }
-        return changed ? next : prev;
+        return next ?? prev;
       });
     }
 
     // 2. Track position displacement
     const positionChanges = changes.filter(
       (change): change is Extract<NodeChange, { type: "position" }> =>
-        change.type === "position" && Boolean(change.position),
+        change.type === "position" && (Boolean(change.position) || change.dragging === false),
     );
     if (positionChanges.length === 0) return;
 
-    setDragPositions((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const change of positionChanges) {
-        if (change.dragging && change.position) {
-          next[change.id] = change.position;
-          changed = true;
-        } else if (change.dragging === false) {
-          if (next[change.id]) {
-            delete next[change.id];
-            changed = true;
-          }
-        }
+    for (const change of positionChanges) {
+      if (change.dragging && change.position) {
+        pendingPositions.current[change.id] = change.position;
+      } else if (change.dragging === false) {
+        pendingPositions.current[change.id] = null;
       }
-      return changed ? next : prev;
-    });
-  }, []);
+    }
+    if (frame.current === null) frame.current = requestAnimationFrame(flushPositions);
+  }, [flushPositions]);
 
   const nodes = useMemo(() => {
     return modelNodes.map((node) => {

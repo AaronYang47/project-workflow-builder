@@ -1,4 +1,6 @@
+import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
 import { parseGateServiceTypeId } from "@/lib/gate-service-types";
+import { wholeDayCondition } from "@/lib/condition-duration";
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { absoluteLayoutPosition } from "@/lib/layout-geometry";
@@ -23,7 +25,7 @@ import { normalizeProjectOperations } from "@/lib/project-operations";
 import { createDefaultTerminalConditions } from "@/lib/create-domain-node";
 
 const stageByType: Record<WorkflowNodeType, string> = {
-  general: "Stage",
+  general: "Department",
   projectStart: "Project",
   start: "Start",
   end: "End",
@@ -149,16 +151,22 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
     : [
         {
           id: "project-id-required",
-          label: "Project ID is entered",
-          required: true,
+          label: "Job Number is entered",
+          required: false,
           checked: false,
           locked: true,
         },
       ];
+  // Update only the old built-in wording; preserve any custom condition label.
+  const normalizedBaseConditions = baseConditions.map((condition) =>
+    condition.id === "project-id-required"
+      ? { ...condition, required: false, label: condition.label === "Project ID is entered" ? "Job Number is entered" : condition.label }
+      : condition,
+  );
   const conditions =
     serviceType === "Paid Service"
       ? [
-          ...baseConditions.filter(
+          ...normalizedBaseConditions.filter(
             (condition) =>
               condition.id !== "paid-building-required" &&
               condition.id !== "paid-module-required",
@@ -176,7 +184,7 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
             checked: false,
           },
         ]
-      : baseConditions.filter(
+      : normalizedBaseConditions.filter(
           (condition) =>
             condition.id !== "paid-building-required" &&
             condition.id !== "paid-module-required",
@@ -537,7 +545,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     .map((node) => {
       const conditions = [...(node.conditions || [])];
       if (node.type === "projectStart" && !conditions.some((item) => item.id === "project-id-required")) {
-        conditions.unshift({ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true });
+        conditions.unshift({ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true });
       }
       if (node.type === "terminal" && conditions.length === 0) {
         conditions.push(...createDefaultTerminalConditions());
@@ -566,7 +574,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         description: "Enter the required Project ID before the workflow can continue.",
         color: "#2563a9",
         metadata: {},
-        conditions: [{ id: "project-id-required", label: "Project ID is entered", required: true, checked: false, locked: true }],
+        conditions: [{ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true }],
         documents: [],
         criteria: [],
         customFields: { projectId: "", legacyJobNumber: "", nodeUuid: crypto.randomUUID() },
@@ -667,10 +675,11 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     });
   const migratedFile = {
     ...file,
-    graph: { ...file.graph, nodes, edges },
+    releaseConditionInbox: file.releaseConditionInbox?.map(wholeDayCondition),
+    graph: { ...file.graph, nodes: nodes.map((node) => ({ ...node, conditions: node.conditions.map(wholeDayCondition) })), edges },
     layout: { ...file.layout, nodes: layouts, edges: undefined },
   };
   // Migration normalizes the saved document in place. It must not inject the
   // canonical lifecycle: each cloud project owns only the nodes it saved.
-  return migratedFile;
+  return normalizePreviousPhaseDependencies(migratedFile);
 }

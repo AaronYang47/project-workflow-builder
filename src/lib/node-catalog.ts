@@ -15,8 +15,8 @@ export type PaletteNodeType = (typeof PALETTE_NODE_TYPES)[number];
 export interface NodeDefinition { type: WorkflowNodeType; label: string; description: string; icon: ComponentType<{ className?: string }>; color: string; category: "General" | "Flow" | "Work" | "Governance" | "Information"; defaultSize: { width: number; height: number }; }
 
 export const NODE_CATALOG: NodeDefinition[] = [
-  { type: "projectStart", label: "Project Start", description: "Start a project with an editable project number", icon: FolderKanban, color: "#2563a9", category: "Flow", defaultSize: { width: 320, height: 220 } },
-  { type: "general", label: "Node", description: "Custom stage, name, content, and icon", icon: Boxes, color: "#3f668c", category: "General", defaultSize: { width: 270, height: 168 } },
+  { type: "projectStart", label: "Project Start", description: "Start a project with an editable job number", icon: FolderKanban, color: "#2563a9", category: "Flow", defaultSize: { width: 320, height: 220 } },
+  { type: "general", label: "Department", description: "Custom department, name, content, and icon", icon: Boxes, color: "#3f668c", category: "General", defaultSize: { width: 270, height: 168 } },
   { type: "phase", label: "Phase", description: "Phase frame covering workflow steps", icon: Layers3, color: "#0d9488", category: "Flow", defaultSize: { width: 620, height: 280 } },
   { type: "gate", label: "Gate", description: "Phase completion gate & signoff", icon: ShieldCheck, color: "#7c3aed", category: "Governance", defaultSize: { width: 620, height: 268 } },
   { type: "start", label: "Start", description: "Workflow entry point", icon: CircleDot, color: "#16866f", category: "Flow", defaultSize: { width: 210, height: 104 } },

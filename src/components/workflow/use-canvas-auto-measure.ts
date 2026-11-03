@@ -1,10 +1,11 @@
 import { useEffect, type RefObject } from "react";
 import { getGateLayoutMetrics, GATE_SECTION_GAP } from "@/lib/gate-layout";
 import { NODE_HEADER_HEIGHT } from "@/lib/node-layout";
+import { spacePhaseFrames } from "@/lib/phase-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { NodeLayout } from "@/types/workflow";
 
-const CONTENT_SELECTOR = "[data-conditions-content], [data-node-content]";
+const CONTENT_SELECTOR = "[data-conditions-content], [data-node-content], [data-phase-header]";
 
 /**
  * Monitors the DOM of workflow nodes, measuring scroll sizes and updating
@@ -20,9 +21,10 @@ export function useCanvasAutoMeasure(
     if (!root) return;
     let frame = 0;
     let isMeasuring = false;
+    let isDragging = false;
 
     const measure = () => {
-      if (isMeasuring) return;
+      if (isMeasuring || isDragging) return;
       isMeasuring = true;
       try {
         const current = useWorkflowStore.getState().file;
@@ -182,6 +184,16 @@ export function useCanvasAutoMeasure(
           }
         }
 
+        const measuredHeaders: Record<string, number> = {};
+        root.querySelectorAll<HTMLElement>("[data-phase-header]").forEach((header) => {
+          const id = header.closest<HTMLElement>(".react-flow__node")?.dataset.id;
+          if (id) measuredHeaders[id] = header.offsetHeight;
+        });
+        const measuredNodes = Object.fromEntries(Object.entries(current.layout.nodes).map(([id, layout]) => [id, { ...layout, ...patches[id] }]));
+        const spaced = spacePhaseFrames({ ...current, layout: { ...current.layout, nodes: measuredNodes } }, measuredHeaders);
+        for (const [id, layout] of Object.entries(spaced.layout.nodes)) {
+          if (layout !== measuredNodes[id]) patches[id] = { ...patches[id], ...layout };
+        }
         if (Object.keys(patches).length > 0) {
           updateLayouts(patches);
         }
@@ -191,8 +203,18 @@ export function useCanvasAutoMeasure(
     };
 
     const schedule = () => {
+      if (isDragging) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(measure);
+    };
+
+    const pauseForDrag = () => {
+      isDragging = true;
+      cancelAnimationFrame(frame);
+    };
+    const resumeAfterDrag = () => {
+      isDragging = false;
+      schedule();
     };
 
     const settleTimers: number[] = [];
@@ -221,6 +243,8 @@ export function useCanvasAutoMeasure(
     };
 
     window.addEventListener("workflow:measure-layout", measureAfterArrange);
+    window.addEventListener("workflow:node-drag-start", pauseForDrag);
+    window.addEventListener("workflow:node-drag-stop", resumeAfterDrag);
     frame = requestAnimationFrame(() => requestAnimationFrame(measure));
     settleTimers.push(
       ...[120, 360, 800, 1400].map((delay) =>
@@ -237,6 +261,8 @@ export function useCanvasAutoMeasure(
         "workflow:measure-layout",
         measureAfterArrange,
       );
+      window.removeEventListener("workflow:node-drag-start", pauseForDrag);
+      window.removeEventListener("workflow:node-drag-stop", resumeAfterDrag);
     };
   }, [updateLayouts, wrapper]);
 }

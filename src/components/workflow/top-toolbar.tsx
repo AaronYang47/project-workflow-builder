@@ -40,7 +40,10 @@ import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow"
 import { useWorkflowStore } from "@/store/workflow-store";
 import { CloudProjectControls } from "./cloud-project-controls";
 import { CollaboratorPresence } from "./collaborator-presence";
+import { EditorTransferControl } from "./editor-transfer-control";
+import { WorkflowLayerNavigation } from "./workflow-layer-navigation";
 import { R2FileDialog } from "./r2-file-dialog";
+import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 
 function ToolButton({
   label,
@@ -74,10 +77,13 @@ const saveImage = (
     | "svg"
     | "pdf"
     | "l1-pdf"
+    | "l1-swimlane-pdf"
+    | "l1-gantt-pdf"
     | "l2-pdf"
     | "l3-pdf"
     | "tech-pdf"
-    | "presentation-pdf",
+    | "presentation-pdf"
+    | "presentation-no-conditions-pdf",
 ) => {
   window.dispatchEvent(
     new CustomEvent("workflow:export", { detail: { format } }),
@@ -102,6 +108,7 @@ export function TopToolbar({
   onCloseExecutionView?: () => void;
 }) {
   const store = useWorkflowStore();
+  const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
   const dirty = store.dirty;
   const { theme, setTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -192,9 +199,9 @@ export function TopToolbar({
   return (
     <header
       data-workflow-toolbar
-      className="relative z-40 grid shrink-0 grid-cols-1 grid-rows-[44px_44px_44px] border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[48px_44px] min-[1440px]:!h-14 min-[1440px]:!grid-cols-[minmax(220px,max-content)_minmax(0,1fr)_max-content] min-[1440px]:!grid-rows-1"
+      className="relative z-40 grid shrink-0 grid-cols-1 border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto]"
     >
-      <div className="scroll-thin col-start-1 row-start-1 flex h-full min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-2 min-[1440px]:col-start-1">
+      <div className="col-start-1 row-start-1 flex min-h-12 min-w-0 flex-wrap items-center gap-2 px-2 py-1">
         <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-black">
           <Image
             src="/falcon-mark.png"
@@ -205,14 +212,15 @@ export function TopToolbar({
             className="h-full w-full object-contain"
           />
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <Input
             aria-label="Workflow name"
             value={store.file.graph.metadata.name}
+            disabled={!canEditWorkflow}
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ name: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="workflow-name-input block h-7 w-[240px] min-w-[180px] max-w-[320px] shrink-0 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
+            className="workflow-name-input block h-7 w-[240px] min-w-0 max-w-full border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
           />
           <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:inline">
             {store.file.graph.metadata.status}
@@ -223,6 +231,7 @@ export function TopToolbar({
           <input
             aria-label="Version"
             value={store.file.graph.metadata.version}
+            disabled={!canEditWorkflow}
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ version: e.target.value })}
             onBlur={finishMetadataEdit}
@@ -251,26 +260,25 @@ export function TopToolbar({
           )}
         </div>
       </div>
-      <div className="scroll-thin col-start-1 row-start-2 flex h-full min-w-0 items-center justify-start gap-1 overflow-x-auto border-t px-2 sm:col-span-2 min-[1440px]:!col-span-1 min-[1440px]:!col-start-2 min-[1440px]:!row-start-1 min-[1440px]:!justify-start min-[1440px]:!border-t-0">
-      <div className="mx-1.5 hidden h-6 w-px shrink-0 bg-border/60 min-[1440px]:block" />
+      <div className="col-start-1 row-start-3 flex min-h-11 min-w-0 flex-wrap items-center justify-start gap-1 border-t px-2 py-1 sm:col-span-2 sm:row-start-2">
       <div className="flex shrink-0 items-center gap-1">
         <ToolButton
           label="Undo (⌘Z)"
           onClick={store.undo}
-          disabled={!store.past.length}
+          disabled={!canEditWorkflow || !store.past.length}
         >
           <Undo2 className="size-4" />
         </ToolButton>
         <ToolButton
           label="Redo (⇧⌘Z)"
           onClick={store.redo}
-          disabled={!store.future.length}
+          disabled={!canEditWorkflow || !store.future.length}
         >
           <Redo2 className="size-4" />
         </ToolButton>
       </div>
       <div className="mx-1.5 h-6 w-px bg-border/60" />
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         <ToolButton
           label={isHighLevelView ? "Validate High-Level workflow" : "Validate workflow"}
           onClick={isHighLevelView ? store.validateHighLevel : store.validate}
@@ -284,7 +292,7 @@ export function TopToolbar({
           variant="outline"
           size="sm"
           onClick={arrange}
-          disabled={arranging || isExecutionView}
+          disabled={!canEditWorkflow || arranging || isExecutionView}
           className="h-8 min-w-[112px] shrink-0 justify-center gap-1.5 px-2.5 text-xs"
         >
           <span className={arranging ? "animate-spin" : ""}>
@@ -297,7 +305,7 @@ export function TopToolbar({
           {arranging ? "Arranging…" : "Auto arrange"}
         </Button>
         <div
-          className="flex h-8 shrink-0 items-center rounded-md border bg-muted/35 p-0.5"
+          className="flex min-h-8 min-w-0 flex-wrap items-center rounded-md border bg-muted/35 p-0.5"
           aria-label="Workflow view level"
           role="group"
         >
@@ -305,6 +313,7 @@ export function TopToolbar({
             title="Show the high-level project process"
             aria-label="L1 · High Level"
             aria-pressed={isHighLevelView && !isExecutionView}
+            disabled={!canEditWorkflow}
             variant="ghost"
             size="sm"
             onClick={
@@ -330,6 +339,7 @@ export function TopToolbar({
             title="Show the detailed workflow"
             aria-label="L2 · Detailed Workflow"
             aria-pressed={!isHighLevelView && !isExecutionView}
+            disabled={!canEditWorkflow}
             variant="ghost"
             size="sm"
             onClick={
@@ -338,7 +348,6 @@ export function TopToolbar({
                 : isExecutionView
                   ? () => {
                       onCloseExecutionView?.();
-                      onToggleHighLevelView();
                     }
                   : undefined
             }
@@ -350,19 +359,21 @@ export function TopToolbar({
           >
             L2 · Detailed Workflow
           </Button>
+          <WorkflowLayerNavigation currentLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"} onlyAdvanced />
+        </div>
           <Button
             title={
               isExecutionView
                 ? "Execution requirements for the selected workflow node"
                 : canOpenExecutionView
                   ? "Show execution requirements for the selected workflow node"
-                  : "Select a workflow node to open Execution View"
+                  : "Select a workflow node to open its forms and execution details"
             }
-            aria-label="L3 · Execution View"
+            aria-label="RC · Forms & execution"
             aria-pressed={isExecutionView}
             variant="ghost"
             size="sm"
-            disabled={!isExecutionView && !canOpenExecutionView}
+            disabled={!canEditWorkflow || (!isExecutionView && !canOpenExecutionView)}
             onClick={isExecutionView ? undefined : onOpenExecutionView}
             className={`h-7 rounded px-2 text-[11px] font-semibold ${
               isExecutionView
@@ -370,9 +381,9 @@ export function TopToolbar({
                 : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
             }`}
           >
-            L3 · Execution View
+            RC · Forms & execution
           </Button>
-        </div>
+
         {isHighLevelView && !isExecutionView && (store.file.highLevel?.graph.nodes.length || 0) > 0 && (
           <Button
             title="Clear all L1 nodes"
@@ -388,6 +399,7 @@ export function TopToolbar({
                 onConfirm: store.clearHighLevelNodes,
               });
             }}
+            disabled={!canEditWorkflow}
             className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="mr-1 size-3.5" />
@@ -409,6 +421,7 @@ export function TopToolbar({
                 onConfirm: store.clearDetailedNodes,
               });
             }}
+            disabled={!canEditWorkflow}
             className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="mr-1 size-3.5" />
@@ -417,29 +430,31 @@ export function TopToolbar({
         )}
         {isExecutionView && (store.file.execution?.items.length || 0) > 0 && (
           <Button
-            title="Clear all L3 execution requirements"
-            aria-label="Clear L3 Requirements"
+            title="Clear all execution forms"
+            aria-label="Clear Forms"
             variant="ghost"
             size="sm"
             onClick={() => {
               store.showConfirmClear({
-                title: "Clear L3 Execution Requirements",
+                title: "Clear Execution Forms",
                 message:
-                  "Are you sure you want to clear all L3 execution requirements across all workflow nodes? This action cannot be undone.",
-                confirmLabel: "Clear L3 Requirements",
+                  "Are you sure you want to clear all execution requirements across all workflow nodes? This action cannot be undone.",
+                confirmLabel: "Clear Forms",
                 onConfirm: () => store.clearExecutionItems(),
               });
             }}
+            disabled={!canEditWorkflow}
             className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="mr-1 size-3.5" />
-            Clear L3
+            Clear Forms
           </Button>
         )}
         <ToolButton
           label="Group selected"
           onClick={store.groupSelected}
           disabled={
+            !canEditWorkflow ||
             isHighLevelView ||
             isExecutionView ||
             !store.selection.nodeIds.length
@@ -460,11 +475,12 @@ export function TopToolbar({
         </ToolButton>
       </div>
       <div className="mx-2 h-6 w-px shrink-0 bg-border/60" />
-      <div className="flex shrink-0 items-center gap-2.5 mr-2">
+      <div className="mr-2 flex min-w-0 flex-wrap items-center gap-2.5">
         <Button
           variant="ghost"
           size="sm"
           onClick={openPalette}
+          disabled={!canEditWorkflow}
           className="flex h-8 shrink-0 gap-2 border border-border/80 text-muted-foreground"
           aria-label="Search nodes and commands"
         >
@@ -472,10 +488,11 @@ export function TopToolbar({
           <span className="text-xs">Search</span>
           <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
         </Button>
+        <EditorTransferControl />
         <CollaboratorPresence />
       </div>
       </div>
-      <div className="scroll-thin col-start-1 row-start-3 flex h-full min-w-0 items-center justify-start overflow-x-auto border-t pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0 min-[1440px]:!col-start-3 min-[1440px]:!row-start-1 min-[1440px]:justify-end min-[1440px]:!border-t-0">
+      <div className="col-start-1 row-start-2 flex min-h-12 min-w-0 flex-wrap items-center justify-start gap-y-1 border-t py-1 pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0">
         <ToolButton
           label="Export Excel"
           onClick={() => {
@@ -493,6 +510,7 @@ export function TopToolbar({
         <ToolButton
           label="Import Excel"
           onClick={() => inputRef.current?.click()}
+          disabled={!canEditWorkflow}
         >
           <FileUp className="size-4" />
         </ToolButton>
@@ -530,6 +548,26 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
+              onClick={() => saveImage("l1-swimlane-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-teal-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">High Level Process System Flowchart</span>
+                <span className="text-[10px] text-muted-foreground">Phases, departments, forms & release conditions</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => saveImage("l1-gantt-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-teal-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">High Level Process System Flowchart with Gantt Chart</span>
+                <span className="text-[10px] text-muted-foreground">Adaptive phases & departments · relative schedule</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
               onClick={() => saveImage("l2-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
@@ -545,7 +583,7 @@ export function TopToolbar({
             >
               <FileText className="size-4 text-purple-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-xs">L3 · All Expanded Matrix</span>
+                <span className="font-semibold text-xs">Conditions · Forms Matrix</span>
                 <span className="text-[10px] text-muted-foreground">Full execution architecture (PDF)</span>
               </div>
             </DropdownMenuItem>
@@ -566,7 +604,18 @@ export function TopToolbar({
               <Presentation className="size-4 text-amber-500 shrink-0" />
               <div className="flex flex-col">
                 <span className="font-semibold text-xs">Export PDF for Presentation</span>
-                <span className="text-[10px] text-muted-foreground">Executive roadmap & timeline (PDF)</span>
+                <span className="text-[10px] text-muted-foreground">With Release Conditions</span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={() => saveImage("presentation-no-conditions-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <Presentation className="size-4 text-amber-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">Export PDF for Presentation · No RC</span>
+                <span className="text-[10px] text-muted-foreground">Without Release Conditions</span>
               </div>
             </DropdownMenuItem>
 
@@ -617,6 +666,7 @@ export function TopToolbar({
           <PanelRightClose className="size-4" />
         </ToolButton>
         <CloudProjectControls
+          readOnly={!canEditWorkflow}
           onOpenUploadForms={() => setR2DialogOpen(true)}
         />
       </div>

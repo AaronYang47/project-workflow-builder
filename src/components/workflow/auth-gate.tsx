@@ -53,9 +53,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   const acceptUser = (nextUser: User) => {
     const workflow = useWorkflowStore.getState();
-    if (workflow.workspaceOwnerId !== nextUser.id) {
-      workflow.resetWorkspace(nextUser.id);
-    }
     workflow.setAuthUser(nextUser);
     setUser(nextUser);
   };
@@ -102,6 +99,39 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         useWorkflowStore.getState().setAuthUser(null);
       })
       .finally(() => setChecking(false));
+  }, []);
+
+  useEffect(() => {
+    if (isAuthBypass()) return;
+    let active = true;
+    let revision = 0;
+    const checkAccount = async () => {
+      const currentRevision = ++revision;
+      const account = useWorkflowStore.getState().authUser;
+      try {
+        const result = await request<{ user: User | null }>("/api/auth/me");
+        if (!active || currentRevision !== revision || useWorkflowStore.getState().authUser !== account) return;
+        if (result.user?.id !== account?.id) {
+          useWorkflowStore.getState().setAuthUser(result.user);
+          // Remount every workspace/dialog so no previous account's local
+          // component state survives a session change in another browser tab.
+          window.location.reload();
+        }
+      } catch {
+        // File APIs still enforce the session and expected account while offline.
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "workflow:account-changed") void checkAccount();
+    };
+    const onFocus = () => { void checkAccount(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const startExperience = () => {
@@ -199,17 +229,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             <div className="mb-5 flex w-full flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
               <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-500/40 bg-black shadow-[0_0_20px_rgba(6,182,212,0.25)]">
                 <Image
-                  src="/falcon-logo.png"
-                  alt="Falcon Workflow System"
-                  width={1107}
-                  height={979}
+                  src="/falcon-mark.png"
+                  alt="Falcon Process Building System"
+                  width={570}
+                  height={420}
                   unoptimized
                   className="h-full w-full object-contain"
                 />
               </div>
               <div className="min-w-0">
                 <h1 className="text-xl font-black tracking-tight text-white uppercase font-mono">
-                  Falcon Workflow System
+                  Falcon Process Building System
                 </h1>
                 <p className="text-xs text-slate-300 font-mono tracking-tight mt-0.5">
                   FROM COMPLEXITY TO CONTROL · INDUSTRIAL WORKFLOW MODELING & GATE GOVERNANCE
@@ -344,6 +374,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   autoFocus
                   aria-label="Name"
                   autoComplete="name"
+                  required
+                  maxLength={100}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Name"
@@ -355,6 +387,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 aria-label="Email"
                 type="email"
                 autoComplete="email"
+                required
+                maxLength={254}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Email"
@@ -364,9 +398,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 aria-label="Password"
                 type="password"
                 autoComplete={registering ? "new-password" : "current-password"}
+                required
+                minLength={registering ? 12 : undefined}
+                maxLength={256}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Password (8+ characters)"
+                placeholder={registering ? "Password (12+ characters)" : "Password"}
                 className="h-10 w-full rounded-lg border px-3 text-sm bg-background/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
               />
               <Button type="submit" className="w-full" disabled={busy}>
@@ -382,6 +419,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               >
                 {registering ? "Already registered? Sign in" : "Need an account? Register"}
               </button>
+              <p className="text-center text-xs text-muted-foreground">
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy policy</a>
+                <span className="px-2">·</span>
+                <a href="mailto:aaronyang470128@hotmail.com?subject=Falcon%20Process%20Building%20System%20support" className="text-primary hover:underline">Account support</a>
+              </p>
             </form>
             {error ? (
               <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">

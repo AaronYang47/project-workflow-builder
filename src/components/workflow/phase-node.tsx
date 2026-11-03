@@ -7,6 +7,7 @@ import type { DomainNode } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { ComponentNoteButton } from "./component-note-button";
 import { ProjectIdBadge } from "./project-id-badge";
+import { phaseHeaderRows } from "@/lib/phase-layout";
 
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   const isGate = node.type === "gate";
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
+  const width = useWorkflowStore((state) => state.file.layout.nodes[node.id]?.width ?? 720);
+  const headerRows = phaseHeaderRows(node, width);
   const childCount = useWorkflowStore(
     (state) =>
       Object.values(state.file.layout.nodes).filter(
@@ -104,7 +107,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           <textarea
             aria-label="Phase title"
             defaultValue={node.title}
-            rows={rowsFor(node.title, isGate ? 24 : 38)}
+            rows={isGate ? rowsFor(node.title, 24) : headerRows.title}
             onBlur={(event) =>
               updateNode(node.id, {
                 title: event.target.value.trim() || node.title,
@@ -118,7 +121,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           <textarea
             aria-label="Phase description"
             defaultValue={node.description}
-            rows={rowsFor(node.description, isGate ? 48 : 72)}
+            rows={isGate ? rowsFor(node.description, 48) : headerRows.description}
             onBlur={(event) =>
               updateNode(node.id, { description: event.target.value.trim() })
             }

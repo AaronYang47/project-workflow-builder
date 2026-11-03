@@ -1,12 +1,15 @@
 import { createSession, hashPassword, json, readJson, sessionCookie } from "../_lib";
+import { checkAuthRateLimit } from "./_rate-limit";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const body = await readJson<{ email?: string; name?: string; password?: string }>(request);
-  const email = body?.email?.trim().toLowerCase() || "";
-  const name = body?.name?.trim() || "";
-  const password = body?.password || "";
-  if (!/^\S+@\S+\.\S+$/.test(email) || !name || password.length < 8)
-    return json({ error: "Enter a valid email, name, and password of at least 8 characters." }, 400);
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  const password = typeof body?.password === "string" ? body.password : "";
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254 || !name || name.length > 100 || password.length < 12 || password.length > 256)
+    return json({ error: "Enter a valid email, name, and password of 12–256 characters." }, 400);
+  const limited = await checkAuthRateLimit(request, env, "register", email);
+  if (limited) return limited;
   const exists = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
   if (exists) return json({ error: "An account already exists for this email." }, 409);
   const userId = crypto.randomUUID();

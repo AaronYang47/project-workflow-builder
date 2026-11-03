@@ -69,6 +69,7 @@ function WorkflowNodeComponent({
         dimmed={data.dimmed}
         reached={data.reached}
         phaseColor={data.phaseColor}
+        phaseGradientColors={data.phaseGradientColors}
       />
     );
 

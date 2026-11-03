@@ -1,18 +1,11 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { Handle, NodeResizer, Position } from "@xyflow/react";
 import { Check, GripVertical, Plus, Settings2, ShieldCheck, Trash2 } from "lucide-react";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { cn } from "@/lib/utils";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
-import {
-  PROJECT_ID_PATTERN,
-  currentYearSuffix,
-  legacyJobNumberFromProjectId,
-  normalizeProjectId,
-  projectNodeUuid,
-} from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
@@ -21,10 +14,10 @@ import { ComponentNoteButton } from "./component-note-button";
 import { ProjectIdBadge } from "./project-id-badge";
 import { iconOptions, saveText, stopBubble, textareaRows } from "./node-utils";
 import { getNodeColor } from "./high-level-node";
+import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
+import { chapterLabel } from "@/lib/chapter-label";
 
 import { useProjectIdDraft } from "./use-project-id-draft";
-
-const CONDITION_ROW_STEP = 46;
 
 export function GeneralNode({
   node,
@@ -33,6 +26,7 @@ export function GeneralNode({
   dimmed,
   reached = true,
   phaseColor,
+  phaseGradientColors,
 }: {
   node: DomainNode;
   selected: boolean;
@@ -40,8 +34,10 @@ export function GeneralNode({
   dimmed?: boolean;
   reached?: boolean;
   phaseColor?: string;
+  phaseGradientColors?: { left: string; right: string };
 }) {
   const updateNode = useWorkflowStore((state) => state.updateNode);
+  const moveNodeCondition = useWorkflowStore((state) => state.moveNodeCondition);
   const deleteNodeCondition = useWorkflowStore(
     (state) => state.deleteNodeCondition,
   );
@@ -67,12 +63,8 @@ export function GeneralNode({
     projectIdDraft,
     setProjectIdDraft,
     projectIdSnapshotRef,
-    projectId,
-    parsedYear,
-    parsedSeq,
     projectIdValid,
     projectIdError,
-    legacyJobNumber,
     writeCustomFields,
   } = useProjectIdDraft({
     node,
@@ -87,6 +79,11 @@ export function GeneralNode({
   const Icon = iconOptions[iconKey];
   const effectiveColor =
     phaseColor || node.color || getNodeDefinition("general").color;
+  const chapterGradientColors =
+    node.config.blendAdjacentPhaseColors === true &&
+    (node.type === "general" || node.type === "projectStart")
+      ? phaseGradientColors
+      : undefined;
   const color = effectiveColor;
   const conditions = node.conditions || [];
   const statusReady = reached && nodeReleaseReady(
@@ -99,36 +96,14 @@ export function GeneralNode({
     (state) => state.focusedInspectorField,
   );
   const nodeColor = useMemo(() => getNodeColor(effectiveColor), [effectiveColor]);
-  const [draggingConditionIndex, setDraggingConditionIndex] = useState<number | null>(null);
-  const [dragOverConditionIndex, setDragOverConditionIndex] = useState<number | null>(null);
-  const [dragTargetConditionIndex, setDragTargetConditionIndex] = useState<number | null>(null);
-  const [dragStartY, setDragStartY] = useState<number | null>(null);
-  const [dragRowStep, setDragRowStep] = useState(0);
-  const [dragOffsetY, setDragOffsetY] = useState(0);
   const saveConditions = (next: DomainNode["conditions"]) =>
     updateNode(node.id, { conditions: next });
-  const reorderConditions = (targetIndex: number) => {
-    if (draggingConditionIndex === null || draggingConditionIndex === targetIndex) return;
-    const nextConditions = [...conditions];
-    const [movedCondition] = nextConditions.splice(draggingConditionIndex, 1);
-    if (!movedCondition) return;
-    nextConditions.splice(targetIndex, 0, movedCondition);
-    saveConditions(nextConditions);
-  };
-  const finishConditionDrag = () => {
-    if (dragOverConditionIndex !== null) reorderConditions(dragOverConditionIndex);
-    setDraggingConditionIndex(null);
-    setDragOverConditionIndex(null);
-    setDragTargetConditionIndex(null);
-    setDragStartY(null);
-    setDragRowStep(0);
-    setDragOffsetY(0);
-  };
   return (
     <Fragment>
       <div className="relative h-full w-full overflow-visible">
         <div
           data-canvas-node
+          data-release-condition-drop-node-id={node.id}
           data-selected={selected || undefined}
           data-inspector-target="color"
           data-glass-tint={nodeColor ? "true" : undefined}
@@ -143,7 +118,16 @@ export function GeneralNode({
             dimmed && "opacity-35",
           )}
           style={{
-            borderColor: nodeColor ? nodeColor.border : `${color}55`,
+            borderColor: chapterGradientColors
+              ? "transparent"
+              : nodeColor
+                ? nodeColor.border
+                : `${color}55`,
+            ...(chapterGradientColors
+              ? {
+                  background: `linear-gradient(90deg, color-mix(in srgb, ${chapterGradientColors.left} 9%, var(--card)), color-mix(in srgb, ${chapterGradientColors.right} 9%, var(--card))) padding-box, linear-gradient(90deg, ${chapterGradientColors.left}, ${chapterGradientColors.right}) border-box`,
+                }
+              : {}),
             ...(nodeColor
               ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
               : {}),
@@ -169,18 +153,27 @@ export function GeneralNode({
             data-node-header
             className="flex h-14 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
             style={{
-              backgroundColor: nodeColor
-                ? `color-mix(in srgb, rgb(${nodeColor.tint}) 16%, transparent)`
-                : `${color}18`,
-              borderColor: nodeColor
-                ? `color-mix(in srgb, rgb(${nodeColor.tint}) 30%, transparent)`
-                : `${color}33`,
+              backgroundImage: chapterGradientColors
+                ? `linear-gradient(90deg, color-mix(in srgb, ${chapterGradientColors.left} 32%, transparent), color-mix(in srgb, ${chapterGradientColors.right} 32%, transparent))`
+                : undefined,
+              backgroundColor: chapterGradientColors
+                ? undefined
+                : nodeColor
+                  ? `color-mix(in srgb, rgb(${nodeColor.tint}) 16%, transparent)`
+                  : `${color}18`,
+              borderColor: chapterGradientColors
+                ? `color-mix(in srgb, ${chapterGradientColors.left} 50%, ${chapterGradientColors.right})`
+                : nodeColor
+                  ? `color-mix(in srgb, rgb(${nodeColor.tint}) 30%, transparent)`
+                  : `${color}33`,
             }}
           >
             <label
               data-inspector-target="config.iconKey"
               className="nodrag relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
-              style={{ backgroundColor: color }}
+              style={chapterGradientColors
+                ? { backgroundImage: `linear-gradient(135deg, ${chapterGradientColors.left}, ${chapterGradientColors.right})` }
+                : { backgroundColor: color }}
               title="Change icon"
             >
               <Icon className="size-4" />
@@ -203,20 +196,20 @@ export function GeneralNode({
             </label>
             <label className="flex shrink-0 items-center gap-2">
               <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Stage
+                Department
               </span>
               <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
               <input
                 key={node.config.stage}
-                aria-label="Stage"
+                aria-label="Department"
                 data-inspector-target="config.stage"
-                defaultValue={node.config.stage || "Stage"}
-                size={Math.max(4, (node.config.stage || "Stage").length)}
+                defaultValue={chapterLabel(node.config.stage)}
+                size={Math.max(7, chapterLabel(node.config.stage).length)}
                 onBlur={(event) =>
                   updateNode(node.id, {
                     config: {
                       ...node.config,
-                      stage: event.target.value.trim() || "Stage",
+                      stage: event.target.value.trim() || "Department",
                     },
                   })
                 }
@@ -260,205 +253,45 @@ export function GeneralNode({
               <div className="my-3 space-y-2">
                 <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-3">
                   <span className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-                    <span>
-                      Project ID <span className="text-destructive">*</span>
-                    </span>
-                    <span
-                      className={cn(
-                        "font-mono font-semibold tracking-normal text-xs",
-                        projectIdValid
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : projectIdError
-                            ? "text-destructive"
-                            : "text-muted-foreground",
-                      )}
-                    >
-                      {projectIdValid
-                        ? "OK"
-                        : projectIdError
-                          ? "Format L-YY-XXX"
-                          : "L-YY-XXX"}
-                    </span>
+                    <span>Job Number</span>
+                    <span className={cn("font-mono text-xs", projectIdValid ? "text-emerald-600" : "text-amber-600 dark:text-amber-400")}>{projectIdValid ? "OK" : "Not set"}</span>
                   </span>
-                  <div className="flex items-center gap-0">
-                    <span className="w-7 text-center font-mono text-sm font-bold leading-6 text-muted-foreground">
-                      {(projectId.match(/^[LP]-/) || ["L-"])[0]}
-                    </span>
-                    <input
-                      aria-label="Project ID year"
-                      value={parsedYear}
-                      inputMode="numeric"
-                      maxLength={2}
-                      onFocus={(event) => {
-                        event.stopPropagation();
-                        const normalizedAtFocus = normalizeProjectId(
-                          String(node.customFields.projectId || ""),
-                        );
-                        projectIdSnapshotRef.current = {
-                          ...node,
-                          customFields: {
-                            ...node.customFields,
-                            projectId: normalizedAtFocus,
+                  <input
+                    aria-label="Job Number (5 digits)"
+                    value={projectIdDraft}
+                    inputMode="numeric"
+                    maxLength={5}
+                    placeholder="27084"
+                    onFocus={(event) => {
+                      event.stopPropagation();
+                      projectIdSnapshotRef.current = structuredClone(node);
+                    }}
+                    onChange={(event) => {
+                      event.stopPropagation();
+                      const digits = event.target.value.replace(/\D/g, "").slice(0, 5);
+                      setProjectIdDraft(digits);
+                      const prefix = String(node.customFields.projectId || "").startsWith("P-") ? "P" : "L";
+                      writeCustomFields({ projectId: digits.length === 5 ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}` : digits });
+                    }}
+                    onBlur={(event) => {
+                      event.stopPropagation();
+                      const before = projectIdSnapshotRef.current;
+                      if (before && String(before.customFields.projectId || "") !== String(useWorkflowStore.getState().file.graph.nodes.find((item) => item.id === node.id)?.customFields.projectId || "")) {
+                        const current = useWorkflowStore.getState().file;
+                        recordSnapshot({
+                          ...current,
+                          graph: {
+                            ...current.graph,
+                            nodes: current.graph.nodes.map((item) => item.id === node.id ? before : item),
                           },
-                        } as typeof node;
-                      }}
-                      onChange={(event) => {
-                        event.stopPropagation();
-                        const digits = event.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 2);
-                        const snapshot = projectIdSnapshotRef.current;
-                        const snapshotId = snapshot
-                          ? String(snapshot.customFields.projectId || "")
-                          : "";
-                        const fallbackId = normalizeProjectId(
-                          String(node.customFields.projectId || ""),
-                        );
-                        const source = snapshotId || fallbackId;
-                        const prefix = (source.match(/^[LP]-/) || ["L-"])[0];
-                        const seqMatch = source.match(/-\d{3}$/);
-                        const tail = seqMatch ? seqMatch[0].slice(1) : "001";
-                        const composed = `${prefix}${digits}-${tail}`;
-                        setProjectIdDraft(composed);
-                        writeCustomFields({ projectId: composed });
-                      }}
-                      onBlur={(event) => {
-                        event.stopPropagation();
-                        const digits = event.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 2);
-                        if (!digits) {
-                          const snapshot = projectIdSnapshotRef.current;
-                          const snapshotId = snapshot
-                            ? String(snapshot.customFields.projectId || "")
-                            : "";
-                          const fallbackId = normalizeProjectId(
-                            String(node.customFields.projectId || ""),
-                          );
-                          const source = snapshotId || fallbackId;
-                          const prefix = (source.match(/^[LP]-/) || ["L-"])[0];
-                          const seqMatch = source.match(/-\d{3}$/);
-                          const tail = seqMatch ? seqMatch[0].slice(1) : "001";
-                          const restored = `${prefix}${currentYearSuffix()}-${tail}`;
-                          setProjectIdDraft(restored);
-                          writeCustomFields({ projectId: restored });
-                        }
-                        projectIdSnapshotRef.current = null;
-                      }}
-                      className="h-7 w-7 border-0 bg-transparent p-0 text-center font-mono text-sm font-bold leading-6 outline-none placeholder:text-muted-foreground/60"
-                    />
-                    <span className="font-mono text-sm font-bold leading-6 text-muted-foreground">
-                      -
-                    </span>
-                    <input
-                      aria-label="Project ID sequence"
-                      value={parsedSeq}
-                      inputMode="numeric"
-                      maxLength={3}
-                      onFocus={(event) => {
-                        event.stopPropagation();
-                        const normalizedAtFocus = normalizeProjectId(
-                          String(node.customFields.projectId || ""),
-                        );
-                        projectIdSnapshotRef.current = {
-                          ...node,
-                          customFields: {
-                            ...node.customFields,
-                            projectId: normalizedAtFocus,
-                          },
-                        } as typeof node;
-                      }}
-                      onChange={(event) => {
-                        event.stopPropagation();
-                        const digits = event.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 3);
-                        const snapshot = projectIdSnapshotRef.current;
-                        const snapshotId = snapshot
-                          ? String(snapshot.customFields.projectId || "")
-                          : "";
-                        const fallbackId = normalizeProjectId(
-                          String(node.customFields.projectId || ""),
-                        );
-                        const source = snapshotId || fallbackId;
-                        const matchedPrefix = source.match(/^[LP]-/);
-                        const prefix = matchedPrefix ? matchedPrefix[0] : "L-";
-                        const yy = (source.match(/-(\d{2})-/) || [
-                          null,
-                          currentYearSuffix(),
-                        ])[1];
-                        const composed = `${prefix}${yy}-${digits}`;
-                        setProjectIdDraft(composed);
-                        writeCustomFields({ projectId: composed });
-                      }}
-                      onBlur={(event) => {
-                        event.stopPropagation();
-                        if (!projectIdSnapshotRef.current) return;
-                        if (
-                          projectIdSnapshotRef.current.customFields
-                            .projectId !== node.customFields.projectId
-                        ) {
-                          const before = projectIdSnapshotRef.current;
-                          const current = useWorkflowStore.getState().file;
-                          const findCurrent = current.graph.nodes.find(
-                            (item) => item.id === node.id,
-                          );
-                          if (
-                            findCurrent?.customFields.projectId !==
-                            before.customFields.projectId
-                          ) {
-                            const rollback = {
-                              ...current,
-                              graph: {
-                                ...current.graph,
-                                nodes: current.graph.nodes.map((item) =>
-                                  item.id === node.id
-                                    ? {
-                                        ...item,
-                                        customFields: {
-                                          ...item.customFields,
-                                          projectId:
-                                            before.customFields.projectId,
-                                          legacyJobNumber:
-                                            legacyJobNumberFromProjectId(
-                                              String(
-                                                before.customFields.projectId ||
-                                                  "",
-                                              ),
-                                            ),
-                                        },
-                                      }
-                                    : item,
-                                ),
-                              },
-                            };
-                            const nextState = {
-                              ...current,
-                              graph: {
-                                ...current.graph,
-                                nodes: current.graph.nodes.map((item) =>
-                                  item.id === node.id
-                                    ? {
-                                        ...item,
-                                        customFields: {
-                                          ...item.customFields,
-                                          legacyJobNumber: legacyJobNumber,
-                                        },
-                                      }
-                                    : item,
-                                ),
-                              },
-                            };
-                            recordSnapshot(rollback);
-                            recordSnapshot(nextState);
-                          }
-                        }
-                        projectIdSnapshotRef.current = null;
-                      }}
-                      placeholder="001"
-                      className="h-7 w-full border-0 bg-transparent p-0 font-mono text-sm font-bold leading-6 outline-none placeholder:text-muted-foreground/60"
-                    />
-                  </div>
+                        });
+                      }
+                      projectIdSnapshotRef.current = null;
+                    }}
+                    aria-describedby="job-number-hint"
+                    className="h-7 w-full border-0 bg-transparent p-0 font-mono text-sm font-bold leading-6 outline-none"
+                  />
+                  {!projectIdValid ? <span id="job-number-hint" role="status" className="mt-1 block rounded border border-amber-500/50 bg-amber-100 px-2 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">{projectIdError ? "Enter all 5 digits, or leave blank for now." : "Job Number not set. You can add it later."}</span> : null}
                 </label>
               </div>
             ) : null}
@@ -503,7 +336,7 @@ export function GeneralNode({
                       : "Blocked"}
                 </span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" data-release-condition-list-node-id={node.id}>
                 {conditions.map((condition, index) => {
                   const inspectorKey = conditionInspectorKey(
                     node.id,
@@ -524,33 +357,6 @@ export function GeneralNode({
                     operations,
                   );
                   const hasL3Forms = conditionHasL3Forms(condition, node);
-                  const rowShift = (() => {
-                    if (
-                      draggingConditionIndex === null ||
-                      dragTargetConditionIndex === null
-                    ) {
-                      return 0;
-                    }
-                    if (index === draggingConditionIndex) return dragOffsetY;
-                    if (
-                      draggingConditionIndex < dragTargetConditionIndex &&
-                      index > draggingConditionIndex &&
-                      index <= dragTargetConditionIndex
-                    ) {
-                      return -CONDITION_ROW_STEP;
-                    }
-                    if (
-                      dragTargetConditionIndex < draggingConditionIndex &&
-                      index >= dragTargetConditionIndex &&
-                      index < draggingConditionIndex
-                    ) {
-                      return CONDITION_ROW_STEP;
-                    }
-                    return 0;
-                  })();
-                  const rowStyle = rowShift
-                    ? { transform: `translateY(${rowShift}px)` }
-                    : undefined;
                   const toggleCondition = () => {
                     if (condition.id === "project-id-required") return;
                     const linkedItem = condition.linkedExecutionItemId
@@ -578,125 +384,28 @@ export function GeneralNode({
                       role="group"
                       aria-label={`Release condition ${index + 1}`}
                       data-release-condition-index={index}
-                      data-dragging={draggingConditionIndex === index || undefined}
-                      data-drop-target={
-                        dragTargetConditionIndex === index &&
-                        draggingConditionIndex !== index
-                          ? true
-                          : undefined
-                      }
+                      data-release-condition-node-id={node.id}
                       onClick={stopBubble(focusCondition)}
-                      onDragOver={(event) => {
-                        if (draggingConditionIndex !== null) return;
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                        setDragOverConditionIndex(index);
-                        setDragTargetConditionIndex(index);
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        reorderConditions(index);
-                        setDraggingConditionIndex(null);
-                        setDragOverConditionIndex(null);
-                        setDragTargetConditionIndex(null);
-                        setDragStartY(null);
-                        setDragRowStep(0);
-                        setDragOffsetY(0);
-                      }}
                       className={cn(
                         "relative flex min-h-10 items-center gap-2 rounded-md border bg-card px-2 py-2 transition-[background-color,border-color,box-shadow,opacity,transform] duration-200",
                         inspectorFocused &&
                           "border-primary/60 bg-primary/[0.06] shadow-[0_0_0_2px_color-mix(in_srgb,var(--primary)_12%,transparent)]",
                         !inspectorFocused && "hover:border-primary/35 hover:bg-primary/[0.025]",
-                        dragTargetConditionIndex === index &&
-                          draggingConditionIndex !== index &&
-                          "border-primary/90 bg-primary/[0.10] shadow-[0_0_0_2px_color-mix(in_srgb,var(--primary)_18%,transparent),0_8px_18px_color-mix(in_srgb,var(--primary)_12%,transparent)]",
-                        draggingConditionIndex === index &&
-                          "z-10 scale-[1.015] border-primary/90 bg-primary/[0.12] opacity-60 shadow-[0_10px_22px_color-mix(in_srgb,var(--primary)_20%,transparent)]",
                       )}
-                      style={rowStyle}
                     >
                       <button
                         type="button"
                         aria-label={`Drag to reorder release condition ${index + 1}`}
                         title="Drag to reorder"
                         onPointerDown={(event) => {
-                          if (event.button !== 0) return;
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const row = event.currentTarget.closest<HTMLElement>(
-                            "[data-release-condition-index]",
-                          );
-                          const nextRow = row?.nextElementSibling as HTMLElement | null;
-                          const previousRow =
-                            row?.previousElementSibling as HTMLElement | null;
-                          const rowRect = row?.getBoundingClientRect();
-                          const rowStep =
-                            rowRect && nextRow
-                              ? nextRow.getBoundingClientRect().top - rowRect.top
-                              : rowRect && previousRow
-                                ? rowRect.top -
-                                  previousRow.getBoundingClientRect().top
-                                : rowRect?.height || CONDITION_ROW_STEP;
-                          event.currentTarget.setPointerCapture(event.pointerId);
-                          setDraggingConditionIndex(index);
-                        setDragStartY(
-                            rowRect
-                              ? rowRect.top + rowRect.height / 2
-                              : event.clientY,
-                          );
-                          setDragRowStep(Math.max(1, rowStep));
-                          setDragOffsetY(0);
-                          setDragOverConditionIndex(index);
-                          setDragTargetConditionIndex(index);
-                        }}
-                        onPointerMove={(event) => {
-                          if (
-                            draggingConditionIndex === null ||
-                            dragStartY === null ||
-                            dragRowStep <= 0
-                          ) {
-                            return;
-                          }
-                          const targetIndex = Math.min(
-                            conditions.length - 1,
-                            Math.max(
-                              0,
-                              draggingConditionIndex +
-                                Math.round(
-                                  (event.clientY - dragStartY) / dragRowStep,
-                                ),
-                            ),
-                          );
-                          setDragOffsetY(
-                            ((event.clientY - dragStartY) / dragRowStep) *
-                              CONDITION_ROW_STEP,
-                          );
-                          setDragTargetConditionIndex(targetIndex);
-                          setDragOverConditionIndex(targetIndex);
-                        }}
-                        onPointerUp={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                            event.currentTarget.releasePointerCapture(event.pointerId);
-                          }
-                          finishConditionDrag();
-                        }}
-                        onPointerCancel={() => {
-                          setDraggingConditionIndex(null);
-                          setDragOverConditionIndex(null);
-                          setDragTargetConditionIndex(null);
-                          setDragStartY(null);
-                          setDragRowStep(0);
-                          setDragOffsetY(0);
+                          if (condition.locked && !(condition.id === "project-id-required" && node.type === "projectStart")) return;
+                          beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, {
+                            nodeId: node.id, index,
+                            label: condition.label || condition.description || `Release condition ${index + 1}`,
+                          }, (target) => moveNodeCondition(node.id, index, target.nodeId, target.index));
                         }}
                         onClick={stopBubble(() => undefined)}
-                        className={cn(
-                          "nodrag flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/70 transition-[background-color,color,transform] hover:bg-primary/10 hover:text-primary active:cursor-grabbing",
-                          draggingConditionIndex === index &&
-                            "cursor-grabbing bg-primary/15 text-primary",
-                        )}
+                        className="nodrag flex size-6 shrink-0 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground/70 hover:bg-primary/10 hover:text-primary active:cursor-grabbing"
                       >
                         <GripVertical className="size-4" />
                       </button>
@@ -704,15 +413,12 @@ export function GeneralNode({
                         type="button"
                         aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                         title={
-                          condition.id === "project-id-required"
-                            ? "Complete the project ID field first"
-                            : checked
+                          condition.id === "project-id-required" ? "Automatically checked when a complete Job Number is entered" : checked
                               ? "Uncheck this release condition"
                               : "Mark this release condition complete"
                         }
                         disabled={
-                          condition.id === "project-id-required" ||
-                          hasL3Forms
+                          condition.id === "project-id-required" || hasL3Forms
                         }
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
@@ -741,10 +447,10 @@ export function GeneralNode({
                             }),
                           );
                         })}
-                        className="min-w-0 flex-1 truncate bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary hover:underline cursor-pointer focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+                        className="min-w-0 flex-1 whitespace-normal break-words bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary hover:underline cursor-pointer focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {condition.label || condition.description || `Release condition ${index + 1}`}
-                        {condition.required !== false ? (
+                        {condition.required !== false && condition.id !== "project-id-required" ? (
                           <span className="ml-1 text-xs font-bold text-destructive">
                             *
                           </span>

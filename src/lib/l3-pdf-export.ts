@@ -1,6 +1,8 @@
 import type { WorkflowFile, DomainNode, Condition } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
+import { chapterLabel } from "@/lib/chapter-label";
+import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 
 interface DocItem {
   title: string;
@@ -80,7 +82,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
     String(file.operations?.projectNumber || "").trim() ||
     "PRJ-001";
 
-  const projectName = file.graph.metadata.name || "ProFab Process Workflow";
+  const projectName = file.graph.metadata.name || "Falcon Process Building System";
   const version = file.graph.metadata.version || "v1.0-draft";
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", {
@@ -206,9 +208,24 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
         const customerDocs = parseDocs(step.customFields?.customerDocuments);
         const supportingDocs = parseDocs(step.customFields?.supportingDocuments);
         const conditions = step.conditions || [];
+        const departmentGradient =
+          (step.type === "general" || step.type === "projectStart") &&
+          step.config.blendAdjacentPhaseColors === true
+            ? chapterPhaseGradientColors(step, nodes, layout, highLevel?.graph.nodes || [])
+            : undefined;
+        const departmentBorder = departmentGradient
+          ? `color-mix(in srgb, ${departmentGradient.left} 50%, ${departmentGradient.right})`
+          : "#cbd5e1";
+        const departmentBackground = departmentGradient
+          ? `linear-gradient(90deg, color-mix(in srgb, ${departmentGradient.left} 12%, #f8fafc), color-mix(in srgb, ${departmentGradient.right} 12%, #f8fafc))`
+          : "#f8fafc";
+        const stageName = chapterLabel(step.config?.stage, "Standard Department")
+          .replace(/^department\s*/i, "")
+          .replace(/\s+department$/i, "");
+        const departmentLabel = stageName ? `${stageName} Department` : "Department";
 
         html += `
-          <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; background-color: #f8fafc;">
+          <div style="border: 1px solid ${departmentBorder}; border-left: 4px solid ${departmentGradient ? departmentBorder : "#cbd5e1"}; border-radius: 8px; padding: 14px; background: ${departmentBackground};">
             <!-- Step Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
               <div>
@@ -224,7 +241,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 10px; font-weight: 600; color: #475569; background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px;">
-                  ${step.config?.stage || "Standard Stage"}
+                  ${departmentLabel}
                 </span>
               </div>
             </div>
@@ -359,7 +376,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
         </div>
       </div>
       <p style="margin: 24px 0 0 0; text-align: center; font-size: 10px; color: #94a3b8;">
-        Falcon Workflow System · Cloudflare R2 Document Verification Pipeline · End of Document
+        Falcon Process Building System · Cloudflare R2 Document Verification Pipeline · End of Document
       </p>
     </div>
   `;

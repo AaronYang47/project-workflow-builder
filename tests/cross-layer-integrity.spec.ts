@@ -8,6 +8,19 @@ import { migrateWorkflowFile } from "../src/lib/workflow-migration";
 import type { DomainNode } from "../src/types/workflow";
 
 test.describe("L1 / L2 / L3 reference integrity", () => {
+  test("migration preserves a user-authored sales qualification Chapter and its tasks", () => {
+    const file = createDefaultDetailedLifecycle();
+    const chapter = createDomainNode("general", "custom-sales-chapter");
+    chapter.title = "CH 01 — Opportunity & Sales Qualification";
+    chapter.conditions = [{ id: "custom-sales-step", label: "01.01 Identify Customer Opportunity", linkedExecutionItemId: "custom-sales-task" }];
+    file.graph.nodes.push(chapter);
+    file.layout.nodes[chapter.id] = { nodeId: chapter.id, x: 0, y: 3000, width: 460, height: 600 };
+    file.execution!.items.push(createExecutionItem("custom-sales-task", chapter.id, "Task"));
+    const result = migrateWorkflowFile(file);
+    expect(result.graph.nodes.find((node) => node.id === chapter.id)?.conditions).toEqual(chapter.conditions);
+    expect(result.execution!.items.some((item) => item.id === "custom-sales-task")).toBe(true);
+  });
+
   test("deleting a custom L2 node cleans both L1 links, custom L3, and dangling conditions", () => {
     const file = createDefaultDetailedLifecycle();
     const customNode = createDomainNode("general", "custom-stage");

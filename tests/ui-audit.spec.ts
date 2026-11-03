@@ -83,7 +83,7 @@ for (const viewport of viewports) {
     await assertNoDocumentOverflow(page);
 
     await page.locator('[data-id="pre-construction"]').click();
-    await page.getByRole("button", { name: "L3 · Execution View" }).click();
+    await page.getByRole("button", { name: "RC · Forms & execution" }).click();
     await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
     await assertNoDocumentOverflow(page);
   });

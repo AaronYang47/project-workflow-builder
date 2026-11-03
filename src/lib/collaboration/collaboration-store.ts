@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CollaboratorProfile } from "./collaboration-types";
+import type { CollaboratorProfile, CollaborativeViewState, ReleaseConditionDragPreview } from "./collaboration-types";
 
 const COLLAB_COLORS = [
   "#10b981", // Emerald
@@ -36,6 +36,7 @@ export function getRandomCollaborator(): Omit<CollaboratorProfile, "peerId"> {
     name: `${role} #${num}`,
     color,
     avatar: role.slice(0, 2).toUpperCase(),
+    joinedAt: Date.now(),
     lastActiveAt: Date.now(),
   };
 }
@@ -44,6 +45,13 @@ interface CollaborationState {
   roomId: string;
   isConnected: boolean;
   isHost: boolean;
+  editorPeerId: string | null;
+  editControlReady: boolean;
+  editorViewState: CollaborativeViewState | null;
+  remoteDragPreview: { senderId: string; preview: ReleaseConditionDragPreview } | null;
+  setRemoteDragPreview: (value: { senderId: string; preview: ReleaseConditionDragPreview } | null) => void;
+  controlRequests: Record<string, number>;
+  controlRequestStatus: "idle" | "pending" | "declined";
   localUser: CollaboratorProfile;
   remotePeers: Record<string, CollaboratorProfile>;
   isRemoteApplying: boolean;
@@ -51,6 +59,11 @@ interface CollaborationState {
   setRoomId: (roomId: string) => void;
   setIsConnected: (connected: boolean) => void;
   setIsHost: (isHost: boolean) => void;
+  setEditControl: (editorPeerId: string | null, ready: boolean) => void;
+  setEditorViewState: (view: CollaborativeViewState | null) => void;
+  addControlRequest: (peerId: string, timestamp: number) => void;
+  removeControlRequest: (peerId: string) => void;
+  setControlRequestStatus: (status: "idle" | "pending" | "declined") => void;
   setLocalUser: (patch: Partial<CollaboratorProfile>) => void;
   setFocusedNodeId: (nodeId?: string) => void;
   addRemotePeer: (peer: CollaboratorProfile) => void;
@@ -63,14 +76,22 @@ export const useCollaborationStore = create<CollaborationState>()(
   persist(
     (set, get) => {
       return {
-        roomId: "project-main",
+        roomId: "local-only",
         isConnected: false,
         isHost: false,
+        editorPeerId: null,
+        editControlReady: false,
+        editorViewState: null,
+        remoteDragPreview: null,
+        setRemoteDragPreview: (remoteDragPreview) => set({ remoteDragPreview }),
+        controlRequests: {},
+        controlRequestStatus: "idle",
         localUser: {
           peerId: DEFAULT_COLLAB_PEER_ID,
           name: "Project Architect #101",
           color: "#3b82f6",
           avatar: "PA",
+          joinedAt: 0,
           lastActiveAt: 0,
         },
         remotePeers: {},
@@ -79,6 +100,33 @@ export const useCollaborationStore = create<CollaborationState>()(
         setRoomId: (roomId) => set({ roomId }),
         setIsConnected: (isConnected) => set({ isConnected }),
         setIsHost: (isHost) => set({ isHost }),
+        setEditControl: (editorPeerId, editControlReady) =>
+          set({
+            editorPeerId,
+            editControlReady,
+            remoteDragPreview: null,
+            isHost: editorPeerId === get().localUser.peerId,
+            controlRequests: {},
+            controlRequestStatus: "idle",
+          }),
+        addControlRequest: (peerId, timestamp) => set((state) => ({
+          controlRequests: { ...state.controlRequests, [peerId]: timestamp },
+        })),
+        removeControlRequest: (peerId) => set((state) => {
+          const controlRequests = { ...state.controlRequests };
+          delete controlRequests[peerId];
+          return { controlRequests };
+        }),
+        setControlRequestStatus: (controlRequestStatus) => set({ controlRequestStatus }),
+        setEditorViewState: (editorViewState) =>
+          set((state) => {
+            if (
+              state.editorViewState?.page === editorViewState?.page &&
+              state.editorViewState?.layer === editorViewState?.layer &&
+              state.editorViewState?.executionNodeId === editorViewState?.executionNodeId
+            ) return state;
+            return { editorViewState };
+          }),
         setLocalUser: (patch) =>
           set((state) => ({
             localUser: {
@@ -109,7 +157,9 @@ export const useCollaborationStore = create<CollaborationState>()(
           set((state) => {
             const next = { ...state.remotePeers };
             delete next[peerId];
-            return { remotePeers: next };
+            const controlRequests = { ...state.controlRequests };
+            delete controlRequests[peerId];
+            return { remotePeers: next, controlRequests };
           }),
         updateRemotePeer: (peerId, patch) =>
           set((state) => {
@@ -134,13 +184,21 @@ export const useCollaborationStore = create<CollaborationState>()(
       skipHydration: true,
       partialize: (state) => ({
         localUser: {
-          peerId: state.localUser.peerId,
           name: state.localUser.name,
           color: state.localUser.color,
           avatar: state.localUser.avatar,
+          userId: state.localUser.userId,
+          joinedAt: state.localUser.joinedAt,
           lastActiveAt: state.localUser.lastActiveAt,
         },
       }),
     },
   ),
 );
+
+export function canEditCollaborativeWorkflow(
+  state: CollaborationState = useCollaborationStore.getState(),
+) {
+  if (state.roomId === "local-only") return true;
+  return state.editControlReady && state.editorPeerId === state.localUser.peerId;
+}

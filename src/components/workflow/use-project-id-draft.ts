@@ -1,10 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
-  PROJECT_ID_PATTERN,
-  currentYearSuffix,
   legacyJobNumberFromProjectId,
-  normalizeProjectId,
   projectNodeUuid,
+  syncProjectNameIdentity,
 } from "@/lib/project-id";
 import type { DomainNode } from "@/types/workflow";
 
@@ -32,9 +30,8 @@ export function useProjectIdDraft({
 
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const initialProjectId = isProjectStart
-    ? String(
-        node.customFields.projectId || node.customFields.projectNumber || "",
-      )
+    ? legacyJobNumberFromProjectId(String(node.customFields.projectId || "")) ||
+      String(node.customFields.legacyJobNumber || node.customFields.projectNumber || "").replace(/\D/g, "").slice(0, 5)
     : "";
 
   const [projectIdDraft, setProjectIdDraft] = useState(initialProjectId);
@@ -46,34 +43,15 @@ export function useProjectIdDraft({
   }
 
   const projectIdSnapshotRef = useRef<typeof node | null>(null);
-  const projectId = useMemo(
-    () => normalizeProjectId(projectIdDraft.trim()),
-    [projectIdDraft],
-  );
-
-  const draftHasContent = projectIdDraft.length > 0;
-
-  const parsedYear = useMemo(() => {
-    if (!draftHasContent) return currentYearSuffix();
-    const match = projectIdDraft.match(/^[LP]-(\d{0,2})-/);
-    return match ? match[1] : "";
-  }, [projectIdDraft, draftHasContent]);
-
-  const parsedSeq = useMemo(() => {
-    if (!draftHasContent) return "001";
-    const match = projectIdDraft.match(/^[LP]-\d{0,2}-(\d{0,3})$/);
-    return match ? match[1] : "";
-  }, [projectIdDraft, draftHasContent]);
-
   const projectIdValid = isProjectStart
-    ? PROJECT_ID_PATTERN.test(projectIdDraft.trim())
+    ? /^\d{5}$/.test(projectIdDraft)
     : Boolean(projectStartProjectId);
 
   const projectIdError =
     isProjectStart && projectIdDraft.trim().length > 0 && !projectIdValid;
 
   const legacyJobNumber = isProjectStart
-    ? legacyJobNumberFromProjectId(projectId)
+    ? projectIdDraft
     : legacyJobNumberFromProjectId(projectStartProjectId);
 
   const writeCustomFields = (
@@ -89,20 +67,25 @@ export function useProjectIdDraft({
           }
         : patch;
 
-    commitTransient((file) => ({
-      ...file,
-      graph: {
-        ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.id === node.id
-            ? {
-                ...item,
-                customFields: { ...item.customFields, ...nextPatch },
-              }
-            : item,
-        ),
-      },
-    }));
+    commitTransient((file) => {
+      const nextNumber = isProjectStart && "projectId" in patch
+        ? legacyJobNumberFromProjectId(String(patch.projectId || "")) : "";
+      const name = file.graph.metadata.name;
+      return {
+        ...file,
+        graph: {
+          ...file.graph,
+          metadata: nextNumber
+            ? { ...file.graph.metadata, name: syncProjectNameIdentity(name, nextNumber) }
+            : file.graph.metadata,
+          nodes: file.graph.nodes.map((item) =>
+            item.id === node.id
+              ? { ...item, customFields: { ...item.customFields, ...nextPatch } }
+              : item,
+          ),
+        },
+      };
+    });
   };
 
   return {
@@ -112,9 +95,6 @@ export function useProjectIdDraft({
     projectIdDraft,
     setProjectIdDraft,
     projectIdSnapshotRef,
-    projectId,
-    parsedYear,
-    parsedSeq,
     projectIdValid,
     projectIdError,
     legacyJobNumber,

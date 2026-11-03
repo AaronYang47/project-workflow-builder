@@ -20,6 +20,7 @@ import {
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
+import { chapterLabel } from "@/lib/chapter-label";
 import { isReferenceNodeType, type DomainNode, type ExecutionItem, type HighLevelNode } from "@/types/workflow";
 
 type Layer = "L1" | "L2" | "L3";
@@ -245,7 +246,7 @@ function l2Subtitle(node: DomainNode) {
     typeof node.config.stage === "string" &&
     node.config.stage.trim()
   ) {
-    return node.config.stage.trim();
+    return chapterLabel(node.config.stage);
   }
   if (node.type === "projectStart") return "Project Start";
   if (node.type === "gate") return "Gate";

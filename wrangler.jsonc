@@ -9,6 +9,11 @@
       "binding": "DB",
       "database_name": "project-workflow-builder-db",
       "database_id": "86e1d86d-52a3-4134-934f-2b495344f9bc"
+    },
+    {
+      "binding": "FALCON_DB",
+      "database_name": "falcon-customer-master",
+      "database_id": "a3b49f49-e6b8-41f2-a0a7-fb9a70dd6c9a"
     }
   ],
   "r2_buckets": [
