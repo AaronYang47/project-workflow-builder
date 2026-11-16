@@ -22,11 +22,8 @@ import { estimatePhaseHeaderHeight } from "@/lib/phase-layout";
 import { PhaseNode } from "./phase-node";
 import { ReferenceNode } from "./reference-node";
 import { CanvasToolbar } from "./canvas-toolbar";
-import {
-  SemanticEdge,
-  getSemanticEdgeColor,
-  type LabelObstacle,
-} from "./semantic-edge";
+import { SemanticEdge } from "./semantic-edge";
+import { getSemanticEdgeColor, type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
   resolveAbsolutePosition,
@@ -55,10 +52,8 @@ import { collaborationManager } from "@/lib/collaboration/collaboration-manager"
 import { getExecutionSummary } from "@/lib/execution";
 import { matrixKindForNode } from "@/lib/matrix-config";
 import { HIGH_LEVEL_NODE_CATALOG } from "@/lib/high-level-workflow";
-import {
-  LayerContextMinimap,
-  type ContextMapNode,
-} from "./layer-context-minimap";
+import { LayerContextMinimap } from "./layer-context-minimap";
+import type { ContextMapNode } from "@/lib/layer-context-minimap-layout";
 
 const nodeTypes = {
   workflow: WorkflowNode,
