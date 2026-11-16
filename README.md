@@ -36,13 +36,8 @@ See [`USING-PROFAB-WORKFLOW.md`](./USING-PROFAB-WORKFLOW.md) for operating instr
 
 ## Architecture
 
-- `src/types` — renderer-independent workflow and layout schemas
-- `src/store` — Zustand state, history, selection, persistence, graph mutations
-- `src/components/workflow` — canvas, nodes, edges, panels, toolbar and inspector
-- `src/lib/validation.ts` — linting engine
-- `src/lib/layout.ts` — ELK layered layout and orthogonal edge-routing adapter
-- `src/lib/serialization.ts` — portable JSON format
-- `src/lib/inspector-schema.ts` — extensible per-node inspector definitions
+See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the folder map, the
+store slices, shared helpers and a step-by-step checklist for adding a feature.
 
 The JSON document includes a `schemaVersion`, a `graph` section for domain data, and a separate `layout` section for renderer state. This makes migration to another renderer or a future backend possible without changing workflow meaning.
 
