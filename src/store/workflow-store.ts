@@ -141,6 +141,7 @@ function findAvailableNodePosition(
 function isViewOnlyFileChange(current: WorkflowFile, next: WorkflowFile | undefined) {
   if (!next) return false;
   return current.graph === next.graph &&
+    current.calendar === next.calendar &&
     current.releaseConditionInbox === next.releaseConditionInbox &&
     current.execution === next.execution &&
     current.operations === next.operations &&
@@ -184,6 +185,7 @@ function clearDefaultWorkflow(file: WorkflowFile) {
   return {
     ...blank,
     graph: { ...blank.graph, metadata: file.graph.metadata },
+    calendar: file.calendar,
     operations: file.operations,
   };
 }

@@ -1,6 +1,9 @@
 import { useEffect, type RefObject } from "react";
 import { type useReactFlow } from "@xyflow/react";
 import { fitCanvasToWorkflow } from "@/lib/flow-helpers";
+import { printCanvasVector } from "@/lib/canvas-vector-print";
+import { flowchartPrintHeader, phaseFormsSummary } from "@/lib/phase-forms-summary";
+import { useWorkflowStore } from "@/store/workflow-store";
 
 type ReactFlowInstance = ReturnType<typeof useReactFlow>;
 
@@ -96,6 +99,35 @@ export function useCanvasExport(
 
       const bounds = flow.getNodesBounds(flow.getNodes());
       const padding = viewType === "l1" ? 44 : 56;
+
+      if (detail.format === "l1-pdf" || detail.format === "l2-pdf") {
+        // An 11 x 17 vector page drawn by the browser from the canvas itself.
+        const cards = flow.getNodes().flatMap((node) => {
+          const internal = flow.getInternalNode(node.id);
+          if (!internal?.measured.width || !internal.measured.height) return [];
+          const { x, y } = internal.internals.positionAbsolute;
+          return [{ id: node.id, parentId: node.parentId, x, y, width: internal.measured.width, height: internal.measured.height }];
+        });
+        const links = flow.getEdges().map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+        }));
+        const file = useWorkflowStore.getState().file;
+        const forms = phaseFormsSummary(file);
+        printCanvasVector(
+          flowElement,
+          cards,
+          links,
+          padding,
+          detail.format === "l1-pdf" ? "workflow-L1-high-level-11x17" : "workflow-L2-detailed-11x17",
+          forms,
+          flowchartPrintHeader(file, detail.format === "l1-pdf" ? "l1" : "l2", forms.length),
+        );
+        return;
+      }
       const targetWidth = Math.max(1, Math.round(bounds.width + padding * 2));
       const targetHeight = Math.max(1, Math.round(bounds.height + padding * 2));
 
@@ -117,11 +149,7 @@ export function useCanvasExport(
             .getPropertyValue("--canvas-export")
             .trim() || "#ffffff";
 
-        if (
-          detail.format === "pdf" ||
-          detail.format === "l1-pdf" ||
-          detail.format === "l2-pdf"
-        ) {
+        if (detail.format === "pdf") {
           const { toPng } = await import("html-to-image");
           const { jsPDF } = await import("jspdf");
           const data = await toPng(flowElement, {
@@ -149,14 +177,7 @@ export function useCanvasExport(
           });
           pdf.addImage(data, "PNG", 0, 0, pdfWidth, pdfHeight);
 
-          const downloadName =
-            detail.format === "l1-pdf"
-              ? "workflow-L1-high-level.pdf"
-              : detail.format === "l2-pdf"
-                ? "workflow-L2-detailed.pdf"
-                : "workflow.pdf";
-
-          pdf.save(downloadName);
+          pdf.save("workflow.pdf");
           return;
         }
 

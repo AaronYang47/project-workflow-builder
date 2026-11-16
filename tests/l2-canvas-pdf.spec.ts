@@ -1,37 +1,52 @@
 import { expect, test } from "playwright/test";
 import { seedE2EWorkflow } from "./support/e2e-workflow";
 
-for (const fromL1 of [false, true]) {
-  test(`L2 PDF contains workflow nodes ${fromL1 ? "when switching from L1" : "from L2"}`, async ({ page }, info) => {
+const cases = [
+  { item: "L1 · High-Level Process", startOnL2: false, title: "workflow-L1-high-level-11x17" },
+  { item: "L1 · High-Level Process", startOnL2: true, title: "workflow-L1-high-level-11x17" },
+  { item: "L2 · Detailed Workflow", startOnL2: true, title: "workflow-L2-detailed-11x17" },
+  { item: "L2 · Detailed Workflow", startOnL2: false, title: "workflow-L2-detailed-11x17" },
+];
+
+for (const { item, startOnL2, title } of cases) {
+  test(`${item} prints an 11 x 17 vector page ${startOnL2 ? "from L2" : "from L1"}`, async ({ page }) => {
     test.setTimeout(90000);
     await seedE2EWorkflow(page);
     await page.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.toDataURL;
-      HTMLCanvasElement.prototype.toDataURL = function (...args) {
-        if (this.width > 500 && document.querySelector('.react-flow__viewport')) {
-          const ctx = this.getContext('2d')!;
-          const samples = ctx.getImageData(0, 0, this.width, this.height).data;
-          const bg = Array.from(samples.slice(0, 3));
-          let different = 0;
-          for (let y = 0; y < this.height; y += 12) for (let x = 0; x < this.width; x += 12) {
-            const i = (y * this.width + x) * 4;
-            if (Math.abs(samples[i] - bg[0]) + Math.abs(samples[i + 1] - bg[1]) + Math.abs(samples[i + 2] - bg[2]) > 45) different++;
-          }
-          (window as unknown as { exportSample: unknown }).exportSample = { different, width: this.width, height: this.height };
-        }
-        return original.apply(this, args);
+      (window as unknown as { printed: unknown[] }).printed = [];
+      window.print = () => {
+        const root = document.getElementById("vector-canvas-print");
+        (window as unknown as { printed: unknown[] }).printed.push({
+          title: document.title,
+          nodes: root?.querySelectorAll(".react-flow__node").length ?? 0,
+          controls: root?.querySelectorAll(".react-flow__controls, .react-flow__minimap").length ?? 0,
+          // Arrowheads must point at the copy's own definitions, not the hidden original's.
+          strayRefs: Array.from(root?.querySelectorAll("[marker-end]") ?? [])
+            .filter((edge) => !edge.getAttribute("marker-end")!.includes("print-")).length,
+          formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
+          formGroups: Array.from(new Set(Array.from(root?.querySelectorAll<HTMLElement>("[data-print-forms-group]") ?? []).map((group) => group.dataset.printFormsGroup))),
+        });
       };
     });
-    await page.goto('/');
-    await page.getByRole('button', { name: 'L2 · Detailed Workflow' }).click();
-    await expect(page.locator('.react-flow__node').first()).toBeVisible();
-    if (fromL1) await page.getByRole('button', { name: 'L1 · High Level' }).click();
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
-    const download = page.waitForEvent('download');
-    await page.getByText('L2 · Detailed Workflow', { exact: true }).last().click();
-    await (await download).saveAs(info.outputPath(`l2-${fromL1}.pdf`));
-    const sample = await page.evaluate(() => (window as unknown as { exportSample: { different: number; width: number; height: number } }).exportSample);
-    expect(sample.different).toBeGreaterThan(100);
-    expect(Math.max(sample.width, sample.height)).toBeLessThanOrEqual(12000);
+    await page.goto("/");
+    if (startOnL2) await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+    await expect(page.locator(".react-flow__node").first()).toBeVisible();
+    await page.getByRole("button", { name: "Export", exact: true }).click();
+    await page.getByText(item, { exact: true }).last().click();
+    await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length > 0);
+    const [printed] = await page.evaluate(() => (window as unknown as { printed: { title: string; nodes: number; controls: number; strayRefs: number; formPhases: number; formGroups: string[] }[] }).printed);
+    expect(printed.title).toBe(title);
+    expect(printed.nodes).toBeGreaterThan(3);
+    expect(printed.controls).toBe(0);
+    expect(printed.strayRefs).toBe(0);
+    // Every phase lists its legal forms, customer information and supporting forms.
+    expect(printed.formPhases).toBeGreaterThan(0);
+    expect(printed.formGroups).toEqual(["legal", "customer", "supporting"]);
+
+    const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString("latin1");
+    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 1224 792\]/);
+    expect((pdf.match(/\/Type\s*\/Page\b/g) || []).length).toBe(1);
+    // Text stays text: the page carries fonts rather than one flat picture.
+    expect(pdf).toMatch(/\/Type\s*\/Font\b/);
   });
 }

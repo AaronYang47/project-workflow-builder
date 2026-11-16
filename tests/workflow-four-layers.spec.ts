@@ -47,7 +47,7 @@ test("L3 condition details retain the existing forms editor and L4 stays separat
   await page.screenshot({ path: "tmp/four-layer-conditions.png", fullPage: true });
   await page.getByRole("button", { name: /Inspect contract/ }).click();
   await page.getByRole("link", { name: "Forms & execution details", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Add Legal Document", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Required Document", exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get("condition")).toBe("detail-rc");
   await page.locator("[data-workflow-toolbar]").getByRole("link", { name: "Open Process Overview" }).click();
   await expect(page.getByRole("heading", { name: "L4 · Process & Gantt", exact: true })).toBeVisible();

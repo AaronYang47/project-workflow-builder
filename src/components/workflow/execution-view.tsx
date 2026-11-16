@@ -96,7 +96,7 @@ function AddDocumentModal({
 
   const categoryLabel =
     category === "legal"
-      ? "Legal Document"
+      ? "Required Document"
       : category === "customer"
         ? "Customer Information Form"
         : "Supporting Document";
@@ -464,7 +464,7 @@ export function ExecutionView({
       )
     : false;
 
-  // 1. Legal Documents Data
+  // 1. Required Documents Data
   const customLegalDocs: DocRecord[] = useMemo(
     () => node ? releaseConditionForms(node, currentCondition) : [],
     [node, currentCondition],
@@ -624,7 +624,7 @@ export function ExecutionView({
       const requiredDocuments = documents.filter((doc) => doc.required !== false);
       const documentsComplete = requiredDocuments.every((doc) => doc.checked);
       // Specified Forms are the checklist for this step, not a second task
-      // checkbox that the user must also tick inside Legal Documents.
+      // checkbox that the user must also tick inside Required Documents.
       if (documents.length && linkedItem.checklistComplete !== documentsComplete &&
           (!documentsComplete || !blocked)) {
         updateExecutionItem(linkedItem.id, { checklistComplete: documentsComplete });
@@ -960,7 +960,7 @@ export function ExecutionView({
         <div className="grid h-full min-h-[560px] grid-cols-1 gap-4 lg:grid-cols-3">
           
           {/* ============================================================ */}
-          {/* Box 1 (Left): Legal Documents                                */}
+          {/* Box 1 (Left): Required Documents                                */}
           {/* ============================================================ */}
           <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
             <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
@@ -970,7 +970,7 @@ export function ExecutionView({
                 </span>
                 <div>
                   <h2 className="text-sm font-bold text-foreground">
-                    Legal Documents
+                    Required Documents
                   </h2>
                   <p className="text-[10px] text-muted-foreground">
                     Forms / Documents for this release condition
@@ -986,8 +986,8 @@ export function ExecutionView({
               {customLegalDocs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
                   <FileText className="size-8 opacity-30 mb-2" />
-                  <p className="text-xs font-medium">No legal documents added yet.</p>
-                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Legal Document&quot; below to add from uploaded forms.</p>
+                  <p className="text-xs font-medium">No required documents added yet.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Required Document&quot; below to add from uploaded forms.</p>
                 </div>
               ) : null}
               {customLegalDocs.map((doc, index) => (
@@ -1093,7 +1093,7 @@ export function ExecutionView({
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:text-indigo-600 cursor-pointer"
               >
                 <Plus className="size-3.5" />
-                Add Legal Document
+                Add Required Document
               </button>
             </div>
           </div>

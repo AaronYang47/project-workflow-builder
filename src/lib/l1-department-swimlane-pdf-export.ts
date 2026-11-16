@@ -6,6 +6,8 @@ import { buildProcessSchedule, salesHandoffTime } from "@/lib/process-schedule";
 import { isProductionDepartmentName, isSalesDepartmentName, isTechnicalDepartmentName } from "@/lib/department-label";
 import { PDF_SCHEDULE_LABEL_WIDTH, pdfScheduleExtent, processGanttPdfHtml } from "@/lib/process-gantt-pdf";
 import { departmentDocumentSummary } from "@/lib/department-document-summary";
+import { buildProcessTimeline } from "@/lib/schedule-calendar";
+import { confirmDayOffWarnings } from "@/lib/calendar-badges";
 import type { DomainNode, HighLevelNode, WorkflowFile } from "@/types/workflow";
 
 type PhaseColumn = {
@@ -68,7 +70,7 @@ function rgba(color: string, alpha: number) {
   return `rgba(${red},${green},${blue},${alpha})`;
 }
 
-function phaseColor(node: HighLevelNode, index: number) {
+export function phaseColor(node: HighLevelNode, index: number) {
   return safeColor(node.backgroundColor, getL1FallbackColor(`${node.title} ${node.description}`, index));
 }
 
@@ -122,7 +124,7 @@ function phaseLabel(node: HighLevelNode, index: number) {
   return `P${titleNumber}`;
 }
 
-function linkedNodeIds(phase: HighLevelNode, file: WorkflowFile, nodeById: Map<string, DomainNode>) {
+export function linkedNodeIds(phase: HighLevelNode, file: WorkflowFile, nodeById: Map<string, DomainNode>) {
   const explicit = phase.linkedLayer2NodeIds ?? phase.linkedDetailedNodeIds ?? [];
   if (explicit.length) return Array.from(new Set(explicit)).filter((id) => nodeById.has(id));
 
@@ -311,10 +313,12 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
 function ganttCoverage(file: WorkflowFile, phases: PhaseColumn[], columns: DepartmentColumn[]) {
   const schedule = buildProcessSchedule(file);
   const handoff = salesHandoffTime(schedule);
-  const { total } = pdfScheduleExtent(schedule.totalDays, handoff.originDay ?? 0);
+  const timeline = buildProcessTimeline(file, schedule);
+  const { total } = pdfScheduleExtent(timeline.totalDays, timeline.originDay ?? 0, timeline.enabled);
   const ranges = phases.map((phase) => {
     const index = schedule.phases.findIndex((item) => item.id === phase.node.id);
-    return index < 0 ? { start: 0, end: 0 } : schedule.phaseRanges[index];
+    const range = index < 0 ? { start: 0, end: 0 } : schedule.phaseRanges[index];
+    return { start: timeline.toDisplayDay(range.start, "end"), end: timeline.toDisplayDay(range.end, "end") };
   });
   const cards: { column?: DepartmentColumn; start: number; end: number }[] = [];
   ranges.forEach((range, phaseIndex) => {
@@ -359,6 +363,9 @@ function evidenceHtml(column: DepartmentColumn) {
 }
 
 export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options: { gantt?: boolean } = {}) {
+  // Tasks whose window is mostly days off are flagged in the chart; ask the
+  // user before printing a schedule that is unlikely to hold.
+  if (options.gantt && !confirmDayOffWarnings(file)) return;
   const { toPng } = await import("html-to-image");
   const { jsPDF } = await import("jspdf");
   const highLevelNodes = file.highLevel?.graph.nodes || [];
@@ -436,7 +443,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     const durationHtml = containsSales && !countedTasks.length
       ? '<span class="phase-duration-pending">Timing begins with Technical work</span>'
       : countedTasks.length
-      ? `<div class="phase-duration-main">${calendarDurationParts(days).map((part, index, parts) => `<span class="phase-duration-part"><span class="phase-duration-number">${part.value}${partial && index === parts.length - 1 ? "+" : ""}</span><span class="phase-duration-unit">${part.unit}</span></span>`).join("")}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
+      ? `<div class="phase-duration-main">${calendarDurationParts(days, schedule.workingDaysPerWeek).map((part, index, parts) => `<span class="phase-duration-part"><span class="phase-duration-number">${part.value}${partial && index === parts.length - 1 ? "+" : ""}</span><span class="phase-duration-unit">${part.unit}</span></span>`).join("")}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
       : '<span class="phase-duration-pending">Duration not set</span>';
     const actualProductionNote = options.gantt && countedTasks.length && tasks.some((task) => isProductionDepartmentName(task.department))
       ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>' : "";
@@ -469,7 +476,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       ? '<span class="department-actual-production-note" data-department-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>' : "";
     const durationHtml = options.gantt && !isSalesDepartmentName(column.label) ? `<div class="department-duration" data-department-duration="${escapeHtml(column.label)}">${departmentDays === undefined
       ? '<span class="department-duration-pending">Duration not set</span>'
-      : `<div class="department-duration-main">${calendarDurationParts(departmentDays).map((part, partIndex, parts) => `<span class="department-duration-part"><span class="department-duration-number">${part.value}${partialDuration && partIndex === parts.length - 1 ? "+" : ""}</span><span class="department-duration-unit">${part.unit}</span></span>`).join("")}</div>${actualProductionNote}${partialDuration ? '<span class="department-duration-note">Partial estimate</span>' : ""}`}</div>` : "";
+      : `<div class="department-duration-main">${calendarDurationParts(departmentDays, schedule.workingDaysPerWeek).map((part, partIndex, parts) => `<span class="department-duration-part"><span class="department-duration-number">${part.value}${partialDuration && partIndex === parts.length - 1 ? "+" : ""}</span><span class="department-duration-unit">${part.unit}</span></span>`).join("")}</div>${actualProductionNote}${partialDuration ? '<span class="department-duration-note">Partial estimate</span>' : ""}`}</div>` : "";
     const partialInvolvement = column.connections.some((connection) => connection.partiallyInvolved);
     const phaseSegments = column.connections.map((connection) =>
       `<span class="phase-segment" data-phase-index="${connection.phaseIndex}" style="background:${connection.phaseColor};"></span>`,
@@ -477,7 +484,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     return `<div class="${cardClass}${options.gantt ? " gantt-department-card" : ""}" data-coverage-start="${card.start}" data-coverage-end="${card.end}" style="--department-gradient:${borderGradient};--department-fill:${gradient(colors, 0.09)};--department-duration-color:${colors.at(-1)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
         <div class="department-heading"><div class="department-label">${escapeHtml(column.label)}</div>${partialInvolvement ? `<span class="partial-tag">Partially Involved</span>` : ""}</div>
         ${legalTitles.length || customerTitles.length ? `<div class="department-document-groups${legalTitles.length && customerTitles.length ? " dual-document-groups" : ""}">
-          ${legalTitles.length ? `<div class="department-document-item" data-department-documents="${escapeHtml(column.label)}"><strong>Legal Documents</strong><ul>${legalTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul></div>` : ""}
+          ${legalTitles.length ? `<div class="department-document-item" data-department-documents="${escapeHtml(column.label)}"><strong>Required Documents</strong><ul>${legalTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul></div>` : ""}
           ${customerTitles.length ? `<div class="department-document-item" data-department-customer="${escapeHtml(column.label)}"><strong>Customer Information</strong><ul>${customerTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul></div>` : ""}
         </div>` : ""}
         ${durationHtml}
@@ -533,13 +540,13 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     .phase-row{display:grid;grid-template-columns:repeat(${phases.length},minmax(0,1fr));column-gap:0;align-items:stretch}
     .phase-card{position:relative;display:flex;flex-direction:column;min-height:82px;padding:10px 12px;border:1px solid rgba(15,23,42,.13);border-top:4px solid var(--phase-color);border-radius:8px;background:linear-gradient(135deg,var(--phase-tint),#fff 72%);}
     .phase-card:not(:last-child)::after{content:"→";position:absolute;z-index:2;right:-9px;top:27px;color:#64748b;font-size:17px;font-weight:800}
-    .phase-meta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:4px 8px;font:800 12px Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--phase-color)}
+    .phase-meta{display:flex;flex-shrink:0;align-items:flex-start;font:800 12px Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--phase-color)}
     .phase-meta span:first-child{flex-shrink:0}
-    .phase-involvement{margin-left:auto;text-align:right;white-space:nowrap;letter-spacing:0;text-transform:none;color:#334155}
-    .phase-title{margin-top:6px;font-size:21px;font-weight:800;line-height:1.18;color:#0f172a;overflow-wrap:anywhere}
-    .phase-duration{align-self:flex-end;margin-top:auto;padding-top:12px;text-align:right;color:var(--phase-color);max-width:100%}
-    .phase-duration-main{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 8px}
-    .phase-duration-part{white-space:nowrap}
+    .phase-involvement{position:absolute;top:10px;right:12px;white-space:nowrap;text-align:right;letter-spacing:0;text-transform:none;color:#334155}
+    .phase-title{flex-shrink:0;margin-top:6px;font-size:21px;font-weight:800;line-height:1.18;color:#0f172a;overflow-wrap:anywhere}
+    .phase-duration{flex-shrink:0;align-self:flex-end;width:max-content;margin-top:auto;padding-top:12px;text-align:right;color:var(--phase-color);max-width:100%}
+    .phase-duration-main{display:flex;flex-wrap:nowrap;justify-content:flex-end;gap:8px;white-space:nowrap}
+    .phase-duration-part{display:inline-flex;flex-shrink:0;align-items:baseline;white-space:nowrap}
     .phase-duration-number{font:900 26px/1.1 Arial,sans-serif}
     .phase-duration-unit{display:inline-block;margin-left:4px;font:800 11px/1.3 Arial,sans-serif;letter-spacing:.04em}
     .phase-duration-note{display:block;margin-top:2px;color:#92400e;font:700 8px/1.3 Arial,sans-serif}
@@ -609,7 +616,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
   ${pendingPhases.length || pendingDepartments.length ? `<p class="gantt-note">No scheduled duration: ${[...pendingPhases.map((phase) => phase.node.title), ...pendingDepartments.map((column) => column.label)].map(escapeHtml).join(" · ")}</p>` : ""}
   ${options.gantt ? processGanttPdfHtml(file, new Map(phases.map((phase) => [phase.node.id, phase.color])), { salesRowsWithoutBars: true }) : `<div class="down-arrow-grid">${downArrows}</div><div class="evidence-grid">${evidenceHtmlRows}</div>`}
   ${supportingDocumentsHtml}
-  <div class="footer">${options.gantt ? `Sales lead customer qualification before Day 1 is excluded from the elapsed-day totals. Day 1 is the formal Sales-to-Technical handover. Phase and department color boundaries align with the Gantt time axis. Department cards show phase coverage; their widths do not represent individual task timing. ${file.releaseConditionInbox?.length || 0} unassigned condition(s) are not scheduled.` : "Department names are shown once. Phase-specific chapters, partial involvement, forms, and release conditions are listed with their source phase."}</div>`;
+  <div class="footer">${options.gantt ? `${file.calendar ? "Calendar dates use the formal Sales-to-Technical handover as the start date. Grey intervals mark days off inside each task’s total duration; actual work equals total calendar days minus non-overlapping shutdown, statutory holiday and weekend days." : "Sales lead customer qualification before Day 1 is excluded from the elapsed-day totals. Day 1 is the formal Sales-to-Technical handover."} Phase and department color boundaries align with the Gantt time axis. Department cards show phase coverage; their widths do not represent individual task timing. ${file.releaseConditionInbox?.length || 0} unassigned condition(s) are not scheduled.` : "Department names are shown once. Phase-specific chapters, partial involvement, forms, and release conditions are listed with their source phase."}</div>`;
 
   document.body.appendChild(container);
   try {
@@ -631,7 +638,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
         .pdf-gantt .gantt-row:not([data-pdf-gantt-task]),.pdf-gantt .gantt-track{min-height:${rowHeight}px}
         .pdf-gantt .gantt-label{padding:2px 9px}
         .pdf-gantt .gantt-department{padding:4px 10px}
-        .pdf-gantt .gantt-bar{height:${Math.max(26, rowHeight - 1)}px}
+        .pdf-gantt .gantt-bar,.pdf-gantt .gantt-pause-segment{height:${Math.max(26, rowHeight - 1)}px}
       `;
       container.appendChild(compactRows);
     }
@@ -741,6 +748,35 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
         `${phase.color} ${boundaries[index] / rowBounds.width * 100}% ${boundaries[index + 1] / rowBounds.width * 100}%`,
       ).join(", ")})`;
     }
+    // Pin involvement to the upper-right corner and keep the complete duration
+    // on one line, including in html-to-image's fixed-size snapshot.
+    const phaseMetadata = Array.from(container.querySelectorAll<HTMLElement>(".phase-meta"));
+    phaseMetadata.forEach((meta) => {
+      meta.style.minHeight = "";
+      meta.style.paddingTop = "";
+      const label = meta.querySelector<HTMLElement>(".phase-involvement")!;
+      label.style.fontSize = "12px";
+      const available = meta.clientWidth;
+      if (label.scrollWidth > available) label.style.fontSize = `${12 * available / label.scrollWidth * .96}px`;
+      if (meta.children[0].getBoundingClientRect().right + 8 > label.getBoundingClientRect().left) {
+        meta.style.paddingTop = `${label.getBoundingClientRect().height + 4}px`;
+      }
+      const duration = meta.parentElement!.querySelector<HTMLElement>(".phase-duration-main");
+      if (duration) {
+        const numbers = duration.querySelectorAll<HTMLElement>(".phase-duration-number");
+        const units = duration.querySelectorAll<HTMLElement>(".phase-duration-unit");
+        numbers.forEach((number) => { number.style.fontSize = "26px"; });
+        units.forEach((unit) => { unit.style.fontSize = "11px"; });
+        let scale = 1;
+        for (let attempt = 0; attempt < 4 && duration.scrollWidth > available; attempt += 1) {
+          scale *= available / duration.scrollWidth * .96;
+          numbers.forEach((number) => { number.style.fontSize = `${26 * scale}px`; });
+          units.forEach((unit) => { unit.style.fontSize = `${11 * scale}px`; });
+        }
+      }
+    });
+    const metadataHeight = Math.max(...phaseMetadata.map((meta) => meta.getBoundingClientRect().height));
+    phaseMetadata.forEach((meta) => { meta.style.minHeight = `${metadataHeight}px`; });
     if (options.gantt) {
       const handoffLine = container.querySelector<HTMLElement>(".gantt-day-one-line")?.getBoundingClientRect();
       if (handoffLine) container.querySelectorAll<HTMLElement>(".gantt-task-label").forEach((label) => {
@@ -826,14 +862,33 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
       if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
     });
-    // Labels sit after their bars; one near the chart end moves before its bar.
+    // Labels stay on the same line as their bars: after the bar when it fits,
+    // otherwise before the task's first segment. A label that fits on neither
+    // side shrinks onto the roomier side instead of wrapping to a second line.
     container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-bar-text").forEach((text) => {
-      const track = text.parentElement!.getBoundingClientRect();
+      const trackElement = text.parentElement!;
+      const track = trackElement.getBoundingClientRect();
       if (text.getBoundingClientRect().right <= track.right - 2) return;
-      const bar = text.previousElementSibling as HTMLElement;
-      text.style.left = "auto";
+      const segments = Array.from(trackElement.querySelectorAll<HTMLElement>(".gantt-bar,.gantt-pause-segment"));
+      const taskLeft = Math.min(...segments.map((segment) => segment.getBoundingClientRect().left)) - track.left;
+      const taskRight = Math.max(...segments.map((segment) => segment.getBoundingClientRect().right)) - track.left;
+      const gap = 6;
+      const spaceBefore = taskLeft - gap - 2;
+      const spaceAfter = track.width - taskRight - gap - 2;
+      const before = spaceBefore >= text.offsetWidth || spaceBefore >= spaceAfter;
+      const space = Math.max(0, before ? spaceBefore : spaceAfter);
+      if (text.offsetWidth > space && text.offsetWidth > 0) {
+        const scale = Math.max(0.45, space / text.offsetWidth);
+        text.style.transformOrigin = before ? "right center" : "left center";
+        text.style.transform = `scale(${scale})`;
+      }
       text.style.marginLeft = "0";
-      text.style.right = `${track.right - bar.getBoundingClientRect().left + 6}px`;
+      if (before) {
+        text.style.left = "auto";
+        text.style.right = `${track.width - taskLeft + gap}px`;
+      } else {
+        text.style.left = `${taskRight + gap}px`;
+      }
     });
     container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-title").forEach((title) => {
       // Keep condition names on one line even when the lead interval is short.
@@ -862,6 +917,15 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     const imageWidth = width * imageScale;
     const imageHeight = height * imageScale;
     pdf.addImage(image, "PNG", (pageWidth - imageWidth) / 2, (pageHeight - imageHeight) / 2, imageWidth, imageHeight, "workflow-pdf-image", "FAST");
+    if (options.gantt) {
+      const { appendProductionCalendarPages } = await import("@/lib/production-calendar-pdf");
+      await appendProductionCalendarPages(pdf, file);
+      const pages = pdf.getNumberOfPages();
+      for (let page = 1; page <= pages; page += 1) {
+        pdf.setPage(page); pdf.setFillColor(255, 255, 255); pdf.rect(pageWidth - 21, pageHeight - 7, 18, 5, "F");
+        pdf.setFontSize(7); pdf.setTextColor(100, 116, 139); pdf.text(`${page} / ${pages}`, pageWidth - 5, pageHeight - 3.5, { align: "right" });
+      }
+    }
     pdf.setProperties({ title: `${projectName} - ${documentTitle}`, subject: options.gantt ? "Phases, departments and release condition Gantt chart" : "Phases, departments, release conditions and forms" });
     const safeName = `${projectNumber ? `${projectNumber}-` : ""}${projectName}`
       .toLocaleLowerCase()

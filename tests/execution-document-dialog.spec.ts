@@ -9,9 +9,9 @@ test("late library results do not replace a document title being entered", async
   });
   await seedE2EWorkflow(page);
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "RC · Forms & execution" })).toBeVisible();
+  await expect(page.locator("[data-workflow-toolbar]")).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } })));
-  await page.getByRole("button", { name: "Add Legal Document" }).click();
+  await page.getByRole("button", { name: "Add Required Document" }).click();
   const title = page.getByPlaceholder("e.g. Master Services Agreement 2026");
   await title.fill("Custom agreement");
   await expect.poll(() => Boolean(releaseFiles)).toBe(true);
@@ -20,6 +20,6 @@ test("late library results do not replace a document title being entered", async
   await expect(title).toHaveValue("Custom agreement");
   await page.getByRole("button", { name: "Add to L3 List" }).click();
   await expect(page.getByText("Custom agreement", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Add Legal Document" }).click();
+  await page.getByRole("button", { name: "Add Required Document" }).click();
   await expect(title).toHaveValue("Remote Contract");
 });

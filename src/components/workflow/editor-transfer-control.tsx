@@ -10,7 +10,7 @@ import {
 } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 
-export function EditorTransferControl() {
+export function EditorTransferControl({ compactOnMobile = false }: { compactOnMobile?: boolean } = {}) {
   const collaboration = useCollaborationStore();
   const [open, setOpen] = useState(false);
   const canEdit = canEditCollaborativeWorkflow(collaboration);
@@ -40,7 +40,7 @@ export function EditorTransferControl() {
           className="h-8 shrink-0 gap-1.5 px-2 text-xs font-semibold"
         >
           {canEdit ? <ArrowLeftRight className="size-3.5" /> : <Eye className="size-3.5" />}
-          <span>{canEdit ? "Transfer" : "View only"}</span>
+          <span className={compactOnMobile ? "hidden sm:inline" : undefined}>{canEdit ? "Transfer" : "View only"}</span>
         </Button>
       </Popover.Trigger>
       <Popover.Portal>

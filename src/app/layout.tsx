@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { ActivityTracker } from "@/components/activity-tracker";
 import { PwaServiceWorker } from "@/components/pwa-service-worker";
 import { CollaborationPageFollow } from "@/components/workflow/collaboration-page-follow";
 import { RemoteReleaseConditionDrag } from "@/components/workflow/remote-release-condition-drag";
@@ -19,5 +20,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="dark">{children}<CollaborationPageFollow /><RemoteReleaseConditionDrag /></ThemeProvider><PwaServiceWorker /></body></html>;
+  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="dark">{children}<CollaborationPageFollow /><RemoteReleaseConditionDrag /></ThemeProvider><PwaServiceWorker /><ActivityTracker /></body></html>;
 }

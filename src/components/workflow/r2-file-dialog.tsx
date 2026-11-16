@@ -255,7 +255,7 @@ export function R2FileDialog({
                     )}
                   >
                     <Scale className="size-3.5" />
-                    Legal Documents
+                    Required Documents
                   </button>
                   <button
                     type="button"
@@ -399,7 +399,7 @@ export function R2FileDialog({
                         : "bg-muted text-muted-foreground border-border hover:bg-muted/80",
                     )}
                   >
-                    {cat === "all" ? "All Files" : cat}
+                    {cat === "all" ? "All Files" : cat === "legal" ? "Required Documents" : cat}
                   </button>
                 ))}
               </div>
@@ -429,7 +429,7 @@ export function R2FileDialog({
                                   : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
                             )}
                           >
-                            {file.category}
+                            {file.category === "legal" ? "Required Documents" : file.category}
                           </span>
                           <span className="font-mono text-xs font-bold text-foreground truncate">
                             {isFormReferenceRecord(file) ? `Form code: ${file.fileName}` : file.fileName}

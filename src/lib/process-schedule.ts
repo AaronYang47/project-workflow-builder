@@ -37,6 +37,8 @@ export function schedulePredecessorCandidates(tasks: ScheduleTask[], task: Sched
 
 export function buildProcessSchedule(file: WorkflowFile) {
   file = normalizePreviousPhaseDependencies(file);
+  // Entered durations are total elapsed time, including all days off.
+  const workingDaysPerWeek = 7;
   const phases = orderHighLevelNodes(file.highLevel?.graph.nodes ?? [], file.highLevel?.graph.edges ?? [])
     .map((phase, index) => ({ ...phase, color: /^#[\da-f]{6}$/i.test(phase.backgroundColor ?? "")
       ? phase.backgroundColor! : getL1FallbackColor(`${phase.title} ${phase.description}`, index) }));
@@ -55,8 +57,8 @@ export function buildProcessSchedule(file: WorkflowFile) {
     conditionId: condition.id || `index-${index}`, conditionIndex: index,
     title: condition.label || condition.description || `Release condition ${index + 1}`,
     chapter: node.title, department: departmentDisplayName(node), phaseIndex: owners.get(node.id) ?? -1,
-    color: phases[owners.get(node.id) ?? -1]?.color ?? "#64748b", condition: wholeDayCondition(condition),
-    days: conditionDurationDays(condition),
+    color: phases[owners.get(node.id) ?? -1]?.color ?? "#64748b", condition: wholeDayCondition(condition, workingDaysPerWeek),
+    days: conditionDurationDays(condition, workingDaysPerWeek),
   });
   }));
   const byKey = new Map(tasks.map((task) => [task.key, task]));
@@ -117,7 +119,7 @@ export function buildProcessSchedule(file: WorkflowFile) {
       tasks: orderedTasks.filter((task) => task.nodeId === node.id),
     })),
   }));
-  return { phases, departments, tasks, totalDays: Math.max(0, ...tasks.map((task) => task.end ?? 0)),
+  return { phases, departments, tasks, workingDaysPerWeek, totalDays: Math.max(0, ...tasks.map((task) => task.end ?? 0)),
     unscheduled: tasks.filter((task) => task.end === undefined).length,
     phaseRanges: phases.map((_, index) => ({ start: phaseStart(index), end: Math.max(phaseStart(index), ...tasks.filter((task) => task.phaseIndex === index).map((task) => task.end ?? 0)) })) };
 }

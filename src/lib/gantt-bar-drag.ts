@@ -5,10 +5,16 @@ type DragOptions = {
   task: ScheduleTask;
   schedule: { tasks: ScheduleTask[]; phaseRanges: { start: number; end: number }[] };
   totalDays: number;
+  toDisplayDay?: (day: number, boundary?: "start" | "end") => number;
+  toScheduleDay?: (day: number) => number;
   formatStartDay: (day: number) => string;
   onDrop: (placement: GanttPlacement) => void;
+  onClick?: () => void;
   onMoveChapter?: (nodeId: string, index: number) => void;
+  onPreview?: (bar: HTMLElement, start: number, days: number) => void;
 };
+
+let activeCleanup: (() => void) | undefined;
 
 /** Drag the existing Gantt bar horizontally; the planner preserves phase and dependency rules. */
 export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options: DragOptions) {
@@ -16,6 +22,8 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
   const track = bar.closest<HTMLElement>("[data-gantt-track]");
   const board = bar.closest<HTMLElement>("[data-release-condition-board]");
   if (!track || !board) return;
+  activeCleanup?.();
+  window.getSelection()?.removeAllRanges();
   event.preventDefault();
   event.stopPropagation();
   const pointerId = event.pointerId;
@@ -23,6 +31,8 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
   const initialScroll = board.scrollLeft;
   const originalStyle = bar.style.cssText;
   const pixelsPerDay = track.getBoundingClientRect().width / options.totalDays;
+  const displayDay = options.toDisplayDay ?? ((day: number) => day);
+  const scheduleDay = options.toScheduleDay ?? ((day: number) => day);
   let dragging = false;
   let current: GanttPlacement | null = null;
   let latestX = originX;
@@ -39,9 +49,10 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     snapTarget = null;
   };
   const cleanup = () => {
-    bar.removeEventListener("pointermove", move);
-    bar.removeEventListener("pointerup", finish);
-    bar.removeEventListener("pointercancel", cancel);
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("pointerup", finish, true);
+    document.removeEventListener("pointercancel", cancel, true);
+    bar.removeEventListener("lostpointercapture", cancel);
     window.removeEventListener("blur", cleanup);
     document.removeEventListener("keydown", onKeyDown);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
@@ -51,17 +62,21 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     guide?.remove();
     label?.remove();
     bar.style.cssText = originalStyle;
+    if (options.task.start !== undefined) options.onPreview?.(bar, options.task.start, options.task.days ?? 1);
     bar.removeAttribute("data-gantt-dragging");
+    if (activeCleanup === cleanup) activeCleanup = undefined;
     if (bar.hasPointerCapture(pointerId)) bar.releasePointerCapture(pointerId);
   };
   const preview = () => {
     const shiftedX = latestX - originX + board.scrollLeft - initialScroll;
     current = planGanttPlacement(options.schedule, options.task,
-      Math.min(options.totalDays - (options.task.days ?? 0), options.task.start! + shiftedX / pixelsPerDay),
+      Math.min(scheduleDay(options.totalDays) - (options.task.days ?? 0), scheduleDay(displayDay(options.task.start!) + shiftedX / pixelsPerDay)),
       Math.min(0.45, 10 / pixelsPerDay));
     if (!current) return;
-    const left = current.startDay / options.totalDays * track.getBoundingClientRect().width;
-    bar.style.transform = `translateX(${(current.startDay - options.task.start!) * pixelsPerDay}px)`;
+    const left = displayDay(current.startDay) / options.totalDays * track.getBoundingClientRect().width;
+    bar.style.transform = `translateX(${(displayDay(current.startDay) - displayDay(options.task.start!)) * pixelsPerDay}px)`;
+    if (options.toDisplayDay) bar.style.width = `${(displayDay(current.startDay + (options.task.days ?? 1), "end") - displayDay(current.startDay)) / options.totalDays * 100}%`;
+    options.onPreview?.(bar, current.startDay, options.task.days ?? 1);
     if (guide) guide.style.left = `${left}px`;
     if (label) {
       label.textContent = `${options.formatStartDay(current.startDay)} · ${current.label}`;
@@ -158,18 +173,21 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
   const finish = (pointer: PointerEvent) => {
     if (pointer.pointerId !== pointerId) return;
     pointer.preventDefault();
-    const placement = dragging && current?.startDay !== options.task.start ? current : null;
+    const placement = dragging && !vertical && current?.startDay !== options.task.start ? current : null;
     const destination = vertical && chapterTarget ? { nodeId: chapterTarget.dataset.releaseConditionDropNodeId!, index: chapterIndex } : null;
     cleanup();
     if (destination) { options.onMoveChapter?.(destination.nodeId, destination.index); return; }
     if (placement) options.onDrop(placement);
+    else if (!dragging) options.onClick?.();
   };
   const cancel = (pointer: PointerEvent) => { if (pointer.pointerId === pointerId) cleanup(); };
   const onKeyDown = (keyEvent: KeyboardEvent) => { if (keyEvent.key === "Escape") cleanup(); };
   bar.setPointerCapture(pointerId);
-  bar.addEventListener("pointermove", move);
-  bar.addEventListener("pointerup", finish);
-  bar.addEventListener("pointercancel", cancel);
+  activeCleanup = cleanup;
+  document.addEventListener("pointermove", move, true);
+  document.addEventListener("pointerup", finish, true);
+  document.addEventListener("pointercancel", cancel, true);
+  bar.addEventListener("lostpointercapture", cancel);
   window.addEventListener("blur", cleanup);
   document.addEventListener("keydown", onKeyDown);
 }

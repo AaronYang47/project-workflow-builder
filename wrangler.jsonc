@@ -14,6 +14,12 @@
       "binding": "FALCON_DB",
       "database_name": "falcon-customer-master",
       "database_id": "a3b49f49-e6b8-41f2-a0a7-fb9a70dd6c9a"
+    },
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "project-workflow-builder-auditlog",
+      "database_id": "7152b519-ca71-4b26-b229-1e040390399a",
+      "migrations_dir": "auditlog/migrations"
     }
   ],
   "r2_buckets": [

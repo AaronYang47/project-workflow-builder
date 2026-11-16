@@ -1,0 +1,17 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // The password-protected audit console at project-workflow-builder-auditlog.pages.dev.
+  // It reads the same audit database the main site writes to.
+  "name": "project-workflow-builder-auditlog",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "project-workflow-builder-auditlog",
+      "database_id": "7152b519-ca71-4b26-b229-1e040390399a",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

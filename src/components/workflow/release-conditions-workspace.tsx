@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CloudUpload, Download, FileCheck2, FileUp, FolderArchive, GripVertical, ListChecks, MapPin, Pencil, Plus, Search, Trash2, Undo2, Redo2, X } from "lucide-react";
-import { WorkflowLayerNavigation } from "./workflow-layer-navigation";
+import { TopToolbar } from "./top-toolbar";
 import { AuthGate } from "./auth-gate";
 import { CloudProjectControls } from "./cloud-project-controls";
 import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
@@ -58,7 +58,7 @@ function categoryForField(field: DocumentField): DocumentCategory {
 }
 
 const DOCUMENT_GROUPS = [
-  { field: "legalDocuments", title: "Legal Documents", tint: "indigo" },
+  { field: "legalDocuments", title: "Required Documents", tint: "indigo" },
   { field: "customerDocuments", title: "Customer Information", tint: "sky" },
   { field: "supportingDocuments", title: "Supporting Documents", tint: "emerald" },
 ] as const;
@@ -186,6 +186,9 @@ export function ReleaseConditionsWorkspace() {
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
+  const [mobileInboxOpen, setMobileInboxOpen] = useState(false);
+  const [assignInboxCondition, setAssignInboxCondition] = useState<{ id?: string; index: number } | null>(null);
+  const [mobileProcessMapOpen, setMobileProcessMapOpen] = useState(false);
   const [creatingChapter, setCreatingChapter] = useState(false);
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
   const [chapterTitle, setChapterTitle] = useState("");
@@ -196,6 +199,7 @@ export function ReleaseConditionsWorkspace() {
   const [selectedProcessStepId, setSelectedProcessStepId] = useState<string | null>(null);
   const [documentsPopupOpen, setDocumentsPopupOpen] = useState(false);
   const [optionalEditorChapterId, setOptionalEditorChapterId] = useState<string | null>(null);
+  const [optionalPopupChapterId, setOptionalPopupChapterId] = useState<string | null>(null);
   const [optionalTitle, setOptionalTitle] = useState("");
   const [optionalDuration, setOptionalDuration] = useState("");
   const [optionalUnit, setOptionalUnit] = useState<"days" | "weeks">("days");
@@ -249,7 +253,6 @@ export function ReleaseConditionsWorkspace() {
 
   const openDocumentDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) => {
     const isOptional = (chapter.optionalConditions ?? []).some((item) => item.id === condition.id);
-    if (isOptional && category !== "supporting") return;
     setDocumentDialogFlow("single");
     setDocumentMode("custom");
     setSelectedLibraryFileId("");
@@ -264,7 +267,6 @@ export function ReleaseConditionsWorkspace() {
 
   const openLibraryBatchDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) => {
     const isOptional = (chapter.optionalConditions ?? []).some((item) => item.id === condition.id);
-    if (isOptional && category !== "supporting") return;
     setDocumentDialogFlow("library-batch");
     setSelectedLibraryFileId("");
     setSelectedLibraryFileIds([]);
@@ -281,7 +283,6 @@ export function ReleaseConditionsWorkspace() {
     if (!latest) return;
     const condition = findChapterCondition(latest, conditionId, conditionIndex);
     if (!condition) return;
-    if ((latest.optionalConditions ?? []).some((item) => item.id === condition.id) && field !== "supportingDocuments") return;
     const key = `${field}::release-condition::${condition.id?.trim() || "default"}`;
     updateNode(latest.id, {
       customFields: { ...latest.customFields, [key]: JSON.stringify(documents) },
@@ -307,7 +308,6 @@ export function ReleaseConditionsWorkspace() {
       const condition = findChapterCondition(latest, target.conditionId, target.conditionIndex);
       if (!latest || !condition) throw new Error("This release condition is no longer available.");
       const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
-      if (isOptional && target.category !== "supporting") throw new Error("Optional conditions accept supporting documents only.");
       const required = isOptional ? false : documentRequired;
       const prefix = target.category === "legal" ? "LEG" : target.category === "customer" ? "CUST" : "SUP";
       const documents = conditionDocuments(latest, condition, field);
@@ -372,10 +372,6 @@ export function ReleaseConditionsWorkspace() {
       return;
     }
     const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
-    if (isOptional && target.category !== "supporting") {
-      setDocumentError("Optional conditions accept supporting documents only.");
-      return;
-    }
     const required = isOptional ? false : documentRequired;
     const field = documentField(target.category);
     const current = conditionDocuments(latest, condition, field);
@@ -591,7 +587,7 @@ export function ReleaseConditionsWorkspace() {
     const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapterId);
     if (!latest) return;
     const customFields = { ...latest.customFields };
-    delete customFields[`supportingDocuments::release-condition::${conditionId}`];
+    for (const group of DOCUMENT_GROUPS) delete customFields[`${group.field}::release-condition::${conditionId}`];
     updateNode(chapterId, { optionalConditions: (latest.optionalConditions ?? []).filter((condition) => condition.id !== conditionId), customFields });
     if (selectedProcessCondition?.id === conditionId) setDocumentsPopupOpen(false);
   };
@@ -599,6 +595,18 @@ export function ReleaseConditionsWorkspace() {
     const target = chapters.find((chapter) => chapter.id === targetId);
     if (!target && targetId !== RELEASE_CONDITION_INBOX_ID) return;
     moveCondition(sourceId, sourceIndex, targetId, targetIndex ?? (target?.conditions.length ?? inbox.length));
+  };
+  const assignFromInbox = (targetId: string) => {
+    if (!canEditWorkflow || !assignInboxCondition) return;
+    const latestInbox = useWorkflowStore.getState().file.releaseConditionInbox ?? [];
+    const sourceIndex = assignInboxCondition.id
+      ? latestInbox.findIndex((condition) => condition.id === assignInboxCondition.id)
+      : assignInboxCondition.index;
+    if (sourceIndex < 0 || !latestInbox[sourceIndex]) return;
+    move(RELEASE_CONDITION_INBOX_ID, sourceIndex, targetId);
+    setAssignInboxCondition(null);
+    setMobileInboxOpen(false);
+    selectProcessLocation(targetId, { id: latestInbox[sourceIndex].id, index: chapters.find((chapter) => chapter.id === targetId)?.conditions.length ?? 0 }, null, true);
   };
   const startCreateChapter = () => {
     setEditingChapterId(null);
@@ -664,41 +672,23 @@ export function ReleaseConditionsWorkspace() {
   return (
     <AuthGate>
       <main className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
-        <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b bg-panel px-3 sm:min-h-16 sm:gap-3 sm:px-4 lg:px-6">
-          <Link href={workflowHref} aria-label="Back to workflow" className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background text-muted-foreground hover:border-primary/50 hover:text-primary">
-            <ArrowLeft className="size-4" />
-          </Link>
-          <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary sm:flex"><ListChecks className="size-5" /></div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-sm font-bold lg:text-base">L3 · Conditions</h1>
-            <p className="truncate text-[11px] text-muted-foreground">{file.graph.metadata.name || "Current project"} · Plan conditions across Departments</p>
-          </div>
-          <div className="hidden shrink-0 items-center gap-2 text-[11px] sm:flex">
-            <span className="rounded-full border bg-background px-2.5 py-1">{inbox.length} unassigned</span>
-            <span className="rounded-full border bg-background px-2.5 py-1">{assignedCount} assigned</span>
-          </div>
-          <div className="flex shrink-0 gap-1">
-            <button type="button" onClick={undo} disabled={!past.length} aria-label="Undo condition change" className="flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground disabled:opacity-40"><Undo2 className="size-4" /></button>
-            <button type="button" onClick={redo} disabled={!future.length} aria-label="Redo condition change" className="flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground disabled:opacity-40"><Redo2 className="size-4" /></button>
-          </div>
-          <CloudProjectControls saveOnly readOnly={!canEditWorkflow} />
-          <CollaboratorPresence />
-          <div className="w-full pb-2"><WorkflowLayerNavigation currentLayer="L3" /></div>
-        </header>
+        <TopToolbar pageLayer="L3" isHighLevelView={false} onToggleHighLevelView={() => {}} openPalette={() => {}} onPageSearch={() => document.querySelector<HTMLInputElement>('[aria-label="Search release conditions"]')?.focus()} />
         <CollaborationControlOverlay />
 
         {!hydrated ? <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Loading release conditions…</div> : (
           <div className="flex min-h-0 flex-1 flex-row">
+            {mobileInboxOpen ? <button type="button" data-mobile-inbox-backdrop aria-label="Close unassigned conditions" onClick={() => { setMobileInboxOpen(false); setMobileAddOpen(false); }} className="fixed inset-0 z-40 bg-black/50 lg:hidden" /> : null}
             <section
               aria-label="Unassigned release conditions"
+              data-mobile-inbox-open={mobileInboxOpen}
               data-release-condition-drop-node-id={RELEASE_CONDITION_INBOX_ID}
               data-release-condition-count={inbox.length}
-              className="flex h-full w-[40vw] min-w-[135px] max-w-[180px] shrink-0 flex-col border-r bg-panel lg:w-[350px] lg:max-w-none"
+              className={`${mobileInboxOpen ? "fixed inset-y-0 left-0 z-50 flex w-[min(85vw,320px)] shadow-2xl" : "hidden"} min-h-0 shrink-0 flex-col border-r bg-panel lg:static lg:flex lg:h-full lg:w-[350px] lg:max-w-none lg:shadow-none`}
             >
               <div className="shrink-0 border-b p-2 lg:p-4">
                 <div className="flex items-start justify-between gap-1 lg:items-center lg:gap-2">
                   <div className="min-w-0"><h2 className="text-xs font-bold leading-4 lg:text-sm">Unassigned conditions</h2><p className="mt-0.5 hidden text-[11px] text-muted-foreground lg:block">Paste one condition per line.</p></div>
-                  <div className="flex shrink-0 flex-col items-center gap-1 lg:flex-row lg:gap-2"><span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary lg:px-2 lg:text-xs">{inbox.length}</span><button type="button" aria-label="Add or import conditions" aria-expanded={mobileAddOpen} onClick={() => setMobileAddOpen(true)} className="flex size-8 items-center justify-center rounded-lg border text-primary lg:hidden"><Plus className="size-4" /></button></div>
+                  <div className="flex shrink-0 items-center gap-1 lg:gap-2"><span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[10px] font-bold text-primary lg:text-xs">{inbox.length}</span><button type="button" aria-label="Add or import conditions" aria-expanded={mobileAddOpen} onClick={() => setMobileAddOpen(true)} className="flex size-9 items-center justify-center rounded-lg border text-primary lg:hidden"><Plus className="size-4" /></button><button type="button" aria-label="Close unassigned conditions" onClick={() => setMobileInboxOpen(false)} className="flex size-9 items-center justify-center rounded-lg border lg:hidden"><X className="size-4" /></button></div>
                 </div>
                 {mobileAddOpen ? <button type="button" aria-label="Dismiss add or import panel" onClick={() => setMobileAddOpen(false)} className="fixed inset-0 z-40 bg-black/50 lg:hidden" /> : null}
                 <div className={mobileAddOpen ? "fixed inset-x-3 top-16 z-50 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-xl border bg-panel p-4 shadow-2xl lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none" : "hidden lg:block"}>
@@ -735,9 +725,10 @@ export function ReleaseConditionsWorkspace() {
                   {visibleInbox.map(({ condition, index }) => (
                     <div key={condition.id || index} data-release-condition-index={index} data-release-condition-node-id={RELEASE_CONDITION_INBOX_ID} role="group" aria-label={`Unassigned release condition ${index + 1}`} className="rounded-lg border bg-card p-1.5 shadow-xs lg:p-2.5">
                       <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:gap-2">
-                        <button type="button" aria-label={`Drag unassigned release condition ${index + 1}`} disabled={!chapters.length} onPointerDown={(event) => beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, { nodeId: RELEASE_CONDITION_INBOX_ID, index, label: conditionText(condition, index) }, (target) => move(RELEASE_CONDITION_INBOX_ID, index, target.nodeId, target.index))} className="flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40 lg:size-7"><GripVertical className="size-4" /></button>
+                        <button type="button" data-inbox-drag-handle aria-label={`Drag unassigned release condition ${index + 1}`} disabled={!chapters.length} onPointerDown={(event) => beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, { nodeId: RELEASE_CONDITION_INBOX_ID, index, label: conditionText(condition, index) }, (target) => move(RELEASE_CONDITION_INBOX_ID, index, target.nodeId, target.index))} className="hidden size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex"><GripVertical className="size-4" /></button>
                         <ConditionTextArea aria-label={`Unassigned condition text ${index + 1}`} value={condition.label ?? condition.description ?? `Release condition ${index + 1}`} onChange={(event) => setInboxCondition(index, { label: event.target.value })} onBlur={(event) => { const label = event.target.value.trim(); if (label && label !== condition.label) setInboxCondition(index, { label }); }} rows={1} className="min-w-0 flex-1 basis-[calc(100%-32px)] resize-none overflow-hidden bg-transparent text-[11px] leading-4 outline-none lg:basis-auto lg:text-xs lg:leading-5" />
                         <button type="button" aria-label={`Delete unassigned release condition ${index + 1}`} onClick={() => setInbox(inbox.filter((_, current) => current !== index))} className="ml-auto flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive lg:ml-0 lg:size-7"><Trash2 className="size-3.5" /></button>
+                        <button type="button" data-mobile-assign-button aria-label={`Assign ${conditionText(condition, index)}`} disabled={!canEditWorkflow || !chapters.length || condition.locked} onClick={() => setAssignInboxCondition({ id: condition.id, index })} className="hidden min-h-9 w-full items-center justify-center rounded-md bg-primary/10 px-3 text-xs font-semibold text-primary disabled:opacity-40 max-sm:flex">Assign to department</button>
                       </div>
                     </div>
                   ))}
@@ -746,11 +737,29 @@ export function ReleaseConditionsWorkspace() {
               </div>
             </section>
 
+            {assignInboxCondition && (() => {
+              const sourceIndex = assignInboxCondition.id ? inbox.findIndex((condition) => condition.id === assignInboxCondition.id) : assignInboxCondition.index;
+              const condition = inbox[sourceIndex];
+              if (!condition) return null;
+              return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAssignInboxCondition(null); }}>
+                <section role="dialog" aria-modal="true" aria-labelledby="assign-condition-title" className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border bg-panel shadow-2xl">
+                  <header className="flex shrink-0 items-start justify-between gap-3 border-b p-4"><div className="min-w-0"><h2 id="assign-condition-title" className="text-sm font-bold">Assign release condition</h2><p className="mt-1 break-words text-xs text-muted-foreground">{conditionText(condition, sourceIndex)}</p></div><button type="button" aria-label="Close assignment" onClick={() => setAssignInboxCondition(null)} className="flex size-9 shrink-0 items-center justify-center rounded-lg border"><X className="size-4" /></button></header>
+                  <div className="scroll-thin min-h-0 space-y-2 overflow-y-auto p-3"><p className="px-1 text-xs text-muted-foreground">Choose the destination department and chapter.</p>{chapters.map((chapter) => {
+                    const heading = departmentBoardHeading(chapter);
+                    return <button key={chapter.id} type="button" aria-label={`Assign to ${heading.department} ${heading.chapter}`} onClick={() => assignFromInbox(chapter.id)} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-left hover:border-primary/60 hover:bg-primary/5"><span className="min-w-0"><span className="block truncate text-xs font-semibold">{heading.department}</span><span className="block text-[10px] text-muted-foreground">{heading.chapter}</span></span><ArrowRight className="size-4 shrink-0 text-primary" /></button>;
+                  })}</div>
+                </section>
+              </div>;
+            })()}
+
             <section aria-label="Department condition board" className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div className="flex shrink-0 justify-end border-b px-3 py-2 lg:px-5">
+              <div className="flex shrink-0 items-center justify-between border-b px-3 py-2 lg:justify-end lg:px-5">
+                <button type="button" data-mobile-inbox-toggle aria-label={`Open unassigned conditions, ${inbox.length} items`} onClick={() => setMobileInboxOpen(true)} className="flex min-h-9 items-center gap-2 rounded-md border px-2.5 text-[11px] font-semibold lg:hidden">Unassigned <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-primary">{inbox.length}</span></button>
                 <button type="button" onClick={startCreateChapter} aria-label="New Department" className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90"><Plus className="size-3.5" /> Department</button>
               </div>
-              <section aria-label="Process map" className="shrink-0 border-b bg-muted/10">
+              <section aria-label="Process map" data-mobile-process-map-open={mobileProcessMapOpen} className="shrink-0 border-b bg-muted/10">
+                <button type="button" data-mobile-process-map-toggle aria-expanded={mobileProcessMapOpen} onClick={() => setMobileProcessMapOpen((open) => !open)} className="flex min-h-10 w-full items-center justify-between px-3 text-xs font-semibold text-muted-foreground lg:hidden">Process map <span>{mobileProcessMapOpen ? "Hide ▲" : "Show ▼"}</span></button>
+                <div data-mobile-process-map-content className={mobileProcessMapOpen ? "block" : "hidden lg:block"}>
                 <div className="scroll-thin overflow-x-auto px-3 py-2.5 lg:px-5">
                   {processMap.groups.length ? (
                     <div className="flex min-w-max items-stretch gap-2">
@@ -770,7 +779,7 @@ export function ReleaseConditionsWorkspace() {
                                   return (
                                     <button key={chapter.id} type="button" aria-pressed={isSelected} onClick={() => selectProcessLocation(chapter.id, null, group.id, true)} className={`flex w-full min-w-0 items-center justify-between gap-1.5 rounded-md border px-2 py-1.5 text-left transition ${isSelected ? "process-selection-glow" : "hover:border-primary/55 hover:bg-primary/[0.04]"}`} style={{ borderColor: isSelected ? undefined : `${group.color}55`, backgroundColor: isSelected ? undefined : `${group.color}0d` }}>
                                       <span className="min-w-0"><span className="block truncate text-[10px] font-semibold" title={heading.department}>{heading.department}</span><span className="block truncate text-[8px] text-muted-foreground" title={heading.chapter}>{heading.chapter}</span></span>
-                                      {chapter.conditions.length ? <span className="shrink-0 rounded-full bg-background/80 px-1.5 py-0.5 text-[8px] font-semibold text-muted-foreground">{chapter.conditions.length} RC</span> : null}
+                                      {chapter.conditions.length ? <span className="shrink-0 rounded-md bg-background/80 px-1.5 py-0.5 text-[8px] font-semibold text-muted-foreground">{chapter.conditions.length} RC</span> : null}
                                     </button>
                                   );
                                 }) : <p className="px-1 py-2 text-center text-[9px] text-muted-foreground">No linked departments</p>}
@@ -810,6 +819,7 @@ export function ReleaseConditionsWorkspace() {
                     })() : <span className="text-muted-foreground">Select a department or form to see its process position.</span>}
                   </div>
                 </div> : null}
+                </div>
               </section>
               {creatingChapter ? <div className="shrink-0 border-b p-3 lg:p-4">{chapterForm("create")}</div> : null}
               {chapters.length ? (
@@ -817,59 +827,40 @@ export function ReleaseConditionsWorkspace() {
                   {boardChapters.map((chapter) => {
                     const visible = chapter.conditions.map((condition, index) => ({ condition, index }))
                       .filter(({ condition, index }) => !needle || conditionText(condition, index).toLowerCase().includes(needle) || DOCUMENT_GROUPS.some((group) => conditionDocuments(chapter, condition, group.field).some((document) => `${document.title} ${document.fileName ?? ""}`.toLowerCase().includes(needle))));
-                    const visibleOptional = (chapter.optionalConditions ?? []).map((condition, index) => ({ condition, index }))
-                      .filter(({ condition, index }) => !needle || conditionText(condition, index).toLowerCase().includes(needle));
                     const heading = departmentBoardHeading(chapter);
                     return (
                       <div key={chapter.id} role="group" data-release-condition-chapter data-release-condition-chapter-id={chapter.id} data-release-condition-drop-node-id={chapter.id} data-release-condition-count={chapter.conditions.length} aria-label={`${heading.department}, ${heading.chapter}`} style={{ width: "fit-content", minWidth: "min(320px, 84vw)", maxWidth: "min(460px, 92vw)" }} className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm transition ${selectedProcessNodeId === chapter.id ? "process-selection-glow" : ""}`}>
                         <div className="shrink-0 border-b bg-primary/[0.06] px-3 py-3">
-                          <div className="flex items-center justify-between gap-2"><button type="button" aria-pressed={selectedProcessNodeId === chapter.id && !selectedProcessConditionRef} onClick={() => selectProcessLocation(chapter.id)} className="min-w-0 flex-1 text-left"><h3 className="truncate text-sm font-bold" title={heading.department}>{heading.department}</h3><span className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-muted-foreground" title={chapter.title}>{heading.chapter}</span></button><div className="flex shrink-0 items-center gap-1">{chapter.type === "general" ? <button type="button" aria-label={`Edit ${chapter.title} Department`} onClick={() => startEditChapter(chapter)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"><Pencil className="size-3.5" /></button> : null}<span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{chapter.conditions.length}</span></div></div>
+                          <div className="flex items-center justify-between gap-2"><button type="button" aria-pressed={selectedProcessNodeId === chapter.id && !selectedProcessConditionRef} onClick={() => selectProcessLocation(chapter.id)} className="min-w-0 flex-1 text-left"><h3 className="truncate text-sm font-bold" title={heading.department}>{heading.department}</h3><span className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-muted-foreground" title={chapter.title}>{heading.chapter}</span></button><div className="flex shrink-0 items-center gap-1">{chapter.type === "general" ? <button type="button" aria-label={`Edit ${chapter.title} Department`} onClick={() => startEditChapter(chapter)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"><Pencil className="size-3.5" /></button> : null}<span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[10px] font-bold text-primary">{chapter.conditions.length}</span></div></div>
                         </div>
                         {editingChapterId === chapter.id ? <div className="shrink-0 p-2">{chapterForm("edit")}</div> : null}
                         <section aria-label="Release conditions" className="flex min-h-0 flex-1 flex-col p-3">
                           <header className="mb-2 flex shrink-0 items-center justify-between gap-2 border-b pb-2">
                             <h4 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Release Conditions</h4>
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary">{visible.length}{needle ? ` / ${chapter.conditions.length}` : ""}</span>
+                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[9px] font-semibold text-primary">{visible.length}{needle ? ` / ${chapter.conditions.length}` : ""}</span>
                           </header>
                           <div className="scroll-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
                             {visible.map(({ condition, index }) => {
                               const formsCount = conditionFormCount(chapter, condition);
                               const selected = selectedProcessNodeId === chapter.id && (selectedProcessConditionRef?.id ? selectedProcessConditionRef.id === condition.id : selectedProcessConditionRef?.index === index);
                               return (
-                                <div key={condition.id || index} data-release-condition-index={index} data-release-condition-node-id={chapter.id} role="group" aria-label={`Release condition ${index + 1}: ${conditionText(condition, index)}`} className={`flex min-w-0 items-stretch overflow-hidden rounded-lg border transition ${selected ? "border-primary bg-primary/[0.08] ring-1 ring-primary/30 shadow-sm" : "bg-background/70 hover:border-primary/45 hover:bg-background"}`}>
+                                <div key={condition.id || index} data-release-condition-index={index} data-release-condition-node-id={chapter.id} role="group" aria-label={`Release condition ${index + 1}: ${conditionText(condition, index)}`} onClick={() => selectProcessLocation(chapter.id, { id: condition.id, index })} className={`flex min-w-0 items-stretch overflow-hidden rounded-lg border transition ${selected ? "border-primary bg-primary/[0.08] ring-1 ring-primary/30 shadow-sm" : "bg-background/70 hover:border-primary/45 hover:bg-background"}`}>
                                   <button type="button" aria-label={`Drag release condition ${index + 1}`} onPointerDown={(event) => beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, { nodeId: chapter.id, index, label: conditionText(condition, index) }, (target) => move(chapter.id, index, target.nodeId, target.index))} className="flex w-8 shrink-0 touch-none cursor-grab items-center justify-center text-muted-foreground hover:bg-primary/10"><GripVertical className="size-3.5" /></button>
-                                  <button type="button" aria-pressed={selected} onClick={() => { selectProcessLocation(chapter.id, { id: condition.id, index }); setDocumentsPopupOpen(true); }} className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-2.5 text-left">
-                                    <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}</span>
+                                  <button type="button" aria-pressed={selected} onClick={(event) => { event.stopPropagation(); selectProcessLocation(chapter.id, { id: condition.id, index }); }} className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-2 text-left">
+                                    <span className={`flex size-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}</span>
                                     <span className="min-w-0 flex-1"><span className="block break-words text-[11px] font-semibold leading-4 text-foreground">{conditionText(condition, index)}</span><span className="mt-0.5 block text-[9px] text-muted-foreground">Release condition{conditionDurationLabel(condition) ? ` · ${conditionDurationLabel(condition)}` : ""}</span></span>
-                                    <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${formsCount ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{formsCount} {formsCount === 1 ? "form" : "forms"}</span>
-                                    <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/70" />
                                   </button>
+                                  <button type="button" aria-label={`View forms for ${conditionText(condition, index)}`} onClick={(event) => { event.stopPropagation(); selectProcessLocation(chapter.id, { id: condition.id, index }); setDocumentsPopupOpen(true); }} className={`my-auto shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold hover:ring-1 hover:ring-primary/40 ${formsCount ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{formsCount} {formsCount === 1 ? "form" : "forms"}</button>
+                                  <ArrowRight className="pointer-events-none mx-2 my-auto size-3.5 shrink-0 text-muted-foreground/70" />
                                 </div>
                               );
                             })}
                             {!visible.length ? <p className="rounded-lg border border-dashed p-4 text-center text-[10px] leading-4 text-muted-foreground">{needle ? "No release conditions or forms match this search." : "No release conditions in this Department."}</p> : null}
                           </div>
                         </section>
-                        <section aria-label={`Optional conditions for ${heading.department} ${heading.chapter}`} className="flex max-h-[45%] min-h-0 shrink-0 flex-col border-t px-3 py-2">
-                          <header className="mb-2 flex shrink-0 items-center justify-between gap-2">
-                            <h4 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Optional Conditions <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px]">{(chapter.optionalConditions ?? []).length}</span></h4>
-                            {canEditWorkflow ? <button type="button" aria-label={`Add Optional Condition to ${heading.department} ${heading.chapter}`} onClick={() => { setOptionalEditorChapterId(chapter.id); setOptionalTitle(""); setOptionalDuration(""); setOptionalUnit("days"); }} className="flex items-center gap-1 rounded border px-2 py-1 text-[9px] font-semibold text-primary hover:bg-primary/10"><Plus className="size-3" /> Add Optional Condition</button> : null}
-                          </header>
-                          {optionalEditorChapterId === chapter.id ? <form aria-label={`New optional condition for ${heading.department} ${heading.chapter}`} onSubmit={(event) => { event.preventDefault(); createOptionalCondition(chapter.id); }} className="mb-2 grid shrink-0 gap-1.5 rounded-lg border bg-background/70 p-2">
-                            <input aria-label="Optional condition name" value={optionalTitle} onChange={(event) => setOptionalTitle(event.target.value)} placeholder="Optional condition name" className="h-8 rounded border bg-background px-2 text-[11px]" required />
-                            <div className="flex gap-1.5"><input aria-label="Optional condition duration" type="number" min="1" step="1" value={optionalDuration} onChange={(event) => setOptionalDuration(event.target.value)} placeholder="Time needed" className="h-8 min-w-0 flex-1 rounded border bg-background px-2 text-[11px]" required /><select aria-label="Optional condition duration unit" value={optionalUnit} onChange={(event) => setOptionalUnit(event.target.value as "days" | "weeks")} className="h-8 rounded border bg-background px-2 text-[11px]"><option value="days">Days</option><option value="weeks">Weeks</option></select></div>
-                            <div className="flex justify-end gap-1.5"><button type="button" onClick={() => setOptionalEditorChapterId(null)} className="rounded border px-2 py-1 text-[10px]">Cancel</button><button type="submit" className="rounded bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground">Save Optional Condition</button></div>
-                          </form> : null}
-                          <div className="scroll-thin min-h-0 space-y-1.5 overflow-y-auto pr-1">
-                            {visibleOptional.map(({ condition, index }) => {
-                              return <div key={condition.id || index} role="group" aria-label={`Optional condition: ${conditionText(condition, index)}`} className="rounded-lg border bg-background/70 p-2">
-                                <div className="flex items-start gap-1.5"><span className="min-w-0 flex-1 text-left text-[11px] font-semibold text-foreground">{conditionText(condition, index)}</span>{canEditWorkflow ? <button type="button" aria-label={`Remove optional condition ${conditionText(condition, index)}`} onClick={() => removeOptionalCondition(chapter.id, condition.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button> : null}</div>
-                                <div className="mt-1.5 flex items-center gap-1.5"><input aria-label={`Time needed for ${conditionText(condition, index)}`} type="number" min="1" step="1" value={condition.duration ?? ""} disabled={!canEditWorkflow} onChange={(event) => { const value = event.target.valueAsNumber; updateOptionalCondition(chapter.id, condition.id, { duration: Number.isInteger(value) && value > 0 ? value : undefined }); }} className="h-7 min-w-0 flex-1 rounded border bg-background px-2 text-[10px]" /><select aria-label={`Time unit for ${conditionText(condition, index)}`} value={condition.durationUnit || "days"} disabled={!canEditWorkflow} onChange={(event) => updateOptionalCondition(chapter.id, condition.id, { durationUnit: event.target.value as "days" | "weeks" })} className="h-7 rounded border bg-background px-1 text-[10px]"><option value="days">Days</option><option value="weeks">Weeks</option></select></div>
-                              </div>;
-                            })}
-                            {!visibleOptional.length ? <p className="rounded border border-dashed p-2 text-center text-[9px] text-muted-foreground">{needle ? "No optional conditions match this search." : "No optional conditions."}</p> : null}
-                          </div>
-                        </section>
+                        <button type="button" aria-label={`Open Optional Conditions for ${heading.department} ${heading.chapter}`} onClick={() => setOptionalPopupChapterId(chapter.id)} className="flex shrink-0 items-center justify-between gap-2 border-t px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-primary/10 hover:text-primary">
+                          <span>Optional Conditions <span data-optional-count={(chapter.optionalConditions ?? []).length} className={`ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[9px] ${(chapter.optionalConditions ?? []).length > 0 ? "optional-count-breathe" : "bg-muted"}`}>{(chapter.optionalConditions ?? []).length}</span></span><ArrowRight className="size-3.5" />
+                        </button>
                       </div>
                     );
                   })}
@@ -878,12 +869,43 @@ export function ReleaseConditionsWorkspace() {
             </section>
           </div>
         )}
+        {optionalPopupChapterId ? (() => {
+          const chapter = file.graph.nodes.find((node) => node.id === optionalPopupChapterId);
+          if (!chapter) return null;
+          const heading = departmentBoardHeading(chapter);
+          const close = () => { setOptionalPopupChapterId(null); setOptionalEditorChapterId(null); };
+          return <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }} onKeyDown={(event) => { if (event.key === "Escape") close(); }}>
+            <section role="dialog" aria-modal="true" aria-labelledby="optional-conditions-title" className="flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl">
+              <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-primary/[0.06] px-4 py-3">
+                <div className="min-w-0"><p className="truncate text-[10px] font-semibold text-primary">{heading.department} · {heading.chapter}</p><h2 id="optional-conditions-title" className="text-sm font-bold">Optional Conditions · {(chapter.optionalConditions ?? []).length}</h2></div>
+                <button type="button" aria-label="Close Optional Conditions" onClick={close} className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+              </header>
+              <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                {canEditWorkflow ? <button type="button" aria-label={`Add Optional Condition to ${heading.department} ${heading.chapter}`} onClick={() => { setOptionalEditorChapterId(chapter.id); setOptionalTitle(""); setOptionalDuration(""); setOptionalUnit("days"); }} className="flex items-center gap-1 rounded border px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"><Plus className="size-4" /> Add Optional Condition</button> : null}
+                {optionalEditorChapterId === chapter.id ? <form aria-label={`New optional condition for ${heading.department} ${heading.chapter}`} onSubmit={(event) => { event.preventDefault(); createOptionalCondition(chapter.id); }} className="grid gap-2 rounded-lg border bg-background/70 p-3">
+                  <input autoFocus aria-label="Optional condition name" value={optionalTitle} onChange={(event) => setOptionalTitle(event.target.value)} placeholder="Optional condition name" className="h-9 rounded border bg-background px-3 text-xs" required />
+                  <div className="flex gap-2"><input aria-label="Optional condition duration" type="number" min="1" step="1" value={optionalDuration} onChange={(event) => setOptionalDuration(event.target.value)} placeholder="Time needed" className="h-9 min-w-0 flex-1 rounded border bg-background px-3 text-xs" required /><select aria-label="Optional condition duration unit" value={optionalUnit} onChange={(event) => setOptionalUnit(event.target.value as "days" | "weeks")} className="h-9 rounded border bg-background px-2 text-xs"><option value="days">Days</option><option value="weeks">Weeks</option></select></div>
+                  <div className="flex justify-end gap-2"><button type="button" onClick={() => setOptionalEditorChapterId(null)} className="rounded border px-3 py-2 text-xs">Cancel</button><button type="submit" className="rounded bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Optional Condition</button></div>
+                </form> : null}
+                {(chapter.optionalConditions ?? []).map((condition, index) => {
+                  const formsCount = conditionFormCount(chapter, condition);
+                  const fullIndex = chapter.conditions.length + index;
+                  return <div key={condition.id || index} role="group" aria-label={`Optional condition: ${conditionText(condition, index)}`} className="rounded-lg border bg-background/70 p-3">
+                    <div className="flex items-start gap-2"><span className="min-w-0 flex-1 text-sm font-semibold leading-5">{conditionText(condition, index)}</span>{canEditWorkflow ? <button type="button" aria-label={`Remove optional condition ${conditionText(condition, index)}`} onClick={() => removeOptionalCondition(chapter.id, condition.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button> : null}</div>
+                    <div className="mt-2 flex items-center gap-2"><input aria-label={`Time needed for ${conditionText(condition, index)}`} type="number" min="1" step="1" value={condition.duration ?? ""} disabled={!canEditWorkflow} onChange={(event) => { const value = event.target.valueAsNumber; updateOptionalCondition(chapter.id, condition.id, { duration: Number.isInteger(value) && value > 0 ? value : undefined }); }} className="h-9 w-20 shrink-0 rounded border bg-background px-2 text-xs" /><select aria-label={`Time unit for ${conditionText(condition, index)}`} value={condition.durationUnit || "days"} disabled={!canEditWorkflow} onChange={(event) => updateOptionalCondition(chapter.id, condition.id, { durationUnit: event.target.value as "days" | "weeks" })} className="h-9 rounded border bg-background px-2 text-xs"><option value="days">Days</option><option value="weeks">Weeks</option></select><button type="button" aria-label={`View forms for ${conditionText(condition, index)}`} onClick={() => { selectProcessLocation(chapter.id, { id: condition.id, index: fullIndex }); setDocumentsPopupOpen(true); }} className="ml-auto shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20">{formsCount} {formsCount === 1 ? "form" : "forms"}</button></div>
+                  </div>;
+                })}
+                {!(chapter.optionalConditions ?? []).length ? <p className="rounded-lg border border-dashed p-5 text-center text-xs text-muted-foreground">No optional conditions yet.</p> : null}
+              </div>
+            </section>
+          </div>;
+        })() : null}
         {documentsPopupOpen && selectedProcessChapter && selectedProcessCondition ? (() => {
           const chapter = selectedProcessChapter;
           const condition = selectedProcessCondition;
           const conditionIndex = selectedProcessConditionIndex;
           const heading = departmentBoardHeading(chapter);
-          const documentColumns = DOCUMENT_GROUPS.filter((group) => !selectedProcessConditionIsOptional || group.field === "supportingDocuments").map((group) => ({
+          const documentColumns = DOCUMENT_GROUPS.map((group) => ({
             ...group,
             documents: conditionDocuments(chapter, condition, group.field).filter((document) => {
               if (!needle || conditionText(condition, conditionIndex).toLowerCase().includes(needle)) return true;
@@ -897,12 +919,12 @@ export function ReleaseConditionsWorkspace() {
                   <div className="min-w-0">
                     <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">{heading.department} · {heading.chapter}</p>
                     <h2 id="release-condition-forms-title" className="mt-1 truncate text-sm font-bold sm:text-base">{conditionText(condition, conditionIndex)}</h2>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{selectedProcessConditionIsOptional ? "Supporting documents for this optional condition" : "Forms linked to this release condition"}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Forms linked to this {selectedProcessConditionIsOptional ? "optional condition" : "release condition"}</p>
                   </div>
                   {canEditWorkflow && !selectedProcessConditionIsOptional ? <Link href={`${workflowHref}${workflowHref.includes("?") ? "&" : "?"}executionNode=${encodeURIComponent(chapter.id)}&condition=${encodeURIComponent(condition.id || "")}`} className="shrink-0 rounded border px-2 py-1 text-[10px] font-semibold text-primary">Forms & execution details</Link> : null}
                   <button type="button" aria-label="Close forms window" onClick={() => setDocumentsPopupOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/40 bg-background/45 text-muted-foreground transition hover:bg-background/75 hover:text-foreground dark:border-white/10"><X className="size-4" /></button>
                 </header>
-                <div className={`scroll-thin grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 sm:p-5 ${selectedProcessConditionIsOptional ? "" : "md:grid-cols-3"}`}>
+                <div className="scroll-thin grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 sm:p-5 md:grid-cols-3">
                   {documentColumns.map((column) => {
                     const colors = column.tint === "indigo"
                       ? { border: "border-indigo-500/30", header: "bg-indigo-500/[0.09] text-indigo-700 dark:text-indigo-300", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", hover: "hover:border-indigo-500/45" }
@@ -916,7 +938,7 @@ export function ReleaseConditionsWorkspace() {
                         <header className={`flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-white/30 px-3 py-2 dark:border-white/10 ${colors.header}`}>
                           <h3 className="min-w-0 text-[11px] font-bold leading-4">{column.title}</h3>
                           <div className="flex shrink-0 items-center gap-1.5">
-                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${colors.badge}`}>{completed}/{column.documents.length}</span>
+                            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${colors.badge}`}>{completed}/{column.documents.length}</span>
                             <button type="button" onClick={() => openDocumentDialog(chapter, condition, conditionIndex, category)} aria-label={`Add ${column.title}`} title={`Add ${column.title}`} className="flex size-6 items-center justify-center rounded text-current transition hover:bg-background/70"><Plus className="size-3.5" /></button>
                           </div>
                         </header>
@@ -947,7 +969,7 @@ export function ReleaseConditionsWorkspace() {
           const targetCondition = findChapterCondition(targetChapter, documentDialogTarget.conditionId, documentDialogTarget.conditionIndex);
           const targetIsOptional = Boolean(targetChapter?.optionalConditions?.some((condition) => condition.id === targetCondition?.id));
           const categoryTitle = documentDialogTarget.category === "legal"
-            ? "Legal Document"
+            ? "Required Document"
             : documentDialogTarget.category === "customer"
               ? "Customer Information Form"
               : "Supporting Document";

@@ -264,6 +264,20 @@ export default function WorkflowBuilder() {
   }, [openExecutionView]);
 
   useEffect(() => {
+    // After switching layers, wait until the other canvas has drawn its cards
+    // (it can take longer than a moment to mount) before exporting it.
+    const whenCanvasReady = (run: () => void) => {
+      const started = performance.now();
+      let settled = false;
+      const check = () => {
+        const ready = document.querySelector(".react-flow__viewport .react-flow__node");
+        if (ready && settled) return run();
+        settled = Boolean(ready);
+        if (performance.now() - started > 5000) return run();
+        window.setTimeout(check, 100);
+      };
+      window.setTimeout(check, 150);
+    };
     const handleExport = async (event: Event) => {
       const custom = event as CustomEvent<{
         format:
@@ -316,7 +330,7 @@ export default function WorkflowBuilder() {
         const prevExecutionId = executionNodeId;
         setIsHighLevelView(true);
         if (prevExecutionId) setExecutionNodeId(null);
-        setTimeout(() => {
+        whenCanvasReady(() => {
           window.dispatchEvent(
             new CustomEvent("workflow:export", {
               detail: { format: "l1-pdf", switched: true },
@@ -328,7 +342,7 @@ export default function WorkflowBuilder() {
               setExecutionNodeId(prevExecutionId);
             }
           }, 350);
-        }, 150);
+        });
         return;
       }
 
@@ -337,7 +351,7 @@ export default function WorkflowBuilder() {
         const prevExecutionId = executionNodeId;
         setIsHighLevelView(false);
         setExecutionNodeId(null);
-        setTimeout(() => {
+        whenCanvasReady(() => {
           window.dispatchEvent(
             new CustomEvent("workflow:export", {
               detail: { format: "l2-pdf", switched: true },
@@ -347,7 +361,7 @@ export default function WorkflowBuilder() {
             if (wasHighLevel) setIsHighLevelView(true);
             if (prevExecutionId) setExecutionNodeId(prevExecutionId);
           }, 350);
-        }, 150);
+        });
         return;
       }
     };

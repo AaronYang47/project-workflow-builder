@@ -403,6 +403,31 @@ button:disabled { cursor: not-allowed; }
   border-color: rgb(245 158 11 / 80%) !important;
 }
 
+@keyframes optional-count-pulse {
+  0%, 100% {
+    background-color: #f59e0b;
+    box-shadow: 0 0 0 1px rgb(245 158 11 / 65%), 0 0 6px rgb(245 158 11 / 35%);
+  }
+  50% {
+    background-color: #ffbd4a;
+    box-shadow: 0 0 0 2px rgb(255 189 74 / 95%), 0 0 15px rgb(255 159 10 / 85%);
+  }
+}
+
+.optional-count-breathe {
+  color: #492000;
+  font-weight: 800;
+  animation: optional-count-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .optional-count-breathe {
+    animation: none;
+    background-color: #ffbd4a;
+    box-shadow: 0 0 0 1px rgb(245 158 11 / 75%);
+  }
+}
+
 .condition-forms-checkbox {
   background-color: rgb(245 158 11) !important;
   color: white !important;
@@ -610,6 +635,35 @@ button:disabled { cursor: not-allowed; }
 }
 @media (max-width: 900px) {
   [data-workflow-toolbar] { overflow-x: auto; scrollbar-width: thin; }
+}
+
+/* A phone in landscape can be wider than the usual mobile breakpoints. */
+@media (hover: none) and (pointer: coarse) {
+  [data-workflow-toolbar] [data-mobile-toolbar-toggle] { display: flex; }
+  [data-workflow-toolbar][data-mobile-tools-open="false"] #workflow-toolbar-actions,
+  [data-workflow-toolbar][data-mobile-tools-open="false"] #workflow-toolbar-tools { display: none; }
+  [data-workflow-toolbar] [data-toolbar-search-group] { flex: 1 1 100%; margin-left: 0; margin-right: 0; }
+  [data-mobile-process-map-toggle], [data-mobile-phases-toggle], [data-mobile-gantt-toggle], [data-mobile-inbox-toggle] { display: flex; }
+  [data-mobile-process-map-open="false"] [data-mobile-process-map-content],
+  [data-mobile-phases-open="false"] [data-mobile-phases-content] { display: none; }
+  [data-mobile-phases-open] > h2 { display: none; }
+  [data-mobile-inbox-open="false"] { display: none; }
+  [data-mobile-inbox-backdrop] { display: block; }
+  [data-mobile-inbox-open="true"] { display: flex; position: fixed; inset: 0 auto 0 0; z-index: 50; width: min(85vw, 320px); height: 100%; }
+  [data-mobile-inbox-open="true"] button[aria-label="Close unassigned conditions"],
+  [data-mobile-inbox-open="true"] button[aria-label="Add or import conditions"] { display: flex; }
+  [data-mobile-inbox-open] [data-inbox-drag-handle] { display: none; }
+  [data-mobile-inbox-open] [data-mobile-assign-button] { display: flex; }
+  [data-mobile-gantt-view="list"] [data-mobile-schedule] { display: block; }
+  [data-mobile-gantt-view="list"] [data-release-condition-board],
+  [data-mobile-gantt-view="list"] [data-gantt-horizontal-control],
+  [data-mobile-gantt-view="list"] [data-gantt-instructions] { display: none; }
+  [data-mobile-gantt-view="timeline"] [data-mobile-schedule] { display: none; }
+  [data-mobile-gantt-view="timeline"] [data-release-condition-board],
+  [data-mobile-gantt-view="timeline"] [data-gantt-instructions] { display: block; }
+  [data-mobile-gantt-view="timeline"] [data-gantt-horizontal-control] { display: flex; }
+  [data-gantt-instructions] > span:first-child { display: inline; }
+  [data-gantt-instructions] > span:last-child { display: none; }
 }
 @media (max-width: 767px) {
   [data-workflow-toolbar] { overscroll-behavior-x: contain; }

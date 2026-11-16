@@ -108,7 +108,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
           ${projectName}
         </h1>
         <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">
-          Comprehensive 3-Box Architecture: Legal Documents · Customer Information Forms · Supporting Attachments
+          Comprehensive 3-Box Architecture: Required Documents · Customer Information Forms · Supporting Attachments
         </p>
       </div>
       <div style="text-align: right; font-size: 11px; color: #475569;">
@@ -271,11 +271,11 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
 
             <!-- 3-Box Architecture -->
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-              <!-- Box 1: Legal Documents -->
+              <!-- Box 1: Required Documents -->
               <div style="background-color: #ffffff; border: 1px solid #fecdd3; border-top: 3px solid #e11d48; border-radius: 6px; padding: 10px;">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
                   <span style="font-size: 12px;">⚖️</span>
-                  <span style="font-size: 11px; font-weight: 700; color: #9f1239;">Legal Documents</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #9f1239;">Required Documents</span>
                 </div>
                 ${
                   legalDocs.length > 0

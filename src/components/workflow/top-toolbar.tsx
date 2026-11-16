@@ -98,6 +98,9 @@ export function TopToolbar({
   canOpenExecutionView = false,
   onOpenExecutionView,
   onCloseExecutionView,
+  pageLayer,
+  onPageExport,
+  onPageSearch,
 }: {
   openPalette: () => void;
   isHighLevelView: boolean;
@@ -106,6 +109,9 @@ export function TopToolbar({
   canOpenExecutionView?: boolean;
   onOpenExecutionView?: () => void;
   onCloseExecutionView?: () => void;
+  pageLayer?: "L3" | "L4";
+  onPageExport?: (format: string) => void;
+  onPageSearch?: () => void;
 }) {
   const store = useWorkflowStore();
   const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
@@ -115,6 +121,30 @@ export function TopToolbar({
   const metadataSnapshot = useRef<typeof store.file | null>(null);
   const [arranging, setArranging] = useState(false);
   const [r2DialogOpen, setR2DialogOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const exportFormat = (format: Parameters<typeof saveImage>[0]) => {
+    if (!pageLayer) { saveImage(format); return; }
+    if (onPageExport) { onPageExport(format); return; }
+    const file = useWorkflowStore.getState().file;
+    const exportDocument = async () => {
+      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf") {
+        const { exportL1DepartmentSwimlanePdf } = await import("@/lib/l1-department-swimlane-pdf-export");
+        await exportL1DepartmentSwimlanePdf(file, { gantt: format === "l1-gantt-pdf" });
+      } else if (format === "l3-pdf") {
+        const { exportL3ExecutionPdf } = await import("@/lib/l3-pdf-export");
+        await exportL3ExecutionPdf(file);
+      } else if (format === "tech-pdf") {
+        const { exportPresentationPdf } = await import("@/lib/presentation-pdf-export");
+        await exportPresentationPdf(file);
+      } else if (format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
+        const { exportExecutivePresentationPdf } = await import("@/lib/executive-presentation-pdf-export");
+        await exportExecutivePresentationPdf(file, { includeReleaseConditions: format === "presentation-pdf" });
+      } else {
+        window.alert("Open L1 or L2 to export the canvas in this format.");
+      }
+    };
+    void exportDocument().catch((error: unknown) => window.alert(error instanceof Error ? error.message : "Could not export document."));
+  };
   const beginMetadataEdit = () => {
     if (!metadataSnapshot.current)
       metadataSnapshot.current = structuredClone(
@@ -199,9 +229,10 @@ export function TopToolbar({
   return (
     <header
       data-workflow-toolbar
-      className="relative z-40 grid shrink-0 grid-cols-1 border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] sm:grid-cols-[minmax(0,1fr)_auto]"
+      data-mobile-tools-open={mobileToolsOpen}
+      className="relative z-40 grid shrink-0 grid-cols-1 border-b bg-background px-2 shadow-[0_1px_0_rgba(15,23,42,.03)] xl:grid-cols-[minmax(0,1fr)_auto]"
     >
-      <div className="col-start-1 row-start-1 flex min-h-12 min-w-0 flex-wrap items-center gap-2 px-2 py-1">
+      <div className="col-start-1 row-start-1 flex min-h-12 min-w-0 flex-nowrap items-center gap-2 px-2 py-1">
         <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-black">
           <Image
             src="/falcon-mark.png"
@@ -212,7 +243,7 @@ export function TopToolbar({
             className="h-full w-full object-contain"
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
           <Input
             aria-label="Workflow name"
             value={store.file.graph.metadata.name}
@@ -220,7 +251,7 @@ export function TopToolbar({
             onFocus={beginMetadataEdit}
             onChange={(e) => updateMeta({ name: e.target.value })}
             onBlur={finishMetadataEdit}
-            className="workflow-name-input block h-7 w-[240px] min-w-0 max-w-full border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
+            className="workflow-name-input block h-7 w-[240px] min-w-0 max-w-full flex-1 sm:flex-none border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus:border-primary"
           />
           <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:inline">
             {store.file.graph.metadata.status}
@@ -259,9 +290,10 @@ export function TopToolbar({
             </span>
           )}
         </div>
+        <button type="button" data-mobile-toolbar-toggle aria-label={mobileToolsOpen ? "Hide toolbar" : "Show toolbar"} aria-expanded={mobileToolsOpen} aria-controls="workflow-toolbar-actions workflow-toolbar-tools" onClick={() => setMobileToolsOpen((open) => !open)} className="flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted-foreground sm:hidden"><ChevronDown className={`size-4 transition-transform ${mobileToolsOpen ? "rotate-180" : ""}`} /></button>
       </div>
-      <div className="col-start-1 row-start-3 flex min-h-11 min-w-0 flex-wrap items-center justify-start gap-1 border-t px-2 py-1 sm:col-span-2 sm:row-start-2">
-      <div className="flex shrink-0 items-center gap-1">
+      <div id="workflow-toolbar-actions" className={`col-start-1 row-start-3 min-h-11 min-w-0 flex-wrap items-center justify-start gap-x-1 gap-y-2 border-t px-2 py-2 xl:col-span-2 xl:row-start-2 ${mobileToolsOpen ? "flex" : "hidden sm:flex"}`}>
+      <div className="flex shrink-0 max-sm:order-1 items-center gap-1">
         <ToolButton
           label="Undo (⌘Z)"
           onClick={store.undo}
@@ -277,8 +309,8 @@ export function TopToolbar({
           <Redo2 className="size-4" />
         </ToolButton>
       </div>
-      <div className="mx-1.5 h-6 w-px bg-border/60" />
-      <div className="flex min-w-0 flex-wrap items-center gap-1">
+      <div className="mx-1.5 hidden h-6 w-px bg-border/60 sm:block" />
+      <div className="flex min-w-0 flex-wrap items-center gap-1 max-sm:order-3 max-sm:w-full max-sm:flex-nowrap">
         <ToolButton
           label={isHighLevelView ? "Validate High-Level workflow" : "Validate workflow"}
           onClick={isHighLevelView ? store.validateHighLevel : store.validate}
@@ -309,7 +341,7 @@ export function TopToolbar({
           aria-label="Workflow view level"
           role="group"
         >
-          <Button
+          {pageLayer ? <WorkflowLayerNavigation currentLayer={pageLayer} embedded /> : <><Button
             title="Show the high-level project process"
             aria-label="L1 · High Level"
             aria-pressed={isHighLevelView && !isExecutionView}
@@ -333,7 +365,7 @@ export function TopToolbar({
             }`}
           >
             <Layers className="mr-1 size-3.5" />
-            L1 · High Level
+            <span className="xl:hidden">L1</span><span className="hidden xl:inline">L1 · High Level</span>
           </Button>
           <Button
             title="Show the detailed workflow"
@@ -357,77 +389,12 @@ export function TopToolbar({
                 : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
             }`}
           >
-            L2 · Detailed Workflow
+            <span className="xl:hidden">L2</span><span className="hidden xl:inline">L2 · Detailed Workflow</span>
           </Button>
-          <WorkflowLayerNavigation currentLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"} onlyAdvanced />
+          <WorkflowLayerNavigation currentLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"} onlyAdvanced /></>}
         </div>
-          <Button
-            title={
-              isExecutionView
-                ? "Execution requirements for the selected workflow node"
-                : canOpenExecutionView
-                  ? "Show execution requirements for the selected workflow node"
-                  : "Select a workflow node to open its forms and execution details"
-            }
-            aria-label="RC · Forms & execution"
-            aria-pressed={isExecutionView}
-            variant="ghost"
-            size="sm"
-            disabled={!canEditWorkflow || (!isExecutionView && !canOpenExecutionView)}
-            onClick={isExecutionView ? undefined : onOpenExecutionView}
-            className={`h-7 rounded px-2 text-[11px] font-semibold ${
-              isExecutionView
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
-            }`}
-          >
-            RC · Forms & execution
-          </Button>
 
-        {isHighLevelView && !isExecutionView && (store.file.highLevel?.graph.nodes.length || 0) > 0 && (
-          <Button
-            title="Clear all L1 nodes"
-            aria-label="Clear L1 Nodes"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              store.showConfirmClear({
-                title: "Clear L1 High-Level Workflow",
-                message:
-                  "Are you sure you want to clear all L1 High-Level nodes? This action cannot be undone and will remove the entire lifecycle skeleton.",
-                confirmLabel: "Clear L1 Workflow",
-                onConfirm: store.clearHighLevelNodes,
-              });
-            }}
-            disabled={!canEditWorkflow}
-            className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-1 size-3.5" />
-            Clear L1
-          </Button>
-        )}
-        {!isHighLevelView && !isExecutionView && store.file.graph.nodes.length > 0 && (
-          <Button
-            title="Clear all L2 nodes"
-            aria-label="Clear L2 Nodes"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              store.showConfirmClear({
-                title: "Clear L2 Detailed Workflow",
-                message:
-                  "Are you sure you want to clear all L2 workflow nodes? All nodes, connections, and layouts on the detailed canvas will be removed.",
-                confirmLabel: "Clear L2 Workflow",
-                onConfirm: store.clearDetailedNodes,
-              });
-            }}
-            disabled={!canEditWorkflow}
-            className="h-8 shrink-0 border-l border-border/60 pl-3 pr-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-1 size-3.5" />
-            Clear L2
-          </Button>
-        )}
+
         {isExecutionView && (store.file.execution?.items.length || 0) > 0 && (
           <Button
             title="Clear all execution forms"
@@ -450,10 +417,11 @@ export function TopToolbar({
             Clear Forms
           </Button>
         )}
-        <ToolButton
+        <span className="hidden lg:contents"><ToolButton
           label="Group selected"
           onClick={store.groupSelected}
           disabled={
+            Boolean(pageLayer) ||
             !canEditWorkflow ||
             isHighLevelView ||
             isExecutionView ||
@@ -461,10 +429,10 @@ export function TopToolbar({
           }
         >
           <Group className="size-4" />
-        </ToolButton>
-        <ToolButton
+        </ToolButton></span>
+        <span className="hidden lg:contents"><ToolButton
           label="Zoom to fit"
-          disabled={isExecutionView}
+          disabled={Boolean(pageLayer) || isExecutionView}
           onClick={() =>
             window.dispatchEvent(
               new Event(isHighLevelView ? "workflow:fit-high-level" : "workflow:fit"),
@@ -472,27 +440,27 @@ export function TopToolbar({
           }
         >
           <Focus className="size-4" />
-        </ToolButton>
+        </ToolButton></span>
       </div>
-      <div className="mx-2 h-6 w-px shrink-0 bg-border/60" />
-      <div className="mr-2 flex min-w-0 flex-wrap items-center gap-2.5">
+      <div className="mx-2 hidden h-6 w-px shrink-0 bg-border/60 sm:block" />
+      <div data-toolbar-search-group className="order-2 mr-0 flex min-w-0 flex-1 flex-nowrap items-center gap-1 sm:order-none sm:ml-auto sm:mr-2 sm:gap-2.5">
         <Button
           variant="ghost"
           size="sm"
-          onClick={openPalette}
+          onClick={pageLayer ? onPageSearch : openPalette}
           disabled={!canEditWorkflow}
-          className="flex h-8 shrink-0 gap-2 border border-border/80 text-muted-foreground"
+          className="flex h-8 min-w-0 flex-1 justify-start gap-2 overflow-hidden border border-border/80 text-muted-foreground sm:min-w-24"
           aria-label="Search nodes and commands"
         >
-          <Search className="size-3.5" />
-          <span className="text-xs">Search</span>
-          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">⌘K</kbd>
+          <Search className="size-3.5 shrink-0" />
+          <span className="hidden truncate text-xs min-[360px]:inline">Search</span>
+          <kbd className="ml-1 hidden rounded bg-muted px-1.5 py-0.5 text-[11px] sm:ml-auto sm:inline">⌘K</kbd>
         </Button>
-        <EditorTransferControl />
+        <EditorTransferControl compactOnMobile />
         <CollaboratorPresence />
       </div>
       </div>
-      <div className="col-start-1 row-start-2 flex min-h-12 min-w-0 flex-wrap items-center justify-start gap-y-1 border-t py-1 pl-2 sm:col-start-2 sm:row-start-1 sm:border-t-0">
+      <div id="workflow-toolbar-tools" className={`col-start-1 row-start-2 min-h-12 min-w-0 flex-wrap items-center justify-start gap-x-1 gap-y-2 border-t py-2 pl-2 xl:col-start-2 xl:row-start-1 xl:border-t-0 ${mobileToolsOpen ? "flex" : "hidden sm:flex"}`}>
         <ToolButton
           label="Export Excel"
           onClick={() => {
@@ -538,17 +506,27 @@ export function TopToolbar({
               Print-Ready PDF Documents
             </div>
             <DropdownMenuItem
-              onClick={() => saveImage("l1-pdf")}
+              onClick={() => exportFormat("l1-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <FileText className="size-4 text-emerald-500 shrink-0" />
               <div className="flex flex-col">
                 <span className="font-semibold text-xs">L1 · High-Level Process</span>
-                <span className="text-[10px] text-muted-foreground">Process flow only, 1:1 styles (PDF)</span>
+                <span className="text-[10px] text-muted-foreground">11 × 17 vector PDF · same as the canvas</span>
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("l1-swimlane-pdf")}
+              onClick={() => exportFormat("l2-pdf")}
+              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
+            >
+              <FileText className="size-4 text-sky-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs">L2 · Detailed Workflow</span>
+                <span className="text-[10px] text-muted-foreground">11 × 17 vector PDF · same as the canvas</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => exportFormat("l1-swimlane-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <FileText className="size-4 text-teal-500 shrink-0" />
@@ -558,7 +536,7 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("l1-gantt-pdf")}
+              onClick={() => exportFormat("l1-gantt-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <FileText className="size-4 text-teal-500 shrink-0" />
@@ -568,17 +546,7 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("l2-pdf")}
-              className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
-            >
-              <FileText className="size-4 text-sky-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-xs">L2 · Detailed Workflow</span>
-                <span className="text-[10px] text-muted-foreground">All phases, gates & steps (PDF)</span>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => saveImage("l3-pdf")}
+              onClick={() => exportFormat("l3-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <FileText className="size-4 text-purple-500 shrink-0" />
@@ -588,7 +556,7 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("tech-pdf")}
+              onClick={() => exportFormat("tech-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <FileText className="size-4 text-sky-500 shrink-0" />
@@ -598,7 +566,7 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("presentation-pdf")}
+              onClick={() => exportFormat("presentation-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <Presentation className="size-4 text-amber-500 shrink-0" />
@@ -609,7 +577,7 @@ export function TopToolbar({
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onClick={() => saveImage("presentation-no-conditions-pdf")}
+              onClick={() => exportFormat("presentation-no-conditions-pdf")}
               className="gap-2.5 cursor-pointer py-2 rounded-md hover:bg-muted"
             >
               <Presentation className="size-4 text-amber-500 shrink-0" />
@@ -625,7 +593,7 @@ export function TopToolbar({
               Image & Vector Export
             </div>
             <DropdownMenuItem
-              onClick={() => saveImage("png")}
+              onClick={() => exportFormat("png")}
               className="gap-2.5 cursor-pointer py-1.5 rounded-md hover:bg-muted"
             >
               <ImageDown className="size-4 text-emerald-500 shrink-0" />
@@ -635,7 +603,7 @@ export function TopToolbar({
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => saveImage("svg")}
+              onClick={() => exportFormat("svg")}
               className="gap-2.5 cursor-pointer py-1.5 rounded-md hover:bg-muted"
             >
               <Download className="size-3.5 text-amber-500 shrink-0" />

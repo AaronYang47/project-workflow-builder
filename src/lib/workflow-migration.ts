@@ -1,4 +1,5 @@
 import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
+import { normalizeScheduleCalendar } from "@/lib/schedule-calendar";
 import { parseGateServiceTypeId } from "@/lib/gate-service-types";
 import { wholeDayCondition } from "@/lib/condition-duration";
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
@@ -428,6 +429,7 @@ function migrateNode(node: DomainNode): DomainNode {
 
 export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   const file: WorkflowFile = JSON.parse(JSON.stringify(input));
+  if (file.calendar) file.calendar = normalizeScheduleCalendar(file.calendar);
   const retiredNodeIds = new Set(
     file.graph.nodes
       .filter((node) => isRemovedOpportunityNode(node) || isCommercialPathwayNode(node))
@@ -675,8 +677,8 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     });
   const migratedFile = {
     ...file,
-    releaseConditionInbox: file.releaseConditionInbox?.map(wholeDayCondition),
-    graph: { ...file.graph, nodes: nodes.map((node) => ({ ...node, conditions: node.conditions.map(wholeDayCondition) })), edges },
+    releaseConditionInbox: file.releaseConditionInbox?.map((condition) => wholeDayCondition(condition)),
+    graph: { ...file.graph, nodes: nodes.map((node) => ({ ...node, conditions: node.conditions.map((condition) => wholeDayCondition(condition)) })), edges },
     layout: { ...file.layout, nodes: layouts, edges: undefined },
   };
   // Migration normalizes the saved document in place. It must not inject the

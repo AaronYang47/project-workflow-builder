@@ -26,7 +26,7 @@ test("long weekly work switches to monthly axis and later conditions follow edit
   }, { key: WORKFLOW_STORAGE_KEY, file });
 
   await page.goto("/process-overview");
-  await expect(page.getByLabel("Gantt time scale")).toContainText("Months");
+  await page.getByRole("button", { name: "Timeline" }).click();
   expect(await page.locator('[data-gantt-task="Delineation"] [data-gantt-track]').evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(3400);
   const board = page.locator("[data-release-condition-board]");
   const firstRow = page.locator('[data-gantt-task="Delineation"]');
@@ -42,10 +42,8 @@ test("long weekly work switches to monthly axis and later conditions follow edit
   expect(Math.abs((await header.boundingBox())!.x - headerLeft)).toBeLessThan(1);
   expect(Math.abs((await departmentHeading.boundingBox())!.x - departmentLeft)).toBeLessThan(1);
   await firstLabel.click();
-  await expect(firstRow).toHaveAttribute("data-gantt-selected", "true");
-  await page.locator('[data-gantt-task="Scope of Work"] [data-gantt-label]').click();
-  await expect(firstRow).toHaveAttribute("data-gantt-selected", "false");
-  await expect(page.locator('[data-gantt-task="Scope of Work"]')).toHaveAttribute("data-gantt-selected", "true");
+  await expect(firstRow).not.toHaveAttribute("data-gantt-selected", /true/);
+  await expect(page.getByRole("dialog", { name: "Edit timing" })).toHaveCount(0);
   await page.getByRole("button", { name: "Auto follow previous: Off" }).click();
   await expect(page.locator('[data-gantt-task="Scope of Work"] [data-gantt-start]')).toHaveAttribute("data-gantt-start", "112");
   await page.getByRole("button", { name: "Edit timing for Delineation" }).click();
@@ -100,4 +98,96 @@ test("Gantt timeline can move horizontally from the top while browsing many cond
   expect((await control.boundingBox())!.y).toBe(rect!.y);
   await page.getByRole("button", { name: "Scroll Gantt right" }).click();
   await expect.poll(() => board.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+});
+
+test("mobile Gantt leaves room for the timeline and opens a touch-friendly editor", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const file = createProjectWorkflow("Mobile Gantt");
+  const chapter = createDomainNode("general", "technical");
+  chapter.config.stage = "Technical";
+  chapter.conditions = [{ id: "delineation", label: "Delineation", duration: 2, durationUnit: "weeks" }];
+  file.graph.nodes = [chapter];
+  file.highLevel!.graph.nodes = [{ id: "phase-1", type: "phase", title: "PHASE 1", description: "Qualification", linkedLayer2NodeIds: [chapter.id] }];
+  file.highLevel!.graph.edges = [];
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file });
+  await page.goto("/process-overview");
+  const toolbar = page.locator("[data-workflow-toolbar]");
+  await expect(page.getByRole("button", { name: "Show toolbar" })).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeHidden();
+  await page.getByRole("button", { name: "Show toolbar" }).click();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeVisible();
+  await page.getByRole("button", { name: "Hide toolbar" }).click();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeHidden();
+  await expect(page.getByLabel("Mobile schedule")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Move Delineation later one week" })).toBeVisible();
+  await page.getByRole("button", { name: "Move Delineation later one week" }).click();
+  await page.getByRole("button", { name: "Timeline" }).click();
+  await expect(page.locator('[data-gantt-task="Delineation"] [data-gantt-start]')).toHaveAttribute("data-gantt-start", "7");
+  const label = page.locator('[data-gantt-task="Delineation"] [data-gantt-label]');
+  await expect(label).toBeVisible();
+  expect((await label.boundingBox())!.width).toBeLessThan(200);
+  await page.getByRole("button", { name: "Edit timing for Delineation" }).click();
+  await expect(page.getByRole("dialog", { name: "Edit timing" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Duration weeks for Delineation" })).toHaveCSS("height", "48px");
+  await page.getByRole("button", { name: "Close timing editor" }).click();
+  const board = page.locator("[data-release-condition-board]");
+  await board.evaluate((element) => { element.scrollLeft = 180; });
+  await expect.poll(() => board.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await expect(label).toBeVisible();
+  await context.close();
+});
+
+test("mobile conditions board uses a full-width canvas with an unassigned drawer", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const file = createProjectWorkflow("Mobile conditions");
+  const chapter = createDomainNode("general", "technical");
+  chapter.title = "CHAPTER 01";
+  chapter.config.stage = "Technical";
+  chapter.conditions = [{ id: "delineation", label: "Delineation", duration: 2, durationUnit: "weeks" }];
+  file.graph.nodes = [chapter];
+  file.releaseConditionInbox = [
+    { id: "unassigned-review", label: "Unassigned review", duration: 1, durationUnit: "weeks" },
+    { id: "unassigned-approval", label: "Unassigned approval", duration: 1, durationUnit: "weeks" },
+  ];
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file });
+  await page.goto("/release-conditions");
+  await expect(page.getByRole("button", { name: /Open unassigned conditions/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeHidden();
+  await page.getByRole("button", { name: /Open unassigned conditions/ }).click();
+  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeVisible();
+  await page.getByRole("button", { name: "Assign Unassigned review" }).click();
+  const assignment = page.getByRole("dialog", { name: "Assign release condition" });
+  await expect(assignment).toBeVisible();
+  await assignment.getByRole("button", { name: "Assign to Technical Department CHAPTER 01" }).click();
+  await expect(assignment).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeHidden();
+  await expect(page.locator('[data-release-condition-chapter-id="technical"]')).toHaveAttribute("data-release-condition-count", "2");
+  await page.setViewportSize({ width: 932, height: 430 });
+  await page.getByRole("button", { name: /Open unassigned conditions/ }).click();
+  await expect(page.getByRole("button", { name: "Assign Unassigned approval" })).toBeVisible();
+  await context.close();
+});
+
+test("landscape phone can collapse the toolbar and keeps collaboration on one line", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 932, height: 430 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await page.goto("/process-overview");
+  expect(await page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)).toBe(true);
+  const toolbar = page.locator("[data-workflow-toolbar]");
+  await expect(page.getByRole("button", { name: "Show toolbar" })).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeHidden();
+  await page.getByRole("button", { name: "Show toolbar" }).click();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeVisible();
+  const collaboration = page.locator("[data-toolbar-search-group] button").last();
+  await expect(collaboration).toBeVisible();
+  expect(await collaboration.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe("nowrap");
+  await page.getByRole("button", { name: "Hide toolbar" }).click();
+  await expect(toolbar.getByRole("button", { name: "Export Excel" })).toBeHidden();
+  await context.close();
 });

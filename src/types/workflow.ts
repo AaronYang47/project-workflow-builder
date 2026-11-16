@@ -517,11 +517,37 @@ export const createEmptyExecutionLayer = (): ExecutionLayer => ({
   items: [],
 });
 
+export interface ScheduleShutdown {
+  id: string;
+  kind: "summer" | "winter";
+  startDate: string;
+  endDate: string;
+}
+
+export type ShutdownOverride = "automatic" | { startDate: string; endDate: string } | null;
+
+export interface ScheduleCalendar {
+  /** Generate annual CCQ summer and company winter closures across the schedule. */
+  automaticShutdowns?: boolean;
+  /** An exception affects only one season/year; null cancels, automatic resets. */
+  shutdownOverrides?: Record<string, ShutdownOverride>;
+  /** Four working days per week; Friday through Sunday pause work. */
+  workWeek?: "mon-thu";
+  /** Calendar date of the formal Sales-to-Technical handoff. */
+  startDate: string;
+  /** Both dates are inclusive. These intervals reduce actual work inside total task durations. */
+  shutdowns: ScheduleShutdown[];
+  holidayRegion?: "CA-ON";
+  /** Override the date (or exclude with null) of a generated provincial holiday. */
+  holidayOverrides?: Record<string, string | null>;
+}
+
 export interface WorkflowFile {
   graph: WorkflowGraph;
   layout: CanvasLayout;
   /** Conditions drafted before they are assigned to an L2 chapter. */
   releaseConditionInbox?: Condition[];
+  calendar?: ScheduleCalendar;
   highLevel?: HighLevelWorkflow;
   execution?: ExecutionLayer;
   operations?: import("@/types/project-operations").ProjectOperations;

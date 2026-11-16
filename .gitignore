@@ -11,3 +11,17 @@ out
 .pptx-build
 *.ndjson
 tmp
+
+# Generated exports and local test output
+output/
+outputs/
+test-results/
+/playwright-report/
+
+# Separate project kept beside this one; not part of this repository
+/Customer Verification Syetem/
+
+# Finder duplicate copies ("file 2.ts")
+* [0-9].ts
+* [0-9].tsx
+* [0-9].db-journal

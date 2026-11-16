@@ -14,7 +14,7 @@ export default function PrivacyPage() {
             Falcon Process Building System
           </p>
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
-          <p className="text-sm text-slate-400">Effective October 27, 2026</p>
+          <p className="text-sm text-slate-400">Effective November 14, 2026</p>
         </header>
 
         <p>
@@ -33,6 +33,22 @@ export default function PrivacyPage() {
             you enter. The app also stores some workflow and file information locally in your
             browser. Hosting providers may process technical information such as IP address and
             request logs when you use the service.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Activity and security log</h2>
+          <p>
+            For security, auditing, and support, we keep a log of how the service is used. It
+            records each sign-in attempt (the email address entered and whether it succeeded),
+            requests to our servers, the pages you visit, the buttons and menu items you use, which
+            fields you change, summaries of project edits, exports, errors, and how long you use
+            the app, each with a time stamp. Each entry includes your IP address and the approximate
+            location and network derived from it (country, region, city, coordinates, and internet
+            provider), and your device type, operating system, browser, screen size, language, and
+            time zone. The log never contains your password, the text you type into fields, or the
+            contents of your files. Only administrators holding the audit console password can view
+            it. The log is kept permanently, including after an account is deleted.
           </p>
         </section>
 
@@ -66,7 +82,7 @@ export default function PrivacyPage() {
             You can delete cloud projects and uploaded files using the app’s available controls.
             You can permanently delete your account from Account settings after confirming your
             password. This also deletes your cloud projects, project history, uploaded files,
-            and sign-in sessions. You can clear other local app data through your browser or
+            and sign-in sessions; the activity and security log described above is kept. You can clear other local app data through your browser or
             device settings. For access, correction, or help with account deletion, email us
             at the address below. We
             keep information while it is needed to provide the service and may retain it longer

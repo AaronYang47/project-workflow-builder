@@ -111,7 +111,7 @@ export function CollaboratorPresence() {
         <button
           type="button"
           title={isConnected ? `Real-Time Multiplayer: ${totalUsers} online · ${projectName || "Shared workflow"}` : "Collaboration is off until a share link is created or opened"}
-          className="flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-muted/80 hover:border-primary/40 cursor-pointer"
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-muted/80 hover:border-primary/40 cursor-pointer"
         >
           <div className="relative flex items-center">
             <span
@@ -150,7 +150,7 @@ export function CollaboratorPresence() {
             )}
           </div>
 
-          <span className="text-[11px] font-medium text-muted-foreground ml-0.5">
+          <span className="ml-0.5 whitespace-nowrap text-[11px] font-medium text-muted-foreground">
             {isConnected ? (totalUsers > 1 ? `${totalUsers} Live` : "Live Collab") : "Collab Off"}
           </span>
         </button>

@@ -315,18 +315,18 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
 
   // Verify L3 interface is displayed with the 3 boxes
   await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Legal Documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Required Documents" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Customer Information" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Supporting Documents" })).toBeVisible();
 
   // Verify Customer Information is a Form list with Add button
   await expect(page.getByRole("button", { name: "Add Customer Information Form" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add Legal Document" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Required Document" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add Supporting Document" })).toBeVisible();
 
-  // Verify Add Legal Document works to add a form to the clean L3 list
-  await page.getByRole("button", { name: "Add Legal Document" }).click();
-  await expect(page.getByRole("heading", { name: "Add Legal Document" })).toBeVisible();
+  // Verify Add Required Document works to add a form to the clean L3 list
+  await page.getByRole("button", { name: "Add Required Document" }).click();
+  await expect(page.getByRole("heading", { name: "Add Required Document" })).toBeVisible();
   await page.getByPlaceholder("e.g. Master Services Agreement").fill("Test Contract Document");
   await page.getByRole("button", { name: "Add to L3 List" }).click();
   await expect(page.getByText("Test Contract Document")).toBeVisible();

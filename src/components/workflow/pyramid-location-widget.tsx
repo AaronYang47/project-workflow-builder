@@ -293,7 +293,7 @@ function branchForLayer2(
       {
         id: `${node.id}-legal`,
         layer: "L3" as const,
-        label: "Legal Documents",
+        label: "Required Documents",
         subtitle: "Contracts, deeds & permits",
         nodeId: node.id,
       },

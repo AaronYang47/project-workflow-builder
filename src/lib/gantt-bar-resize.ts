@@ -2,7 +2,9 @@
 export function beginGanttBarResize(
   event: PointerEvent,
   handle: HTMLElement,
-  options: { startDay: number; initialDays: number; totalDays: number; onDrop: (days: number) => void },
+  options: { startDay: number; initialDays: number; totalDays: number; daysPerWeek?: number; onDrop: (days: number) => void;
+    toDisplayDay?: (day: number, boundary?: "start" | "end") => number; toScheduleDay?: (day: number) => number;
+    onPreview?: (bar: HTMLElement, start: number, days: number) => void },
 ) {
   if (event.button !== 0) return;
   const bar = handle.closest<HTMLElement>("[data-gantt-task-key]");
@@ -16,6 +18,8 @@ export function beginGanttBarResize(
   const initialScroll = board.scrollLeft;
   const originalWidth = bar.style.width;
   const pixelsPerDay = track.getBoundingClientRect().width / options.totalDays;
+  const displayDay = options.toDisplayDay ?? ((day: number) => day);
+  const scheduleDay = options.toScheduleDay ?? ((day: number) => day);
   let nextDays = options.initialDays;
   let moved = false;
   const tooltip = document.createElement("div");
@@ -28,6 +32,7 @@ export function beginGanttBarResize(
     window.removeEventListener("blur", cleanup);
     tooltip.remove();
     bar.style.width = originalWidth;
+    options.onPreview?.(bar, options.startDay, options.initialDays);
     bar.removeAttribute("data-gantt-resizing");
     if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
   };
@@ -37,10 +42,12 @@ export function beginGanttBarResize(
     const shift = pointer.clientX - originX + board.scrollLeft - initialScroll;
     if (Math.abs(shift) < (event.pointerType === "touch" ? 8 : 3) && !moved) return;
     moved = true;
-    nextDays = Math.max(1, Math.min(options.totalDays - options.startDay, Math.round(options.initialDays + shift / pixelsPerDay)));
-    bar.style.width = `${nextDays / options.totalDays * 100}%`;
+    const desiredEnd = displayDay(options.startDay + options.initialDays, "end") + shift / pixelsPerDay;
+    nextDays = Math.max(1, Math.min(scheduleDay(options.totalDays) - options.startDay, Math.round(scheduleDay(desiredEnd) - options.startDay)));
+    bar.style.width = `${(displayDay(options.startDay + nextDays, "end") - displayDay(options.startDay)) / options.totalDays * 100}%`;
+    options.onPreview?.(bar, options.startDay, nextDays);
     bar.setAttribute("data-gantt-resizing", "true");
-    const weeks = Number((nextDays / 7).toFixed(nextDays < 7 ? 2 : 1));
+    const weeks = Number((nextDays / (options.daysPerWeek ?? 7)).toFixed(nextDays < 7 ? 2 : 1));
     tooltip.textContent = `${weeks} week${weeks === 1 ? "" : "s"}`;
     tooltip.style.left = `${Math.min(pointer.clientX + 12, window.innerWidth - 90)}px`;
     tooltip.style.top = `${Math.min(track.getBoundingClientRect().bottom + 6, window.innerHeight - 26)}px`;

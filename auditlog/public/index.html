@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Audit Console · Project Workflow Builder</title>
+  <link rel="stylesheet" href="/console.css">
+  <script src="/console.js" defer></script>
+</head>
+<body>
+  <main id="login-view" class="login" hidden>
+    <form id="login-form" class="login-card">
+      <div class="kicker">Project Workflow Builder</div>
+      <h1>Audit Console</h1>
+      <p class="muted">Every sign-in, visit and action on the site, kept permanently.</p>
+      <label for="password">Console password</label>
+      <input id="password" type="password" autocomplete="current-password" required autofocus>
+      <button type="submit">Sign in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <div id="console-view" hidden>
+    <header class="topbar">
+      <div>
+        <div class="kicker">project-workflow-builder.pages.dev</div>
+        <h1>Audit Console</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="refreshed" class="muted"></span>
+        <label class="toggle"><input id="auto-refresh" type="checkbox"> Auto-refresh</label>
+        <button id="export" type="button" class="secondary">Export CSV</button>
+        <button id="logout" type="button" class="secondary">Sign out</button>
+      </div>
+    </header>
+
+    <form id="filters" class="filters">
+      <div class="presets" role="group" aria-label="Period">
+        <button type="button" data-preset="1">24 hours</button>
+        <button type="button" data-preset="7">7 days</button>
+        <button type="button" data-preset="30">30 days</button>
+        <button type="button" data-preset="0">All time</button>
+      </div>
+      <label>From <input name="from" type="datetime-local"></label>
+      <label>To <input name="to" type="datetime-local"></label>
+      <label class="grow">Search <input name="q" type="search" placeholder="Action, page, place, details…"></label>
+      <label>Account <input name="user" type="search" placeholder="email"></label>
+      <label>IP <input name="ip" type="search" placeholder="exact address"></label>
+      <label>Category
+        <select name="category">
+          <option value="">All</option>
+          <option>auth</option><option>project</option><option>file</option><option>lookup</option><option>integration</option>
+          <option>page</option><option>click</option><option>edit</option><option>export</option><option>app</option>
+          <option>session</option><option>error</option><option>console</option><option>api</option>
+        </select>
+      </label>
+      <label>Source
+        <select name="source"><option value="">All</option><option>server</option><option>client</option><option>console</option></select>
+      </label>
+      <label>Result
+        <select name="outcome"><option value="">All</option><option>success</option><option>failure</option><option>info</option></select>
+      </label>
+      <input name="session" type="hidden">
+      <div class="filter-actions">
+        <button type="submit">Apply</button>
+        <button type="button" id="reset" class="secondary">Reset</button>
+      </div>
+    </form>
+
+    <section class="cards" id="cards" aria-label="Summary"></section>
+    <section class="breakdowns" id="breakdowns" aria-label="Breakdowns"></section>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="events" aria-selected="true">Activity log</button>
+      <button type="button" role="tab" data-tab="sessions" aria-selected="false">Visits &amp; usage time</button>
+    </nav>
+
+    <section id="events-panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Account</th><th>Action</th><th>Result</th><th>Where</th><th>Device</th><th>Page / request</th></tr></thead>
+          <tbody id="events-body"></tbody>
+        </table>
+      </div>
+      <button type="button" id="more" class="secondary more" hidden>Load more</button>
+    </section>
+
+    <section id="sessions-panel" hidden>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Started</th><th>Last activity</th><th>Account</th><th>Active time</th><th>Visit length</th><th>Clicks</th><th>Pages</th><th>Where</th><th>Device</th><th></th></tr></thead>
+          <tbody id="sessions-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside id="detail" class="detail" hidden>
+      <div class="detail-head"><h2>Event details</h2><button type="button" id="detail-close" class="secondary">Close</button></div>
+      <dl id="detail-body"></dl>
+    </aside>
+  </div>
+</body>
+</html>

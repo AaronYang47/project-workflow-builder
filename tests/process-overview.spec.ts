@@ -41,6 +41,87 @@ async function dragBarByDays(page: Page, title: string, days: number) {
   await page.mouse.up();
 }
 
+test("dragging the L4 timeline handle pans the Gantt chart", async ({ page }) => {
+  const file = fixture();
+  file.graph.nodes[1].conditions[1].duration = 20;
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file });
+  await page.goto("/process-overview");
+  const board = page.locator("[data-release-condition-board]");
+  await expect(board).toBeVisible();
+  const handle = page.getByLabel("Drag to move Gantt timeline");
+  await expect(handle).toBeVisible();
+  const box = (await handle.boundingBox())!;
+  const before = await board.evaluate((element) => ({ left: element.scrollLeft, max: element.scrollWidth - element.clientWidth }));
+  expect(before.max).toBeGreaterThan(100);
+  const startX = box.x + box.width - 20;
+  await page.mouse.move(startX, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(startX - 200, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  expect(await board.evaluate((element) => element.scrollLeft)).toBeGreaterThan(before.left + 100);
+});
+
+test("L4 condition label drags into another chapter without selecting text", async ({ page }) => {
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file: fixture() });
+  await page.goto("/process-overview");
+  const source = page.locator('[data-gantt-task="Technical agreement"] [data-gantt-label]');
+  const target = page.locator('[data-gantt-task="Sales entry"] [data-gantt-label]');
+  await source.dragTo(target);
+  await expect(page.locator('[data-release-condition-drop-node-id="sales"] [data-gantt-task="Technical agreement"]')).toBeVisible();
+});
+
+test("L3 and L4 keep the same top toolbar as L1", async ({ page }) => {
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file: fixture() });
+  await page.goto("/");
+  const toolbar = page.locator("[data-workflow-toolbar]");
+  await expect(toolbar).toBeVisible();
+  await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "Export", exact: true })).toBeVisible();
+  await toolbar.getByRole("link", { name: "Open Process Overview" }).click();
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "Export", exact: true })).toBeVisible();
+});
+
+test("toolbar stays compact on narrow screens without Clear L1 or Clear L2", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  const toolbar = page.locator("[data-workflow-toolbar]");
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "Clear L1 Nodes" })).toHaveCount(0);
+  await expect(toolbar.getByRole("button", { name: "Clear L2 Nodes" })).toHaveCount(0);
+  await expect(toolbar.getByRole("button", { name: "RC · Forms & execution" })).toHaveCount(0);
+  for (const width of [320, 390, 900, 1200]) {
+    await page.setViewportSize({ width, height: 800 });
+    const toggle = page.getByRole("button", { name: "Show toolbar", exact: true });
+    if (await toggle.isVisible()) await toggle.click();
+    const layout = await toolbar.evaluate((element) => ({
+      viewportWidth: document.documentElement.clientWidth,
+      pageWidth: document.documentElement.scrollWidth,
+      height: element.getBoundingClientRect().height,
+      toolbarRowHeight: element.children[1].getBoundingClientRect().height,
+    }));
+    expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.toolbarRowHeight).toBeLessThan(width < 360 ? 150 : 105);
+    expect(layout.height).toBeLessThan(width < 360 ? 310 : width < 500 ? 245 : 220);
+    if (width === 390) expect((await toolbar.getByRole("button", { name: "Search nodes and commands" }).boundingBox())!.width).toBeGreaterThan(90);
+    if (width >= 900) {
+      const search = toolbar.getByRole("button", { name: "Search nodes and commands" });
+      const transfer = toolbar.getByRole("button", { name: "Transfer editing control" });
+      expect(layout.toolbarRowHeight).toBeLessThan(60);
+      expect((await search.boundingBox())!.width).toBeGreaterThan(95);
+      expect((await transfer.boundingBox())!.x).toBeGreaterThan((await search.boundingBox())!.x + 95);
+    }
+  }
+});
+
 test("calendar duration labels use seven-day weeks and four-week months", () => {
   const label = (days: number) => calendarDurationParts(days).map((part) => `${part.value} ${part.unit}`).join(" ");
   expect(label(7)).toBe("1 WEEK");
@@ -59,8 +140,8 @@ test("Gantt duration labels display weeks throughout", () => {
   const file = fixture();
   file.graph.nodes[1].conditions[0].duration = 9;
   const pdf = processGanttPdfHtml(file, new Map());
-  expect(pdf).toContain("TECH 1.3w");
-  expect(pdf).toContain("TECH 1w");
+  expect(pdf).toContain("TECH 1.3W");
+  expect(pdf).toContain("TECH 1W");
 });
 
 test("parallel conditions overlap and predecessor scheduling extends the phase", () => {
@@ -280,7 +361,8 @@ test("overlap controls persist start delays and export matching PDF positions", 
     };
   });
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   await (await pending).saveAs(testInfo.outputPath("overlap-gantt.pdf"));
   expect(await page.evaluate(() => (window as unknown as { pdfOverlap: string[] }).pdfOverlap)).toEqual(["5", "7"]);
   expect(await page.evaluate(() => (window as unknown as { pdfHandoff: string }).pdfHandoff)).not.toContain("Tech handoff pending");
@@ -323,20 +405,21 @@ test("overview links to the current process and persists department task depende
   }, { key: WORKFLOW_STORAGE_KEY, file: fixture() });
   await page.goto("/");
   await page.getByRole("link", { name: "Open Process Overview" }).click();
-  await expect(page.getByRole("heading", { name: "L4 · Process & Gantt", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Process system & schedule", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Complete process flowchart" })).toContainText("Pre-Construction");
   const flow = page.getByRole("region", { name: "Complete process flowchart" });
   await expect(flow).not.toContainText("STEP");
   expect((await flow.boundingBox())!.height).toBeLessThan(130);
-  await expect(page.getByText("Durations are entered in weeks", { exact: false })).toBeVisible();
+  await expect(page.getByText("Release conditions · Gantt chart", { exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-gantt-instructions]")).toHaveCount(0);
   await expect(page.getByText("1 week estimated from Sales handoff", { exact: false })).toBeVisible();
   await expect(page.locator('[data-release-condition-drop-node-id="tech"] [data-phase-department-label]')).toContainText("Pre-Construction");
   await expect(page.locator('[data-release-condition-drop-node-id="tech"] [data-phase-department-label]')).toContainText("Department Technical");
   const department = page.locator('[data-gantt-department="Department Technical"]');
   const agreement = department.locator('[data-gantt-task="Technical agreement"]');
   await expect(agreement.locator("[data-gantt-start]")).toHaveAttribute("data-gantt-start", "2");
-  await expect(agreement.locator("[data-gantt-start]")).toHaveText("TECH 1w");
-  await expect(page.locator('[data-gantt-task="Sales entry"] [data-gantt-start]')).toHaveText("SALE");
+  await expect(agreement.locator("[data-gantt-bar-label]")).toHaveText("TECH 1W");
+  await expect(page.locator('[data-gantt-task="Sales entry"] [data-gantt-bar-label]')).toHaveText("SALE");
   const centered = await agreement.locator("[data-gantt-start]").evaluate((element) => getComputedStyle(element).justifyContent);
   expect(centered).toBe("center");
   await dragBarByDays(page, "Technical agreement", 3);
@@ -429,11 +512,11 @@ test("Gantt drag reorders, crosses phases into empty departments, and synchroniz
   await page.mouse.up();
   await expect(target.locator('[data-gantt-task="Design review"]')).toBeVisible();
   await expect(tech.locator('[data-gantt-task="Design review"]')).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo process change" }).click();
+  await page.getByRole("button", { name: /Undo \(/ }).click();
   await expect(tech.locator('[data-gantt-task="Design review"]')).toBeVisible();
-  await page.getByRole("button", { name: "Redo process change" }).click();
+  await page.getByRole("button", { name: /Redo \(/ }).click();
   await expect(target.locator('[data-gantt-task="Design review"]')).toBeVisible();
-  await page.getByRole("link", { name: "Back to workflow" }).click();
+  await page.getByRole("link", { name: "L1 · Process", exact: true }).click();
   await expect(page.locator('[data-id="phase-3"]')).toContainText("1 release conditions");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator('[data-id="delivery"]')).toContainText("Design review");
@@ -599,7 +682,7 @@ test("create a duration-based condition, assign by dragging, and synchronize the
   await page.mouse.up();
   await expect(inbox.getByText("Approve shop drawings", { exact: true })).toBeVisible();
   await expect(assigned).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo process change" }).click();
+  await page.getByRole("button", { name: /Undo \(/ }).click();
   await expect(assigned).toBeVisible();
   await page.reload();
   await expect(assigned).toBeVisible();
