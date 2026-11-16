@@ -4,8 +4,8 @@ import { calendarTextHtml, taskCalendarBadges } from "@/lib/calendar-badges";
 import { isSalesDepartmentName } from "@/lib/department-label";
 import type { WorkflowFile } from "@/types/workflow";
 import { buildProcessTimeline, calendarTickDays, pauseSegmentBackground } from "@/lib/schedule-calendar";
+import { escapeHtml as escape } from "@/lib/html";
 
-const escape = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]!);
 
 export const PDF_SCHEDULE_LABEL_WIDTH = 460;
 export function pdfScheduleExtent(days: number, originDay = 0, calendar = false) {

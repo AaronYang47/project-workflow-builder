@@ -3,8 +3,8 @@ import type { buildProcessSchedule } from "@/lib/process-schedule";
 import { salesHandoffTime } from "@/lib/process-schedule";
 import { calendarShutdowns, validShutdownOverrideKey } from "@/lib/annual-shutdowns";
 import { ontarioStatutoryHolidays } from "@/lib/ontario-holidays";
+import { DAY_MS } from "@/lib/calendar-date";
 
-const DAY_MS = 86_400_000;
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
 export type CalendarPause = {

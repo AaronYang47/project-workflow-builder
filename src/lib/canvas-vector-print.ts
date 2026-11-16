@@ -1,4 +1,5 @@
 import type { PhaseForms, PrintHeader } from "@/lib/phase-forms-summary";
+import { escapeHtml } from "@/lib/html";
 
 /** 11 x 17 in at the CSS 96 px/in reference; the long side is 17 in. */
 const SHEET_LONG_PX = 17 * 96;
@@ -154,9 +155,6 @@ function hideEditingControls(root: HTMLElement) {
     if (EDITING_BUTTON_TEXT.test(button.textContent?.trim() ?? "")) button.style.setProperty("visibility", "hidden", "important");
   });
 }
-
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => (
-  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" } as Record<string, string>)[character]);
 
 /**
  * "Forms by phase" as small notes under the flowchart: one column per phase

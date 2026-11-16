@@ -6,13 +6,13 @@ import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { AuthGate } from "./auth-gate";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { exportPresentationPdf } from "@/lib/presentation-pdf-export";
-import { exportExecutivePresentationPdf } from "@/lib/executive-presentation-pdf-export";
+import { EXPORT_EVENT, exportDocument, exportErrorMessage, type ExportEventDetail } from "@/lib/export/export-formats";
 import type { DomainNode, NodeLayout } from "@/types/workflow";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
 import { useShallow } from "zustand/react/shallow";
+import { useCurrentTime } from "@/lib/use-current-time";
 
 const TopToolbar = dynamic(() => import("./top-toolbar").then((module) => module.TopToolbar), { ssr: false });
 const NodeLibrary = dynamic(() => import("./node-library").then((module) => module.NodeLibrary), { ssr: false });
@@ -44,12 +44,13 @@ function RemoteCollaboratorCursors({ view }: { view: CollaborativeViewState }) {
       remotePeers: state.remotePeers,
     })),
   );
+  const now = useCurrentTime(1000);
   if (!isConnected || roomId === "local-only") return null;
 
   const visiblePeers = Object.values(remotePeers).filter(
     (peer) => peer.cursor?.view?.layer === view.layer &&
       (view.layer !== "L3" || peer.cursor.view.executionNodeId === view.executionNodeId) &&
-      Date.now() - (peer.cursorAt ?? 0) < 30000,
+      now - (peer.cursorAt ?? 0) < 30000,
   );
   if (!visiblePeers.length) return null;
 
@@ -279,45 +280,14 @@ export default function WorkflowBuilder() {
       window.setTimeout(check, 150);
     };
     const handleExport = async (event: Event) => {
-      const custom = event as CustomEvent<{
-        format:
-          | "png"
-          | "svg"
-          | "pdf"
-          | "l1-pdf"
-          | "l1-swimlane-pdf"
-          | "l1-gantt-pdf"
-          | "l2-pdf"
-          | "l3-pdf"
-          | "tech-pdf"
-          | "presentation-pdf"
-          | "presentation-no-conditions-pdf";
-        switched?: boolean;
-      }>;
+      const custom = event as CustomEvent<ExportEventDetail>;
       const format = custom.detail?.format;
       if (!format || custom.detail?.switched) return;
 
-      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf") {
-        void import("@/lib/l1-department-swimlane-pdf-export")
-          .then(({ exportL1DepartmentSwimlanePdf }) =>
-            exportL1DepartmentSwimlanePdf(useWorkflowStore.getState().file, { gantt: format === "l1-gantt-pdf" }),
-          )
-          .catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : "Could not export the High Level Process System Flowchart PDF.";
-            window.alert(message);
-          });
-        return;
-      }
-
-      if (format === "tech-pdf") {
-        void exportPresentationPdf(useWorkflowStore.getState().file);
-        return;
-      }
-
-      if (format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
-        void exportExecutivePresentationPdf(useWorkflowStore.getState().file, {
-          includeReleaseConditions: format === "presentation-pdf",
-        });
+      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf" || format === "tech-pdf" ||
+        format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
+        void exportDocument(format, useWorkflowStore.getState().file)
+          .catch((error: unknown) => window.alert(exportErrorMessage(error)));
         return;
       }
 
@@ -332,7 +302,7 @@ export default function WorkflowBuilder() {
         if (prevExecutionId) setExecutionNodeId(null);
         whenCanvasReady(() => {
           window.dispatchEvent(
-            new CustomEvent("workflow:export", {
+            new CustomEvent(EXPORT_EVENT, {
               detail: { format: "l1-pdf", switched: true },
             }),
           );
@@ -353,7 +323,7 @@ export default function WorkflowBuilder() {
         setExecutionNodeId(null);
         whenCanvasReady(() => {
           window.dispatchEvent(
-            new CustomEvent("workflow:export", {
+            new CustomEvent(EXPORT_EVENT, {
               detail: { format: "l2-pdf", switched: true },
             }),
           );
@@ -366,8 +336,8 @@ export default function WorkflowBuilder() {
       }
     };
 
-    window.addEventListener("workflow:export", handleExport);
-    return () => window.removeEventListener("workflow:export", handleExport);
+    window.addEventListener(EXPORT_EVENT, handleExport);
+    return () => window.removeEventListener(EXPORT_EVENT, handleExport);
   }, [isHighLevelView, isExecutionView, executionNodeId]);
 
   const copied = useRef<

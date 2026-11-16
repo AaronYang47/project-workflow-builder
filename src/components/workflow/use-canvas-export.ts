@@ -4,6 +4,7 @@ import { fitCanvasToWorkflow } from "@/lib/flow-helpers";
 import { printCanvasVector } from "@/lib/canvas-vector-print";
 import { flowchartPrintHeader, phaseFormsSummary } from "@/lib/phase-forms-summary";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { EXPORT_EVENT } from "@/lib/export/export-formats";
 
 type ReactFlowInstance = ReturnType<typeof useReactFlow>;
 
@@ -213,8 +214,8 @@ export function useCanvasExport(
       }
     };
 
-    window.addEventListener("workflow:export", capture as EventListener);
+    window.addEventListener(EXPORT_EVENT, capture as EventListener);
     return () =>
-      window.removeEventListener("workflow:export", capture as EventListener);
+      window.removeEventListener(EXPORT_EVENT, capture as EventListener);
   }, [flow, wrapper, viewType]);
 }

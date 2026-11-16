@@ -44,6 +44,7 @@ import { EditorTransferControl } from "./editor-transfer-control";
 import { WorkflowLayerNavigation } from "./workflow-layer-navigation";
 import { R2FileDialog } from "./r2-file-dialog";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import { exportDocument, exportErrorMessage, isDocumentExportFormat, requestExport, type ExportFormat } from "@/lib/export/export-formats";
 
 function ToolButton({
   label,
@@ -71,24 +72,7 @@ function ToolButton({
   );
 }
 
-const saveImage = (
-  format:
-    | "png"
-    | "svg"
-    | "pdf"
-    | "l1-pdf"
-    | "l1-swimlane-pdf"
-    | "l1-gantt-pdf"
-    | "l2-pdf"
-    | "l3-pdf"
-    | "tech-pdf"
-    | "presentation-pdf"
-    | "presentation-no-conditions-pdf",
-) => {
-  window.dispatchEvent(
-    new CustomEvent("workflow:export", { detail: { format } }),
-  );
-};
+const saveImage = requestExport;
 
 export function TopToolbar({
   openPalette,
@@ -122,28 +106,15 @@ export function TopToolbar({
   const [arranging, setArranging] = useState(false);
   const [r2DialogOpen, setR2DialogOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
-  const exportFormat = (format: Parameters<typeof saveImage>[0]) => {
+  const exportFormat = (format: ExportFormat) => {
     if (!pageLayer) { saveImage(format); return; }
     if (onPageExport) { onPageExport(format); return; }
     const file = useWorkflowStore.getState().file;
-    const exportDocument = async () => {
-      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf") {
-        const { exportL1DepartmentSwimlanePdf } = await import("@/lib/l1-department-swimlane-pdf-export");
-        await exportL1DepartmentSwimlanePdf(file, { gantt: format === "l1-gantt-pdf" });
-      } else if (format === "l3-pdf") {
-        const { exportL3ExecutionPdf } = await import("@/lib/l3-pdf-export");
-        await exportL3ExecutionPdf(file);
-      } else if (format === "tech-pdf") {
-        const { exportPresentationPdf } = await import("@/lib/presentation-pdf-export");
-        await exportPresentationPdf(file);
-      } else if (format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
-        const { exportExecutivePresentationPdf } = await import("@/lib/executive-presentation-pdf-export");
-        await exportExecutivePresentationPdf(file, { includeReleaseConditions: format === "presentation-pdf" });
-      } else {
-        window.alert("Open L1 or L2 to export the canvas in this format.");
-      }
-    };
-    void exportDocument().catch((error: unknown) => window.alert(error instanceof Error ? error.message : "Could not export document."));
+    if (!isDocumentExportFormat(format)) {
+      window.alert("Open L1 or L2 to export the canvas in this format.");
+      return;
+    }
+    void exportDocument(format, file).catch((error: unknown) => window.alert(exportErrorMessage(error)));
   };
   const beginMetadataEdit = () => {
     if (!metadataSnapshot.current)

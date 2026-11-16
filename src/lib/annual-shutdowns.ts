@@ -1,8 +1,7 @@
 import type { ScheduleCalendar, ScheduleShutdown, ShutdownOverride } from "@/types/workflow";
 import { ontarioStatutoryHolidays } from "@/lib/ontario-holidays";
+import { DAY_MS, isoFromDay as iso } from "@/lib/calendar-date";
 
-const DAY_MS = 86_400_000;
-const iso = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
 const dayOf = (date: string) => Date.parse(`${date}T00:00:00Z`) / DAY_MS;
 export const CCQ_SHUTDOWN_SOURCE = "https://www.ccq.org/en/congesvacances";
 // Published 2025–2029 collective agreement, summer dates through 2028:

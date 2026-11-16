@@ -4,6 +4,7 @@ import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-leve
 import { conditionIsSatisfied } from "@/lib/workflow-progress";
 import { chapterLabel } from "@/lib/chapter-label";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { escapeHtml } from "@/lib/html";
 
 // 1:1 Exact Matching colors from the project canvas (薄荷绿 -> 玫瑰粉红 -> 橘黄色 -> 金黄色)
 const DEFAULT_PHASE_THEMES = [
@@ -77,16 +78,6 @@ const GATE_TAG_VISUAL = {
   tagText: "#6d28d9",
   border: "#c084fc",
 };
-
-function escapeHtml(str?: string): string {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 /**
  * Checks whether an L2 node is a Gate or is contained inside a Gate container in the canvas.

@@ -9,6 +9,7 @@ import { departmentDocumentSummary } from "@/lib/department-document-summary";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import { confirmDayOffWarnings } from "@/lib/calendar-badges";
 import type { DomainNode, HighLevelNode, WorkflowFile } from "@/types/workflow";
+import { escapeHtml } from "@/lib/html";
 
 type PhaseColumn = {
   node: HighLevelNode;
@@ -45,15 +46,6 @@ type DepartmentColumn = {
 };
 
 const DEPARTMENT_PALETTE = ["#0284c7", "#10b981", "#f97316", "#ca8a04", "#8b5cf6", "#f43f5e", "#14b8a6", "#64748b"];
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function safeColor(value: string | undefined, fallback: string) {
   const candidate = value?.trim() || "";

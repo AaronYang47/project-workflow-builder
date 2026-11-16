@@ -5,13 +5,11 @@ import { buildProcessTimeline, DAY_OFF_COLORS, DAY_OFF_INK, splitCalendarTask } 
 import { calendarWorkSummary } from "@/lib/gantt-bar-label";
 import { calendarSummaryBadges, calendarTextHtml } from "@/lib/calendar-badges";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
+import { escapeHtml as escape } from "@/lib/html";
+import { DAY_MS, isoFromDay as iso, monthYearFormat as monthName } from "@/lib/calendar-date";
 
-const DAY_MS = 86_400_000;
-const escape = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]!);
-const monthName = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const priority = ["winter", "summer", "statutory", "weekend"] as const;
-const iso = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
 const serial = (date: string) => Date.parse(`${date}T00:00:00Z`) / DAY_MS;
 const codes = { winter: "SD", summer: "SD", statutory: "H", weekend: "OFF", work: "" };
 // Day-off fills are shared with the Gantt bars and their labels.

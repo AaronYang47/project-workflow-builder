@@ -9,13 +9,15 @@ import {
   useCollaborationStore,
 } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
+import { useCurrentTime } from "@/lib/use-current-time";
 
 export function EditorTransferControl({ compactOnMobile = false }: { compactOnMobile?: boolean } = {}) {
   const collaboration = useCollaborationStore();
   const [open, setOpen] = useState(false);
+  const now = useCurrentTime();
   const canEdit = canEditCollaborativeWorkflow(collaboration);
   const peers = Object.values(collaboration.remotePeers).filter(
-    (peer) => Date.now() - peer.lastActiveAt < 30000,
+    (peer) => now - peer.lastActiveAt < 30000,
   );
   const currentEditor = collaboration.editorPeerId === collaboration.localUser.peerId
     ? "You"

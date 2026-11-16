@@ -22,6 +22,7 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { chapterLabel } from "@/lib/chapter-label";
 import { isReferenceNodeType, type DomainNode, type ExecutionItem, type HighLevelNode } from "@/types/workflow";
+import { EXPORT_EVENT } from "@/lib/export/export-formats";
 
 type Layer = "L1" | "L2" | "L3";
 type ViewLayer = Layer;
@@ -1471,8 +1472,8 @@ export function PyramidLocationWidget({
         setCollapsedL2Ids(new Set());
       }
     };
-    window.addEventListener("workflow:export", handleExport);
-    return () => window.removeEventListener("workflow:export", handleExport);
+    window.addEventListener(EXPORT_EVENT, handleExport);
+    return () => window.removeEventListener(EXPORT_EVENT, handleExport);
   }, []);
 
   // Trigger export once modal is open and diagram is fully expanded

@@ -3,6 +3,7 @@ import { isSalesDepartmentName } from "@/lib/department-label";
 import { buildProcessSchedule } from "@/lib/process-schedule";
 import { buildProcessTimeline, DAY_OFF_COLORS, DAY_OFF_INK } from "@/lib/schedule-calendar";
 import type { Condition, WorkflowFile } from "@/types/workflow";
+import { escapeHtml as escape } from "@/lib/html";
 
 export type CalendarSummary = ReturnType<typeof calendarWorkSummary>;
 export type CalendarBadge = { kind: string; text: string; background: string; color: string };
@@ -23,7 +24,6 @@ export function taskCalendarBadges(department: string, condition: Condition, pau
   const foreground = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? "#15243b" : "#ffffff";
   return [{ kind: "department", text: label, background: color, color: foreground }, ...calendarSummaryBadges(calendarWorkSummary(total, pauses))];
 }
-const escape = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]!);
 export function calendarBadgesHtml(badges: CalendarBadge[], fontSize = 13) {
   return badges.map((badge) => `<span data-calendar-tag="${badge.kind}" style="display:inline-block;flex:0 0 auto;white-space:nowrap;border-radius:5px;padding:4px 6px;font:800 ${fontSize}px/1.2 Arial,sans-serif;background:${badge.background};color:${badge.color}">${escape(badge.text)}</span>`).join(" ");
 }

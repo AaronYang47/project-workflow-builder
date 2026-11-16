@@ -4,6 +4,7 @@ import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-leve
 import { chapterLabel } from "@/lib/chapter-label";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import { conditionIsSatisfied, ruleComplete, signatureComplete } from "@/lib/workflow-progress";
+import { escapeHtml } from "@/lib/html";
 
 // 1:1 Matching colors from the project canvas (薄荷绿 -> 玫瑰粉红 -> 橘黄色 -> 金黄色)
 const DEFAULT_PHASE_THEMES = [
@@ -67,16 +68,6 @@ const GATE_TAG_VISUAL = {
   tagText: "#6d28d9",
   border: "#8b5cf6",
 };
-
-function escapeHtml(str?: string): string {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function isNodeGate(
   node: DomainNode,

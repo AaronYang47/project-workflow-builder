@@ -6,10 +6,8 @@ import { CalendarDays, X } from "lucide-react";
 import { DAY_OFF_COLORS, DAY_OFF_INK, type CalendarPause } from "@/lib/schedule-calendar";
 import type { CalendarBadge, CalendarSummary } from "@/lib/calendar-badges";
 import { CalendarTags } from "./calendar-tags";
+import { DAY_MS, isoFromDay as iso, monthYearFormat as monthName } from "@/lib/calendar-date";
 
-const DAY_MS = 86_400_000;
-const iso = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
-const monthName = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const priority = ["winter", "summer", "statutory", "weekend"] as const;
 const dayStyles = {
