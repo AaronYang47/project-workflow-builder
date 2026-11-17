@@ -11,9 +11,7 @@ import type { Node, NodeChange } from "@xyflow/react";
  * Pointer updates are coalesced to one React update per animation frame.
  */
 export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
-  const [dragPositions, setDragPositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
+  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [measuredDimensions, setMeasuredDimensions] = useState<
     Record<string, { width: number; height: number }>
   >({});
@@ -40,55 +38,64 @@ export function useFlowNodes<T extends Node = Node>(modelNodes: T[]) {
     });
   }, []);
 
-  useEffect(() => () => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    },
+    [],
+  );
 
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // 1. Capture measured dimensions so nodes never revert to unmeasured state during drag
-    const dimensionChanges = changes.filter(
-      (change): change is Extract<NodeChange, { type: "dimensions" }> =>
-        change.type === "dimensions" && Boolean(change.dimensions),
-    );
-    if (dimensionChanges.length > 0) {
-      setMeasuredDimensions((prev) => {
-        let next: typeof prev | undefined;
-        for (const change of dimensionChanges) {
-          if (change.dimensions) {
-            const old = prev[change.id];
-            if (old?.width === change.dimensions.width && old?.height === change.dimensions.height) continue;
-            next ??= { ...prev };
-            next[change.id] = change.dimensions;
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      // 1. Capture measured dimensions so nodes never revert to unmeasured state during drag
+      const dimensionChanges = changes.filter(
+        (change): change is Extract<NodeChange, { type: "dimensions" }> =>
+          change.type === "dimensions" && Boolean(change.dimensions),
+      );
+      if (dimensionChanges.length > 0) {
+        setMeasuredDimensions((prev) => {
+          let next: typeof prev | undefined;
+          for (const change of dimensionChanges) {
+            if (change.dimensions) {
+              const old = prev[change.id];
+              if (
+                old?.width === change.dimensions.width &&
+                old?.height === change.dimensions.height
+              )
+                continue;
+              next ??= { ...prev };
+              next[change.id] = change.dimensions;
+            }
           }
-        }
-        return next ?? prev;
-      });
-    }
-
-    // 2. Track position displacement
-    const positionChanges = changes.filter(
-      (change): change is Extract<NodeChange, { type: "position" }> =>
-        change.type === "position" && (Boolean(change.position) || change.dragging === false),
-    );
-    if (positionChanges.length === 0) return;
-
-    for (const change of positionChanges) {
-      if (change.dragging && change.position) {
-        pendingPositions.current[change.id] = change.position;
-      } else if (change.dragging === false) {
-        pendingPositions.current[change.id] = null;
+          return next ?? prev;
+        });
       }
-    }
-    if (frame.current === null) frame.current = requestAnimationFrame(flushPositions);
-  }, [flushPositions]);
+
+      // 2. Track position displacement
+      const positionChanges = changes.filter(
+        (change): change is Extract<NodeChange, { type: "position" }> =>
+          change.type === "position" && (Boolean(change.position) || change.dragging === false),
+      );
+      if (positionChanges.length === 0) return;
+
+      for (const change of positionChanges) {
+        if (change.dragging && change.position) {
+          pendingPositions.current[change.id] = change.position;
+        } else if (change.dragging === false) {
+          pendingPositions.current[change.id] = null;
+        }
+      }
+      if (frame.current === null) frame.current = requestAnimationFrame(flushPositions);
+    },
+    [flushPositions],
+  );
 
   const nodes = useMemo(() => {
     return modelNodes.map((node) => {
       const draggedPos = dragPositions[node.id];
       const measured =
         measuredDimensions[node.id] ||
-        (node as unknown as { measured?: { width: number; height: number } })
-          .measured;
+        (node as unknown as { measured?: { width: number; height: number } }).measured;
       if (!draggedPos && !measured) return node;
 
       return {

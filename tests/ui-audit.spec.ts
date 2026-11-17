@@ -5,26 +5,21 @@ async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
   await page.goto("/");
   // Phones start with the toolbar collapsed.
-  if ((page.viewportSize()?.width ?? 1280) < 640) await page.getByRole("button", { name: "Show toolbar" }).click();
+  if ((page.viewportSize()?.width ?? 1280) < 640)
+    await page.getByRole("button", { name: "Show toolbar" }).click();
   await page.getByRole("button", { name: "L1 · High Level" }).click();
-  await expect(
-    page.getByText("Start", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
 }
 
 async function assertNoDocumentOverflow(page: Page) {
   expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
-    ),
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);
 }
 
 async function visibleUnnamedInteractive(page: Page) {
   return page
-    .locator(
-      "input:visible, select:visible, textarea:visible, button:visible, a[href]:visible",
-    )
+    .locator("input:visible, select:visible, textarea:visible, button:visible, a[href]:visible")
     .evaluateAll((elements) =>
       elements
         .filter((element) => {
@@ -73,9 +68,7 @@ const viewports = [
 ];
 
 for (const viewport of viewports) {
-  test(`${viewport.name} keeps L1, L2, and L3 inside the document viewport`, async ({
-    page,
-  }) => {
+  test(`${viewport.name} keeps L1, L2, and L3 inside the document viewport`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await openLayer1(page);
     await assertNoDocumentOverflow(page);
@@ -85,15 +78,17 @@ for (const viewport of viewports) {
     await assertNoDocumentOverflow(page);
 
     // L3 for a node opens from its release conditions; the event is the same entry point.
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } })));
+    await page.evaluate(() =>
+      window.dispatchEvent(
+        new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } }),
+      ),
+    );
     await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
     await assertNoDocumentOverflow(page);
   });
 }
 
-test("visible form controls have accessible names and page ids are unique", async ({
-  page,
-}) => {
+test("visible form controls have accessible names and page ids are unique", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openLayer1(page);
   await page.evaluate(() => {
@@ -109,9 +104,7 @@ test("visible form controls have accessible names and page ids are unique", asyn
   expect(await duplicatePageIds(page)).toEqual([]);
 });
 
-test("Gate screening and required-file checklists retain accessible controls", async ({
-  page,
-}) => {
+test("Gate screening and required-file checklists retain accessible controls", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openLayer1(page);
 
@@ -120,16 +113,13 @@ test("Gate screening and required-file checklists retain accessible controls", a
     { nodeId: "pre-construction", text: "PRE-CONSTRUCTION" },
   ]) {
     await page.getByRole("button", { name: "L1 · High Level" }).click();
-    await page.evaluate(
-      ({ nodeId }) => {
-        window.dispatchEvent(
-          new CustomEvent("workflow:open-execution", {
-            detail: { nodeId },
-          }),
-        );
-      },
-      target,
-    );
+    await page.evaluate(({ nodeId }) => {
+      window.dispatchEvent(
+        new CustomEvent("workflow:open-execution", {
+          detail: { nodeId },
+        }),
+      );
+    }, target);
     await expect(page.getByText(target.text, { exact: true }).first()).toBeVisible();
     await expect(page.getByTestId("required-file-checklist")).toBeVisible();
     await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);

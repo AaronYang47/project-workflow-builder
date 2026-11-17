@@ -1,7 +1,15 @@
 "use client";
 
 import { useRef, useState, type PointerEvent } from "react";
-import { cornerAnchor, DOCK_DRAG_THRESHOLD, DOCK_SNAP_PX, nearestDockCorner, readDockCorner, writeDockCorner, type DockCorner } from "@/lib/process-locator/pyramid-layout";
+import {
+  cornerAnchor,
+  DOCK_DRAG_THRESHOLD,
+  DOCK_SNAP_PX,
+  nearestDockCorner,
+  readDockCorner,
+  writeDockCorner,
+  type DockCorner,
+} from "@/lib/process-locator/pyramid-layout";
 
 /**
  * The Process Locator button can be dragged and snaps to the nearest screen
@@ -85,14 +93,8 @@ export function useDockCorner(onTap: () => void) {
     const button = dockButtonRef.current;
     const width = button?.offsetWidth ?? 242;
     const height = button?.offsetHeight ?? 44;
-    const x = Math.min(
-      window.innerWidth - width - 4,
-      Math.max(4, event.clientX - drag.offsetX),
-    );
-    const y = Math.min(
-      window.innerHeight - height - 4,
-      Math.max(4, event.clientY - drag.offsetY),
-    );
+    const x = Math.min(window.innerWidth - width - 4, Math.max(4, event.clientX - drag.offsetX));
+    const y = Math.min(window.innerHeight - height - 4, Math.max(4, event.clientY - drag.offsetY));
     const nearest = nearestDockCorner(x, y, width, height);
     if (nearest.distance < DOCK_SNAP_PX) {
       const anchor = cornerAnchor(nearest.corner, width, height);
@@ -109,5 +111,14 @@ export function useDockCorner(onTap: () => void) {
     setDockPos({ x, y });
   };
 
-  return { dock, dockPos, dockDragging, dockMagnet, dockButtonRef, finishDockDrag, onDockPointerDown, onDockPointerMove };
+  return {
+    dock,
+    dockPos,
+    dockDragging,
+    dockMagnet,
+    dockButtonRef,
+    finishDockDrag,
+    onDockPointerDown,
+    onDockPointerMove,
+  };
 }

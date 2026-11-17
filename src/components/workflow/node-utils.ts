@@ -41,21 +41,14 @@ export function stopBubble<E extends React.SyntheticEvent>(handler: (event: E) =
   };
 }
 
-export function saveText(
-  node: DomainNode,
-  field: "title" | "description",
-  value: string,
-) {
+export function saveText(node: DomainNode, field: "title" | "description", value: string) {
   const trimmed = value.trim();
   if (trimmed !== node[field])
     useWorkflowStore.getState().updateNode(node.id, { [field]: trimmed });
 }
 
-export const textareaRows = (
-  value: string | undefined,
-  charactersPerLine: number,
-  minimum = 2,
-) => Math.max(minimum, Math.ceil((value?.length || 0) / charactersPerLine));
+export const textareaRows = (value: string | undefined, charactersPerLine: number, minimum = 2) =>
+  Math.max(minimum, Math.ceil((value?.length || 0) / charactersPerLine));
 
 export const iconOptions = {
   activity: Activity,
@@ -99,8 +92,7 @@ export const SECTION_BASED_REFERENCE_TYPES = [
   "controlBackbone",
   "responsibilityLane",
 ] as const satisfies readonly WorkflowNodeType[];
-export type SectionBasedReferenceType =
-  (typeof SECTION_BASED_REFERENCE_TYPES)[number];
+export type SectionBasedReferenceType = (typeof SECTION_BASED_REFERENCE_TYPES)[number];
 
 export const isSectionBasedReference = (
   type: WorkflowNodeType,

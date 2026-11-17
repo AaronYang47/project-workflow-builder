@@ -46,16 +46,7 @@ const gate: InspectorField[] = [
     key: "config.gateIconKey",
     label: "Module icon",
     type: "select",
-    options: [
-      "activity",
-      "document",
-      "person",
-      "building",
-      "flag",
-      "check",
-      "settings",
-      "box",
-    ],
+    options: ["activity", "document", "person", "building", "flag", "check", "settings", "box"],
     section: "Appearance",
   },
   {
@@ -78,22 +69,14 @@ const general: InspectorField[] = [
     label: "Blend adjacent Phase colors",
     type: "boolean",
     section: "Appearance",
-    helpText: "Uses the nearest Phase color on each side and blends them across the Department card.",
+    helpText:
+      "Uses the nearest Phase color on each side and blends them across the Department card.",
   },
   {
     key: "config.iconKey",
     label: "Icon",
     type: "select",
-    options: [
-      "activity",
-      "document",
-      "person",
-      "building",
-      "flag",
-      "check",
-      "settings",
-      "box",
-    ],
+    options: ["activity", "document", "person", "building", "flag", "check", "settings", "box"],
     section: "Appearance",
   },
 ];
@@ -176,14 +159,10 @@ const configByType: Partial<Record<WorkflowNodeType, InspectorField[]>> = {
 };
 export const getInspectorSchema = (type: WorkflowNodeType) =>
   [...common, ...(configByType[type] || [])].filter(
-    (field, index, all) =>
-      all.findIndex((candidate) => candidate.key === field.key) === index,
+    (field, index, all) => all.findIndex((candidate) => candidate.key === field.key) === index,
   );
 
 export function isInspectorFieldVisible(field: InspectorField, node: DomainNode) {
   if (!field.visibleWhen) return true;
-  return (
-    String(readPath(node, field.visibleWhen.key) || "") ===
-    field.visibleWhen.equals
-  );
+  return String(readPath(node, field.visibleWhen.key) || "") === field.visibleWhen.equals;
 }

@@ -18,12 +18,7 @@ type StoredProject = {
 };
 
 type ApprovalKind =
-  | "LOI"
-  | "Change"
-  | "Credit"
-  | "Payment Release"
-  | "Estimate"
-  | "Production Release";
+  "LOI" | "Change" | "Credit" | "Payment Release" | "Estimate" | "Production Release";
 
 const APPROVAL_KINDS = new Set<ApprovalKind>([
   "LOI",
@@ -81,9 +76,7 @@ const canonicalRequiredRole = (
     const cumulativeCredit = Math.abs(finiteNumber(approval.cumulativeCreditAmount));
     const commercial = isRecord(operations.commercial) ? operations.commercial : {};
     const contractValue = Math.abs(finiteNumber(commercial.contractValue));
-    const cumulativePercent = contractValue > 0
-      ? cumulativeCredit / contractValue * 100
-      : 100;
+    const cumulativePercent = contractValue > 0 ? (cumulativeCredit / contractValue) * 100 : 100;
     if (amount >= 25_000 || cumulativePercent >= 2) return "CEO";
     if (amount >= 5_000) return "CRO";
     return "Finance";
@@ -101,16 +94,10 @@ const stricterRequiredRole = (
   // Client sign-off is supported for estimates only. Internal release,
   // financial, and executive request kinds always keep their server minimum.
   if (storedRole === "Client") return kind === "Estimate" ? storedRole : calculatedRole;
-  return ROLE_RANK[storedRole] >= ROLE_RANK[calculatedRole]
-    ? storedRole
-    : calculatedRole;
+  return ROLE_RANK[storedRole] >= ROLE_RANK[calculatedRole] ? storedRole : calculatedRole;
 };
 
-const canDecide = (
-  actualRole: UserRole,
-  requiredRole: UserRole,
-  kind: ApprovalKind,
-) => {
+const canDecide = (actualRole: UserRole, requiredRole: UserRole, kind: ApprovalKind) => {
   if (kind === "LOI") return actualRole === "CEO" || actualRole === "CRO";
   if (requiredRole === "Client") return actualRole === "Client";
   if (actualRole === "Client") return false;
@@ -128,11 +115,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     evidence?: string;
     reason?: string;
   }>(request);
-  const decision = body?.decision || (
-    typeof body?.approve === "boolean"
-      ? body.approve ? "Approved" : "Rejected"
-      : null
-  );
+  const decision =
+    body?.decision ||
+    (typeof body?.approve === "boolean" ? (body.approve ? "Approved" : "Rejected") : null);
   if (decision !== "Approved" && decision !== "Rejected") {
     return json({ error: "decision must be Approved or Rejected." }, 400);
   }
@@ -141,7 +126,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const project = await env.DB.prepare(
     `SELECT id, name, project_number, workflow_json
      FROM projects WHERE id = ? AND user_id = ?`,
-  ).bind(projectId, userId).first<StoredProject>();
+  )
+    .bind(projectId, userId)
+    .first<StoredProject>();
   if (!project) return json({ error: "Project not found." }, 404);
 
   let workflow: Record<string, unknown>;
@@ -176,21 +163,28 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     typeof approval.requiredRole !== "string" ||
     !APPROVAL_ROLES.has(approval.requiredRole as UserRole)
   ) {
-    return json({ error: "This approval request has an invalid server-side authority definition." }, 409);
+    return json(
+      { error: "This approval request has an invalid server-side authority definition." },
+      409,
+    );
   }
 
   const kind = approval.kind as ApprovalKind;
   const storedRequiredRole = approval.requiredRole as UserRole;
   const calculatedRequiredRole = canonicalRequiredRole(kind, approval, operations);
-  const enforcedRequiredRole = kind === "LOI"
-    ? calculatedRequiredRole
-    : stricterRequiredRole(storedRequiredRole, calculatedRequiredRole, kind);
+  const enforcedRequiredRole =
+    kind === "LOI"
+      ? calculatedRequiredRole
+      : stricterRequiredRole(storedRequiredRole, calculatedRequiredRole, kind);
   if (!canDecide(auth.user!.role, enforcedRequiredRole, kind)) {
-    return json({
-      error: `${auth.user!.role} cannot decide this ${kind} request.`,
-      code: "APPROVAL_ROLE_FORBIDDEN",
-      required_role: kind === "LOI" ? "CEO or CRO" : enforcedRequiredRole,
-    }, 403);
+    return json(
+      {
+        error: `${auth.user!.role} cannot decide this ${kind} request.`,
+        code: "APPROVAL_ROLE_FORBIDDEN",
+        required_role: kind === "LOI" ? "CEO or CRO" : enforcedRequiredRole,
+      },
+      403,
+    );
   }
 
   const decidedAt = new Date().toISOString();
@@ -201,12 +195,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     decidedBy: auth.user!.name,
     decidedByRole: auth.user!.role,
     decidedAt,
-    evidence: typeof body?.evidence === "string"
-      ? body.evidence.trim().slice(0, 2_000)
-      : approval.evidence,
-    reason: typeof body?.reason === "string"
-      ? body.reason.trim().slice(0, 2_000)
-      : approval.reason,
+    evidence:
+      typeof body?.evidence === "string" ? body.evidence.trim().slice(0, 2_000) : approval.evidence,
+    reason: typeof body?.reason === "string" ? body.reason.trim().slice(0, 2_000) : approval.reason,
   };
   const workflowAudit = Array.isArray(operations.auditLog)
     ? operations.auditLog.filter(isRecord).slice(-499)
@@ -216,7 +207,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     approvals: {
       ...approvals,
       requests: approvals.requests.map((candidate) =>
-        isRecord(candidate) && candidate.id === requestId ? decidedApproval : candidate
+        isRecord(candidate) && candidate.id === requestId ? decidedApproval : candidate,
       ),
     },
     auditLog: [
@@ -299,6 +290,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const version = await env.DB.prepare(
     `SELECT id, version_number, content_hash, hash_algorithm, change_kind, created_at
      FROM project_versions WHERE id = ? AND project_id = ? AND owner_user_id = ?`,
-  ).bind(versionId, projectId, userId).first();
+  )
+    .bind(versionId, projectId, userId)
+    .first();
   return json({ approval: decidedApproval, version, updated_at: decidedAt });
 };

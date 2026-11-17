@@ -139,7 +139,10 @@ export function isNodeGate(
   // 5. Title / ID regex pattern
   const title = (node.title || "").trim();
   const id = (node.id || "").trim();
-  if (/\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(title) || /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(id)) {
+  if (
+    /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(title) ||
+    /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(id)
+  ) {
     return true;
   }
 
@@ -164,7 +167,9 @@ export function getNodeGateLabel(
   if (parentId) {
     const parentNode = allNodes.find((n) => n.id === parentId);
     if (parentNode && parentNode.title?.trim()) {
-      const pMatch = parentNode.title.match(/g(?:ate)?\s*0?([1-9])/i) || parentNode.id.match(/g(?:ate)?\s*0?([1-9])/i);
+      const pMatch =
+        parentNode.title.match(/g(?:ate)?\s*0?([1-9])/i) ||
+        parentNode.id.match(/g(?:ate)?\s*0?([1-9])/i);
       if (pMatch) {
         return `Gate ${pMatch[1]}`;
       }
@@ -174,9 +179,7 @@ export function getNodeGateLabel(
 
   const title = (node.title || "").trim();
   const id = (node.id || "").trim();
-  const match =
-    title.match(/g(?:ate)?\s*0?([1-9])/i) ||
-    id.match(/g(?:ate)?\s*0?([1-9])/i);
+  const match = title.match(/g(?:ate)?\s*0?([1-9])/i) || id.match(/g(?:ate)?\s*0?([1-9])/i);
 
   if (match) {
     return `Gate ${match[1]}`;
@@ -255,7 +258,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   const getLinkedL2Nodes = (l1Node: HighLevelNode): DomainNode[] => {
     const explicitIds = l1Node.linkedLayer2NodeIds ?? l1Node.linkedDetailedNodeIds ?? [];
     if (explicitIds.length > 0) {
-      const orderedIds = orderLinkedWorkflowNodeIds(explicitIds, allNodes, file.graph.edges, layout);
+      const orderedIds = orderLinkedWorkflowNodeIds(
+        explicitIds,
+        allNodes,
+        file.graph.edges,
+        layout,
+      );
       return orderedIds
         .map((id) => allNodes.find((n) => n.id === id))
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
@@ -269,16 +277,28 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         const grandParentId = layout[pId]?.parentId;
         if (grandParentId === l1Node.id) return true;
       }
-      return n.config?.phaseId === l1Node.id || (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title);
+      return (
+        n.config?.phaseId === l1Node.id ||
+        (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title)
+      );
     });
     if (byParent.length > 0) {
-      const orderedIds = orderLinkedWorkflowNodeIds(byParent.map((n) => n.id), allNodes, file.graph.edges, layout);
+      const orderedIds = orderLinkedWorkflowNodeIds(
+        byParent.map((n) => n.id),
+        allNodes,
+        file.graph.edges,
+        layout,
+      );
       return orderedIds
         .map((id) => allNodes.find((n) => n.id === id))
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
     }
 
-    if (l1Node.type === "end" || l1Node.title.toLowerCase().includes("close") || l1Node.title.toLowerCase().includes("commission")) {
+    if (
+      l1Node.type === "end" ||
+      l1Node.title.toLowerCase().includes("close") ||
+      l1Node.title.toLowerCase().includes("commission")
+    ) {
       const closeNodes = allNodes.filter(
         (n) =>
           n.type !== "phase" &&
@@ -297,7 +317,9 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         (n) =>
           n.type !== "phase" &&
           n.type !== "gate" &&
-          (n.type === "projectStart" || n.id === "project-start" || n.title.toLowerCase().includes("start")),
+          (n.type === "projectStart" ||
+            n.id === "project-start" ||
+            n.title.toLowerCase().includes("start")),
       );
       if (startNodes.length > 0) return startNodes;
     }
@@ -321,7 +343,13 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       const count = (n.conditions || []).length + ((n.config?.gateRules as unknown[]) || []).length;
       if (count > maxConds) maxConds = count;
     });
-    const weight = Math.max(1, Math.min(2.5, 0.8 + (maxConds > 10 ? 0.8 : maxConds > 5 ? 0.4 : 0) + (linkedL2.length > 3 ? 0.3 : 0)));
+    const weight = Math.max(
+      1,
+      Math.min(
+        2.5,
+        0.8 + (maxConds > 10 ? 0.8 : maxConds > 5 ? 0.4 : 0) + (linkedL2.length > 3 ? 0.3 : 0),
+      ),
+    );
     return { l1Node, linkedL2, weight };
   });
 
@@ -335,14 +363,20 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
   container.style.visibility = "visible";
   // Keep the same three-column architecture, but reserve enough width for
   // each weighted L3 card to wrap words normally even in dense phases.
-  const weightedSlots = Math.max(0, ...phaseData.map(({ linkedL2 }) =>
-    linkedL2.reduce((sum, node) => {
-      const count = (node.conditions || []).filter((c) => c.label?.trim()).length +
-        (node.config?.gateRules || []).filter((rule) => rule.label?.trim()).length +
-        (node.config?.signatureRequirements || []).filter((signature) => signature.fullName?.trim() || signature.abbreviation?.trim()).length;
-      return sum + (count > 10 ? 2 : 1);
-    }, 0),
-  ));
+  const weightedSlots = Math.max(
+    0,
+    ...phaseData.map(({ linkedL2 }) =>
+      linkedL2.reduce((sum, node) => {
+        const count =
+          (node.conditions || []).filter((c) => c.label?.trim()).length +
+          (node.config?.gateRules || []).filter((rule) => rule.label?.trim()).length +
+          (node.config?.signatureRequirements || []).filter(
+            (signature) => signature.fullName?.trim() || signature.abbreviation?.trim(),
+          ).length;
+        return sum + (count > 10 ? 2 : 1);
+      }, 0),
+    ),
+  );
   const maxSteps = Math.max(0, ...phaseData.map(({ linkedL2 }) => linkedL2.length));
   const canvasWidth = Math.max(1485, 500 + weightedSlots * 220 + maxSteps * 8);
   container.style.width = `${canvasWidth}px`;
@@ -384,9 +418,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       gateBadgesHtml = Array.from(gateGroupMap.values())
         .map((group) => {
           const summaryText =
-            group.titles.length === 1
-              ? group.titles[0]
-              : `${group.titles.length} Gate Milestones`;
+            group.titles.length === 1 ? group.titles[0] : `${group.titles.length} Gate Milestones`;
           return `
             <div style="background: #ffffff; border: 1.5px solid ${GATE_TAG_VISUAL.border}; border-radius: 4px; padding: 3px 6px; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(124,58,237,0.08);">
               <span style="font-size: 9.5px; font-weight: 900; color: ${GATE_TAG_VISUAL.tagText}; background: ${GATE_TAG_VISUAL.tagBg}; padding: 2px 6px; border-radius: 3px; white-space: normal; flex-shrink: 0; line-height: 1;">🚦 ${escapeHtml(group.label)}</span>
@@ -397,7 +429,12 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           `;
         })
         .join("");
-    } else if (l1Node.type === "end" || phaseIdx === orderedL1.length - 1 || l1Node.title.toLowerCase().includes("final") || l1Node.title.toLowerCase().includes("close")) {
+    } else if (
+      l1Node.type === "end" ||
+      phaseIdx === orderedL1.length - 1 ||
+      l1Node.title.toLowerCase().includes("final") ||
+      l1Node.title.toLowerCase().includes("close")
+    ) {
       gateBadgesHtml = `
         <div style="background: rgba(255,255,255,0.85); border: 1px dashed ${theme.border}; border-radius: 4px; padding: 4px 6px; text-align: center; font-size: 9px; color: ${theme.subtext}; font-weight: 800;">
           🏁 Final Milestone (No Gate)
@@ -430,24 +467,46 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         .map((node, nIdx) => {
           const isGate = isNodeGate(node, allNodes, layout);
           const isStart = node.type === "projectStart" || node.id === "project-start";
-          const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+          const isTerminal =
+            node.type === "terminal" ||
+            node.type === "end" ||
+            node.id === "project-complete" ||
+            node.id === "close-out";
           const departmentGradient =
             (node.type === "general" || node.type === "projectStart") &&
             node.config.blendAdjacentPhaseColors === true
               ? chapterPhaseGradientColors(node, allNodes, layout, highLevelNodes)
               : undefined;
           const stageName =
-            (node.type === "general" || node.type === "projectStart") && typeof node.config.stage === "string"
-              ? node.config.stage.trim().replace(/^(?:department|chapter)\s*/i, "").replace(/\s+department$/i, "")
+            (node.type === "general" || node.type === "projectStart") &&
+            typeof node.config.stage === "string"
+              ? node.config.stage
+                  .trim()
+                  .replace(/^(?:department|chapter)\s*/i, "")
+                  .replace(/\s+department$/i, "")
               : "";
           const departmentLabel = stageName ? `${stageName} Department` : "";
 
           const subtitle =
             node.description?.trim() ||
-            (typeof node.config?.stage === "string" && node.config.stage.trim() && chapterLabel(node.config.stage)) ||
-            (isGate ? "Phase Completion Gate & Signoff" : isStart ? "Project Record Entry" : isTerminal ? "Completion Sign-off" : "Workflow Execution Step");
+            (typeof node.config?.stage === "string" &&
+              node.config.stage.trim() &&
+              chapterLabel(node.config.stage)) ||
+            (isGate
+              ? "Phase Completion Gate & Signoff"
+              : isStart
+                ? "Project Record Entry"
+                : isTerminal
+                  ? "Completion Sign-off"
+                  : "Workflow Execution Step");
 
-          const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : isStart ? "Start" : isTerminal ? "Complete" : "Step";
+          const gateLabel = isGate
+            ? getNodeGateLabel(node, allNodes, layout)
+            : isStart
+              ? "Start"
+              : isTerminal
+                ? "Complete"
+                : "Step";
 
           const departmentBorder = departmentGradient
             ? `color-mix(in srgb, ${departmentGradient.left} 50%, ${departmentGradient.right})`
@@ -495,13 +554,19 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     } else {
       const subCards = linkedL2.map((node, nIdx) => {
         const isGate = isNodeGate(node, allNodes, layout);
-        const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+        const isTerminal =
+          node.type === "terminal" ||
+          node.type === "end" ||
+          node.id === "project-complete" ||
+          node.id === "close-out";
         const isStart = node.type === "projectStart" || node.id === "project-start";
         const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
 
         // 1. Dynamically collect all conditions attached to this node
         const conditions: Array<{ label: string; checked: boolean }> = [];
-        const projectStartNode = allNodes.find((n) => n.type === "projectStart" || n.id === "project-start");
+        const projectStartNode = allNodes.find(
+          (n) => n.type === "projectStart" || n.id === "project-start",
+        );
         const operations = file.operations;
 
         if (node.conditions && node.conditions.length > 0) {
@@ -535,7 +600,10 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         }
 
         // Signature requirements from node config
-        if (node.config?.signatureRequirements && Array.isArray(node.config.signatureRequirements)) {
+        if (
+          node.config?.signatureRequirements &&
+          Array.isArray(node.config.signatureRequirements)
+        ) {
           node.config.signatureRequirements.forEach((sr) => {
             if (sr.fullName?.trim() || sr.abbreviation?.trim()) {
               conditions.push({
@@ -640,9 +708,27 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
         const flexGrow = condCount > 10 ? 2 : 1;
 
         // Tag: Purple ONLY when it is a Gate; otherwise Phase theme
-        const badgeLabel = isGate ? `🚦 ${gateLabel}` : isTerminal ? "🏁 Complete" : isStart ? "Start" : `${condCount} cond`;
-        const badgeColor = isGate ? GATE_TAG_VISUAL.tagText : isTerminal ? "#15803d" : isStart ? "#0369a1" : theme.text;
-        const badgeBg = isGate ? GATE_TAG_VISUAL.tagBg : isTerminal ? "#dcfce7" : isStart ? "#e0f2fe" : theme.tagBg;
+        const badgeLabel = isGate
+          ? `🚦 ${gateLabel}`
+          : isTerminal
+            ? "🏁 Complete"
+            : isStart
+              ? "Start"
+              : `${condCount} cond`;
+        const badgeColor = isGate
+          ? GATE_TAG_VISUAL.tagText
+          : isTerminal
+            ? "#15803d"
+            : isStart
+              ? "#0369a1"
+              : theme.text;
+        const badgeBg = isGate
+          ? GATE_TAG_VISUAL.tagBg
+          : isTerminal
+            ? "#dcfce7"
+            : isStart
+              ? "#e0f2fe"
+              : theme.tagBg;
         const badgeBorder = isGate ? GATE_TAG_VISUAL.border : theme.border;
 
         return `
@@ -810,16 +896,27 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     });
 
     // Preserve the original architecture while fitting its content.
-    pdf.addImage(dataUrl, "PNG", 0, 0, canvasWidth / 5, container.offsetHeight / 5, undefined, "FAST");
+    pdf.addImage(
+      dataUrl,
+      "PNG",
+      0,
+      0,
+      canvasWidth / 5,
+      container.offsetHeight / 5,
+      undefined,
+      "FAST",
+    );
     // Keep the overview compact while preserving every release condition in
     // its L1/L2 order on readable continuation pages.
     const conditionRows = phaseData.flatMap(({ l1Node, linkedL2 }) =>
-      linkedL2.flatMap((node) => (node.conditions || [])
-        .filter((condition) => Boolean(condition.label || condition.description))
-        .map((condition, index) => ({
-          heading: `${l1Node.title} / ${node.title} / ${index + 1}`,
-          text: `${conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}${condition.label || condition.description || ""}`,
-        }))),
+      linkedL2.flatMap((node) =>
+        (node.conditions || [])
+          .filter((condition) => Boolean(condition.label || condition.description))
+          .map((condition, index) => ({
+            heading: `${l1Node.title} / ${node.title} / ${index + 1}`,
+            text: `${conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}${condition.label || condition.description || ""}`,
+          })),
+      ),
     );
     if (conditionRows.length) {
       pdf.addPage("a4", "landscape");

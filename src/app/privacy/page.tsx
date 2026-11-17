@@ -18,21 +18,21 @@ export default function PrivacyPage() {
         </header>
 
         <p>
-          This policy explains how Aaron Yang handles information in Falcon Process Building
-          System, including its website and Microsoft Store app. The app helps users build
-          project workflows, manage release conditions, save project records, and export them.
+          This policy explains how Aaron Yang handles information in Falcon Process Building System,
+          including its website and Microsoft Store app. The app helps users build project
+          workflows, manage release conditions, save project records, and export them.
         </p>
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">Information we handle</h2>
           <p>
-            If you create an account, we receive your name, email address, and password. We
-            store a password hash and salt rather than the plain text password. We also handle
-            sign-in session data, workflows and project records you save, and files you choose
-            to upload. Project content may include customer or other personal information that
-            you enter. The app also stores some workflow and file information locally in your
-            browser. Hosting providers may process technical information such as IP address and
-            request logs when you use the service.
+            If you create an account, we receive your name, email address, and password. We store a
+            password hash and salt rather than the plain text password. We also handle sign-in
+            session data, workflows and project records you save, and files you choose to upload.
+            Project content may include customer or other personal information that you enter. The
+            app also stores some workflow and file information locally in your browser. Hosting
+            providers may process technical information such as IP address and request logs when you
+            use the service.
           </p>
         </section>
 
@@ -42,8 +42,8 @@ export default function PrivacyPage() {
             For security, auditing, and support, we keep a log of how the service is used. It
             records each sign-in attempt (the email address entered and whether it succeeded),
             requests to our servers, the pages you visit, the buttons and menu items you use, which
-            fields you change, summaries of project edits, exports, errors, and how long you use
-            the app, each with a time stamp. Each entry includes your IP address and the approximate
+            fields you change, summaries of project edits, exports, errors, and how long you use the
+            app, each with a time stamp. Each entry includes your IP address and the approximate
             location and network derived from it (country, region, city, coordinates, and internet
             provider), and your device type, operating system, browser, screen size, language, and
             time zone. The log never contains your password, the text you type into fields, or the
@@ -56,9 +56,9 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold">How we use information</h2>
           <p>
             We use this information to sign you in, save and retrieve your work, support file
-            uploads and exports, provide customer search features, maintain the service, and
-            respond to support requests. Customer searches may also query the Falcon customer
-            management service at customer-management-system.pages.dev.
+            uploads and exports, provide customer search features, maintain the service, and respond
+            to support requests. Customer searches may also query the Falcon customer management
+            service at customer-management-system.pages.dev.
           </p>
         </section>
 
@@ -66,27 +66,27 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold">Storage and sharing</h2>
           <p>
             The service runs on Cloudflare infrastructure, including database and file storage
-            services. We share information with service providers only as needed to operate the
-            app or when required by law. If you use a collaboration link, your workflow content
-            and collaborator display information can be shared with other people who join that
-            room through a peer-to-peer connection. Connection services may process technical
-            connection information needed to establish that connection. We do not sell personal
-            information. A session cookie is used for sign-in; local browser storage keeps some
-            app data and preferences on your device.
+            services. We share information with service providers only as needed to operate the app
+            or when required by law. If you use a collaboration link, your workflow content and
+            collaborator display information can be shared with other people who join that room
+            through a peer-to-peer connection. Connection services may process technical connection
+            information needed to establish that connection. We do not sell personal information. A
+            session cookie is used for sign-in; local browser storage keeps some app data and
+            preferences on your device.
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">Your choices and retention</h2>
           <p>
-            You can delete cloud projects and uploaded files using the app’s available controls.
-            You can permanently delete your account from Account settings after confirming your
-            password. This also deletes your cloud projects, project history, uploaded files,
-            and sign-in sessions; the activity and security log described above is kept. You can clear other local app data through your browser or
-            device settings. For access, correction, or help with account deletion, email us
-            at the address below. We
-            keep information while it is needed to provide the service and may retain it longer
-            where required for security, legal, or operational reasons.
+            You can delete cloud projects and uploaded files using the app’s available controls. You
+            can permanently delete your account from Account settings after confirming your
+            password. This also deletes your cloud projects, project history, uploaded files, and
+            sign-in sessions; the activity and security log described above is kept. You can clear
+            other local app data through your browser or device settings. For access, correction, or
+            help with account deletion, email us at the address below. We keep information while it
+            is needed to provide the service and may retain it longer where required for security,
+            legal, or operational reasons.
           </p>
         </section>
 

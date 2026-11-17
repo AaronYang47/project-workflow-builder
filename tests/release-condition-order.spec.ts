@@ -32,9 +32,7 @@ test("Release Conditions board follows the linked L1 chapter order", () => {
   ];
   file.highLevel!.graph.edges = [{ id: "start-phase", source: "l1-start", target: "l1-phase" }];
 
-  expect(orderReleaseConditionChapters([first, second, unlinked], file).map((chapter) => chapter.id)).toEqual([
-    second.id,
-    first.id,
-    unlinked.id,
-  ]);
+  expect(
+    orderReleaseConditionChapters([first, second, unlinked], file).map((chapter) => chapter.id),
+  ).toEqual([second.id, first.id, unlinked.id]);
 });

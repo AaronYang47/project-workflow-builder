@@ -1,6 +1,23 @@
-import { type ReleaseConditionImportResult, type ReleaseConditionImportRow } from "@/lib/release-condition-import";
+import {
+  type ReleaseConditionImportResult,
+  type ReleaseConditionImportRow,
+} from "@/lib/release-condition-import";
 import type { ApprovalRole, ProjectOperations } from "@/types/project-operations";
-import type { DomainEdge, Condition, DomainNode, ExecutionItem, ExecutionItemType, HighLevelEdge, HighLevelNode, HighLevelNodeLayout, HighLevelNodeType, NodeLayout, ValidationIssue, WorkflowFile, WorkflowNodeType } from "@/types/workflow";
+import type {
+  DomainEdge,
+  Condition,
+  DomainNode,
+  ExecutionItem,
+  ExecutionItemType,
+  HighLevelEdge,
+  HighLevelNode,
+  HighLevelNodeLayout,
+  HighLevelNodeType,
+  NodeLayout,
+  ValidationIssue,
+  WorkflowFile,
+  WorkflowNodeType,
+} from "@/types/workflow";
 import type { StoreApi } from "zustand";
 
 export type ConfirmClearNotice = {
@@ -72,35 +89,32 @@ export interface WorkflowState {
     },
     childIds: string[],
   ) => string;
-  addGateUnderNode: (
-    gateProps: {
-      x: number;
-      y: number;
-      width?: number;
-      height?: number;
-      title?: string;
-      color?: string;
-      stage?: string;
-    },
-  ) => string;
+  addGateUnderNode: (gateProps: {
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    title?: string;
+    color?: string;
+    stage?: string;
+  }) => string;
   toggleNodeInPhase: (phaseId: string, nodeId: string) => void;
   fitPhaseToChildren: (phaseId: string) => void;
   updateNode: (id: string, patch: Partial<DomainNode>) => void;
-  deleteNodeCondition: (
-    nodeId: string,
-    conditionId?: string,
-    conditionIndex?: number,
-  ) => void;
+  deleteNodeCondition: (nodeId: string, conditionId?: string, conditionIndex?: number) => void;
   addReleaseConditionLines: (input: string) => number;
   ensureReleaseConditionIds: () => void;
   importReleaseConditions: (rows: ReleaseConditionImportRow[]) => ReleaseConditionImportResult;
   setReleaseConditionInbox: (conditions: Condition[]) => void;
-  moveNodeCondition: (sourceNodeId: string, sourceIndex: number, targetNodeId: string, targetIndex: number) => void;
+  moveNodeCondition: (
+    sourceNodeId: string,
+    sourceIndex: number,
+    targetNodeId: string,
+    targetIndex: number,
+  ) => void;
   deleteNodes: (ids: string[]) => void;
   deleteSelected: () => void;
-  showActionBlocked: (
-    notice: NonNullable<WorkflowState["deleteBlocked"]>,
-  ) => void;
+  showActionBlocked: (notice: NonNullable<WorkflowState["deleteBlocked"]>) => void;
   dismissDeleteBlocked: () => void;
   showConfirmClear: (notice: ConfirmClearNotice) => void;
   dismissConfirmClear: () => void;
@@ -151,10 +165,7 @@ export interface WorkflowState {
   ) => void;
   autoArrangeHighLevel: () => void;
   validateHighLevel: () => void;
-  addExecutionItem: (
-    linkedLayer2NodeId: string,
-    type?: ExecutionItemType,
-  ) => string;
+  addExecutionItem: (linkedLayer2NodeId: string, type?: ExecutionItemType) => string;
   updateExecutionItem: (id: string, patch: Partial<ExecutionItem>) => void;
   deleteExecutionItem: (id: string) => void;
   updateOperations: (

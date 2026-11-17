@@ -7,18 +7,16 @@ import { clone } from "@/lib/clone";
 import { buildProjectId, currentYearSuffix } from "@/lib/project-id";
 import { normalizeProjectOperations } from "@/lib/project-operations";
 
-export const createProjectWorkflow = (
-  name: string,
-  projectNumber = "",
-): WorkflowFile => {
+export const createProjectWorkflow = (name: string, projectNumber = ""): WorkflowFile => {
   const now = new Date().toISOString();
   const digits = projectNumber.replace(/\D/g, "");
   const yy = currentYearSuffix();
-  const projectId = digits.length === 5
-    ? buildProjectId(digits.slice(2), "L", digits.slice(0, 2))
-    : digits.length === 3
-      ? buildProjectId(digits, "L", yy)
-      : "";
+  const projectId =
+    digits.length === 5
+      ? buildProjectId(digits.slice(2), "L", digits.slice(0, 2))
+      : digits.length === 3
+        ? buildProjectId(digits, "L", yy)
+        : "";
   return {
     graph: {
       schemaVersion: 1,
@@ -79,10 +77,7 @@ export const createEmptyWorkspace = (): WorkflowFile => {
   };
 };
 
-export const duplicateWorkflowFile = (
-  file: WorkflowFile,
-  name: string,
-): WorkflowFile => {
+export const duplicateWorkflowFile = (file: WorkflowFile, name: string): WorkflowFile => {
   const copy = clone(file);
   const now = new Date().toISOString();
   copy.graph.metadata = {

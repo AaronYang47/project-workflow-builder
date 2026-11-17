@@ -30,7 +30,10 @@ export async function captureToPng(
     });
   }) as typeof window.getComputedStyle;
   try {
-    return await toPng(node, { ...exportImageOptions(width, height, preferredPixelRatio), ...rest });
+    return await toPng(node, {
+      ...exportImageOptions(width, height, preferredPixelRatio),
+      ...rest,
+    });
   } finally {
     window.getComputedStyle = original;
   }

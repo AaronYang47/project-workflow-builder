@@ -24,14 +24,14 @@ export function useProjectIdDraft({
   ) => void;
 }) {
   const isProjectStart = node.type === "projectStart";
-  const projectStartProjectId = String(
-    projectStartNode?.customFields.projectId || "",
-  );
+  const projectStartProjectId = String(projectStartNode?.customFields.projectId || "");
 
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const initialProjectId = isProjectStart
     ? legacyJobNumberFromProjectId(String(node.customFields.projectId || "")) ||
-      String(node.customFields.legacyJobNumber || node.customFields.projectNumber || "").replace(/\D/g, "").slice(0, 5)
+      String(node.customFields.legacyJobNumber || node.customFields.projectNumber || "")
+        .replace(/\D/g, "")
+        .slice(0, 5)
     : "";
 
   const [projectIdDraft, setProjectIdDraft] = useState(initialProjectId);
@@ -47,29 +47,26 @@ export function useProjectIdDraft({
     ? /^\d{5}$/.test(projectIdDraft)
     : Boolean(projectStartProjectId);
 
-  const projectIdError =
-    isProjectStart && projectIdDraft.trim().length > 0 && !projectIdValid;
+  const projectIdError = isProjectStart && projectIdDraft.trim().length > 0 && !projectIdValid;
 
   const legacyJobNumber = isProjectStart
     ? projectIdDraft
     : legacyJobNumberFromProjectId(projectStartProjectId);
 
-  const writeCustomFields = (
-    patch: Record<string, string | number | boolean>,
-  ) => {
+  const writeCustomFields = (patch: Record<string, string | number | boolean>) => {
     const nextPatch =
       isProjectStart && "projectId" in patch
         ? {
             ...patch,
-            legacyJobNumber: legacyJobNumberFromProjectId(
-              String(patch.projectId || ""),
-            ),
+            legacyJobNumber: legacyJobNumberFromProjectId(String(patch.projectId || "")),
           }
         : patch;
 
     commitTransient((file) => {
-      const nextNumber = isProjectStart && "projectId" in patch
-        ? legacyJobNumberFromProjectId(String(patch.projectId || "")) : "";
+      const nextNumber =
+        isProjectStart && "projectId" in patch
+          ? legacyJobNumberFromProjectId(String(patch.projectId || ""))
+          : "";
       const name = file.graph.metadata.name;
       return {
         ...file,

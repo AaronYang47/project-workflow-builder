@@ -55,15 +55,23 @@ export function legacyJobNumberFromProjectId(projectId: string): string {
   return `${match[1]}${match[2]}`;
 }
 
-export function syncProjectNameIdentity(name: string, number?: string, companyCode?: string): string {
+export function syncProjectNameIdentity(
+  name: string,
+  number?: string,
+  companyCode?: string,
+): string {
   const match = name.match(/^(\d{5})([_ -])([A-Za-z]{4})(?=[_ -]|$)/);
   if (!match) {
     // Projects created before a job number exists still use the normal name
     // once the number is assigned later.
     return number && /^\d{5}$/.test(number) && /^[A-Za-z]{4}(?=[_ -]|$)/.test(name)
-      ? `${number} ${name}` : name;
+      ? `${number} ${name}`
+      : name;
   }
-  return name.replace(match[0], `${number && /^\d{5}$/.test(number) ? number : match[1]}${match[2]}${companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : match[3]}`);
+  return name.replace(
+    match[0],
+    `${number && /^\d{5}$/.test(number) ? number : match[1]}${match[2]}${companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : match[3]}`,
+  );
 }
 
 /** Five-digit Legacy number stored as the cloud `project_number`. Follows Project ID. */
@@ -71,16 +79,13 @@ export function workflowLegacyJobNumber(file: WorkflowFile): string {
   const start = file.graph.nodes.find((node) => node.type === "projectStart");
   const projectId = String(start?.customFields.projectId || "");
   return (
-    legacyJobNumberFromProjectId(projectId) ||
-    String(start?.customFields.legacyJobNumber || "")
+    legacyJobNumberFromProjectId(projectId) || String(start?.customFields.legacyJobNumber || "")
   );
 }
 
 export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
   if (node.type !== "projectStart") return node;
-  const legacyJobNumber = legacyJobNumberFromProjectId(
-    String(node.customFields.projectId || ""),
-  );
+  const legacyJobNumber = legacyJobNumberFromProjectId(String(node.customFields.projectId || ""));
   if (String(node.customFields.legacyJobNumber || "") === legacyJobNumber) {
     return node;
   }
@@ -92,17 +97,10 @@ export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
 
 export function projectIdPrefix(projectId: string): ProjectIdPrefix | null {
   if (!projectId) return null;
-  return projectId.startsWith("L-")
-    ? "L"
-    : projectId.startsWith("P-")
-      ? "P"
-      : null;
+  return projectId.startsWith("L-") ? "L" : projectId.startsWith("P-") ? "P" : null;
 }
 
-export function projectIdForDisplay(
-  projectId: string,
-  serviceType: string,
-): string {
+export function projectIdForDisplay(projectId: string, serviceType: string): string {
   const match = projectId.match(/^([LP])-(\d{2})-(\d{3})$/);
   if (!match) return projectId;
   const desired = serviceType === "Paid Service" ? "P" : "L";
@@ -110,10 +108,7 @@ export function projectIdForDisplay(
   return `${desired}-${match[2]}-${match[3]}`;
 }
 
-export function swapProjectIdPrefix(
-  projectId: string,
-  nextPrefix: ProjectIdPrefix,
-): string {
+export function swapProjectIdPrefix(projectId: string, nextPrefix: ProjectIdPrefix): string {
   const tail = projectId.replace(/^[LP]-/, "");
   return `${nextPrefix}-${tail}`;
 }
@@ -139,10 +134,7 @@ export function normalizeProjectId(input: string): string {
 // gate badge shows P-YY-XXX for paid work and L-YY-XXX for legacy work.
 // Inputs that don't yet match the canonical pattern pass through untouched
 // so partial edits (e.g. just "L-26") don't get clobbered mid-typing.
-export const normalizeProjectIdInput = (
-  value: string,
-  serviceType: string,
-): string => {
+export const normalizeProjectIdInput = (value: string, serviceType: string): string => {
   if (!value) return value;
   const match = value.match(/^([LP])-(\d{2})-(\d{3})$/);
   if (!match) return value;
@@ -154,10 +146,7 @@ export const normalizeProjectIdInput = (
 // A complete building (B-XX) or module (M-XXX) code implicitly means this is
 // a Paid Service engagement, so we auto-promote the project. Anything shorter
 // is treated as a partial edit and left alone.
-export const shouldAutoPromoteToPaid = (
-  fieldKey: string,
-  value: string,
-): boolean => {
+export const shouldAutoPromoteToPaid = (fieldKey: string, value: string): boolean => {
   if (!value) return false;
   if (fieldKey === "config.buildingCode") return BUILDING_PATTERN.test(value);
   if (fieldKey === "config.moduleCode") return MODULE_PATTERN.test(value);
@@ -174,15 +163,11 @@ export const PAID_CONDITION_MODULE_ID = "paid-module-required";
 // requirements on a project-start node's `conditions` list. Used in lockstep
 // with `promoteToPaidService` so flipping serviceType also updates the gate's
 // required conditions.
-export const syncPaidConditions = (
-  node: DomainNode,
-  paid: boolean,
-): DomainNode["conditions"] => {
+export const syncPaidConditions = (node: DomainNode, paid: boolean): DomainNode["conditions"] => {
   const conditions = node.conditions || [];
   const withoutPaid = conditions.filter(
     (condition) =>
-      condition.id !== PAID_CONDITION_BUILDING_ID &&
-      condition.id !== PAID_CONDITION_MODULE_ID,
+      condition.id !== PAID_CONDITION_BUILDING_ID && condition.id !== PAID_CONDITION_MODULE_ID,
   );
   if (!paid) return withoutPaid;
   return [
@@ -207,10 +192,7 @@ export const syncPaidConditions = (
 // the patch through the store.
 export const promoteToPaidService = (node: DomainNode): DomainNode => {
   const currentProjectId = String(node.customFields?.projectId || "");
-  const desiredProjectId = normalizeProjectIdInput(
-    currentProjectId,
-    "Paid Service",
-  );
+  const desiredProjectId = normalizeProjectIdInput(currentProjectId, "Paid Service");
   return {
     ...node,
     config: { ...node.config, serviceType: "Paid Service" },
@@ -227,10 +209,7 @@ export const promoteToPaidService = (node: DomainNode): DomainNode => {
 // doesn't stay on P-YY-XXX when the conditions no longer require it.
 export const demoteToStandardService = (node: DomainNode): DomainNode => {
   const currentProjectId = String(node.customFields?.projectId || "");
-  const desiredProjectId = normalizeProjectIdInput(
-    currentProjectId,
-    "Standard",
-  );
+  const desiredProjectId = normalizeProjectIdInput(currentProjectId, "Standard");
   return {
     ...node,
     config: { ...node.config, serviceType: "Standard" },
@@ -273,8 +252,6 @@ export function projectNodeUuid(
   return String(
     isProjectStart
       ? node.customFields?.nodeUuid || ""
-      : projectStartNode?.customFields?.nodeUuid ||
-        node.customFields?.nodeUuid ||
-        "",
+      : projectStartNode?.customFields?.nodeUuid || node.customFields?.nodeUuid || "",
   );
 }

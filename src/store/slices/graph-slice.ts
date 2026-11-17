@@ -4,10 +4,25 @@ import { clone } from "@/lib/clone";
 import { createDomainNode } from "@/lib/create-domain-node";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
-import { addOrReplaceEdge, applyLayoutDrag, clearEdgeRoute, deleteNodesFromFile, duplicateNodes, groupNodesIntoPhase, insertNode, occupiedPhaseNotices, patchNode, wouldRemoveLastProjectStart } from "@/lib/workflow-graph";
+import {
+  addOrReplaceEdge,
+  applyLayoutDrag,
+  clearEdgeRoute,
+  deleteNodesFromFile,
+  duplicateNodes,
+  groupNodesIntoPhase,
+  insertNode,
+  occupiedPhaseNotices,
+  patchNode,
+  wouldRemoveLastProjectStart,
+} from "@/lib/workflow-graph";
 import { appendHistory } from "@/store/workflow-persist";
 import type { NodeLayout, WorkflowFile } from "@/types/workflow";
-import { broadcastIfLocal, textEditKey, findAvailableNodePosition } from "@/store/workflow-store-helpers";
+import {
+  broadcastIfLocal,
+  textEditKey,
+  findAvailableNodePosition,
+} from "@/store/workflow-store-helpers";
 import type { StoreGet, StoreSet, WorkflowState } from "@/store/workflow-store-types";
 
 // Consecutive keystrokes in one text field merge into a single undo step.
@@ -81,9 +96,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         return "";
       }
       if (type === "projectStart") {
-        const existing = get().file.graph.nodes.find(
-          (node) => node.type === "projectStart",
-        );
+        const existing = get().file.graph.nodes.find((node) => node.type === "projectStart");
         if (existing) {
           set({
             selection: { nodeIds: [existing.id] },
@@ -158,8 +171,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
 
         if (nextFile.highLevel) {
           const matchedL1 = nextFile.highLevel.graph.nodes.find(
-            (hl) =>
-              hl.title.trim().toLowerCase() === phaseProps.title.trim().toLowerCase(),
+            (hl) => hl.title.trim().toLowerCase() === phaseProps.title.trim().toLowerCase(),
           );
           if (matchedL1) {
             matchedL1.linkedLayer2NodeIds = Array.from(
@@ -281,7 +293,8 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
 
         const members = Object.values(nextFile.layout.nodes).filter((l) => {
           if (l.parentId === targetContainerId) return true;
-          if (l.parentId && nextFile.layout.nodes[l.parentId]?.parentId === targetContainerId) return true;
+          if (l.parentId && nextFile.layout.nodes[l.parentId]?.parentId === targetContainerId)
+            return true;
           return false;
         });
         if (members.length === 0) return;
@@ -301,8 +314,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
             const domain = nodeMap.get(m.nodeId);
             if (domain?.type === "gate" && nextFile.layout.nodes[m.nodeId]) {
               return (
-                nextFile.layout.nodes[m.nodeId].x +
-                (nextFile.layout.nodes[m.nodeId].width || 340)
+                nextFile.layout.nodes[m.nodeId].x + (nextFile.layout.nodes[m.nodeId].width || 340)
               );
             }
             const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
@@ -359,13 +371,11 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
       const phaseLayout = file.layout.nodes[phaseId];
       if (!phaseLayout) return;
 
-      const memberNodes = Object.values(file.layout.nodes).filter(
-        (l) => {
-          if (l.parentId === phaseId) return true;
-          if (l.parentId && file.layout.nodes[l.parentId]?.parentId === phaseId) return true;
-          return false;
-        },
-      );
+      const memberNodes = Object.values(file.layout.nodes).filter((l) => {
+        if (l.parentId === phaseId) return true;
+        if (l.parentId && file.layout.nodes[l.parentId]?.parentId === phaseId) return true;
+        return false;
+      });
       if (memberNodes.length === 0) return;
 
       const nodeMap = new Map(file.graph.nodes.map((n) => [n.id, n]));
@@ -382,10 +392,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         ...memberNodes.map((m) => {
           const domain = nodeMap.get(m.nodeId);
           if (domain?.type === "gate" && file.layout.nodes[m.nodeId]) {
-            return (
-              file.layout.nodes[m.nodeId].x +
-              (file.layout.nodes[m.nodeId].width || 340)
-            );
+            return file.layout.nodes[m.nodeId].x + (file.layout.nodes[m.nodeId].width || 340);
           }
           const w = m.width || (domain ? getAdaptiveNodeSize(domain, m).width : 280);
           return m.x + w;
@@ -397,8 +404,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
           const domain = nodeMap.get(m.nodeId);
           if (domain?.type === "gate" && file.layout.nodes[m.nodeId]) {
             return (
-              (file.layout.nodes[m.nodeId].y ?? m.y) +
-              (file.layout.nodes[m.nodeId].height || 360)
+              (file.layout.nodes[m.nodeId].y ?? m.y) + (file.layout.nodes[m.nodeId].height || 360)
             );
           }
           const h = m.height || (domain ? getAdaptiveNodeSize(domain, m).height : 360);
@@ -406,11 +412,8 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         }),
       );
 
-      const containsGate = memberNodes.some(
-        (m) => nodeMap.get(m.nodeId)?.type === "gate",
-      );
-      const isPhase =
-        file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
+      const containsGate = memberNodes.some((m) => nodeMap.get(m.nodeId)?.type === "gate");
+      const isPhase = file.graph.nodes.find((n) => n.id === phaseId)?.type === "phase";
       const PAD_X = isPhase ? 36 : 24;
       const PAD_TOP = isPhase ? (containsGate ? 360 : 180) : 200;
       const phaseY = minY - PAD_TOP;
@@ -436,11 +439,16 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
     updateNode: (id, patch) => {
       const currentFile = get().file;
       const currentNode = currentFile.graph.nodes.find((item) => item.id === id);
-      const completing = patch.conditions?.some((condition) => condition.checked &&
-        !currentNode?.conditions.find((item) => item.id === condition.id)?.checked);
+      const completing = patch.conditions?.some(
+        (condition) =>
+          condition.checked &&
+          !currentNode?.conditions.find((item) => item.id === condition.id)?.checked,
+      );
       const blocker = completing && sequentialExecutionBlocker(currentFile, id);
       if (blocker) {
-        set({ deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] } });
+        set({
+          deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] },
+        });
         return;
       }
       set((state) => {
@@ -448,10 +456,20 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         if (!node) return state;
         const key = textEditKey(node, patch);
         const now = Date.now();
-        const group = Boolean(key && lastTextEdit?.key === key && lastTextEdit.file === state.file && now - lastTextEdit.at < 1200);
+        const group = Boolean(
+          key &&
+          lastTextEdit?.key === key &&
+          lastTextEdit.file === state.file &&
+          now - lastTextEdit.at < 1200,
+        );
         const file = patchNode(state.file, id, patch);
         lastTextEdit = key ? { key, at: now, file } : undefined;
-        return { file, past: group ? state.past : appendHistory(state.past, state.file), future: [], dirty: true };
+        return {
+          file,
+          past: group ? state.past : appendHistory(state.past, state.file),
+          future: [],
+          dirty: true,
+        };
       });
       broadcastIfLocal((senderId) => ({
         type: "PATCH_NODE",
@@ -516,10 +534,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
       set({ selection: { nodeIds: [] } });
     },
     addEdge: (edge) => {
-      if (
-        get().file.graph.nodes.find((node) => node.id === edge.target)?.type ===
-        "projectStart"
-      ) {
+      if (get().file.graph.nodes.find((node) => node.id === edge.target)?.type === "projectStart") {
         set({
           deleteBlocked: {
             title: "Invalid connection",
@@ -548,9 +563,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
           ...file,
           graph: {
             ...file.graph,
-            edges: file.graph.edges.map((edge) =>
-              edge.id === id ? { ...edge, ...patch } : edge,
-            ),
+            edges: file.graph.edges.map((edge) => (edge.id === id ? { ...edge, ...patch } : edge)),
           },
         };
         return reconnects ? clearEdgeRoute(next, id) : next;
@@ -565,9 +578,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
     },
     duplicateSelected: () => {
       const ids = get().selection.nodeIds.filter(
-        (id) =>
-          get().file.graph.nodes.find((node) => node.id === id)?.type !==
-          "projectStart",
+        (id) => get().file.graph.nodes.find((node) => node.id === id)?.type !== "projectStart",
       );
       if (!ids.length) return;
       let created: string[] = [];
@@ -633,10 +644,19 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
                 layout: {
                   ...state.file.layout,
                   nodes,
-                  edges: positionChanged ? Object.fromEntries(Object.entries(state.file.layout.edges ?? {}).map(([id, route]) => {
-                    const edge = state.file.graph.edges.find((item) => item.id === id);
-                    return [id, edge && (movedIds.has(edge.source) || movedIds.has(edge.target)) ? { ...route, points: [] } : route];
-                  })) : state.file.layout.edges,
+                  edges: positionChanged
+                    ? Object.fromEntries(
+                        Object.entries(state.file.layout.edges ?? {}).map(([id, route]) => {
+                          const edge = state.file.graph.edges.find((item) => item.id === id);
+                          return [
+                            id,
+                            edge && (movedIds.has(edge.source) || movedIds.has(edge.target))
+                              ? { ...route, points: [] }
+                              : route,
+                          ];
+                        }),
+                      )
+                    : state.file.layout.edges,
                 },
               },
             }

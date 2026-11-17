@@ -20,5 +20,17 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body className={industrial.variable}><ThemeProvider attribute="class" defaultTheme="dark">{children}<CollaborationPageFollow /><RemoteReleaseConditionDrag /></ThemeProvider><PwaServiceWorker /><ActivityTracker /></body></html>;
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={industrial.variable}>
+        <ThemeProvider attribute="class" defaultTheme="dark">
+          {children}
+          <CollaborationPageFollow />
+          <RemoteReleaseConditionDrag />
+        </ThemeProvider>
+        <PwaServiceWorker />
+        <ActivityTracker />
+      </body>
+    </html>
+  );
 }

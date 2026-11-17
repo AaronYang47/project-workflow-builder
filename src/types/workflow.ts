@@ -52,9 +52,7 @@ export const LEGACY_REFERENCE_NODE_TYPES = [
   "businessRules",
 ] as const satisfies readonly WorkflowNodeType[];
 
-export const isReferenceNodeType = (
-  type: WorkflowNodeType,
-): type is ReferenceNodeType =>
+export const isReferenceNodeType = (type: WorkflowNodeType): type is ReferenceNodeType =>
   (REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(type);
 
 export const EDGE_TYPES = [
@@ -264,7 +262,6 @@ export interface ExecutionFormOverrides {
   removedFieldIds?: string[];
 }
 
-
 export interface ComponentNotePost {
   id: string;
   topic: string;
@@ -332,12 +329,7 @@ export interface CanvasLayout {
   gridSize: number;
 }
 
-export const HIGH_LEVEL_NODE_TYPES = [
-  "start",
-  "phase",
-  "primaryGate",
-  "end",
-] as const;
+export const HIGH_LEVEL_NODE_TYPES = ["start", "phase", "primaryGate", "end"] as const;
 export type HighLevelNodeType = (typeof HIGH_LEVEL_NODE_TYPES)[number];
 
 export interface HighLevelNode {
@@ -416,16 +408,10 @@ export const EXECUTION_SIGNATURE_STATUSES = [
   "Signed",
   "Rejected",
 ] as const;
-export type ExecutionSignatureStatus =
-  (typeof EXECUTION_SIGNATURE_STATUSES)[number];
+export type ExecutionSignatureStatus = (typeof EXECUTION_SIGNATURE_STATUSES)[number];
 
-export const EXECUTION_APPROVAL_STATUSES = [
-  "Pending",
-  "Approved",
-  "Rejected",
-] as const;
-export type ExecutionApprovalStatus =
-  (typeof EXECUTION_APPROVAL_STATUSES)[number];
+export const EXECUTION_APPROVAL_STATUSES = ["Pending", "Approved", "Rejected"] as const;
+export type ExecutionApprovalStatus = (typeof EXECUTION_APPROVAL_STATUSES)[number];
 
 export const EXECUTION_TASK_STATUSES = [
   "Not Started",
@@ -443,8 +429,7 @@ export const EXECUTION_APPLICABILITY = [
   "Supporting",
   "Not Applicable",
 ] as const;
-export type ExecutionApplicability =
-  (typeof EXECUTION_APPLICABILITY)[number];
+export type ExecutionApplicability = (typeof EXECUTION_APPLICABILITY)[number];
 
 export const EXECUTION_APPLICABILITY_DETERMINATIONS = [
   "Pending",

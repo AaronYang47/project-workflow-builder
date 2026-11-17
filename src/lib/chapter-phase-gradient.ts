@@ -32,9 +32,10 @@ export function chapterPhaseGradientColors(
 
   const l1ColorByL2NodeId = new Map<string, string>();
   highLevelNodes.forEach((node, index) => {
-    const color = node.backgroundColor && node.backgroundColor !== "transparent"
-      ? node.backgroundColor
-      : getL1FallbackColor(node.title, index);
+    const color =
+      node.backgroundColor && node.backgroundColor !== "transparent"
+        ? node.backgroundColor
+        : getL1FallbackColor(node.title, index);
     for (const linkedId of node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []) {
       if (!l1ColorByL2NodeId.has(linkedId)) l1ColorByL2NodeId.set(linkedId, color);
     }

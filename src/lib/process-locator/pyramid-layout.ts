@@ -5,7 +5,12 @@ import { orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { nodeReleaseReady, nodeStatusLabel } from "@/lib/workflow-progress";
 import { chapterLabel } from "@/lib/chapter-label";
-import { isReferenceNodeType, type DomainNode, type ExecutionItem, type HighLevelNode } from "@/types/workflow";
+import {
+  isReferenceNodeType,
+  type DomainNode,
+  type ExecutionItem,
+  type HighLevelNode,
+} from "@/types/workflow";
 
 export type Layer = "L1" | "L2" | "L3";
 export type ViewLayer = Layer;
@@ -60,12 +65,7 @@ export const DOCK_INSET = 16;
 export const DOCK_SNAP_PX = 140;
 export const DOCK_DRAG_THRESHOLD = 5;
 export const DOCK_STORAGE_KEY = "pwb.process-locator.dock";
-export const DOCK_CORNERS: DockCorner[] = [
-  "top-left",
-  "top-right",
-  "bottom-left",
-  "bottom-right",
-];
+export const DOCK_CORNERS: DockCorner[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
 export function isDockCorner(value: string | null): value is DockCorner {
   return Boolean(value && DOCK_CORNERS.includes(value as DockCorner));
 }
@@ -111,7 +111,11 @@ export function nearestDockCorner(x: number, y: number, width: number, height: n
 export function clampZoom(zoom: number) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
 }
-export function cameraAtPoint(camera: Camera, zoom: number, point: { x: number; y: number }): Camera {
+export function cameraAtPoint(
+  camera: Camera,
+  zoom: number,
+  point: { x: number; y: number },
+): Camera {
   const worldX = (point.x - camera.x) / camera.zoom;
   const worldY = (point.y - camera.y) / camera.zoom;
   return {
@@ -130,10 +134,7 @@ export function fitCamera(
     return { x: 0, y: 0, zoom: 1 };
   }
   const zoom = clampZoom(
-    Math.min(
-      (frameWidth - FIT_PAD) / diagramWidth,
-      (frameHeight - FIT_PAD) / diagramHeight,
-    ),
+    Math.min((frameWidth - FIT_PAD) / diagramWidth, (frameHeight - FIT_PAD) / diagramHeight),
   );
   return {
     zoom,
@@ -201,11 +202,7 @@ export function isWorkflowL2(node: DomainNode) {
 }
 export function l2Subtitle(node: DomainNode) {
   if (node.description?.trim()) return node.description.trim();
-  if (
-    node.config?.stage &&
-    typeof node.config.stage === "string" &&
-    node.config.stage.trim()
-  ) {
+  if (node.config?.stage && typeof node.config.stage === "string" && node.config.stage.trim()) {
     return chapterLabel(node.config.stage);
   }
   if (node.type === "projectStart") return "Project Start";
@@ -220,10 +217,7 @@ export function l2CardFromNode(node: DomainNode): PyramidCard {
     subtitle: l2Subtitle(node),
   };
 }
-export function branchForLayer2(
-  layer2Id: string,
-  nodes: DomainNode[],
-): L2Branch {
+export function branchForLayer2(layer2Id: string, nodes: DomainNode[]): L2Branch {
   const node = nodes.find((item) => item.id === layer2Id);
   const l2Card: PyramidCard = node
     ? l2CardFromNode(node)
@@ -283,11 +277,7 @@ export function l1CardFromHighLevel(node: HighLevelNode): PyramidCard {
     layer: "L1",
     label:
       node.title?.trim() ||
-      (node.type === "start"
-        ? "Start"
-        : node.type === "end"
-          ? "Final Close"
-          : "Phase"),
+      (node.type === "start" ? "Start" : node.type === "end" ? "Final Close" : "Phase"),
     subtitle:
       node.description?.trim() ||
       (node.type === "primaryGate"
@@ -318,9 +308,7 @@ export function buildGlobalPyramidGroups(
   const extraIds = new Set<string>();
   for (const node of nodes) {
     if (!isWorkflowL2(node) || claimed.has(node.id)) continue;
-    const hasEdge = edges.some(
-      (edge) => edge.source === node.id || edge.target === node.id,
-    );
+    const hasEdge = edges.some((edge) => edge.source === node.id || edge.target === node.id);
     if (hasEdge) extraIds.add(node.id);
   }
   for (const item of items) {
@@ -352,15 +340,9 @@ export function findOwningL1Id(
   const owner = highLevelNodes.find((node) => linkedIds(node).includes(layer2Id));
   if (owner) return owner.id;
   const groups = buildGlobalPyramidGroups(highLevelNodes, nodes, items, edges);
-  return groups.find((group) =>
-    group.l2.some((branch) => branch.l2.id === layer2Id),
-  )?.l1.id;
+  return groups.find((group) => group.l2.some((branch) => branch.l2.id === layer2Id))?.l1.id;
 }
-export function cardsBetween(
-  from: PositionedCard,
-  to: PositionedCard,
-  cards: PositionedCard[],
-) {
+export function cardsBetween(from: PositionedCard, to: PositionedCard, cards: PositionedCard[]) {
   const left = Math.min(from.x, to.x);
   const right = Math.max(from.x + from.width, to.x + to.width);
   return cards.some(
@@ -383,11 +365,13 @@ export function routeDown(
   const stubX = from.x + from.width / 2;
   const destX = to.x + to.width / 2;
   const startY = y1 + exitInset;
-  const channelY = Math.min(
-    y2 - 18,
-    startY + 26 + sourceBand * CHANNEL,
+  const channelY = Math.min(y2 - 18, startY + 26 + sourceBand * CHANNEL);
+  const r = Math.min(
+    CORNER,
+    Math.abs(destX - stubX) / 2,
+    (channelY - startY) / 2,
+    (y2 - channelY) / 2,
   );
-  const r = Math.min(CORNER, Math.abs(destX - stubX) / 2, (channelY - startY) / 2, (y2 - channelY) / 2);
   if (Math.abs(stubX - destX) < 2 || r < 2) {
     return `M ${destX} ${startY} L ${destX} ${y2}`;
   }
@@ -418,8 +402,7 @@ export function routeAcross(
   // Keep every detour in a dedicated corridor. L2 has a finite corridor
   // between its action row and L3, so later lanes move above L2 instead of
   // entering the next layer's cards.
-  const above =
-    from.layer === "L1" || (from.layer === "L2" && detourIndex >= 2);
+  const above = from.layer === "L1" || (from.layer === "L2" && detourIndex >= 2);
   const channelY = above
     ? from.y - 14 - (from.layer === "L2" ? detourIndex - 2 : detourIndex) * CHANNEL
     : from.layer === "L2"
@@ -515,8 +498,7 @@ export function statusLabel(status: FlowStatus) {
   return "Locked";
 }
 export function cardBadgeStatus(card: PositionedCard, viewLayer: ViewLayer): FlowStatus | null {
-  const status =
-    card.status === "current" && card.layer !== viewLayer ? "open" : card.status;
+  const status = card.status === "current" && card.layer !== viewLayer ? "open" : card.status;
   if (status === "open") return null;
   return status;
 }

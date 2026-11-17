@@ -6,4 +6,8 @@ export const DAY_MS = 86_400_000;
 export const isoFromDay = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
 
 /** "January 2027" style month headings, always in UTC. */
-export const monthYearFormat = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+export const monthYearFormat = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});

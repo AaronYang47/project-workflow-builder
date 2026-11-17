@@ -3,8 +3,16 @@ import { calendarDurationParts, conditionDurationLabel } from "@/lib/condition-d
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { buildProcessSchedule, salesHandoffTime } from "@/lib/process-schedule";
-import { isProductionDepartmentName, isSalesDepartmentName, isTechnicalDepartmentName } from "@/lib/department-label";
-import { PDF_SCHEDULE_LABEL_WIDTH, pdfScheduleExtent, processGanttPdfHtml } from "@/lib/process-gantt-pdf";
+import {
+  isProductionDepartmentName,
+  isSalesDepartmentName,
+  isTechnicalDepartmentName,
+} from "@/lib/department-label";
+import {
+  PDF_SCHEDULE_LABEL_WIDTH,
+  pdfScheduleExtent,
+  processGanttPdfHtml,
+} from "@/lib/process-gantt-pdf";
 import { departmentDocumentSummary } from "@/lib/department-document-summary";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import { confirmDayOffWarnings } from "@/lib/calendar-badges";
@@ -46,7 +54,16 @@ type DepartmentColumn = {
   colors: string[];
 };
 
-const DEPARTMENT_PALETTE = ["#0284c7", "#10b981", "#f97316", "#ca8a04", "#8b5cf6", "#f43f5e", "#14b8a6", "#64748b"];
+const DEPARTMENT_PALETTE = [
+  "#0284c7",
+  "#10b981",
+  "#f97316",
+  "#ca8a04",
+  "#8b5cf6",
+  "#f43f5e",
+  "#14b8a6",
+  "#64748b",
+];
 
 function safeColor(value: string | undefined, fallback: string) {
   const candidate = value?.trim() || "";
@@ -55,7 +72,13 @@ function safeColor(value: string | undefined, fallback: string) {
 
 function rgba(color: string, alpha: number) {
   const hex = color.replace("#", "");
-  const normalized = hex.length === 3 ? hex.split("").map((part) => `${part}${part}`).join("") : hex;
+  const normalized =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((part) => `${part}${part}`)
+          .join("")
+      : hex;
   const value = Number.parseInt(normalized, 16);
   const red = (value >> 16) & 255;
   const green = (value >> 8) & 255;
@@ -64,26 +87,36 @@ function rgba(color: string, alpha: number) {
 }
 
 export function phaseColor(node: HighLevelNode, index: number) {
-  return safeColor(node.backgroundColor, getL1FallbackColor(`${node.title} ${node.description}`, index));
+  return safeColor(
+    node.backgroundColor,
+    getL1FallbackColor(`${node.title} ${node.description}`, index),
+  );
 }
 
 function isChapterIdentity(node: DomainNode) {
-  return Boolean(String(node.config.chapterNumber ?? "").trim()) || /^chapter\s*\d+$/i.test(node.title.trim());
+  return (
+    Boolean(String(node.config.chapterNumber ?? "").trim()) ||
+    /^chapter\s*\d+$/i.test(node.title.trim())
+  );
 }
 
 function chapterCode(node: DomainNode) {
   const manual = String(node.config.chapterNumber ?? "").replace(/\D/g, "");
   const title = node.title.trim().match(/^chapter\s*(\d+)$/i)?.[1];
-  const stage = String(node.config.stage ?? "").trim().match(/^(?:(?:chapter|department)\s*)?(\d+)$/i)?.[1];
+  const stage = String(node.config.stage ?? "")
+    .trim()
+    .match(/^(?:(?:chapter|department)\s*)?(\d+)$/i)?.[1];
   const value = manual || title || stage;
   return value ? `CH ${value.padStart(2, "0")}` : "";
 }
 
 function isProjectCompleteNode(node: DomainNode) {
-  return node.type === "terminal" ||
+  return (
+    node.type === "terminal" ||
     node.id === "project-complete" ||
     node.id === "close-out" ||
-    /^project\s+complete$/i.test(node.title.trim());
+    /^project\s+complete$/i.test(node.title.trim())
+  );
 }
 
 function departmentIdentity(node: DomainNode) {
@@ -91,19 +124,23 @@ function departmentIdentity(node: DomainNode) {
   const stage = String(node.config.stage ?? "").trim();
   const stageIsNumber = /^(?:(?:chapter|department)\s*)?\d+$/i.test(stage);
   const titleIsChapter = /^chapter\s*\d+$/i.test(title);
-  const raw = stage && !stageIsNumber
-    ? stage
-    : title && !titleIsChapter
-      ? title
-      : node.description.trim();
+  const raw =
+    stage && !stageIsNumber ? stage : title && !titleIsChapter ? title : node.description.trim();
   const clean = raw
     .replace(/\s+partially\s+involved\b/gi, "")
     .replace(/^(?:department|chapter|stage)\s*/i, "")
     .replace(/\s+department$/i, "")
     .trim();
-  const isDefaultStart = (node.type === "projectStart" || node.id === "project-start") && !isChapterIdentity(node) && /^(project\s+)?start$/i.test(clean);
+  const isDefaultStart =
+    (node.type === "projectStart" || node.id === "project-start") &&
+    !isChapterIdentity(node) &&
+    /^(project\s+)?start$/i.test(clean);
   const label = clean
-    ? isDefaultStart ? "Project Start" : /\bdepartment$/i.test(clean) ? clean : `${clean} Department`
+    ? isDefaultStart
+      ? "Project Start"
+      : /\bdepartment$/i.test(clean)
+        ? clean
+        : `${clean} Department`
     : "Department";
   return { key: label.toLocaleLowerCase(), label };
 }
@@ -117,20 +154,33 @@ function phaseLabel(node: HighLevelNode, index: number) {
   return `P${titleNumber}`;
 }
 
-export function linkedNodeIds(phase: HighLevelNode, file: WorkflowFile, nodeById: Map<string, DomainNode>) {
+export function linkedNodeIds(
+  phase: HighLevelNode,
+  file: WorkflowFile,
+  nodeById: Map<string, DomainNode>,
+) {
   const explicit = phase.linkedLayer2NodeIds ?? phase.linkedDetailedNodeIds ?? [];
   if (explicit.length) return Array.from(new Set(explicit)).filter((id) => nodeById.has(id));
 
-  const l2PhaseById = new Map(file.graph.nodes.filter((node) => node.type === "phase").map((node) => [node.id, node]));
+  const l2PhaseById = new Map(
+    file.graph.nodes.filter((node) => node.type === "phase").map((node) => [node.id, node]),
+  );
   return file.graph.nodes
-    .filter((node) => node.type !== "phase" && node.type !== "gate" && node.type !== "decision" && node.type !== "approval")
+    .filter(
+      (node) =>
+        node.type !== "phase" &&
+        node.type !== "gate" &&
+        node.type !== "decision" &&
+        node.type !== "approval",
+    )
     .filter((node) => {
       let parentId = file.layout.nodes[node.id]?.parentId;
       const visited = new Set<string>();
       while (parentId && !visited.has(parentId)) {
         visited.add(parentId);
         const parent = l2PhaseById.get(parentId);
-        if (parent) return parent.title.trim().toLocaleLowerCase() === phase.title.trim().toLocaleLowerCase();
+        if (parent)
+          return parent.title.trim().toLocaleLowerCase() === phase.title.trim().toLocaleLowerCase();
         parentId = file.layout.nodes[parentId]?.parentId;
       }
       return node.config.phaseId === phase.id;
@@ -143,20 +193,27 @@ function conditionEvidence(node: DomainNode, phase: PhaseColumn): EvidenceItem[]
     const label = condition.label?.trim() || condition.description?.trim() || "";
     if (!label) return [];
     const description = condition.description?.trim();
-    return [{
-      kind: "RC" as const,
-      code: "RC",
-      title: `${label}${conditionDurationLabel(condition) ? ` · ${conditionDurationLabel(condition)}` : ""}`,
-      description: description && description.toLocaleLowerCase() !== label.toLocaleLowerCase() ? description : undefined,
-      phaseLabel: phaseLabel(phase.node, phase.index),
-      chapterCode: chapterCode(node),
-    }];
+    return [
+      {
+        kind: "RC" as const,
+        code: "RC",
+        title: `${label}${conditionDurationLabel(condition) ? ` · ${conditionDurationLabel(condition)}` : ""}`,
+        description:
+          description && description.toLocaleLowerCase() !== label.toLocaleLowerCase()
+            ? description
+            : undefined,
+        phaseLabel: phaseLabel(phase.node, phase.index),
+        chapterCode: chapterCode(node),
+      },
+    ];
   });
 }
 
 function formsForNode(node: DomainNode, phase: PhaseColumn, file: WorkflowFile): EvidenceItem[] {
   const linkedConditionIds = new Set(
-    node.conditions.map((condition) => condition.linkedExecutionItemId).filter((id): id is string => Boolean(id)),
+    node.conditions
+      .map((condition) => condition.linkedExecutionItemId)
+      .filter((id): id is string => Boolean(id)),
   );
   const executionForms = (file.execution?.items || [])
     .filter((item) => item.linkedLayer2NodeId === node.id || linkedConditionIds.has(item.id))
@@ -170,21 +227,33 @@ function formsForNode(node: DomainNode, phase: PhaseColumn, file: WorkflowFile):
     }));
   const documents = node.documents.flatMap((document, index) => {
     const title = document.trim();
-    if (!title || executionForms.some((form) => form.title.toLocaleLowerCase() === title.toLocaleLowerCase())) return [];
-    return [{
-      kind: "Form" as const,
-      code: `DOC-${String(index + 1).padStart(2, "0")}`,
-      title,
-      phaseLabel: phaseLabel(phase.node, phase.index),
-      chapterCode: chapterCode(node),
-    }];
+    if (
+      !title ||
+      executionForms.some((form) => form.title.toLocaleLowerCase() === title.toLocaleLowerCase())
+    )
+      return [];
+    return [
+      {
+        kind: "Form" as const,
+        code: `DOC-${String(index + 1).padStart(2, "0")}`,
+        title,
+        phaseLabel: phaseLabel(phase.node, phase.index),
+        chapterCode: chapterCode(node),
+      },
+    ];
   });
   return [...executionForms, ...documents];
 }
 
 function blendWithWhite(color: string, amount: number) {
   const hex = color.replace("#", "");
-  const normalized = hex.length === 3 ? hex.split("").map((part) => `${part}${part}`).join("") : hex;
+  const normalized =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((part) => `${part}${part}`)
+          .join("")
+      : hex;
   const value = Number.parseInt(normalized, 16);
   const channel = (shift: number) => Math.round(255 - (255 - ((value >> shift) & 255)) * amount);
   return `rgb(${channel(16)},${channel(8)},${channel(0)})`;
@@ -211,7 +280,11 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
 
   phases.forEach((phase) => {
     for (const node of phase.linkedNodes) {
-      if (["phase", "gate", "decision", "approval"].includes(node.type) || isProjectCompleteNode(node)) continue;
+      if (
+        ["phase", "gate", "decision", "approval"].includes(node.type) ||
+        isProjectCompleteNode(node)
+      )
+        continue;
       const identity = departmentIdentity(node);
       let column = columnsByKey.get(identity.key);
       if (!column) {
@@ -225,9 +298,13 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
         columnsByKey.set(identity.key, column);
       }
 
-      const existing = column.connections.find((connection) => connection.phaseIndex === phase.index);
+      const existing = column.connections.find(
+        (connection) => connection.phaseIndex === phase.index,
+      );
       if (existing) {
-        existing.chapterCode = Array.from(new Set([existing.chapterCode, chapterCode(node)].filter(Boolean))).join(" · ");
+        existing.chapterCode = Array.from(
+          new Set([existing.chapterCode, chapterCode(node)].filter(Boolean)),
+        ).join(" · ");
         existing.partiallyInvolved ||= isPartiallyInvolved(node);
         existing.node = node;
       } else {
@@ -246,7 +323,13 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
       const nextEvidence = [...formsForNode(node, phase, file), ...conditionEvidence(node, phase)];
       for (const item of nextEvidence) {
         const key = `${item.kind}:${item.code}:${item.title.toLocaleLowerCase()}:${item.phaseLabel}:${item.chapterCode}`;
-        if (!column.evidence.some((existingItem) => `${existingItem.kind}:${existingItem.code}:${existingItem.title.toLocaleLowerCase()}:${existingItem.phaseLabel}:${existingItem.chapterCode}` === key)) {
+        if (
+          !column.evidence.some(
+            (existingItem) =>
+              `${existingItem.kind}:${existingItem.code}:${existingItem.title.toLocaleLowerCase()}:${existingItem.phaseLabel}:${existingItem.chapterCode}` ===
+              key,
+          )
+        ) {
           column.evidence.push(item);
         }
       }
@@ -265,14 +348,24 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
   // Unassigned column instead of silently disappearing from the export.
   const linkedIds = new Set(phases.flatMap((phase) => phase.linkedNodes.map((node) => node.id)));
   const linkedFormIds = new Set(
-    phases.flatMap((phase) => phase.linkedNodes.flatMap((node) =>
-      (file.execution?.items || [])
-        .filter((item) => item.linkedLayer2NodeId === node.id || node.conditions.some((condition) => condition.linkedExecutionItemId === item.id))
-        .map((item) => item.id),
-    )),
+    phases.flatMap((phase) =>
+      phase.linkedNodes.flatMap((node) =>
+        (file.execution?.items || [])
+          .filter(
+            (item) =>
+              item.linkedLayer2NodeId === node.id ||
+              node.conditions.some((condition) => condition.linkedExecutionItemId === item.id),
+          )
+          .map((item) => item.id),
+      ),
+    ),
   );
   const unassignedForms: EvidenceItem[] = (file.execution?.items || [])
-    .filter((item) => !linkedFormIds.has(item.id) && (!item.linkedLayer2NodeId || !linkedIds.has(item.linkedLayer2NodeId)))
+    .filter(
+      (item) =>
+        !linkedFormIds.has(item.id) &&
+        (!item.linkedLayer2NodeId || !linkedIds.has(item.linkedLayer2NodeId)),
+    )
     .map((item) => ({
       kind: "Form",
       code: item.documentCode || item.documentNumber || item.catalogId || "FORM",
@@ -295,7 +388,9 @@ function makeColumns(phases: PhaseColumn[], file: WorkflowFile) {
   // before explicit L1-to-L2 links existed.
   for (const column of ordered) {
     column.connections.sort((left, right) => left.phaseIndex - right.phaseIndex);
-    column.colors = Array.from(new Set(column.connections.map((connection) => connection.phaseColor)));
+    column.colors = Array.from(
+      new Set(column.connections.map((connection) => connection.phaseColor)),
+    );
   }
   return ordered;
 }
@@ -307,55 +402,83 @@ function ganttCoverage(file: WorkflowFile, phases: PhaseColumn[], columns: Depar
   const schedule = buildProcessSchedule(file);
   const handoff = salesHandoffTime(schedule);
   const timeline = buildProcessTimeline(file, schedule);
-  const { total } = pdfScheduleExtent(timeline.totalDays, timeline.originDay ?? 0, timeline.enabled);
+  const { total } = pdfScheduleExtent(
+    timeline.totalDays,
+    timeline.originDay ?? 0,
+    timeline.enabled,
+  );
   const ranges = phases.map((phase) => {
     const index = schedule.phases.findIndex((item) => item.id === phase.node.id);
     const range = index < 0 ? { start: 0, end: 0 } : schedule.phaseRanges[index];
-    return { start: timeline.toDisplayDay(range.start, "end"), end: timeline.toDisplayDay(range.end, "end") };
+    return {
+      start: timeline.toDisplayDay(range.start, "end"),
+      end: timeline.toDisplayDay(range.end, "end"),
+    };
   });
   const cards: { column?: DepartmentColumn; start: number; end: number }[] = [];
   ranges.forEach((range, phaseIndex) => {
     if (range.end <= range.start) return;
-    const linked = columns.filter((column) => column.connections.some((connection) => connection.phaseIndex === phaseIndex));
+    const linked = columns.filter((column) =>
+      column.connections.some((connection) => connection.phaseIndex === phaseIndex),
+    );
     const portions: (DepartmentColumn | undefined)[] = linked.length ? linked : [undefined];
     const weights = portions.map((column) => {
       if (!column) return 1;
-      const documents = departmentDocumentSummary(column.connections.map((connection) => connection.node));
-      return 1 + (documents.legal.length + documents.customer.length) * .2;
+      const documents = departmentDocumentSummary(
+        column.connections.map((connection) => connection.node),
+      );
+      return 1 + (documents.legal.length + documents.customer.length) * 0.2;
     });
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let usedWeight = 0;
     portions.forEach((column, index) => {
-      const start = range.start + (range.end - range.start) * usedWeight / totalWeight;
+      const start = range.start + ((range.end - range.start) * usedWeight) / totalWeight;
       usedWeight += weights[index];
-      const end = range.start + (range.end - range.start) * usedWeight / totalWeight;
+      const end = range.start + ((range.end - range.start) * usedWeight) / totalWeight;
       const last = cards.at(-1);
-      if (column && last?.column?.key === column.key && Math.abs(last.end - start) < .000001) last.end = end;
+      if (column && last?.column?.key === column.key && Math.abs(last.end - start) < 0.000001)
+        last.end = end;
       else cards.push({ column, start, end });
     });
   });
   // Size the printed timeline for phase and department cards. A one-day bar
   // must not force a several-thousand-pixel page and shrink every PDF label.
-  const minimumAxisWidth = Math.max(1180,
-    ...ranges.filter((range) => range.end > range.start).map((range) => 110 * total / (range.end - range.start)),
-    ...cards.filter((card) => card.column).map((card) => 100 * total / (card.end - card.start)));
-  return { total, ranges, cards, minimumWidth: PDF_SCHEDULE_LABEL_WIDTH + Math.min(1900, minimumAxisWidth),
-    scheduled: handoff.elapsedDays !== null && handoff.elapsedDays > 0 };
+  const minimumAxisWidth = Math.max(
+    1180,
+    ...ranges
+      .filter((range) => range.end > range.start)
+      .map((range) => (110 * total) / (range.end - range.start)),
+    ...cards.filter((card) => card.column).map((card) => (100 * total) / (card.end - card.start)),
+  );
+  return {
+    total,
+    ranges,
+    cards,
+    minimumWidth: PDF_SCHEDULE_LABEL_WIDTH + Math.min(1900, minimumAxisWidth),
+    scheduled: handoff.elapsedDays !== null && handoff.elapsedDays > 0,
+  };
 }
 
 function evidenceHtml(column: DepartmentColumn) {
   if (!column.evidence.length) {
     return `<div class="empty-evidence">No linked forms or release conditions</div>`;
   }
-  return column.evidence.map((item, index) => `
+  return column.evidence
+    .map(
+      (item, index) => `
     <div class="evidence-item">
       <div class="evidence-line"><span class="evidence-number">${index + 1}</span><span class="kind kind-${item.kind.toLocaleLowerCase()}">${escapeHtml(item.kind)}${item.kind === "Form" && item.code ? ` · ${escapeHtml(item.code)}` : ""}</span><span class="evidence-title">${escapeHtml(item.title)}${item.kind === "RC" ? "*" : ""}</span></div>
       <div class="evidence-meta">${escapeHtml(item.phaseLabel)}${item.chapterCode ? ` · ${escapeHtml(item.chapterCode)}` : ""}</div>
       ${item.description ? `<div class="evidence-description">${escapeHtml(item.description)}</div>` : ""}
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
 }
 
-export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options: { gantt?: boolean } = {}) {
+export async function exportL1DepartmentSwimlanePdf(
+  file: WorkflowFile,
+  options: { gantt?: boolean } = {},
+) {
   // Tasks whose window is mostly days off are flagged in the chart; ask the
   // user before printing a schedule that is unlikely to hold.
   if (options.gantt && !confirmDayOffWarnings(file)) return;
@@ -363,22 +486,35 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
   const { jsPDF } = await import("jspdf");
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const highLevelEdges = file.highLevel?.graph.edges || [];
-  const orderedNodes = orderHighLevelNodes(highLevelNodes, highLevelEdges).filter((node) => node.type !== "primaryGate");
-  if (!orderedNodes.length) throw new Error("Add L1 phases before exporting the Department Swimlane PDF.");
+  const orderedNodes = orderHighLevelNodes(highLevelNodes, highLevelEdges).filter(
+    (node) => node.type !== "primaryGate",
+  );
+  if (!orderedNodes.length)
+    throw new Error("Add L1 phases before exporting the Department Swimlane PDF.");
 
   const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));
   const phases: PhaseColumn[] = orderedNodes.map((node, index) => ({
     node,
     index,
     color: phaseColor(node, index),
-    linkedNodes: linkedNodeIds(node, file, nodeById).map((id) => nodeById.get(id)).filter((item): item is DomainNode => Boolean(item)),
+    linkedNodes: linkedNodeIds(node, file, nodeById)
+      .map((id) => nodeById.get(id))
+      .filter((item): item is DomainNode => Boolean(item)),
   }));
   const allColumns = makeColumns(phases, file);
-  const columns = allColumns.filter((column) =>
-    !options.gantt || column.connections.some((connection) => connection.node.conditions.length > 0));
-  if (!columns.length) throw new Error("Link departments to L1 phases before exporting the Department Swimlane PDF.");
-  const documentsByDepartment = new Map(allColumns.map((column) => [column.key,
-    departmentDocumentSummary(column.connections.map((connection) => connection.node))]));
+  const columns = allColumns.filter(
+    (column) =>
+      !options.gantt ||
+      column.connections.some((connection) => connection.node.conditions.length > 0),
+  );
+  if (!columns.length)
+    throw new Error("Link departments to L1 phases before exporting the Department Swimlane PDF.");
+  const documentsByDepartment = new Map(
+    allColumns.map((column) => [
+      column.key,
+      departmentDocumentSummary(column.connections.map((connection) => connection.node)),
+    ]),
+  );
 
   const coverage = options.gantt ? ganttCoverage(file, phases, columns) : undefined;
   const aligned = Boolean(coverage?.scheduled);
@@ -394,11 +530,16 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
   const canvasWidth = Math.ceil(innerWidth + paddingX * 2);
   const projectName = file.graph.metadata.name?.trim() || "Process Workflow";
   const documentTitle = `High Level Process System Flowchart${options.gantt ? " with Gantt Chart" : ""}`;
-  const projectNumber = workflowLegacyJobNumber(file) || [
-    file.operations?.identity?.projectNumber,
-    file.operations?.identity?.projectId,
-    file.operations?.projectNumber,
-  ].map((value) => String(value || "").trim()).find((value) => /^\d{5}$/.test(value)) || "";
+  const projectNumber =
+    workflowLegacyJobNumber(file) ||
+    [
+      file.operations?.identity?.projectNumber,
+      file.operations?.identity?.projectId,
+      file.operations?.projectNumber,
+    ]
+      .map((value) => String(value || "").trim())
+      .find((value) => /^\d{5}$/.test(value)) ||
+    "";
   const container = document.createElement("div");
   Object.assign(container.style, {
     position: "fixed",
@@ -417,98 +558,194 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
 
   const schedule = buildProcessSchedule(file);
   const handoff = salesHandoffTime(schedule);
-  const phaseHtml = phases.map((phase, index) => {
-    if (aligned && coverage!.ranges[index].end <= coverage!.ranges[index].start) return "";
-    const title = phase.node.description.trim() || phase.node.title;
-    const departmentCount = columns.filter((column) => column.connections.some((connection) => connection.phaseIndex === phase.index)).length;
-    const scheduleIndex = schedule.phases.findIndex((item) => item.id === phase.node.id);
-    const range = schedule.phaseRanges[scheduleIndex];
-    const tasks = schedule.tasks.filter((task) => task.phaseIndex === scheduleIndex && scheduleIndex >= 0);
-    const scheduled = tasks.filter((task) => task.end !== undefined);
-    const containsSales = options.gantt && tasks.some((task) => isSalesDepartmentName(task.department));
-    const countedTasks = containsSales ? scheduled.filter((task) => !isSalesDepartmentName(task.department)) : scheduled;
-    const technicalStarts = countedTasks.filter((task) => isTechnicalDepartmentName(task.department)).map((task) => task.start!);
-    const countedStart = technicalStarts.length ? Math.min(...technicalStarts) : countedTasks.length ? Math.min(...countedTasks.map((task) => task.start!)) : 0;
-    const days = containsSales
-      ? countedTasks.length ? Math.max(0, Math.max(...countedTasks.map((task) => task.end!)) - countedStart) : 0
-      : range ? range.end - range.start : 0;
-    const partial = countedTasks.length < (containsSales ? tasks.filter((task) => !isSalesDepartmentName(task.department)).length : tasks.length);
-    const durationHtml = containsSales && !countedTasks.length
-      ? '<span class="phase-duration-pending">Timing begins with Technical work</span>'
-      : countedTasks.length
-      ? `<div class="phase-duration-main">${calendarDurationParts(days, schedule.workingDaysPerWeek).map((part, index, parts) => `<span class="phase-duration-part"><span class="phase-duration-number">${part.value}${partial && index === parts.length - 1 ? "+" : ""}</span><span class="phase-duration-unit">${part.unit}</span></span>`).join("")}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
-      : '<span class="phase-duration-pending">Duration not set</span>';
-    const actualProductionNote = options.gantt && countedTasks.length && tasks.some((task) => isProductionDepartmentName(task.department))
-      ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>' : "";
-    return `<div class="phase-card" data-pdf-phase-id="${escapeHtml(phase.node.id)}" style="--phase-color:${phase.color};--phase-tint:${rgba(phase.color, 0.09)};">
+  const phaseHtml = phases
+    .map((phase, index) => {
+      if (aligned && coverage!.ranges[index].end <= coverage!.ranges[index].start) return "";
+      const title = phase.node.description.trim() || phase.node.title;
+      const departmentCount = columns.filter((column) =>
+        column.connections.some((connection) => connection.phaseIndex === phase.index),
+      ).length;
+      const scheduleIndex = schedule.phases.findIndex((item) => item.id === phase.node.id);
+      const range = schedule.phaseRanges[scheduleIndex];
+      const tasks = schedule.tasks.filter(
+        (task) => task.phaseIndex === scheduleIndex && scheduleIndex >= 0,
+      );
+      const scheduled = tasks.filter((task) => task.end !== undefined);
+      const containsSales =
+        options.gantt && tasks.some((task) => isSalesDepartmentName(task.department));
+      const countedTasks = containsSales
+        ? scheduled.filter((task) => !isSalesDepartmentName(task.department))
+        : scheduled;
+      const technicalStarts = countedTasks
+        .filter((task) => isTechnicalDepartmentName(task.department))
+        .map((task) => task.start!);
+      const countedStart = technicalStarts.length
+        ? Math.min(...technicalStarts)
+        : countedTasks.length
+          ? Math.min(...countedTasks.map((task) => task.start!))
+          : 0;
+      const days = containsSales
+        ? countedTasks.length
+          ? Math.max(0, Math.max(...countedTasks.map((task) => task.end!)) - countedStart)
+          : 0
+        : range
+          ? range.end - range.start
+          : 0;
+      const partial =
+        countedTasks.length <
+        (containsSales
+          ? tasks.filter((task) => !isSalesDepartmentName(task.department)).length
+          : tasks.length);
+      const durationHtml =
+        containsSales && !countedTasks.length
+          ? '<span class="phase-duration-pending">Timing begins with Technical work</span>'
+          : countedTasks.length
+            ? `<div class="phase-duration-main">${calendarDurationParts(
+                days,
+                schedule.workingDaysPerWeek,
+              )
+                .map(
+                  (part, index, parts) =>
+                    `<span class="phase-duration-part"><span class="phase-duration-number">${part.value}${partial && index === parts.length - 1 ? "+" : ""}</span><span class="phase-duration-unit">${part.unit}</span></span>`,
+                )
+                .join(
+                  "",
+                )}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
+            : '<span class="phase-duration-pending">Duration not set</span>';
+      const actualProductionNote =
+        options.gantt &&
+        countedTasks.length &&
+        tasks.some((task) => isProductionDepartmentName(task.department))
+          ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
+          : "";
+      return `<div class="phase-card" data-pdf-phase-id="${escapeHtml(phase.node.id)}" style="--phase-color:${phase.color};--phase-tint:${rgba(phase.color, 0.09)};">
       <div class="phase-meta"><span>${escapeHtml(phase.node.title || `PHASE ${index + 1}`)}</span><span class="phase-involvement">${departmentCount} ${departmentCount === 1 ? "Department" : "Departments"} Involved</span></div>
       <div class="phase-title">${escapeHtml(title)}</div>
       ${phase.node.code?.trim() ? `<div class="phase-code">${escapeHtml(phase.node.code.trim())}</div>` : ""}
       <div class="phase-duration">${durationHtml}</div>
       ${actualProductionNote}
     </div>`;
-  }).join("");
+    })
+    .join("");
 
-  const departmentCards = aligned ? coverage!.cards : columns.map((column) => ({ column, start: 0, end: 0 }));
-  const departmentHtml = departmentCards.map((card, index) => {
-    const column = card.column;
-    if (!column) return '<div class="department-spacer"></div>';
-    const colors = column.colors.length ? column.colors : [DEPARTMENT_PALETTE[index % DEPARTMENT_PALETTE.length]];
-    const borderGradient = gradient(colors);
-    const singlePhaseColor = column.connections.length === 1 ? column.connections[0].phaseColor : undefined;
-    const cardClass = singlePhaseColor ? "department-card single-phase-card" : "department-card";
-    const legalTitles = options.gantt ? documentsByDepartment.get(column.key)?.legal || [] : [];
-    const customerTitles = options.gantt ? documentsByDepartment.get(column.key)?.customer || [] : [];
-    const nodeIds = new Set(column.connections.map((connection) => connection.node.id));
-    const departmentTasks = schedule.tasks.filter((task) => nodeIds.has(task.nodeId));
-    const scheduledTasks = departmentTasks.filter((task) => task.start !== undefined && task.end !== undefined);
-    const departmentDays = scheduledTasks.length
-      ? Math.max(...scheduledTasks.map((task) => task.end!)) - Math.min(...scheduledTasks.map((task) => task.start!)) : undefined;
-    const partialDuration = scheduledTasks.length < departmentTasks.length;
-    const actualProductionNote = isProductionDepartmentName(column.label) && departmentDays !== undefined
-      ? '<span class="department-actual-production-note" data-department-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>' : "";
-    const durationHtml = options.gantt && !isSalesDepartmentName(column.label) ? `<div class="department-duration" data-department-duration="${escapeHtml(column.label)}">${departmentDays === undefined
-      ? '<span class="department-duration-pending">Duration not set</span>'
-      : `<div class="department-duration-main">${calendarDurationParts(departmentDays, schedule.workingDaysPerWeek).map((part, partIndex, parts) => `<span class="department-duration-part"><span class="department-duration-number">${part.value}${partialDuration && partIndex === parts.length - 1 ? "+" : ""}</span><span class="department-duration-unit">${part.unit}</span></span>`).join("")}</div>${actualProductionNote}${partialDuration ? '<span class="department-duration-note">Partial estimate</span>' : ""}`}</div>` : "";
-    const partialInvolvement = column.connections.some((connection) => connection.partiallyInvolved);
-    const phaseSegments = column.connections.map((connection) =>
-      `<span class="phase-segment" data-phase-index="${connection.phaseIndex}" style="background:${connection.phaseColor};"></span>`,
-    ).join("");
-    return `<div class="${cardClass}${options.gantt ? " gantt-department-card" : ""}" data-coverage-start="${card.start}" data-coverage-end="${card.end}" style="--department-gradient:${borderGradient};--department-fill:${gradient(colors, 0.09)};--department-duration-color:${colors.at(-1)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
+  const departmentCards = aligned
+    ? coverage!.cards
+    : columns.map((column) => ({ column, start: 0, end: 0 }));
+  const departmentHtml = departmentCards
+    .map((card, index) => {
+      const column = card.column;
+      if (!column) return '<div class="department-spacer"></div>';
+      const colors = column.colors.length
+        ? column.colors
+        : [DEPARTMENT_PALETTE[index % DEPARTMENT_PALETTE.length]];
+      const borderGradient = gradient(colors);
+      const singlePhaseColor =
+        column.connections.length === 1 ? column.connections[0].phaseColor : undefined;
+      const cardClass = singlePhaseColor ? "department-card single-phase-card" : "department-card";
+      const legalTitles = options.gantt ? documentsByDepartment.get(column.key)?.legal || [] : [];
+      const customerTitles = options.gantt
+        ? documentsByDepartment.get(column.key)?.customer || []
+        : [];
+      const nodeIds = new Set(column.connections.map((connection) => connection.node.id));
+      const departmentTasks = schedule.tasks.filter((task) => nodeIds.has(task.nodeId));
+      const scheduledTasks = departmentTasks.filter(
+        (task) => task.start !== undefined && task.end !== undefined,
+      );
+      const departmentDays = scheduledTasks.length
+        ? Math.max(...scheduledTasks.map((task) => task.end!)) -
+          Math.min(...scheduledTasks.map((task) => task.start!))
+        : undefined;
+      const partialDuration = scheduledTasks.length < departmentTasks.length;
+      const actualProductionNote =
+        isProductionDepartmentName(column.label) && departmentDays !== undefined
+          ? '<span class="department-actual-production-note" data-department-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
+          : "";
+      const durationHtml =
+        options.gantt && !isSalesDepartmentName(column.label)
+          ? `<div class="department-duration" data-department-duration="${escapeHtml(column.label)}">${
+              departmentDays === undefined
+                ? '<span class="department-duration-pending">Duration not set</span>'
+                : `<div class="department-duration-main">${calendarDurationParts(
+                    departmentDays,
+                    schedule.workingDaysPerWeek,
+                  )
+                    .map(
+                      (part, partIndex, parts) =>
+                        `<span class="department-duration-part"><span class="department-duration-number">${part.value}${partialDuration && partIndex === parts.length - 1 ? "+" : ""}</span><span class="department-duration-unit">${part.unit}</span></span>`,
+                    )
+                    .join(
+                      "",
+                    )}</div>${actualProductionNote}${partialDuration ? '<span class="department-duration-note">Partial estimate</span>' : ""}`
+            }</div>`
+          : "";
+      const partialInvolvement = column.connections.some(
+        (connection) => connection.partiallyInvolved,
+      );
+      const phaseSegments = column.connections
+        .map(
+          (connection) =>
+            `<span class="phase-segment" data-phase-index="${connection.phaseIndex}" style="background:${connection.phaseColor};"></span>`,
+        )
+        .join("");
+      return `<div class="${cardClass}${options.gantt ? " gantt-department-card" : ""}" data-coverage-start="${card.start}" data-coverage-end="${card.end}" style="--department-gradient:${borderGradient};--department-fill:${gradient(colors, 0.09)};--department-duration-color:${colors.at(-1)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
         <div class="department-heading"><div class="department-label">${escapeHtml(column.label)}</div>${partialInvolvement ? `<span class="partial-tag">Partially Involved</span>` : ""}</div>
-        ${legalTitles.length || customerTitles.length ? `<div class="department-document-groups${legalTitles.length && customerTitles.length ? " dual-document-groups" : ""}">
+        ${
+          legalTitles.length || customerTitles.length
+            ? `<div class="department-document-groups${legalTitles.length && customerTitles.length ? " dual-document-groups" : ""}">
           ${legalTitles.length ? `<div class="department-document-item" data-department-documents="${escapeHtml(column.label)}"><strong>Required Documents</strong><ul>${legalTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul></div>` : ""}
           ${customerTitles.length ? `<div class="department-document-item" data-department-customer="${escapeHtml(column.label)}"><strong>Customer Information</strong><ul>${customerTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul></div>` : ""}
-        </div>` : ""}
+        </div>`
+            : ""
+        }
         ${durationHtml}
         ${phaseSegments ? `<div class="phase-strip" aria-hidden="true">${phaseSegments}</div>` : `<div class="unlinked-label">Not linked to a phase</div>`}
       </div>`;
-  }).join("");
-  const supportingDocumentsHtml = options.gantt && allColumns.some((column) => {
-    const summary = documentsByDepartment.get(column.key);
-    return Boolean(summary?.supporting.length || summary?.optional.length);
-  })
-    ? `<div class="supporting-documents-footer"><strong>Supporting Documents</strong><div class="supporting-documents-list">${allColumns.flatMap((column) => {
+    })
+    .join("");
+  const supportingDocumentsHtml =
+    options.gantt &&
+    allColumns.some((column) => {
       const summary = documentsByDepartment.get(column.key);
-      const titles = summary?.supporting || [];
-      const optional = summary?.optional || [];
-      const optionalTitles = new Set(optional.map((condition) => condition.title.toLocaleLowerCase()));
-      const standaloneTitles = titles.filter((title) => !optionalTitles.has(title.toLocaleLowerCase()));
-      return titles.length || optional.length ? [`<div class="supporting-department"><b>${escapeHtml(column.label)}</b><ul>${standaloneTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}${optional.map((condition) => `<li data-optional-condition="true">${escapeHtml(condition.title)} · ${escapeHtml(condition.duration)}</li>`).join("")}</ul></div>`] : [];
-    }).join("")}</div></div>` : "";
+      return Boolean(summary?.supporting.length || summary?.optional.length);
+    })
+      ? `<div class="supporting-documents-footer"><strong>Supporting Documents</strong><div class="supporting-documents-list">${allColumns
+          .flatMap((column) => {
+            const summary = documentsByDepartment.get(column.key);
+            const titles = summary?.supporting || [];
+            const optional = summary?.optional || [];
+            const optionalTitles = new Set(
+              optional.map((condition) => condition.title.toLocaleLowerCase()),
+            );
+            const standaloneTitles = titles.filter(
+              (title) => !optionalTitles.has(title.toLocaleLowerCase()),
+            );
+            return titles.length || optional.length
+              ? [
+                  `<div class="supporting-department"><b>${escapeHtml(column.label)}</b><ul>${standaloneTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}${optional.map((condition) => `<li data-optional-condition="true">${escapeHtml(condition.title)} · ${escapeHtml(condition.duration)}</li>`).join("")}</ul></div>`,
+                ]
+              : [];
+          })
+          .join("")}</div></div>`
+      : "";
 
   const downArrows = columns.map(() => `<div class="down-arrow">↓</div>`).join("");
-  const evidenceHtmlRows = columns.map((column, index) => {
-    const colors = column.colors.length ? column.colors : [DEPARTMENT_PALETTE[index % DEPARTMENT_PALETTE.length]];
-    const singlePhaseColor = column.connections.length === 1 ? column.connections[0].phaseColor : undefined;
-    const cardClass = singlePhaseColor ? "evidence-card single-phase-card" : "evidence-card";
-    return `<div class="${cardClass}" style="--department-gradient:${gradient(colors)};--department-fill:${gradient(colors, 0.065)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
+  const evidenceHtmlRows = columns
+    .map((column, index) => {
+      const colors = column.colors.length
+        ? column.colors
+        : [DEPARTMENT_PALETTE[index % DEPARTMENT_PALETTE.length]];
+      const singlePhaseColor =
+        column.connections.length === 1 ? column.connections[0].phaseColor : undefined;
+      const cardClass = singlePhaseColor ? "evidence-card single-phase-card" : "evidence-card";
+      return `<div class="${cardClass}" style="--department-gradient:${gradient(colors)};--department-fill:${gradient(colors, 0.065)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
       <div class="evidence-header"><span>FORMS & RELEASE CONDITIONS</span><span>${column.evidence.length}</span></div>
       ${evidenceHtml(column)}
     </div>`;
-  }).join("");
+    })
+    .join("");
 
-  const alignedStyles = aligned ? `
+  const alignedStyles = aligned
+    ? `
     .phase-ribbon,.phase-row,.department-grid{margin-left:${PDF_SCHEDULE_LABEL_WIDTH + 1}px;margin-right:1px}
     .coverage-row{position:relative}
     .coverage-caption{position:absolute;left:0;top:0;bottom:0;width:${PDF_SCHEDULE_LABEL_WIDTH - 16}px;display:flex;align-items:center;font:900 30px/1.1 Arial,sans-serif;letter-spacing:.04em;color:#334155}
@@ -517,9 +754,14 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     .department-card:last-child{margin-right:-1px}
     .phase-strip{position:absolute;bottom:10px;left:9px;right:9px;margin:0;gap:0}
     .phase-segment{position:absolute;top:0;height:4px;min-width:0;border-radius:0}
-  ` : "";
-  const pendingPhases = aligned ? phases.filter((_, index) => coverage!.ranges[index].end <= coverage!.ranges[index].start) : [];
-  const pendingDepartments = aligned ? columns.filter((column) => !coverage!.cards.some((card) => card.column?.key === column.key)) : [];
+  `
+    : "";
+  const pendingPhases = aligned
+    ? phases.filter((_, index) => coverage!.ranges[index].end <= coverage!.ranges[index].start)
+    : [];
+  const pendingDepartments = aligned
+    ? columns.filter((column) => !coverage!.cards.some((card) => card.column?.key === column.key))
+    : [];
   container.innerHTML = `<style>
     *{box-sizing:border-box}
     .document-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:2px solid #0f172a;padding-bottom:12px}
@@ -528,7 +770,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     .project-meta{text-align:right;font-size:11px;line-height:1.4;color:#475569}
     .project-number{display:flex;align-items:baseline;justify-content:flex-end;gap:5px;font-size:12px;font-weight:800;color:#1e293b}
     .project-number-label{font-size:8px;letter-spacing:.08em;color:#64748b}
-    .phase-ribbon{height:7px;margin:10px 0 7px;border-radius:99px;background:linear-gradient(90deg,${phases.map((phase,index)=>`${phase.color} ${(index/phases.length)*100}% ${((index+1)/phases.length)*100}%`).join(",")})}
+    .phase-ribbon{height:7px;margin:10px 0 7px;border-radius:99px;background:linear-gradient(90deg,${phases.map((phase, index) => `${phase.color} ${(index / phases.length) * 100}% ${((index + 1) / phases.length) * 100}%`).join(",")})}
     .section-title{margin:12px 0 6px;font:800 11px Arial,sans-serif;letter-spacing:.1em;color:#334155;text-transform:uppercase}
     .phase-row{display:grid;grid-template-columns:repeat(${phases.length},minmax(0,1fr));column-gap:0;align-items:stretch}
     .phase-card{position:relative;display:flex;flex-direction:column;min-height:82px;padding:10px 12px;border:1px solid rgba(15,23,42,.13);border-top:4px solid var(--phase-color);border-radius:8px;background:linear-gradient(135deg,var(--phase-tint),#fff 72%);}
@@ -618,10 +860,10 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     // Expand the layout itself to the sheet aspect ratio before rasterizing.
     // This uses spare paper width without stretching the text or task bars.
     if (options.gantt) {
-      const sheetWidth = Math.max(canvasWidth, Math.ceil(container.offsetHeight * 17 / 11));
+      const sheetWidth = Math.max(canvasWidth, Math.ceil((container.offsetHeight * 17) / 11));
       container.style.width = `${sheetWidth}px`;
     }
-    const targetHeight = container.offsetWidth * 11 / 17;
+    const targetHeight = (container.offsetWidth * 11) / 17;
     if (options.gantt && container.offsetHeight > targetHeight) {
       const rows = container.querySelectorAll(".pdf-gantt .gantt-row").length;
       const excessPerRow = rows ? (container.offsetHeight - targetHeight) / rows : 0;
@@ -653,30 +895,48 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       container.appendChild(adaptiveType);
     }
     if (container.offsetHeight < targetHeight && options.gantt && handoff.hasSalesDepartment) {
-      const ganttRows = Array.from(container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-row, .pdf-gantt .gantt-department"));
-      const perRow = ganttRows.length ? (targetHeight - container.offsetHeight) / ganttRows.length : 0;
-      ganttRows.forEach((row) => { row.style.minHeight = `${row.offsetHeight + perRow}px`; });
+      const ganttRows = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          ".pdf-gantt .gantt-row, .pdf-gantt .gantt-department",
+        ),
+      );
+      const perRow = ganttRows.length
+        ? (targetHeight - container.offsetHeight) / ganttRows.length
+        : 0;
+      ganttRows.forEach((row) => {
+        row.style.minHeight = `${row.offsetHeight + perRow}px`;
+      });
     } else if (container.offsetHeight < targetHeight) {
       const phaseRow = container.querySelector<HTMLElement>(".phase-row");
       const departmentGrid = container.querySelector<HTMLElement>(".department-grid");
-      const ganttRows = Array.from(container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-row, .pdf-gantt .gantt-department"));
+      const ganttRows = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          ".pdf-gantt .gantt-row, .pdf-gantt .gantt-department",
+        ),
+      );
       const evidenceRows = Array.from(container.querySelectorAll<HTMLElement>(".evidence-card"));
       const remaining = targetHeight - container.offsetHeight;
-      const phaseShare = remaining * .16;
-      const departmentShare = remaining * .19;
+      const phaseShare = remaining * 0.16;
+      const departmentShare = remaining * 0.19;
       if (phaseRow) {
         const height = phaseRow.offsetHeight + phaseShare;
-        phaseRow.querySelectorAll<HTMLElement>(".phase-card").forEach((card) => { card.style.minHeight = `${height}px`; });
+        phaseRow.querySelectorAll<HTMLElement>(".phase-card").forEach((card) => {
+          card.style.minHeight = `${height}px`;
+        });
       }
       if (departmentGrid) {
         const height = departmentGrid.offsetHeight + departmentShare;
-        departmentGrid.querySelectorAll<HTMLElement>(".department-card").forEach((card) => { card.style.minHeight = `${height}px`; });
+        departmentGrid.querySelectorAll<HTMLElement>(".department-card").forEach((card) => {
+          card.style.minHeight = `${height}px`;
+        });
       }
       const detailRows = options.gantt ? ganttRows : evidenceRows;
       const detailShare = remaining - phaseShare - departmentShare;
       if (detailRows.length) {
         const perRow = options.gantt ? detailShare / detailRows.length : detailShare;
-        detailRows.forEach((row) => { row.style.minHeight = `${row.offsetHeight + perRow}px`; });
+        detailRows.forEach((row) => {
+          row.style.minHeight = `${row.offsetHeight + perRow}px`;
+        });
       } else if (departmentGrid) {
         departmentGrid.querySelectorAll<HTMLElement>(".department-card").forEach((card) => {
           card.style.minHeight = `${card.offsetHeight + detailShare}px`;
@@ -684,103 +944,164 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       }
     }
     const alignTimeline = () => {
-    if (aligned) {
-      const { total, ranges, cards } = coverage!;
-      const axis = container.querySelector<HTMLElement>(".gantt-axis")!.getBoundingClientRect();
-      const x = (day: number) => axis.left + day / total * axis.width;
-      const activeRanges = ranges.filter((range) => range.end > range.start);
-      const scheduleEnd = Math.max(...ranges.map((range) => range.end));
-      const trailing = Math.max(0, total - scheduleEnd);
-      // The last cards stretch to the axis end, so their color lines must too.
-      const shownEnd = (end: number) => end >= scheduleEnd ? total : end;
-      const extendLastToAxisEnd = (widths: number[]) => widths.map((width, index) =>
-        `${width + (index === widths.length - 1 ? trailing / total * axis.width : 0)}px`).join(" ");
-      container.querySelector<HTMLElement>(".phase-row")!.style.gridTemplateColumns = extendLastToAxisEnd(activeRanges.map((range) => (range.end - range.start) / total * axis.width));
-      container.querySelector<HTMLElement>(".department-grid")!.style.gridTemplateColumns = extendLastToAxisEnd(cards.map((card) => (card.end - card.start) / total * axis.width));
-      container.querySelector<HTMLElement>(".phase-ribbon")!.style.background = `linear-gradient(90deg, ${phases.flatMap((phase, index) => {
-        const range = ranges[index];
-        return range.end > range.start ? [`${phase.color} ${range.start / total * 100}% ${shownEnd(range.end) / total * 100}%`] : [];
-      }).join(", ")})`;
-      // Project each card's color strips onto the same global
-      // axis. Task starts never enter this calculation, so parallel work keeps
-      // the original single-row department presentation.
-      container.querySelectorAll<HTMLElement>(".department-card").forEach((card) => {
-        const start = Number(card.dataset.coverageStart);
-        const end = Number(card.dataset.coverageEnd);
-        card.querySelectorAll<HTMLElement>(".phase-segment").forEach((segment) => {
-          const index = Number(segment.dataset.phaseIndex);
-          const range = ranges[index];
-          const from = Math.max(start, range.start);
-          const to = Math.min(shownEnd(end), shownEnd(range.end));
-          if (to <= from) { segment.style.display = "none"; return; }
-          const strip = segment.parentElement!.getBoundingClientRect();
-          segment.style.left = `${x(from) - strip.left}px`;
-          segment.style.width = `${x(to) - x(from)}px`;
+      if (aligned) {
+        const { total, ranges, cards } = coverage!;
+        const axis = container.querySelector<HTMLElement>(".gantt-axis")!.getBoundingClientRect();
+        const x = (day: number) => axis.left + (day / total) * axis.width;
+        const activeRanges = ranges.filter((range) => range.end > range.start);
+        const scheduleEnd = Math.max(...ranges.map((range) => range.end));
+        const trailing = Math.max(0, total - scheduleEnd);
+        // The last cards stretch to the axis end, so their color lines must too.
+        const shownEnd = (end: number) => (end >= scheduleEnd ? total : end);
+        const extendLastToAxisEnd = (widths: number[]) =>
+          widths
+            .map(
+              (width, index) =>
+                `${width + (index === widths.length - 1 ? (trailing / total) * axis.width : 0)}px`,
+            )
+            .join(" ");
+        container.querySelector<HTMLElement>(".phase-row")!.style.gridTemplateColumns =
+          extendLastToAxisEnd(
+            activeRanges.map((range) => ((range.end - range.start) / total) * axis.width),
+          );
+        container.querySelector<HTMLElement>(".department-grid")!.style.gridTemplateColumns =
+          extendLastToAxisEnd(cards.map((card) => ((card.end - card.start) / total) * axis.width));
+        container.querySelector<HTMLElement>(".phase-ribbon")!.style.background =
+          `linear-gradient(90deg, ${phases
+            .flatMap((phase, index) => {
+              const range = ranges[index];
+              return range.end > range.start
+                ? [
+                    `${phase.color} ${(range.start / total) * 100}% ${(shownEnd(range.end) / total) * 100}%`,
+                  ]
+                : [];
+            })
+            .join(", ")})`;
+        // Project each card's color strips onto the same global
+        // axis. Task starts never enter this calculation, so parallel work keeps
+        // the original single-row department presentation.
+        container.querySelectorAll<HTMLElement>(".department-card").forEach((card) => {
+          const start = Number(card.dataset.coverageStart);
+          const end = Number(card.dataset.coverageEnd);
+          card.querySelectorAll<HTMLElement>(".phase-segment").forEach((segment) => {
+            const index = Number(segment.dataset.phaseIndex);
+            const range = ranges[index];
+            const from = Math.max(start, range.start);
+            const to = Math.min(shownEnd(end), shownEnd(range.end));
+            if (to <= from) {
+              segment.style.display = "none";
+              return;
+            }
+            const strip = segment.parentElement!.getBoundingClientRect();
+            segment.style.left = `${x(from) - strip.left}px`;
+            segment.style.width = `${x(to) - x(from)}px`;
+          });
         });
-      });
-    } else {
-      // Both rows share physical color boundaries. A department shared by two
-      // phases places their boundary halfway between its two color segments.
-      const phaseRow = container.querySelector<HTMLElement>(".phase-row")!;
-      const rowBounds = phaseRow.getBoundingClientRect();
-      const segments = Array.from(container.querySelectorAll<HTMLElement>(".phase-segment"));
-      const boundaries = [0];
-      for (let index = 0; index < phases.length - 1; index += 1) {
-        const current = segments.filter((segment) => Number(segment.dataset.phaseIndex) === index);
-        const next = segments.filter((segment) => Number(segment.dataset.phaseIndex) === index + 1);
-        const end = current.length ? Math.max(...current.map((segment) => segment.getBoundingClientRect().right)) : undefined;
-        const start = next.length ? Math.min(...next.map((segment) => segment.getBoundingClientRect().left)) : undefined;
-        const boundary = end !== undefined && start !== undefined
-          ? (end + start) / 2 - rowBounds.left
-          : rowBounds.width * (index + 1) / phases.length;
-        boundaries.push(Math.max(boundaries[index] + 1, Math.min(rowBounds.width - (phases.length - index - 1), boundary)));
-      }
-      boundaries.push(rowBounds.width);
-      phaseRow.style.gridTemplateColumns = phases.map((_, index) => `${boundaries[index + 1] - boundaries[index]}px`).join(" ");
-      container.querySelector<HTMLElement>(".phase-ribbon")!.style.background = `linear-gradient(90deg, ${phases.map((phase, index) =>
-        `${phase.color} ${boundaries[index] / rowBounds.width * 100}% ${boundaries[index + 1] / rowBounds.width * 100}%`,
-      ).join(", ")})`;
-    }
-    // Pin involvement to the upper-right corner and keep the complete duration
-    // on one line, including in html-to-image's fixed-size snapshot.
-    const phaseMetadata = Array.from(container.querySelectorAll<HTMLElement>(".phase-meta"));
-    phaseMetadata.forEach((meta) => {
-      meta.style.minHeight = "";
-      meta.style.paddingTop = "";
-      const label = meta.querySelector<HTMLElement>(".phase-involvement")!;
-      label.style.fontSize = "12px";
-      const available = meta.clientWidth;
-      if (label.scrollWidth > available) label.style.fontSize = `${12 * available / label.scrollWidth * .96}px`;
-      if (meta.children[0].getBoundingClientRect().right + 8 > label.getBoundingClientRect().left) {
-        meta.style.paddingTop = `${label.getBoundingClientRect().height + 4}px`;
-      }
-      const duration = meta.parentElement!.querySelector<HTMLElement>(".phase-duration-main");
-      if (duration) {
-        const numbers = duration.querySelectorAll<HTMLElement>(".phase-duration-number");
-        const units = duration.querySelectorAll<HTMLElement>(".phase-duration-unit");
-        numbers.forEach((number) => { number.style.fontSize = "26px"; });
-        units.forEach((unit) => { unit.style.fontSize = "11px"; });
-        let scale = 1;
-        for (let attempt = 0; attempt < 4 && duration.scrollWidth > available; attempt += 1) {
-          scale *= available / duration.scrollWidth * .96;
-          numbers.forEach((number) => { number.style.fontSize = `${26 * scale}px`; });
-          units.forEach((unit) => { unit.style.fontSize = `${11 * scale}px`; });
+      } else {
+        // Both rows share physical color boundaries. A department shared by two
+        // phases places their boundary halfway between its two color segments.
+        const phaseRow = container.querySelector<HTMLElement>(".phase-row")!;
+        const rowBounds = phaseRow.getBoundingClientRect();
+        const segments = Array.from(container.querySelectorAll<HTMLElement>(".phase-segment"));
+        const boundaries = [0];
+        for (let index = 0; index < phases.length - 1; index += 1) {
+          const current = segments.filter(
+            (segment) => Number(segment.dataset.phaseIndex) === index,
+          );
+          const next = segments.filter(
+            (segment) => Number(segment.dataset.phaseIndex) === index + 1,
+          );
+          const end = current.length
+            ? Math.max(...current.map((segment) => segment.getBoundingClientRect().right))
+            : undefined;
+          const start = next.length
+            ? Math.min(...next.map((segment) => segment.getBoundingClientRect().left))
+            : undefined;
+          const boundary =
+            end !== undefined && start !== undefined
+              ? (end + start) / 2 - rowBounds.left
+              : (rowBounds.width * (index + 1)) / phases.length;
+          boundaries.push(
+            Math.max(
+              boundaries[index] + 1,
+              Math.min(rowBounds.width - (phases.length - index - 1), boundary),
+            ),
+          );
         }
+        boundaries.push(rowBounds.width);
+        phaseRow.style.gridTemplateColumns = phases
+          .map((_, index) => `${boundaries[index + 1] - boundaries[index]}px`)
+          .join(" ");
+        container.querySelector<HTMLElement>(".phase-ribbon")!.style.background =
+          `linear-gradient(90deg, ${phases
+            .map(
+              (phase, index) =>
+                `${phase.color} ${(boundaries[index] / rowBounds.width) * 100}% ${(boundaries[index + 1] / rowBounds.width) * 100}%`,
+            )
+            .join(", ")})`;
       }
-    });
-    const metadataHeight = Math.max(...phaseMetadata.map((meta) => meta.getBoundingClientRect().height));
-    phaseMetadata.forEach((meta) => { meta.style.minHeight = `${metadataHeight}px`; });
-    if (options.gantt) {
-      const handoffLine = container.querySelector<HTMLElement>(".gantt-day-one-line")?.getBoundingClientRect();
-      if (handoffLine) container.querySelectorAll<HTMLElement>(".gantt-task-label").forEach((label) => {
-        // The Sales-lead interval contains no colored task bars. Use that
-        // available space for full, single-line condition names, stopping
-        // early if this particular task begins before the handoff line.
-        const barLeft = label.closest(".gantt-row")?.querySelector<HTMLElement>(".gantt-bar")?.getBoundingClientRect().left;
-        const rightEdge = Math.min(handoffLine.left, barLeft ?? Infinity);
-        label.style.width = `${Math.max(PDF_SCHEDULE_LABEL_WIDTH, rightEdge - label.getBoundingClientRect().left - 4)}px`;
+      // Pin involvement to the upper-right corner and keep the complete duration
+      // on one line, including in html-to-image's fixed-size snapshot.
+      const phaseMetadata = Array.from(container.querySelectorAll<HTMLElement>(".phase-meta"));
+      phaseMetadata.forEach((meta) => {
+        meta.style.minHeight = "";
+        meta.style.paddingTop = "";
+        const label = meta.querySelector<HTMLElement>(".phase-involvement")!;
+        label.style.fontSize = "12px";
+        const available = meta.clientWidth;
+        if (label.scrollWidth > available)
+          label.style.fontSize = `${((12 * available) / label.scrollWidth) * 0.96}px`;
+        if (
+          meta.children[0].getBoundingClientRect().right + 8 >
+          label.getBoundingClientRect().left
+        ) {
+          meta.style.paddingTop = `${label.getBoundingClientRect().height + 4}px`;
+        }
+        const duration = meta.parentElement!.querySelector<HTMLElement>(".phase-duration-main");
+        if (duration) {
+          const numbers = duration.querySelectorAll<HTMLElement>(".phase-duration-number");
+          const units = duration.querySelectorAll<HTMLElement>(".phase-duration-unit");
+          numbers.forEach((number) => {
+            number.style.fontSize = "26px";
+          });
+          units.forEach((unit) => {
+            unit.style.fontSize = "11px";
+          });
+          let scale = 1;
+          for (let attempt = 0; attempt < 4 && duration.scrollWidth > available; attempt += 1) {
+            scale *= (available / duration.scrollWidth) * 0.96;
+            numbers.forEach((number) => {
+              number.style.fontSize = `${26 * scale}px`;
+            });
+            units.forEach((unit) => {
+              unit.style.fontSize = `${11 * scale}px`;
+            });
+          }
+        }
       });
-    }
+      const metadataHeight = Math.max(
+        ...phaseMetadata.map((meta) => meta.getBoundingClientRect().height),
+      );
+      phaseMetadata.forEach((meta) => {
+        meta.style.minHeight = `${metadataHeight}px`;
+      });
+      if (options.gantt) {
+        const handoffLine = container
+          .querySelector<HTMLElement>(".gantt-day-one-line")
+          ?.getBoundingClientRect();
+        if (handoffLine)
+          container.querySelectorAll<HTMLElement>(".gantt-task-label").forEach((label) => {
+            // The Sales-lead interval contains no colored task bars. Use that
+            // available space for full, single-line condition names, stopping
+            // early if this particular task begins before the handoff line.
+            const barLeft = label
+              .closest(".gantt-row")
+              ?.querySelector<HTMLElement>(".gantt-bar")
+              ?.getBoundingClientRect().left;
+            const rightEdge = Math.min(handoffLine.left, barLeft ?? Infinity);
+            label.style.width = `${Math.max(PDF_SCHEDULE_LABEL_WIDTH, rightEdge - label.getBoundingClientRect().left - 4)}px`;
+          });
+      }
     };
     alignTimeline();
     if (options.gantt) {
@@ -790,15 +1111,25 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
         // Measure each card at its natural width before the shared grid row
         // stretches it, so only wide cards split long document lists.
         grid.style.alignItems = "start";
-        cards.forEach((card) => { card.style.minHeight = ""; });
+        cards.forEach((card) => {
+          card.style.minHeight = "";
+        });
         const widest = Math.max(...cards.map((card) => card.offsetWidth));
         cards.forEach((card) => {
           const legalList = card.querySelector<HTMLElement>("[data-department-documents] ul");
           const itemCount = legalList?.children.length || 0;
-        const originalWidth = card === cards.at(-1) && aligned
-          ? (coverage!.cards.at(-1)!.end - coverage!.cards.at(-1)!.start) / coverage!.total * container.querySelector<HTMLElement>(".gantt-axis")!.offsetWidth
-          : card.offsetWidth;
-        if (!legalList || itemCount < 5 || legalList.offsetWidth < 210 || originalWidth < widest * .78) return;
+          const originalWidth =
+            card === cards.at(-1) && aligned
+              ? ((coverage!.cards.at(-1)!.end - coverage!.cards.at(-1)!.start) / coverage!.total) *
+                container.querySelector<HTMLElement>(".gantt-axis")!.offsetWidth
+              : card.offsetWidth;
+          if (
+            !legalList ||
+            itemCount < 5 ||
+            legalList.offsetWidth < 210 ||
+            originalWidth < widest * 0.78
+          )
+            return;
           // Real lists side by side, not CSS columns: the PNG snapshot pins the
           // list height, and a CSS column that no longer fits spills sideways
           // over Customer Information. Two columns keep more rows per list.
@@ -818,7 +1149,11 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     }
     // Titles wrap between words; a card too narrow for its longest word shrinks the title.
     container.querySelectorAll<HTMLElement>(".department-label").forEach((label) => {
-      for (let size = Number.parseFloat(getComputedStyle(label).fontSize); size > 11 && label.scrollWidth > label.clientWidth + 1; size -= 1) {
+      for (
+        let size = Number.parseFloat(getComputedStyle(label).fontSize);
+        size > 11 && label.scrollWidth > label.clientWidth + 1;
+        size -= 1
+      ) {
         label.style.fontSize = `${size - 1}px`;
       }
     });
@@ -829,32 +1164,44 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       salesLead.style.whiteSpace = "normal";
       for (let size = 19; size > 10; size -= 1) {
         salesLead.style.fontSize = `${size}px`;
-        if (salesLead.scrollWidth <= salesLead.clientWidth + 1 && salesLead.offsetHeight <= size * 1.15 * 2 + 1) break;
+        if (
+          salesLead.scrollWidth <= salesLead.clientWidth + 1 &&
+          salesLead.offsetHeight <= size * 1.15 * 2 + 1
+        )
+          break;
       }
       const axis = salesLead.parentElement!;
       axis.style.minHeight = `${Math.max(axis.offsetHeight, salesLead.offsetHeight + 6)}px`;
     }
     if (options.gantt) {
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const desiredHeight = container.offsetWidth * 11 / 17;
+        const desiredHeight = (container.offsetWidth * 11) / 17;
         const currentHeight = container.offsetHeight;
         if (Math.abs(currentHeight - desiredHeight) <= 2) break;
         if (currentHeight > desiredHeight) {
-          container.style.width = `${Math.ceil(currentHeight * 17 / 11)}px`;
+          container.style.width = `${Math.ceil((currentHeight * 17) / 11)}px`;
         } else {
-          const rows = Array.from(container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-row, .pdf-gantt .gantt-department"));
+          const rows = Array.from(
+            container.querySelectorAll<HTMLElement>(
+              ".pdf-gantt .gantt-row, .pdf-gantt .gantt-department",
+            ),
+          );
           const extra = rows.length ? (desiredHeight - currentHeight) / rows.length : 0;
-          rows.forEach((row) => { row.style.minHeight = `${row.offsetHeight + extra}px`; });
+          rows.forEach((row) => {
+            row.style.minHeight = `${row.offsetHeight + extra}px`;
+          });
         }
         alignTimeline();
       }
     }
     // The production note is pinned to the card bottom so the card keeps its
     // height; the duration moves up by the note's height instead.
-    container.querySelectorAll<HTMLElement>("[data-phase-actual-production-time]").forEach((note) => {
-      const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
-      if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
-    });
+    container
+      .querySelectorAll<HTMLElement>("[data-phase-actual-production-time]")
+      .forEach((note) => {
+        const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
+        if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
+      });
     // Labels stay on the same line as their bars: after the bar when it fits,
     // otherwise before the task's first segment. A label that fits on neither
     // side shrinks onto the roomier side instead of wrapping to a second line.
@@ -862,9 +1209,13 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
       const trackElement = text.parentElement!;
       const track = trackElement.getBoundingClientRect();
       if (text.getBoundingClientRect().right <= track.right - 2) return;
-      const segments = Array.from(trackElement.querySelectorAll<HTMLElement>(".gantt-bar,.gantt-pause-segment"));
-      const taskLeft = Math.min(...segments.map((segment) => segment.getBoundingClientRect().left)) - track.left;
-      const taskRight = Math.max(...segments.map((segment) => segment.getBoundingClientRect().right)) - track.left;
+      const segments = Array.from(
+        trackElement.querySelectorAll<HTMLElement>(".gantt-bar,.gantt-pause-segment"),
+      );
+      const taskLeft =
+        Math.min(...segments.map((segment) => segment.getBoundingClientRect().left)) - track.left;
+      const taskRight =
+        Math.max(...segments.map((segment) => segment.getBoundingClientRect().right)) - track.left;
       const gap = 6;
       const spaceBefore = taskLeft - gap - 2;
       const spaceAfter = track.width - taskRight - gap - 2;
@@ -886,14 +1237,19 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     container.querySelectorAll<HTMLElement>(".pdf-gantt .gantt-title").forEach((title) => {
       // Keep condition names on one line even when the lead interval is short.
       // Only titles that need it shrink; the task rows retain one height.
-      for (let attempt = 0; attempt < 3 && title.scrollWidth > title.clientWidth + 1; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < 3 && title.scrollWidth > title.clientWidth + 1;
+        attempt += 1
+      ) {
         const size = Number.parseFloat(getComputedStyle(title).fontSize);
-        title.style.fontSize = `${Math.max(12, size * title.clientWidth / title.scrollWidth * .97)}px`;
+        title.style.fontSize = `${Math.max(12, ((size * title.clientWidth) / title.scrollWidth) * 0.97)}px`;
       }
     });
     const width = Math.ceil(container.offsetWidth);
     const height = Math.ceil(container.offsetHeight);
-    if (!width || !height) throw new Error("The High Level Process System Flowchart PDF preview could not be laid out.");
+    if (!width || !height)
+      throw new Error("The High Level Process System Flowchart PDF preview could not be laid out.");
     const pixelRatio = exportPixelRatio(width, height);
     const image = await toPng(container, {
       backgroundColor: "#ffffff",
@@ -905,27 +1261,53 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     });
     const pageWidth = 17 * 25.4;
     const pageHeight = 11 * 25.4;
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [pageWidth, pageHeight], compress: true });
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: [pageWidth, pageHeight],
+      compress: true,
+    });
     const imageScale = Math.min(pageWidth / width, pageHeight / height);
     const imageWidth = width * imageScale;
     const imageHeight = height * imageScale;
-    pdf.addImage(image, "PNG", (pageWidth - imageWidth) / 2, (pageHeight - imageHeight) / 2, imageWidth, imageHeight, "workflow-pdf-image", "FAST");
+    pdf.addImage(
+      image,
+      "PNG",
+      (pageWidth - imageWidth) / 2,
+      (pageHeight - imageHeight) / 2,
+      imageWidth,
+      imageHeight,
+      "workflow-pdf-image",
+      "FAST",
+    );
     if (options.gantt) {
       const { appendProductionCalendarPages } = await import("@/lib/production-calendar-pdf");
       await appendProductionCalendarPages(pdf, file);
       const pages = pdf.getNumberOfPages();
       for (let page = 1; page <= pages; page += 1) {
-        pdf.setPage(page); pdf.setFillColor(255, 255, 255); pdf.rect(pageWidth - 21, pageHeight - 7, 18, 5, "F");
-        pdf.setFontSize(7); pdf.setTextColor(100, 116, 139); pdf.text(`${page} / ${pages}`, pageWidth - 5, pageHeight - 3.5, { align: "right" });
+        pdf.setPage(page);
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(pageWidth - 21, pageHeight - 7, 18, 5, "F");
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`${page} / ${pages}`, pageWidth - 5, pageHeight - 3.5, { align: "right" });
       }
     }
-    pdf.setProperties({ title: `${projectName} - ${documentTitle}`, subject: options.gantt ? "Phases, departments and release condition Gantt chart" : "Phases, departments, release conditions and forms" });
-    const safeName = `${projectNumber ? `${projectNumber}-` : ""}${projectName}`
-      .toLocaleLowerCase()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || "workflow";
-    pdf.save(`${safeName}-high-level-process-system-flowchart${options.gantt ? "-with-gantt-chart" : ""}.pdf`);
+    pdf.setProperties({
+      title: `${projectName} - ${documentTitle}`,
+      subject: options.gantt
+        ? "Phases, departments and release condition Gantt chart"
+        : "Phases, departments, release conditions and forms",
+    });
+    const safeName =
+      `${projectNumber ? `${projectNumber}-` : ""}${projectName}`
+        .toLocaleLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "") || "workflow";
+    pdf.save(
+      `${safeName}-high-level-process-system-flowchart${options.gantt ? "-with-gantt-chart" : ""}.pdf`,
+    );
   } finally {
     document.body.removeChild(container);
   }

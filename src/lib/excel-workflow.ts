@@ -6,11 +6,7 @@ import {
   visibleWorksheets,
   writePayload,
 } from "@/lib/excel-format";
-import {
-  applyPhaseSheet,
-  buildPhaseTabs,
-  writePhaseSheet,
-} from "@/lib/excel-phase";
+import { applyPhaseSheet, buildPhaseTabs, writePhaseSheet } from "@/lib/excel-phase";
 import { downloadBlob, parseWorkflowValue, serializeWorkflow } from "@/lib/serialization";
 import type { WorkflowFile } from "@/types/workflow";
 
@@ -29,9 +25,7 @@ function writePhaseWorkbook(workbook: Workbook, file: WorkflowFile) {
   }
 }
 
-export async function workflowToExcelBuffer(
-  file: WorkflowFile,
-): Promise<ArrayBuffer> {
+export async function workflowToExcelBuffer(file: WorkflowFile): Promise<ArrayBuffer> {
   const ExcelJS = await exceljs();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Falcon Process Building System";

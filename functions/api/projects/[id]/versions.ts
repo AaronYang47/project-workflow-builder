@@ -19,9 +19,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   const auth = await requireUser(request, env.DB, env.SESSION_SECRET);
   if (auth.response) return auth.response;
   const projectId = String(params.id);
-  const ownedProject = await env.DB.prepare(
-    "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-  ).bind(projectId, auth.user!.id).first();
+  const ownedProject = await env.DB.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?")
+    .bind(projectId, auth.user!.id)
+    .first();
   if (!ownedProject) return json({ error: "Project not found." }, 404);
 
   const result = await env.DB.prepare(
@@ -43,7 +43,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     WHERE versions.project_id = ? AND versions.owner_user_id = ?
     ORDER BY versions.version_number DESC
     LIMIT ?`,
-  ).bind(projectId, auth.user!.id, PROJECT_VERSION_RETENTION).all<VersionRow>();
+  )
+    .bind(projectId, auth.user!.id, PROJECT_VERSION_RETENTION)
+    .all<VersionRow>();
 
   return json({
     versions: result.results,

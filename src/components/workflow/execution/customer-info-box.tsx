@@ -13,7 +13,13 @@ import type { DocRecord } from "./doc-record";
  * Selection Form can be ticked only once its customer profile and answers
  * are complete, and is opened in its own form editor.
  */
-export function CustomerInfoBox({ docs, onSave, onOpenForm, onSelectionFormToggled, onAdd }: {
+export function CustomerInfoBox({
+  docs,
+  onSave,
+  onOpenForm,
+  onSelectionFormToggled,
+  onAdd,
+}: {
   docs: DocRecord[];
   onSave: (docs: DocRecord[]) => void;
   onOpenForm: (docId: string) => void;
@@ -30,9 +36,7 @@ export function CustomerInfoBox({ docs, onSave, onOpenForm, onSelectionFormToggl
             <Building2 className="size-4" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-foreground">
-              Customer Information
-            </h2>
+            <h2 className="text-sm font-bold text-foreground">Customer Information</h2>
             <p className="text-[10px] text-muted-foreground">
               Client specifications & authorization forms
             </p>
@@ -48,7 +52,9 @@ export function CustomerInfoBox({ docs, onSave, onOpenForm, onSelectionFormToggl
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
             <FileText className="size-8 opacity-30 mb-2" />
             <p className="text-xs font-medium">No customer forms added yet.</p>
-            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Customer Information Form&quot; below to add from uploaded forms.</p>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+              Click &quot;+ Add Customer Information Form&quot; below to add from uploaded forms.
+            </p>
           </div>
         ) : null}
         {docs.map((doc, index) => (
@@ -82,7 +88,11 @@ export function CustomerInfoBox({ docs, onSave, onOpenForm, onSelectionFormToggl
                 updated[index] = {
                   ...doc,
                   checked: nextChecked,
-                  status: (nextChecked ? "Verified" : doc.required ? "Required" : "Optional") as DocRecord["status"],
+                  status: (nextChecked
+                    ? "Verified"
+                    : doc.required
+                      ? "Required"
+                      : "Optional") as DocRecord["status"],
                 };
                 onSave(updated);
               }}
@@ -123,9 +133,7 @@ export function CustomerInfoBox({ docs, onSave, onOpenForm, onSelectionFormToggl
                   {doc.checked ? "Verified" : doc.required ? "Required" : "Optional"}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                {doc.title}
-              </p>
+              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">{doc.title}</p>
               {isCustomerSelectionForm(doc) && doc.customerName ? (
                 <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                   {[doc.customerCategory, doc.customerName].filter(Boolean).join(" · ")}

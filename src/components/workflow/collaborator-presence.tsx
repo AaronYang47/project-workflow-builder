@@ -25,8 +25,15 @@ const PRESET_COLORS = [
 ];
 
 export function CollaboratorPresence() {
-  const { isConnected, editorPeerId, localUser, remotePeers, setLocalUser, setRoomId, setEditControl } =
-    useCollaborationStore();
+  const {
+    isConnected,
+    editorPeerId,
+    localUser,
+    remotePeers,
+    setLocalUser,
+    setRoomId,
+    setEditControl,
+  } = useCollaborationStore();
   const authUser = useWorkflowStore((state) => state.authUser);
   const projectName = useWorkflowStore((state) => state.file.graph.metadata.name);
   const activeProjectId = useWorkflowStore((state) => state.activeProjectId);
@@ -44,7 +51,8 @@ export function CollaboratorPresence() {
       const state = useCollaborationStore.getState();
       // A browser profile can open multiple tabs. Keep one transport identity
       // per tab across route changes, rather than sharing the persisted ID.
-      const peerId = sessionStorage.getItem("workflow-collab-peer-id") ||
+      const peerId =
+        sessionStorage.getItem("workflow-collab-peer-id") ||
         (typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`);
@@ -91,9 +99,7 @@ export function CollaboratorPresence() {
     }
   }, [authUser, localUser.name, localUser.userId, setLocalUser]);
 
-  const peersList = Object.values(remotePeers).filter(
-    (p) => now - p.lastActiveAt < 30000,
-  );
+  const peersList = Object.values(remotePeers).filter((p) => now - p.lastActiveAt < 30000);
   const totalUsers = 1 + peersList.length;
 
   const handleNameBlur = () => {
@@ -110,7 +116,11 @@ export function CollaboratorPresence() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          title={isConnected ? `Real-Time Multiplayer: ${totalUsers} online · ${projectName || "Shared workflow"}` : "Collaboration is off until a share link is created or opened"}
+          title={
+            isConnected
+              ? `Real-Time Multiplayer: ${totalUsers} online · ${projectName || "Shared workflow"}`
+              : "Collaboration is off until a share link is created or opened"
+          }
           className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-muted/80 hover:border-primary/40 cursor-pointer"
         >
           <div className="relative flex items-center">
@@ -171,13 +181,31 @@ export function CollaboratorPresence() {
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold leading-none">Multiplayer Collaboration</h4>
-                  <p className="mt-1 truncate text-[10px] text-muted-foreground" title={projectName || "Shared workflow"}>
-                    Room: <span className="font-semibold text-foreground">{projectName || "Shared workflow"}</span>
+                  <p
+                    className="mt-1 truncate text-[10px] text-muted-foreground"
+                    title={projectName || "Shared workflow"}
+                  >
+                    Room:{" "}
+                    <span className="font-semibold text-foreground">
+                      {projectName || "Shared workflow"}
+                    </span>
                   </p>
                 </div>
               </div>
-              <div className={isConnected ? "flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full" : "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"}>
-                <span className={isConnected ? "size-1.5 animate-pulse rounded-full bg-emerald-500" : "size-1.5 rounded-full bg-amber-500"} />
+              <div
+                className={
+                  isConnected
+                    ? "flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full"
+                    : "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                }
+              >
+                <span
+                  className={
+                    isConnected
+                      ? "size-1.5 animate-pulse rounded-full bg-emerald-500"
+                      : "size-1.5 rounded-full bg-amber-500"
+                  }
+                />
                 {isConnected ? "Real-Time" : "Local only"}
               </div>
             </div>
@@ -233,7 +261,14 @@ export function CollaboratorPresence() {
                       style={{ backgroundColor: localUser.color }}
                     />
                     <span className="font-semibold text-foreground truncate">
-                      {localUser.name} <span className="text-[10px] text-muted-foreground font-normal">(You · {canEditCollaborativeWorkflow(useCollaborationStore.getState()) ? "Editor" : "Viewer"})</span>
+                      {localUser.name}{" "}
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        (You ·{" "}
+                        {canEditCollaborativeWorkflow(useCollaborationStore.getState())
+                          ? "Editor"
+                          : "Viewer"}
+                        )
+                      </span>
                     </span>
                   </div>
                   <span className="text-[10px] text-emerald-600 font-bold">Online</span>
@@ -250,12 +285,14 @@ export function CollaboratorPresence() {
                         className="size-2 rounded-full shrink-0"
                         style={{ backgroundColor: peer.color }}
                       />
-                      <span className="font-semibold text-foreground truncate">
-                        {peer.name}
-                      </span>
+                      <span className="font-semibold text-foreground truncate">{peer.name}</span>
                     </div>
                     <span className="text-[10px] text-muted-foreground">
-                      {editorPeerId === peer.peerId ? "Editor" : peer.focusedNodeId ? "Viewing · Active" : "Viewer"}
+                      {editorPeerId === peer.peerId
+                        ? "Editor"
+                        : peer.focusedNodeId
+                          ? "Viewing · Active"
+                          : "Viewer"}
                     </span>
                   </div>
                 ))}

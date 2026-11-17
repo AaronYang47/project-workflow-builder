@@ -12,16 +12,24 @@ for (const width of [1440, 1280, 1024, 390]) {
     await expect(toolbar.getByRole("button", { name: "Export", exact: true })).toBeVisible();
     const overflow = await toolbar.evaluate((root) => {
       const bounds = root.getBoundingClientRect();
-      return Array.from(root.querySelectorAll<HTMLElement>("div, button, a")).filter((element) => {
-        const box = element.getBoundingClientRect();
-        if (!box.width || !box.height) return false;
-        return box.right > bounds.right + 1 || box.left < bounds.left - 1 ||
-          (["auto", "scroll"].includes(getComputedStyle(element).overflowX) && element.scrollWidth > element.clientWidth + 1);
-      }).map((element) => element.getAttribute("aria-label") || element.className);
+      return Array.from(root.querySelectorAll<HTMLElement>("div, button, a"))
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          if (!box.width || !box.height) return false;
+          return (
+            box.right > bounds.right + 1 ||
+            box.left < bounds.left - 1 ||
+            (["auto", "scroll"].includes(getComputedStyle(element).overflowX) &&
+              element.scrollWidth > element.clientWidth + 1)
+          );
+        })
+        .map((element) => element.getAttribute("aria-label") || element.className);
     });
     expect(overflow).toEqual([]);
     if (width >= 1280) {
-      const rows = await toolbar.evaluate((element) => getComputedStyle(element).gridTemplateRows.split(" ").length);
+      const rows = await toolbar.evaluate(
+        (element) => getComputedStyle(element).gridTemplateRows.split(" ").length,
+      );
       expect(rows).toBe(2);
     }
   });

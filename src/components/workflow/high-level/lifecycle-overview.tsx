@@ -25,7 +25,14 @@ export function LifecycleOverview({
   const activeNodeId = selectedNodeId || localSelectedNodeId;
   const selected = orderedNodes.find((node) => node.id === activeNodeId) || orderedNodes[0];
   const gateCount = orderedNodes.filter((node) => node.type === "primaryGate").length;
-  const Icon = selected?.type === "primaryGate" ? Milestone : selected?.type === "start" ? CircleDot : selected?.type === "end" ? CheckCircle2 : Layers3;
+  const Icon =
+    selected?.type === "primaryGate"
+      ? Milestone
+      : selected?.type === "start"
+        ? CircleDot
+        : selected?.type === "end"
+          ? CheckCircle2
+          : Layers3;
 
   return (
     <div
@@ -35,13 +42,27 @@ export function LifecycleOverview({
     >
       <div className="flex items-center gap-3 px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Lifecycle overview</p>
-          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{nodes.length} lifecycle steps · {gateCount} primary gates · {workflowGateCount} workflow gates</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
+            Lifecycle overview
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+            {nodes.length} lifecycle steps · {gateCount} primary gates · {workflowGateCount}{" "}
+            workflow gates
+          </p>
         </div>
         <div className="hidden shrink-0 items-center gap-2 text-[8px] font-semibold text-muted-foreground sm:flex">
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-slate-400" />Phase</span>
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-primary" />Primary Gate</span>
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm border border-dashed border-violet-500" />Workflow Gate</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="size-2 rounded-full bg-slate-400" />
+            Phase
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="size-2 rounded-full bg-primary" />
+            Primary Gate
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="size-2 rounded-sm border border-dashed border-violet-500" />
+            Workflow Gate
+          </span>
         </div>
         <button
           type="button"
@@ -76,17 +97,45 @@ export function LifecycleOverview({
                       }}
                       className={cn(
                         "group flex w-[100px] shrink-0 flex-col gap-1 rounded-xl border px-2 py-2 text-left transition",
-                        isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-border/70 bg-card hover:border-primary/45 hover:bg-primary/5",
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border/70 bg-card hover:border-primary/45 hover:bg-primary/5",
                         isGate && !isSelected ? "border-primary/35 bg-primary/[0.04]" : "",
                       )}
                     >
                       <span className="flex items-start gap-1.5">
-                        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full text-[7px] font-bold text-white", isGate ? "bg-primary" : isBoundary ? "bg-emerald-600" : "bg-slate-500")}>{index + 1}</span>
-                        <span className="min-w-0 line-clamp-4 text-[8px] font-bold leading-[10px] text-foreground">{node.title}</span>
+                        <span
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-full text-[7px] font-bold text-white",
+                            isGate ? "bg-primary" : isBoundary ? "bg-emerald-600" : "bg-slate-500",
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 line-clamp-4 text-[8px] font-bold leading-[10px] text-foreground">
+                          {node.title}
+                        </span>
                       </span>
-                      <span className={cn("truncate text-[7px] font-semibold uppercase tracking-[0.06em]", isGate ? "text-primary" : "text-muted-foreground")}>{isGate ? "Primary Gate" : node.type === "start" ? "Start" : node.type === "end" ? "Final Close" : "Phase"}</span>
+                      <span
+                        className={cn(
+                          "truncate text-[7px] font-semibold uppercase tracking-[0.06em]",
+                          isGate ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {isGate
+                          ? "Primary Gate"
+                          : node.type === "start"
+                            ? "Start"
+                            : node.type === "end"
+                              ? "Final Close"
+                              : "Phase"}
+                      </span>
                     </button>
-                    {index < nodes.length - 1 ? <span aria-hidden className="text-xs font-semibold text-primary/55">→</span> : null}
+                    {index < nodes.length - 1 ? (
+                      <span aria-hidden className="text-xs font-semibold text-primary/55">
+                        →
+                      </span>
+                    ) : null}
                   </div>
                 );
               })}
@@ -94,9 +143,16 @@ export function LifecycleOverview({
           </div>
           {selected ? (
             <div className="flex items-center gap-2 border-t bg-muted/25 px-3 py-2">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="size-3.5" /></span>
-              <p className="min-w-0 flex-1 truncate text-[9px] text-muted-foreground"><strong className="text-foreground">Focus:</strong> {selected.title} · {selected.description}</p>
-              <span className="shrink-0 text-[8px] font-semibold text-muted-foreground">Click a step to focus</span>
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="size-3.5" />
+              </span>
+              <p className="min-w-0 flex-1 truncate text-[9px] text-muted-foreground">
+                <strong className="text-foreground">Focus:</strong> {selected.title} ·{" "}
+                {selected.description}
+              </p>
+              <span className="shrink-0 text-[8px] font-semibold text-muted-foreground">
+                Click a step to focus
+              </span>
             </div>
           ) : null}
         </>

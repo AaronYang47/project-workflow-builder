@@ -49,9 +49,7 @@ export function HighLevelInspector() {
   const node = file.highLevel?.graph.nodes.find(
     (item) => item.id === highLevelSelection.nodeIds[0],
   );
-  const edge = file.highLevel?.graph.edges.find(
-    (item) => item.id === highLevelSelection.edgeId,
-  );
+  const edge = file.highLevel?.graph.edges.find((item) => item.id === highLevelSelection.edgeId);
   const linkedIds = node
     ? orderLinkedWorkflowNodeIds(
         node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds,
@@ -61,10 +59,14 @@ export function HighLevelInspector() {
       )
     : [];
   const orderedWorkflowNodeIds = orderWorkflowNodeIds(
-    file.graph.nodes.filter((workflowNode) => workflowNode.type !== "phase").map((workflowNode) => workflowNode.id),
+    file.graph.nodes
+      .filter((workflowNode) => workflowNode.type !== "phase")
+      .map((workflowNode) => workflowNode.id),
     file.graph.nodes,
   );
-  const workflowNodeById = new Map(file.graph.nodes.map((workflowNode) => [workflowNode.id, workflowNode]));
+  const workflowNodeById = new Map(
+    file.graph.nodes.map((workflowNode) => [workflowNode.id, workflowNode]),
+  );
   const linkedByOtherNode = new Map<string, string>();
   for (const otherNode of file.highLevel?.graph.nodes || []) {
     if (otherNode.id === node?.id) continue;
@@ -144,164 +146,186 @@ export function HighLevelInspector() {
               </p>
             </div>
             <div className="space-y-2 border-t pt-4">
-                {node.type === "phase" || node.type === "start" || node.type === "end" ? (
-                  <div className="space-y-3">
-                    <div>
-                      <Label>{node.type === "start" ? "Start appearance" : node.type === "end" ? "Final Close appearance" : "Phase appearance"}</Label>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        Choose a visible glass tint. The color remains translucent, so the canvas still shows through.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {phaseColorOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          aria-label={`Use ${option.label} for this ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} node`}
-                          aria-pressed={node.backgroundColor === option.value}
-                          title={option.label}
-                          onClick={() => updateHighLevelNode(node.id, { backgroundColor: option.value })}
-                          className={`size-7 rounded-full border-2 shadow-sm transition hover:scale-105 ${node.backgroundColor === option.value ? "border-primary ring-2 ring-primary/25 ring-offset-1" : "border-white/80"}`}
-                          style={
-                            option.value === "transparent"
-                              ? {
-                                  backgroundColor: "transparent",
-                                  backgroundImage:
-                                    "conic-gradient(#d9e2ee 25%, #ffffff 0 50%, #d9e2ee 0 75%, #ffffff 0)",
-                                  backgroundSize: "8px 8px",
-                                }
-                              : { backgroundColor: option.value }
-                          }
-                        >
-                          {option.value === "transparent" ? (
-                            <span className="sr-only">Transparent glass</span>
-                          ) : null}
-                        </button>
-                      ))}
-                      <label className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/45 bg-card text-[10px] font-bold text-muted-foreground hover:border-primary hover:text-primary" title="Custom color">
-                        <input
-                          type="color"
-                          aria-label={`Custom ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} glass tint`}
-                          value={isHexColor(node.backgroundColor) ? node.backgroundColor : "#e0f2fe"}
-                          onChange={(event) => updateHighLevelNode(node.id, { backgroundColor: event.target.value })}
-                          className="absolute size-0 opacity-0"
-                        />
-                        +
-                      </label>
-                      {node.backgroundColor ? (
-                        <button
-                          type="button"
-                          onClick={() => updateHighLevelNode(node.id, { backgroundColor: "" })}
-                          className="rounded px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                          Reset
-                        </button>
-                      ) : null}
-                    </div>
+              {node.type === "phase" || node.type === "start" || node.type === "end" ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label>
+                      {node.type === "start"
+                        ? "Start appearance"
+                        : node.type === "end"
+                          ? "Final Close appearance"
+                          : "Phase appearance"}
+                    </Label>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Choose a visible glass tint. The color remains translucent, so the canvas
+                      still shows through.
+                    </p>
                   </div>
-                ) : null}
-                <div>
-                  <Label>Linked Workflow Nodes</Label>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Select existing Workflow Nodes. Each node can be linked to only one High-Level node.
-                  </p>
-                </div>
-                <div className="max-h-80 space-y-1 overflow-y-auto rounded-md border p-2">
-                  {orderedWorkflowNodeIds.map((workflowNodeId) => {
-                    const detailedNode = workflowNodeById.get(workflowNodeId);
-                    if (!detailedNode) return null;
-                    const checked = linkedIds.includes(detailedNode.id);
-                    const linkedTo = linkedByOtherNode.get(detailedNode.id);
-                    const unavailable = Boolean(linkedTo) && !checked;
-                    return (
-                      <label
-                        key={detailedNode.id}
-                        className={`flex items-start gap-2 rounded px-2 py-1.5 text-xs ${
-                          unavailable
-                            ? "cursor-not-allowed opacity-55"
-                            : "cursor-pointer hover:bg-muted"
-                        }`}
-                        title={linkedTo ? `Already linked to ${linkedTo}` : undefined}
+                  <div className="flex flex-wrap gap-2">
+                    {phaseColorOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-label={`Use ${option.label} for this ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} node`}
+                        aria-pressed={node.backgroundColor === option.value}
+                        title={option.label}
+                        onClick={() =>
+                          updateHighLevelNode(node.id, { backgroundColor: option.value })
+                        }
+                        className={`size-7 rounded-full border-2 shadow-sm transition hover:scale-105 ${node.backgroundColor === option.value ? "border-primary ring-2 ring-primary/25 ring-offset-1" : "border-white/80"}`}
+                        style={
+                          option.value === "transparent"
+                            ? {
+                                backgroundColor: "transparent",
+                                backgroundImage:
+                                  "conic-gradient(#d9e2ee 25%, #ffffff 0 50%, #d9e2ee 0 75%, #ffffff 0)",
+                                backgroundSize: "8px 8px",
+                              }
+                            : { backgroundColor: option.value }
+                        }
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={unavailable}
-                          onChange={() =>
-                            updateHighLevelNode(node.id, {
-                              linkedLayer2NodeIds: checked
-                                ? linkedIds.filter((id) => id !== detailedNode.id)
-                                : [...linkedIds, detailedNode.id],
-                            })
-                          }
-                          className="mt-0.5 accent-primary"
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">{departmentDisplayName(detailedNode)}</span>
-                          {departmentDisplayName(detailedNode) !== detailedNode.title ? (
-                            <span className="block truncate text-[10px] text-muted-foreground">{detailedNode.title}</span>
-                          ) : null}
-                          {linkedTo && !checked ? (
-                            <span className="block truncate text-[10px] text-muted-foreground">
-                              Linked to {linkedTo}
-                            </span>
-                          ) : null}
-                        </span>
-                        </label>
-                    );
-                  })}
-                  {linkedIds
-                    .filter(
-                      (id) => !file.graph.nodes.some((detailedNode) => detailedNode.id === id),
-                    )
-                    .map((id) => (
-                      <div
-                        key={id}
-                        className="flex items-center gap-2 rounded bg-destructive/5 px-2 py-1.5 text-xs text-destructive"
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          Missing linked Workflow Node
-                        </span>
-                        <button
-                          type="button"
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium hover:bg-destructive/10"
-                          onClick={() =>
-                            updateHighLevelNode(node.id, {
-                              linkedLayer2NodeIds: linkedIds.filter((linkedId) => linkedId !== id),
-                            })
-                          }
-                        >
-                          Remove
-                        </button>
-                      </div>
+                        {option.value === "transparent" ? (
+                          <span className="sr-only">Transparent glass</span>
+                        ) : null}
+                      </button>
                     ))}
-                </div>
-                {linkedIds.some((id) => (workflowNodeById.get(id)?.conditions.length ?? 0) > 0) ? (
-                  <div className="rounded-md border bg-card p-2.5">
-                    <p className="text-xs font-semibold">Release conditions in linked Departments</p>
-                    <div className="mt-2 max-h-56 space-y-2 overflow-y-auto text-[11px]">
-                      {linkedIds.map((id) => {
-                        const chapter = workflowNodeById.get(id);
-                        if (!chapter?.conditions.length) return null;
-                        return (
-                          <div key={id}>
-                            <p className="font-semibold text-primary">{departmentDisplayName(chapter)} · {chapter.conditions.length}</p>
-                            {departmentDisplayName(chapter) !== chapter.title ? (
-                              <p className="text-[10px] text-muted-foreground">{chapter.title}</p>
-                            ) : null}
-                            <ol className="mt-0.5 list-inside list-decimal space-y-0.5 text-muted-foreground">
-                              {chapter.conditions.map((condition, index) => (
-                                <li key={condition.id || index} className="break-words">
-                                  {conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}{condition.label || condition.description || `Condition ${index + 1}`}
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <label
+                      className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/45 bg-card text-[10px] font-bold text-muted-foreground hover:border-primary hover:text-primary"
+                      title="Custom color"
+                    >
+                      <input
+                        type="color"
+                        aria-label={`Custom ${node.type === "start" ? "start" : node.type === "end" ? "Final Close" : "phase"} glass tint`}
+                        value={isHexColor(node.backgroundColor) ? node.backgroundColor : "#e0f2fe"}
+                        onChange={(event) =>
+                          updateHighLevelNode(node.id, { backgroundColor: event.target.value })
+                        }
+                        className="absolute size-0 opacity-0"
+                      />
+                      +
+                    </label>
+                    {node.backgroundColor ? (
+                      <button
+                        type="button"
+                        onClick={() => updateHighLevelNode(node.id, { backgroundColor: "" })}
+                        className="rounded px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        Reset
+                      </button>
+                    ) : null}
                   </div>
-                ) : null}
+                </div>
+              ) : null}
+              <div>
+                <Label>Linked Workflow Nodes</Label>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Select existing Workflow Nodes. Each node can be linked to only one High-Level
+                  node.
+                </p>
+              </div>
+              <div className="max-h-80 space-y-1 overflow-y-auto rounded-md border p-2">
+                {orderedWorkflowNodeIds.map((workflowNodeId) => {
+                  const detailedNode = workflowNodeById.get(workflowNodeId);
+                  if (!detailedNode) return null;
+                  const checked = linkedIds.includes(detailedNode.id);
+                  const linkedTo = linkedByOtherNode.get(detailedNode.id);
+                  const unavailable = Boolean(linkedTo) && !checked;
+                  return (
+                    <label
+                      key={detailedNode.id}
+                      className={`flex items-start gap-2 rounded px-2 py-1.5 text-xs ${
+                        unavailable
+                          ? "cursor-not-allowed opacity-55"
+                          : "cursor-pointer hover:bg-muted"
+                      }`}
+                      title={linkedTo ? `Already linked to ${linkedTo}` : undefined}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={unavailable}
+                        onChange={() =>
+                          updateHighLevelNode(node.id, {
+                            linkedLayer2NodeIds: checked
+                              ? linkedIds.filter((id) => id !== detailedNode.id)
+                              : [...linkedIds, detailedNode.id],
+                          })
+                        }
+                        className="mt-0.5 accent-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {departmentDisplayName(detailedNode)}
+                        </span>
+                        {departmentDisplayName(detailedNode) !== detailedNode.title ? (
+                          <span className="block truncate text-[10px] text-muted-foreground">
+                            {detailedNode.title}
+                          </span>
+                        ) : null}
+                        {linkedTo && !checked ? (
+                          <span className="block truncate text-[10px] text-muted-foreground">
+                            Linked to {linkedTo}
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  );
+                })}
+                {linkedIds
+                  .filter((id) => !file.graph.nodes.some((detailedNode) => detailedNode.id === id))
+                  .map((id) => (
+                    <div
+                      key={id}
+                      className="flex items-center gap-2 rounded bg-destructive/5 px-2 py-1.5 text-xs text-destructive"
+                    >
+                      <span className="min-w-0 flex-1 truncate">Missing linked Workflow Node</span>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium hover:bg-destructive/10"
+                        onClick={() =>
+                          updateHighLevelNode(node.id, {
+                            linkedLayer2NodeIds: linkedIds.filter((linkedId) => linkedId !== id),
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+              </div>
+              {linkedIds.some((id) => (workflowNodeById.get(id)?.conditions.length ?? 0) > 0) ? (
+                <div className="rounded-md border bg-card p-2.5">
+                  <p className="text-xs font-semibold">Release conditions in linked Departments</p>
+                  <div className="mt-2 max-h-56 space-y-2 overflow-y-auto text-[11px]">
+                    {linkedIds.map((id) => {
+                      const chapter = workflowNodeById.get(id);
+                      if (!chapter?.conditions.length) return null;
+                      return (
+                        <div key={id}>
+                          <p className="font-semibold text-primary">
+                            {departmentDisplayName(chapter)} · {chapter.conditions.length}
+                          </p>
+                          {departmentDisplayName(chapter) !== chapter.title ? (
+                            <p className="text-[10px] text-muted-foreground">{chapter.title}</p>
+                          ) : null}
+                          <ol className="mt-0.5 list-inside list-decimal space-y-0.5 text-muted-foreground">
+                            {chapter.conditions.map((condition, index) => (
+                              <li key={condition.id || index} className="break-words">
+                                {conditionDurationLabel(condition)
+                                  ? `${conditionDurationLabel(condition)} · `
+                                  : ""}
+                                {condition.label ||
+                                  condition.description ||
+                                  `Condition ${index + 1}`}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

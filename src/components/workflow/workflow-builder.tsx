@@ -6,25 +6,63 @@ import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { AuthGate } from "./auth-gate";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { EXPORT_EVENT, exportDocument, exportErrorMessage, type ExportEventDetail } from "@/lib/export/export-formats";
+import {
+  EXPORT_EVENT,
+  exportDocument,
+  exportErrorMessage,
+  type ExportEventDetail,
+} from "@/lib/export/export-formats";
 import type { DomainNode, NodeLayout } from "@/types/workflow";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
 import { useShallow } from "zustand/react/shallow";
 import { useCurrentTime } from "@/lib/use-current-time";
 
-const TopToolbar = dynamic(() => import("./top-toolbar").then((module) => module.TopToolbar), { ssr: false });
-const NodeLibrary = dynamic(() => import("./node-library").then((module) => module.NodeLibrary), { ssr: false });
-const Inspector = dynamic(() => import("./inspector").then((module) => module.Inspector), { ssr: false });
-const WorkflowCanvas = dynamic(() => import("./workflow-canvas").then((module) => module.WorkflowCanvas), { ssr: false });
-const HighLevelWorkflowView = dynamic(() => import("./high-level-workflow-view").then((module) => module.HighLevelWorkflowView), { ssr: false });
-const ExecutionView = dynamic(() => import("./execution-view").then((module) => module.ExecutionView), { ssr: false });
-const ValidationPanel = dynamic(() => import("./validation-panel").then((module) => module.ValidationPanel), { ssr: false });
-const CommandPalette = dynamic(() => import("./command-palette").then((module) => module.CommandPalette), { ssr: false });
-const DeleteBlockedDialog = dynamic(() => import("./delete-blocked-dialog").then((module) => module.DeleteBlockedDialog), { ssr: false });
-const ConfirmClearDialog = dynamic(() => import("./confirm-clear-dialog").then((module) => module.ConfirmClearDialog), { ssr: false });
-const PyramidLocationWidget = dynamic(() => import("./pyramid-location-widget").then((module) => module.PyramidLocationWidget), { ssr: false });
+const TopToolbar = dynamic(() => import("./top-toolbar").then((module) => module.TopToolbar), {
+  ssr: false,
+});
+const NodeLibrary = dynamic(() => import("./node-library").then((module) => module.NodeLibrary), {
+  ssr: false,
+});
+const Inspector = dynamic(() => import("./inspector").then((module) => module.Inspector), {
+  ssr: false,
+});
+const WorkflowCanvas = dynamic(
+  () => import("./workflow-canvas").then((module) => module.WorkflowCanvas),
+  { ssr: false },
+);
+const HighLevelWorkflowView = dynamic(
+  () => import("./high-level-workflow-view").then((module) => module.HighLevelWorkflowView),
+  { ssr: false },
+);
+const ExecutionView = dynamic(
+  () => import("./execution-view").then((module) => module.ExecutionView),
+  { ssr: false },
+);
+const ValidationPanel = dynamic(
+  () => import("./validation-panel").then((module) => module.ValidationPanel),
+  { ssr: false },
+);
+const CommandPalette = dynamic(
+  () => import("./command-palette").then((module) => module.CommandPalette),
+  { ssr: false },
+);
+const DeleteBlockedDialog = dynamic(
+  () => import("./delete-blocked-dialog").then((module) => module.DeleteBlockedDialog),
+  { ssr: false },
+);
+const ConfirmClearDialog = dynamic(
+  () => import("./confirm-clear-dialog").then((module) => module.ConfirmClearDialog),
+  { ssr: false },
+);
+const PyramidLocationWidget = dynamic(
+  () => import("./pyramid-location-widget").then((module) => module.PyramidLocationWidget),
+  { ssr: false },
+);
 
 function RemoteCollaboratorCursors({ view }: { view: CollaborativeViewState }) {
   const [viewport, setViewport] = useState<HTMLElement | null>(null);
@@ -48,30 +86,53 @@ function RemoteCollaboratorCursors({ view }: { view: CollaborativeViewState }) {
   if (!isConnected || roomId === "local-only") return null;
 
   const visiblePeers = Object.values(remotePeers).filter(
-    (peer) => peer.cursor?.view?.layer === view.layer &&
+    (peer) =>
+      peer.cursor?.view?.layer === view.layer &&
       (view.layer !== "L3" || peer.cursor.view.executionNodeId === view.executionNodeId) &&
       now - (peer.cursorAt ?? 0) < 30000,
   );
   if (!visiblePeers.length) return null;
 
-  return <>{visiblePeers.map((peer) => {
-    const cursor = peer.cursor!;
-    const canvas = cursor.space === "canvas";
-    if (canvas && !viewport) return null;
-    const zoom = viewport ? new DOMMatrix(getComputedStyle(viewport).transform).a || 1 : 1;
-    const marker = (
-      <div key={peer.peerId} data-remote-cursor={peer.peerId}
-        className="pointer-events-none absolute z-[9999]"
-        style={{ left: canvas ? cursor.x : `${cursor.x * 100}%`, top: canvas ? cursor.y : `${cursor.y * 100}%`, transform: canvas ? `scale(${1 / zoom})` : undefined, transformOrigin: "0 0" }}>
-        <svg className="size-5 drop-shadow" viewBox="0 0 20 24" fill="none">
-          <path d="M2 1.5v18l4.8-4.2 3.1 6.4 3-1.4-3.2-6.3 6.5-.4L2 1.5Z" fill={peer.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-        </svg>
-        <span className="ml-3 -mt-1 block max-w-40 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold text-white shadow-md" style={{ backgroundColor: peer.color }}>{peer.name}</span>
-      </div>
-    );
-    return canvas ? createPortal(marker, viewport!, peer.peerId) : marker;
-  })}</>;
-
+  return (
+    <>
+      {visiblePeers.map((peer) => {
+        const cursor = peer.cursor!;
+        const canvas = cursor.space === "canvas";
+        if (canvas && !viewport) return null;
+        const zoom = viewport ? new DOMMatrix(getComputedStyle(viewport).transform).a || 1 : 1;
+        const marker = (
+          <div
+            key={peer.peerId}
+            data-remote-cursor={peer.peerId}
+            className="pointer-events-none absolute z-[9999]"
+            style={{
+              left: canvas ? cursor.x : `${cursor.x * 100}%`,
+              top: canvas ? cursor.y : `${cursor.y * 100}%`,
+              transform: canvas ? `scale(${1 / zoom})` : undefined,
+              transformOrigin: "0 0",
+            }}
+          >
+            <svg className="size-5 drop-shadow" viewBox="0 0 20 24" fill="none">
+              <path
+                d="M2 1.5v18l4.8-4.2 3.1 6.4 3-1.4-3.2-6.3 6.5-.4L2 1.5Z"
+                fill={peer.color}
+                stroke="white"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span
+              className="ml-3 -mt-1 block max-w-40 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold text-white shadow-md"
+              style={{ backgroundColor: peer.color }}
+            >
+              {peer.name}
+            </span>
+          </div>
+        );
+        return canvas ? createPortal(marker, viewport!, peer.peerId) : marker;
+      })}
+    </>
+  );
 }
 
 function subscribeToMediaQuery(
@@ -109,9 +170,10 @@ export default function WorkflowBuilder() {
     state.editorPeerId ? state.remotePeers[state.editorPeerId]?.name : undefined,
   );
   const editorExecutionNodeAvailable = useWorkflowStore((state) =>
-    Boolean(editorViewState?.executionNodeId && state.file.graph.nodes.some(
-      (node) => node.id === editorViewState.executionNodeId,
-    )),
+    Boolean(
+      editorViewState?.executionNodeId &&
+      state.file.graph.nodes.some((node) => node.id === editorViewState.executionNodeId),
+    ),
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop" | null>(null);
@@ -132,7 +194,8 @@ export default function WorkflowBuilder() {
     if (!workflowHydrated || !canEditWorkflow) return;
     const params = new URLSearchParams(window.location.search);
     const nodeId = params.get("executionNode");
-    if (!nodeId || !useWorkflowStore.getState().file.graph.nodes.some((node) => node.id === nodeId)) return;
+    if (!nodeId || !useWorkflowStore.getState().file.graph.nodes.some((node) => node.id === nodeId))
+      return;
     // A deep link to L3 can open only once the saved workflow has loaded.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsHighLevelView(false);
@@ -148,7 +211,14 @@ export default function WorkflowBuilder() {
       layer: currentLayer,
       ...(currentLayer === "L3" && executionNodeId ? { executionNodeId } : {}),
     });
-  }, [canEditWorkflow, currentLayer, editControlReady, executionNodeId, isCollaborationConnected, remotePeerCount]);
+  }, [
+    canEditWorkflow,
+    currentLayer,
+    editControlReady,
+    executionNodeId,
+    isCollaborationConnected,
+    remotePeerCount,
+  ]);
 
   const applyEditorView = useCallback((view: NonNullable<typeof editorViewState>) => {
     if (view.page && view.page !== "workflow") return;
@@ -161,9 +231,9 @@ export default function WorkflowBuilder() {
     }
     setIsHighLevelView(false);
     if (view.layer === "L3" && view.executionNodeId) {
-      const nodeExists = useWorkflowStore.getState().file.graph.nodes.some(
-        (node) => node.id === view.executionNodeId,
-      );
+      const nodeExists = useWorkflowStore
+        .getState()
+        .file.graph.nodes.some((node) => node.id === view.executionNodeId);
       if (nodeExists) {
         setExecutionNodeId(view.executionNodeId);
         return;
@@ -178,7 +248,14 @@ export default function WorkflowBuilder() {
     // Viewers follow the layer the editor broadcasts over the collaboration channel.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     applyEditorView(editorViewState);
-  }, [applyEditorView, canEditWorkflow, editControlReady, editorViewState, editorExecutionNodeAvailable, isCollaborationConnected]);
+  }, [
+    applyEditorView,
+    canEditWorkflow,
+    editControlReady,
+    editorViewState,
+    editorExecutionNodeAvailable,
+    isCollaborationConnected,
+  ]);
   const [layer1FocusRequest, setLayer1FocusRequest] = useState<string | null>(null);
   const [layer2FocusRequest, setLayer2FocusRequest] = useState<string[] | null>(null);
   const requestLayer2Focus = useCallback((nodeIds: string[]) => {
@@ -191,26 +268,40 @@ export default function WorkflowBuilder() {
   const clearLayer1FocusRequest = useCallback(() => {
     setLayer1FocusRequest(null);
   }, []);
-  const broadcastEditorCursor = useCallback((event: React.PointerEvent<HTMLDivElement>, force = false) => {
-    if (!canEditCollaborativeWorkflow()) return;
-    const surface = workspaceSurfaceRef.current;
-    if (!surface) return;
-    const view: CollaborativeViewState = { layer: currentLayer, ...(executionNodeId ? { executionNodeId } : {}) };
-    const canvas = (event.target as HTMLElement).closest<HTMLElement>(".react-flow");
-    const viewport = canvas?.querySelector<HTMLElement>(".react-flow__viewport");
-    if (canvas && viewport) {
-      const bounds = canvas.getBoundingClientRect();
-      const matrix = new DOMMatrix(getComputedStyle(viewport).transform);
-      collaborationManager.broadcastCursor(
-        (event.clientX - bounds.left - matrix.e) / matrix.a,
-        (event.clientY - bounds.top - matrix.f) / matrix.d,
-        view, "canvas", force,
-      );
-    } else if (currentLayer === "L3") {
-      const bounds = surface.getBoundingClientRect();
-      collaborationManager.broadcastCursor((event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height, view, "surface", force);
-    }
-  }, [currentLayer, executionNodeId]);
+  const broadcastEditorCursor = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, force = false) => {
+      if (!canEditCollaborativeWorkflow()) return;
+      const surface = workspaceSurfaceRef.current;
+      if (!surface) return;
+      const view: CollaborativeViewState = {
+        layer: currentLayer,
+        ...(executionNodeId ? { executionNodeId } : {}),
+      };
+      const canvas = (event.target as HTMLElement).closest<HTMLElement>(".react-flow");
+      const viewport = canvas?.querySelector<HTMLElement>(".react-flow__viewport");
+      if (canvas && viewport) {
+        const bounds = canvas.getBoundingClientRect();
+        const matrix = new DOMMatrix(getComputedStyle(viewport).transform);
+        collaborationManager.broadcastCursor(
+          (event.clientX - bounds.left - matrix.e) / matrix.a,
+          (event.clientY - bounds.top - matrix.f) / matrix.d,
+          view,
+          "canvas",
+          force,
+        );
+      } else if (currentLayer === "L3") {
+        const bounds = surface.getBoundingClientRect();
+        collaborationManager.broadcastCursor(
+          (event.clientX - bounds.left) / bounds.width,
+          (event.clientY - bounds.top) / bounds.height,
+          view,
+          "surface",
+          force,
+        );
+      }
+    },
+    [currentLayer, executionNodeId],
+  );
   const openLayer1Context = useCallback((nodeId: string) => {
     if (!canEditCollaborativeWorkflow()) return;
     if (nodeId) {
@@ -227,9 +318,7 @@ export default function WorkflowBuilder() {
     const selectedId = nodeId || workflow.selection.nodeIds[0] || workflow.file.graph.nodes[0]?.id;
     if (
       !selectedId ||
-      !useWorkflowStore
-        .getState()
-        .file.graph.nodes.some((node) => node.id === selectedId)
+      !useWorkflowStore.getState().file.graph.nodes.some((node) => node.id === selectedId)
     ) {
       return;
     }
@@ -266,8 +355,7 @@ export default function WorkflowBuilder() {
       }
     };
     window.addEventListener("workflow:open-execution", handleOpenExecution);
-    return () =>
-      window.removeEventListener("workflow:open-execution", handleOpenExecution);
+    return () => window.removeEventListener("workflow:open-execution", handleOpenExecution);
   }, [openExecutionView]);
 
   useEffect(() => {
@@ -290,10 +378,16 @@ export default function WorkflowBuilder() {
       const format = custom.detail?.format;
       if (!format || custom.detail?.switched) return;
 
-      if (format === "l1-swimlane-pdf" || format === "l1-gantt-pdf" || format === "tech-pdf" ||
-        format === "presentation-pdf" || format === "presentation-no-conditions-pdf") {
-        void exportDocument(format, useWorkflowStore.getState().file)
-          .catch((error: unknown) => window.alert(exportErrorMessage(error)));
+      if (
+        format === "l1-swimlane-pdf" ||
+        format === "l1-gantt-pdf" ||
+        format === "tech-pdf" ||
+        format === "presentation-pdf" ||
+        format === "presentation-no-conditions-pdf"
+      ) {
+        void exportDocument(format, useWorkflowStore.getState().file).catch((error: unknown) =>
+          window.alert(exportErrorMessage(error)),
+        );
         return;
       }
 
@@ -346,9 +440,7 @@ export default function WorkflowBuilder() {
     return () => window.removeEventListener(EXPORT_EVENT, handleExport);
   }, [isHighLevelView, isExecutionView, executionNodeId]);
 
-  const copied = useRef<
-    { items: Array<{ node: DomainNode; layout: NodeLayout }> } | null
-  >(null);
+  const copied = useRef<{ items: Array<{ node: DomainNode; layout: NodeLayout }> } | null>(null);
   // Subscribe only to panel state; the builder must not re-render on every edit.
   const { leftOpen, rightOpen, validationOpen, togglePanel } = useWorkflowStore(
     useShallow((state) => ({
@@ -380,8 +472,7 @@ export default function WorkflowBuilder() {
       const command = event.metaKey || event.ctrlKey;
       const target = event.target as HTMLElement;
       const editing =
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
-        target.isContentEditable;
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable;
       if (command && event.key.toLowerCase() === "k") {
         event.preventDefault();
         if (canEditCollaborativeWorkflow()) setPaletteOpen(true);
@@ -399,18 +490,10 @@ export default function WorkflowBuilder() {
       } else if (command && event.key.toLowerCase() === "s") {
         event.preventDefault();
         window.dispatchEvent(new Event("workflow:save-cloud"));
-      } else if (
-        !executionNodeId &&
-        command &&
-        event.key.toLowerCase() === "d"
-      ) {
+      } else if (!executionNodeId && command && event.key.toLowerCase() === "d") {
         event.preventDefault();
         store.duplicateSelected();
-      } else if (
-        !executionNodeId &&
-        command &&
-        event.key.toLowerCase() === "c"
-      ) {
+      } else if (!executionNodeId && command && event.key.toLowerCase() === "c") {
         const ids = store.selection.nodeIds;
         copied.current = {
           items: ids.flatMap((id) => {
@@ -436,21 +519,21 @@ export default function WorkflowBuilder() {
           copy.items
             .filter(({ node }) => node.type !== "projectStart")
             .forEach(({ node, layout }) => {
-            const id = `${node.type}-${crypto.randomUUID().slice(0, 8)}`;
-            ids.push(id);
-            nodes.push({
-              ...structuredClone(node),
-              id,
-              title: `${node.title} copy`,
+              const id = `${node.type}-${crypto.randomUUID().slice(0, 8)}`;
+              ids.push(id);
+              nodes.push({
+                ...structuredClone(node),
+                id,
+                title: `${node.title} copy`,
+              });
+              layouts[id] = {
+                ...layout,
+                nodeId: id,
+                x: layout.x + 40,
+                y: layout.y + 40,
+                parentId: undefined,
+              };
             });
-            layouts[id] = {
-              ...layout,
-              nodeId: id,
-              x: layout.x + 40,
-              y: layout.y + 40,
-              parentId: undefined,
-            };
-          });
           return {
             ...file,
             graph: { ...file.graph, nodes },
@@ -487,140 +570,151 @@ export default function WorkflowBuilder() {
   }, [executionNodeId, isHighLevelView]);
 
   if (viewportMode === null) {
-    return <main className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"><p className="text-xs">Loading workflow…</p></main>;
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
+        <p className="text-xs">Loading workflow…</p>
+      </main>
+    );
   }
 
   return (
     <AuthGate>
-    <main className="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden bg-background text-foreground">
-      <TopToolbar
-        openPalette={() => setPaletteOpen(true)}
-        isHighLevelView={isHighLevelView}
-        isExecutionView={isExecutionView}
-        canOpenExecutionView={
-          useWorkflowStore.getState().file.graph.nodes.length > 0
-        }
-        onOpenExecutionView={() => openExecutionView()}
-        onCloseExecutionView={closeExecutionView}
-        onToggleHighLevelView={() => {
-          if (!canEditCollaborativeWorkflow()) return;
-          setExecutionNodeId(null);
-          setIsHighLevelView((active) => !active);
-        }}
-      />
-      <div
-        ref={workspaceSurfaceRef}
-        data-collaboration-surface
-        className="relative flex min-h-0 min-w-0 flex-1"
-        onPointerMove={broadcastEditorCursor}
-        onPointerDown={(event) => broadcastEditorCursor(event, true)}
-      >
-        {isCollaborationConnected && editControlReady && !canEditWorkflow ? (
-          <div className="pointer-events-none absolute left-1/2 top-2 z-[70] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-cyan-400/50 bg-background/90 px-3 py-1.5 text-[11px] font-medium text-cyan-700 shadow-lg backdrop-blur dark:text-cyan-200 sm:hidden" role="status" aria-live="polite">
-            <Eye className="size-3.5" />
-            <span>Following {editorName || "the editor"} · {currentLayer}{currentLayer === "L3" ? " Conditions · Forms & execution" : currentLayer === "L2" ? " Detailed Workflow" : " High-Level Process"}</span>
-          </div>
-        ) : null}
-        {leftOpen && !isExecutionView ? (
-          <div className="absolute inset-y-0 left-0 z-30 block md:relative md:inset-auto md:z-20">
-            <NodeLibrary highLevelMode={isHighLevelView} />
-            <button
-              onClick={() => togglePanel("left")}
-              className="panel-edge-toggle -right-3"
-              aria-label="Collapse node library"
-              title="Hide node library"
+      <main className="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden bg-background text-foreground">
+        <TopToolbar
+          openPalette={() => setPaletteOpen(true)}
+          isHighLevelView={isHighLevelView}
+          isExecutionView={isExecutionView}
+          canOpenExecutionView={useWorkflowStore.getState().file.graph.nodes.length > 0}
+          onOpenExecutionView={() => openExecutionView()}
+          onCloseExecutionView={closeExecutionView}
+          onToggleHighLevelView={() => {
+            if (!canEditCollaborativeWorkflow()) return;
+            setExecutionNodeId(null);
+            setIsHighLevelView((active) => !active);
+          }}
+        />
+        <div
+          ref={workspaceSurfaceRef}
+          data-collaboration-surface
+          className="relative flex min-h-0 min-w-0 flex-1"
+          onPointerMove={broadcastEditorCursor}
+          onPointerDown={(event) => broadcastEditorCursor(event, true)}
+        >
+          {isCollaborationConnected && editControlReady && !canEditWorkflow ? (
+            <div
+              className="pointer-events-none absolute left-1/2 top-2 z-[70] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-cyan-400/50 bg-background/90 px-3 py-1.5 text-[11px] font-medium text-cyan-700 shadow-lg backdrop-blur dark:text-cyan-200 sm:hidden"
+              role="status"
+              aria-live="polite"
             >
-              <ChevronLeft className="size-4" />
-            </button>
-          </div>
-        ) : null}
-        <div className="relative flex min-w-0 flex-1 flex-col">
-          <div className="relative min-h-0 flex-1">
-            {(!isHighLevelView && !isExecutionView) ? (
-              <WorkflowCanvas
-                active={!isHighLevelView && !isExecutionView}
-                focusNodeIds={layer2FocusRequest}
-                onFocusRequestHandled={clearLayer2FocusRequest}
-                onOpenLayer1Node={openLayer1Context}
-              />
-            ) : null}
-            {isHighLevelView ? (
-              <HighLevelWorkflowView
-                onExit={() => { if (canEditCollaborativeWorkflow()) setIsHighLevelView(false); }}
-                onFocusLayer2Nodes={requestLayer2Focus}
-                focusNodeId={layer1FocusRequest}
-                onFocusRequestHandled={clearLayer1FocusRequest}
-              />
-            ) : null}
-            {isExecutionView && executionNodeId ? (
-              <ExecutionView
-                key={`${executionNodeId}:${executionConditionId ?? "default"}:${executionItemId ?? "default"}`}
-                nodeId={executionNodeId}
-                focusItemId={executionItemId}
-                activeConditionId={executionConditionId}
-                onSelectCondition={(conditionId) => setExecutionConditionId(conditionId)}
-                onBack={closeExecutionView}
-                onFocusNode={focusLayer2Node}
-                onOpenLayer1Node={openLayer1Context}
-              />
-            ) : null}
-            {!leftOpen && !isExecutionView ? (
+              <Eye className="size-3.5" />
+              <span>
+                Following {editorName || "the editor"} · {currentLayer}
+                {currentLayer === "L3"
+                  ? " Conditions · Forms & execution"
+                  : currentLayer === "L2"
+                    ? " Detailed Workflow"
+                    : " High-Level Process"}
+              </span>
+            </div>
+          ) : null}
+          {leftOpen && !isExecutionView ? (
+            <div className="absolute inset-y-0 left-0 z-30 block md:relative md:inset-auto md:z-20">
+              <NodeLibrary highLevelMode={isHighLevelView} />
               <button
                 onClick={() => togglePanel("left")}
-                className="panel-edge-toggle left-0 rounded-l-none border-l-0"
-                aria-label="Open node library"
-                title="Show node library"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            ) : null}
-            {!rightOpen && !isExecutionView ? (
-              <button
-                onClick={() => togglePanel("right")}
-                className="panel-edge-toggle right-0 rounded-r-none border-r-0"
-                aria-label="Open inspector"
-                title="Show inspector"
+                className="panel-edge-toggle -right-3"
+                aria-label="Collapse node library"
+                title="Hide node library"
               >
                 <ChevronLeft className="size-4" />
               </button>
+            </div>
+          ) : null}
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <div className="relative min-h-0 flex-1">
+              {!isHighLevelView && !isExecutionView ? (
+                <WorkflowCanvas
+                  active={!isHighLevelView && !isExecutionView}
+                  focusNodeIds={layer2FocusRequest}
+                  onFocusRequestHandled={clearLayer2FocusRequest}
+                  onOpenLayer1Node={openLayer1Context}
+                />
+              ) : null}
+              {isHighLevelView ? (
+                <HighLevelWorkflowView
+                  onExit={() => {
+                    if (canEditCollaborativeWorkflow()) setIsHighLevelView(false);
+                  }}
+                  onFocusLayer2Nodes={requestLayer2Focus}
+                  focusNodeId={layer1FocusRequest}
+                  onFocusRequestHandled={clearLayer1FocusRequest}
+                />
+              ) : null}
+              {isExecutionView && executionNodeId ? (
+                <ExecutionView
+                  key={`${executionNodeId}:${executionConditionId ?? "default"}:${executionItemId ?? "default"}`}
+                  nodeId={executionNodeId}
+                  focusItemId={executionItemId}
+                  activeConditionId={executionConditionId}
+                  onSelectCondition={(conditionId) => setExecutionConditionId(conditionId)}
+                  onBack={closeExecutionView}
+                  onFocusNode={focusLayer2Node}
+                  onOpenLayer1Node={openLayer1Context}
+                />
+              ) : null}
+              {!leftOpen && !isExecutionView ? (
+                <button
+                  onClick={() => togglePanel("left")}
+                  className="panel-edge-toggle left-0 rounded-l-none border-l-0"
+                  aria-label="Open node library"
+                  title="Show node library"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              ) : null}
+              {!rightOpen && !isExecutionView ? (
+                <button
+                  onClick={() => togglePanel("right")}
+                  className="panel-edge-toggle right-0 rounded-r-none border-r-0"
+                  aria-label="Open inspector"
+                  title="Show inspector"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+              ) : null}
+            </div>
+            {validationOpen && !isExecutionView ? (
+              <ValidationPanel highLevelMode={isHighLevelView} />
             ) : null}
           </div>
-          {validationOpen && !isExecutionView ? (
-            <ValidationPanel highLevelMode={isHighLevelView} />
+          {rightOpen && !isExecutionView ? (
+            <div className="absolute inset-y-0 right-0 z-30 flex h-full min-h-0 lg:relative lg:inset-auto lg:z-20">
+              <button
+                onClick={() => togglePanel("right")}
+                className="panel-edge-toggle -left-3"
+                aria-label="Close inspector"
+                title="Hide inspector"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+              <Inspector highLevelMode={isHighLevelView} onOpenExecutionView={openExecutionView} />
+            </div>
           ) : null}
+          <RemoteCollaboratorCursors
+            view={{ layer: currentLayer, ...(executionNodeId ? { executionNodeId } : {}) }}
+          />
+          <CollaborationControlOverlay />
         </div>
-        {rightOpen && !isExecutionView ? (
-          <div className="absolute inset-y-0 right-0 z-30 flex h-full min-h-0 lg:relative lg:inset-auto lg:z-20">
-            <button
-              onClick={() => togglePanel("right")}
-              className="panel-edge-toggle -left-3"
-              aria-label="Close inspector"
-              title="Hide inspector"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-            <Inspector
-              highLevelMode={isHighLevelView}
-              onOpenExecutionView={openExecutionView}
-            />
-          </div>
-        ) : null}
-        <RemoteCollaboratorCursors view={{ layer: currentLayer, ...(executionNodeId ? { executionNodeId } : {}) }} />
-        <CollaborationControlOverlay />
-      </div>
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-      />
-      <DeleteBlockedDialog />
-      <ConfirmClearDialog />
-      <PyramidLocationWidget
-        viewLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"}
-        executionNodeId={executionNodeId}
-        onFocusLayer1={openLayer1Context}
-        onFocusLayer2={focusLayer2Node}
-      />
-    </main>
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+        <DeleteBlockedDialog />
+        <ConfirmClearDialog />
+        <PyramidLocationWidget
+          viewLayer={isExecutionView ? "L3" : isHighLevelView ? "L1" : "L2"}
+          executionNodeId={executionNodeId}
+          onFocusLayer1={openLayer1Context}
+          onFocusLayer2={focusLayer2Node}
+        />
+      </main>
     </AuthGate>
   );
 }

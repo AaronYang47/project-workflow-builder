@@ -8,7 +8,11 @@ import { cn } from "@/lib/utils";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
-import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
+import {
+  conditionHasL3Forms,
+  conditionIsSatisfied,
+  nodeReleaseReady,
+} from "@/lib/workflow-progress";
 import { conditionInspectorKey } from "@/lib/inspector-schema";
 import { ComponentNoteButton } from "./component-note-button";
 import { ProjectIdBadge } from "./project-id-badge";
@@ -38,18 +42,12 @@ export function GeneralNode({
 }) {
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const moveNodeCondition = useWorkflowStore((state) => state.moveNodeCondition);
-  const deleteNodeCondition = useWorkflowStore(
-    (state) => state.deleteNodeCondition,
-  );
-  const updateExecutionItem = useWorkflowStore(
-    (state) => state.updateExecutionItem,
-  );
+  const deleteNodeCondition = useWorkflowStore((state) => state.deleteNodeCondition);
+  const updateExecutionItem = useWorkflowStore((state) => state.updateExecutionItem);
   const commitTransient = useWorkflowStore((state) => state.commitTransient);
   const recordSnapshot = useWorkflowStore((state) => state.recordSnapshot);
   const fileNodes = useWorkflowStore((state) => state.file.graph.nodes);
-  const executionItems = useWorkflowStore(
-    (state) => state.file.execution?.items ?? [],
-  );
+  const executionItems = useWorkflowStore((state) => state.file.execution?.items ?? []);
   const operations = useWorkflowStore((state) => state.file.operations);
   const projectStartNode = useMemo(
     () => fileNodes.find((item) => item.type === "projectStart"),
@@ -75,8 +73,7 @@ export function GeneralNode({
       ? (node.config.iconKey as keyof typeof iconOptions)
       : "activity";
   const Icon = iconOptions[iconKey];
-  const effectiveColor =
-    phaseColor || node.color || getNodeDefinition("general").color;
+  const effectiveColor = phaseColor || node.color || getNodeDefinition("general").color;
   const chapterGradientColors =
     node.config.blendAdjacentPhaseColors === true &&
     (node.type === "general" || node.type === "projectStart")
@@ -84,15 +81,9 @@ export function GeneralNode({
       : undefined;
   const color = effectiveColor;
   const conditions = node.conditions || [];
-  const statusReady = reached && nodeReleaseReady(
-    node,
-    projectStartNode,
-    executionItems,
-    operations,
-  );
-  const focusedInspectorField = useWorkflowStore(
-    (state) => state.focusedInspectorField,
-  );
+  const statusReady =
+    reached && nodeReleaseReady(node, projectStartNode, executionItems, operations);
+  const focusedInspectorField = useWorkflowStore((state) => state.focusedInspectorField);
   const nodeColor = useMemo(() => getNodeColor(effectiveColor), [effectiveColor]);
   const saveConditions = (next: DomainNode["conditions"]) =>
     updateNode(node.id, { conditions: next });
@@ -109,10 +100,8 @@ export function GeneralNode({
             "workflow-node l2-node-card group h-full w-full overflow-hidden rounded-xl border bg-card shadow-[0_3px_12px_rgba(15,23,42,.09)] transition duration-200",
             node.type === "projectStart" &&
               "rounded-2xl border-2 shadow-[0_6px_18px_rgba(37,99,169,.12)]",
-            selected &&
-              "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
-            emphasized &&
-              "shadow-[0_0_0_2px_rgba(37,99,169,.28),0_8px_22px_rgba(15,23,42,.12)]",
+            selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+            emphasized && "shadow-[0_0_0_2px_rgba(37,99,169,.28),0_8px_22px_rgba(15,23,42,.12)]",
             dimmed && "opacity-35",
           )}
           style={{
@@ -126,9 +115,7 @@ export function GeneralNode({
                   background: `linear-gradient(90deg, color-mix(in srgb, ${chapterGradientColors.left} 9%, var(--card)), color-mix(in srgb, ${chapterGradientColors.right} 9%, var(--card))) padding-box, linear-gradient(90deg, ${chapterGradientColors.left}, ${chapterGradientColors.right}) border-box`,
                 }
               : {}),
-            ...(nodeColor
-              ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
-              : {}),
+            ...(nodeColor ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties) : {}),
           }}
         >
           <NodeResizer
@@ -138,11 +125,7 @@ export function GeneralNode({
             onResizeEnd={(_, params) =>
               useWorkflowStore
                 .getState()
-                .updateLayout(
-                  node.id,
-                  { width: params.width, height: params.height },
-                  true,
-                )
+                .updateLayout(node.id, { width: params.width, height: params.height }, true)
             }
             lineClassName="!border-primary"
             handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
@@ -169,9 +152,13 @@ export function GeneralNode({
             <label
               data-inspector-target="config.iconKey"
               className="nodrag relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-sm"
-              style={chapterGradientColors
-                ? { backgroundImage: `linear-gradient(135deg, ${chapterGradientColors.left}, ${chapterGradientColors.right})` }
-                : { backgroundColor: color }}
+              style={
+                chapterGradientColors
+                  ? {
+                      backgroundImage: `linear-gradient(135deg, ${chapterGradientColors.left}, ${chapterGradientColors.right})`,
+                    }
+                  : { backgroundColor: color }
+              }
               title="Change icon"
             >
               <Icon className="size-4" />
@@ -230,10 +217,7 @@ export function GeneralNode({
               <GripVertical className="size-3.5" />
             </span>
           </div>
-          <div
-            data-node-content
-            className="nodrag space-y-3 px-3 pb-3 pt-4"
-          >
+          <div data-node-content className="nodrag space-y-3 px-3 pb-3 pt-4">
             <label data-node-title className="block pt-0.5">
               <span className="sr-only">Node name</span>
               <textarea
@@ -252,7 +236,14 @@ export function GeneralNode({
                 <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-3">
                   <span className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
                     <span>Job Number</span>
-                    <span className={cn("font-mono text-xs", projectIdValid ? "text-emerald-600" : "text-amber-600 dark:text-amber-400")}>{projectIdValid ? "OK" : "Not set"}</span>
+                    <span
+                      className={cn(
+                        "font-mono text-xs",
+                        projectIdValid ? "text-emerald-600" : "text-amber-600 dark:text-amber-400",
+                      )}
+                    >
+                      {projectIdValid ? "OK" : "Not set"}
+                    </span>
                   </span>
                   <input
                     aria-label="Job Number (5 digits)"
@@ -268,19 +259,37 @@ export function GeneralNode({
                       event.stopPropagation();
                       const digits = event.target.value.replace(/\D/g, "").slice(0, 5);
                       setProjectIdDraft(digits);
-                      const prefix = String(node.customFields.projectId || "").startsWith("P-") ? "P" : "L";
-                      writeCustomFields({ projectId: digits.length === 5 ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}` : digits });
+                      const prefix = String(node.customFields.projectId || "").startsWith("P-")
+                        ? "P"
+                        : "L";
+                      writeCustomFields({
+                        projectId:
+                          digits.length === 5
+                            ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}`
+                            : digits,
+                      });
                     }}
                     onBlur={(event) => {
                       event.stopPropagation();
                       const before = projectIdSnapshotRef.current;
-                      if (before && String(before.customFields.projectId || "") !== String(useWorkflowStore.getState().file.graph.nodes.find((item) => item.id === node.id)?.customFields.projectId || "")) {
+                      if (
+                        before &&
+                        String(before.customFields.projectId || "") !==
+                          String(
+                            useWorkflowStore
+                              .getState()
+                              .file.graph.nodes.find((item) => item.id === node.id)?.customFields
+                              .projectId || "",
+                          )
+                      ) {
                         const current = useWorkflowStore.getState().file;
                         recordSnapshot({
                           ...current,
                           graph: {
                             ...current.graph,
-                            nodes: current.graph.nodes.map((item) => item.id === node.id ? before : item),
+                            nodes: current.graph.nodes.map((item) =>
+                              item.id === node.id ? before : item,
+                            ),
                           },
                         });
                       }
@@ -289,7 +298,17 @@ export function GeneralNode({
                     aria-describedby="job-number-hint"
                     className="h-7 w-full border-0 bg-transparent p-0 font-mono text-sm font-bold leading-6 outline-none"
                   />
-                  {!projectIdValid ? <span id="job-number-hint" role="status" className="mt-1 block rounded border border-amber-500/50 bg-amber-100 px-2 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">{projectIdError ? "Enter all 5 digits, or leave blank for now." : "Job Number not set. You can add it later."}</span> : null}
+                  {!projectIdValid ? (
+                    <span
+                      id="job-number-hint"
+                      role="status"
+                      className="mt-1 block rounded border border-amber-500/50 bg-amber-100 px-2 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                    >
+                      {projectIdError
+                        ? "Enter all 5 digits, or leave blank for now."
+                        : "Job Number not set. You can add it later."}
+                    </span>
+                  ) : null}
                 </label>
               </div>
             ) : null}
@@ -301,9 +320,7 @@ export function GeneralNode({
                 data-inspector-target="description"
                 defaultValue={node.description}
                 rows={textareaRows(node.description, 48, 3)}
-                onBlur={(event) =>
-                  saveText(node, "description", event.target.value)
-                }
+                onBlur={(event) => saveText(node, "description", event.target.value)}
                 placeholder="Add content"
                 className="min-h-14 w-full resize-none overflow-hidden rounded-md border border-transparent bg-muted/35 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground outline-none focus:border-primary/40 focus:bg-background"
               />
@@ -311,10 +328,7 @@ export function GeneralNode({
             <section className="rounded-lg border bg-background/70 p-2.5">
               <div className="mb-2 flex items-center gap-2">
                 <ShieldCheck
-                  className={cn(
-                    "size-4",
-                    statusReady ? "text-emerald-600" : "text-amber-600",
-                  )}
+                  className={cn("size-4", statusReady ? "text-emerald-600" : "text-amber-600")}
                 />
                 <span className="text-xs font-bold uppercase tracking-wide">
                   Release conditions
@@ -327,20 +341,12 @@ export function GeneralNode({
                       : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
                   )}
                 >
-                  {!reached
-                    ? "Waiting"
-                    : statusReady
-                      ? "Ready"
-                      : "Blocked"}
+                  {!reached ? "Waiting" : statusReady ? "Ready" : "Blocked"}
                 </span>
               </div>
               <div className="space-y-1.5" data-release-condition-list-node-id={node.id}>
                 {conditions.map((condition, index) => {
-                  const inspectorKey = conditionInspectorKey(
-                    node.id,
-                    condition.id,
-                    index,
-                  );
+                  const inspectorKey = conditionInspectorKey(node.id, condition.id, index);
                   const inspectorFocused = focusedInspectorField === inspectorKey;
                   const focusCondition = () => {
                     const store = useWorkflowStore.getState();
@@ -358,9 +364,7 @@ export function GeneralNode({
                   const toggleCondition = () => {
                     if (condition.id === "project-id-required") return;
                     const linkedItem = condition.linkedExecutionItemId
-                      ? executionItems.find(
-                          (item) => item.id === condition.linkedExecutionItemId,
-                        )
+                      ? executionItems.find((item) => item.id === condition.linkedExecutionItemId)
                       : undefined;
                     if (linkedItem) {
                       updateExecutionItem(linkedItem.id, {
@@ -370,9 +374,7 @@ export function GeneralNode({
                     }
                     saveConditions(
                       conditions.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, checked: !checked }
-                          : item,
+                        itemIndex === index ? { ...item, checked: !checked } : item,
                       ),
                     );
                   };
@@ -396,11 +398,27 @@ export function GeneralNode({
                         aria-label={`Drag to reorder release condition ${index + 1}`}
                         title="Drag to reorder"
                         onPointerDown={(event) => {
-                          if (condition.locked && !(condition.id === "project-id-required" && node.type === "projectStart")) return;
-                          beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, {
-                            nodeId: node.id, index,
-                            label: condition.label || condition.description || `Release condition ${index + 1}`,
-                          }, (target) => moveNodeCondition(node.id, index, target.nodeId, target.index));
+                          if (
+                            condition.locked &&
+                            !(
+                              condition.id === "project-id-required" && node.type === "projectStart"
+                            )
+                          )
+                            return;
+                          beginReleaseConditionDrag(
+                            event.nativeEvent,
+                            event.currentTarget,
+                            {
+                              nodeId: node.id,
+                              index,
+                              label:
+                                condition.label ||
+                                condition.description ||
+                                `Release condition ${index + 1}`,
+                            },
+                            (target) =>
+                              moveNodeCondition(node.id, index, target.nodeId, target.index),
+                          );
                         }}
                         onClick={stopBubble(() => undefined)}
                         className="nodrag flex size-6 shrink-0 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground/70 hover:bg-primary/10 hover:text-primary active:cursor-grabbing"
@@ -411,25 +429,25 @@ export function GeneralNode({
                         type="button"
                         aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                         title={
-                          condition.id === "project-id-required" ? "Automatically checked when a complete Job Number is entered" : checked
+                          condition.id === "project-id-required"
+                            ? "Automatically checked when a complete Job Number is entered"
+                            : checked
                               ? "Uncheck this release condition"
                               : "Mark this release condition complete"
                         }
-                        disabled={
-                          condition.id === "project-id-required" || hasL3Forms
-                        }
+                        disabled={condition.id === "project-id-required" || hasL3Forms}
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded border",
                           checked
                             ? "border-emerald-600 bg-emerald-600 text-white"
                             : "border-border bg-background",
-                          !checked && hasL3Forms && "condition-forms-breathe condition-forms-checkbox",
+                          !checked &&
+                            hasL3Forms &&
+                            "condition-forms-breathe condition-forms-checkbox",
                         )}
                       >
-                        <Check
-                          className={cn("size-3.5", !checked && "opacity-0")}
-                        />
+                        <Check className={cn("size-3.5", !checked && "opacity-0")} />
                       </button>
                       <button
                         type="button"
@@ -447,11 +465,11 @@ export function GeneralNode({
                         })}
                         className="min-w-0 flex-1 whitespace-normal break-words bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary hover:underline cursor-pointer focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        {condition.label || condition.description || `Release condition ${index + 1}`}
+                        {condition.label ||
+                          condition.description ||
+                          `Release condition ${index + 1}`}
                         {condition.required !== false && condition.id !== "project-id-required" ? (
-                          <span className="ml-1 text-xs font-bold text-destructive">
-                            *
-                          </span>
+                          <span className="ml-1 text-xs font-bold text-destructive">*</span>
                         ) : null}
                       </button>
                       <button

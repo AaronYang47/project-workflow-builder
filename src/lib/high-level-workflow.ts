@@ -15,10 +15,7 @@ function conditionNumber(title: string) {
   return match ? Number(match[1]) : undefined;
 }
 
-function workflowNodeSortKey(
-  node: WorkflowFile["graph"]["nodes"][number],
-  index: number,
-) {
+function workflowNodeSortKey(node: WorkflowFile["graph"]["nodes"][number], index: number) {
   if (node.type === "projectStart") return [0, 0, index] as const;
   if (node.title.trim().toLowerCase() === "pre-construction assessment") {
     return [2, 0, index] as const;
@@ -48,11 +45,7 @@ export function orderWorkflowNodeIds(
     }
     if (!leftKey) return 1;
     if (!rightKey) return -1;
-    return (
-      leftKey[0] - rightKey[0] ||
-      leftKey[1] - rightKey[1] ||
-      leftKey[2] - rightKey[2]
-    );
+    return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1] || leftKey[2] - rightKey[2];
   });
 }
 
@@ -93,11 +86,13 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
   const highLevel = file.highLevel;
   if (!highLevel) return spacePhaseFrames(file);
   const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));
-  const allLinkedIds = Array.from(new Set(
-    orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).flatMap(
-      (node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? [],
+  const allLinkedIds = Array.from(
+    new Set(
+      orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).flatMap(
+        (node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? [],
+      ),
     ),
-  )).filter((id) => nodeById.has(id));
+  ).filter((id) => nodeById.has(id));
   if (allLinkedIds.length < 2) return spacePhaseFrames(file);
 
   // Chapter numbers are user-authored identifiers, not layout positions.
@@ -107,8 +102,11 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
   // intermediate card inside the L2 Gate frame but still parented to Phase.
   // Adopt those cards so both views and the Gate step count describe the same span.
   for (const highLevelNode of orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges)) {
-    const linkedIds = (highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? [])
-      .filter((id) => nodeById.has(id));
+    const linkedIds = (
+      highLevelNode.linkedLayer2NodeIds ??
+      highLevelNode.linkedDetailedNodeIds ??
+      []
+    ).filter((id) => nodeById.has(id));
     const gatePositions = new Map<string, number[]>();
     for (const [index, id] of linkedIds.entries()) {
       const gate = linkedWorkflowGate(id, file.graph.nodes, layouts);
@@ -148,8 +146,9 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
       const children = Object.values(layouts).filter((child) => child.parentId === container.id);
       if (!children.length) {
         if (type === "gate") {
-          const siblings = Object.values(layouts).filter((sibling) =>
-            sibling.parentId === layout.parentId && sibling.nodeId !== container.id);
+          const siblings = Object.values(layouts).filter(
+            (sibling) => sibling.parentId === layout.parentId && sibling.nodeId !== container.id,
+          );
           const x = siblings.length
             ? Math.max(...siblings.map((sibling) => sibling.x + sibling.width)) + 72
             : layout.x;
@@ -178,12 +177,16 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
   // A plain linear chain encodes the same progression as L1. Rewire it so
   // Auto arrange and arrow direction keep the user-selected order as well.
   const linkedSet = new Set(allLinkedIds);
-  const chainEdges = file.graph.edges.filter((edge) =>
-    linkedSet.has(edge.source) && linkedSet.has(edge.target) &&
-    edge.type === "normal" && !edge.label && !edge.condition &&
-    (!edge.sourceHandle || edge.sourceHandle === "out") &&
-    (!edge.targetHandle || edge.targetHandle === "in") &&
-    !Object.keys(edge.customFields ?? {}).length,
+  const chainEdges = file.graph.edges.filter(
+    (edge) =>
+      linkedSet.has(edge.source) &&
+      linkedSet.has(edge.target) &&
+      edge.type === "normal" &&
+      !edge.label &&
+      !edge.condition &&
+      (!edge.sourceHandle || edge.sourceHandle === "out") &&
+      (!edge.targetHandle || edge.targetHandle === "in") &&
+      !Object.keys(edge.customFields ?? {}).length,
   );
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, number>();
@@ -199,21 +202,37 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
     visited.add(cursor);
     cursor = bySource.get(cursor);
   }
-  const isLinear = starts.length === 1 && visited.size === allLinkedIds.length &&
+  const isLinear =
+    starts.length === 1 &&
+    visited.size === allLinkedIds.length &&
     chainEdges.length === allLinkedIds.length - 1 &&
     allLinkedIds.every((id) => (incoming.get(id) ?? 0) <= 1 && (outgoing.get(id) ?? 0) <= 1);
-  const oldChain = isLinear ? [...chainEdges].sort((a, b) =>
-    (file.layout.nodes[a.source]?.x ?? 0) - (file.layout.nodes[b.source]?.x ?? 0),
-  ) : [];
-  const replacement = new Map(oldChain.map((edge, index) => [edge.id, {
-    ...edge, source: allLinkedIds[index], target: allLinkedIds[index + 1],
-  }]));
+  const oldChain = isLinear
+    ? [...chainEdges].sort(
+        (a, b) => (file.layout.nodes[a.source]?.x ?? 0) - (file.layout.nodes[b.source]?.x ?? 0),
+      )
+    : [];
+  const replacement = new Map(
+    oldChain.map((edge, index) => [
+      edge.id,
+      {
+        ...edge,
+        source: allLinkedIds[index],
+        target: allLinkedIds[index + 1],
+      },
+    ]),
+  );
   const graphEdges = file.graph.edges.map((edge) => replacement.get(edge.id) ?? edge);
 
   const edgeLayouts = { ...file.layout.edges };
-  let changed = graphNodes.some((node, index) => node !== file.graph.nodes[index]) ||
+  let changed =
+    graphNodes.some((node, index) => node !== file.graph.nodes[index]) ||
     Object.entries(layouts).some(([id, layout]) => layout !== file.layout.nodes[id]) ||
-    graphEdges.some((edge, index) => edge.source !== file.graph.edges[index].source || edge.target !== file.graph.edges[index].target);
+    graphEdges.some(
+      (edge, index) =>
+        edge.source !== file.graph.edges[index].source ||
+        edge.target !== file.graph.edges[index].target,
+    );
   if (!changed) return spacePhaseFrames(file);
   for (const edge of graphEdges) {
     if (!linkedSet.has(edge.source) && !linkedSet.has(edge.target)) continue;
@@ -239,9 +258,9 @@ export function reorderLinkedWorkflowNodes(
   if (!highLevel || draggedNodeId === targetNodeId) return file;
   const current = highLevel.graph.nodes.find((node) => node.id === highLevelNodeId);
   if (!current) return file;
-  const linkedIds = Array.from(new Set(
-    current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? [],
-  ));
+  const linkedIds = Array.from(
+    new Set(current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? []),
+  );
   const from = linkedIds.indexOf(draggedNodeId);
   const to = linkedIds.indexOf(targetNodeId);
   if (from < 0 || to < 0) return file;
@@ -249,16 +268,18 @@ export function reorderLinkedWorkflowNodes(
   const draggedGate = linkedWorkflowGate(draggedNodeId, file.graph.nodes, file.layout.nodes);
   const targetGate = linkedWorkflowGate(targetNodeId, file.graph.nodes, file.layout.nodes);
   const layout = file.layout.nodes[draggedNodeId];
-  const parentId = targetGate?.id ?? (draggedGate ? file.layout.nodes[draggedGate.id]?.parentId : undefined);
-  const reorderedFile = layout && draggedGate?.id !== targetGate?.id && parentId
-    ? {
-      ...file,
-      layout: {
-        ...file.layout,
-        nodes: { ...file.layout.nodes, [draggedNodeId]: { ...layout, parentId } },
-      },
-    }
-    : file;
+  const parentId =
+    targetGate?.id ?? (draggedGate ? file.layout.nodes[draggedGate.id]?.parentId : undefined);
+  const reorderedFile =
+    layout && draggedGate?.id !== targetGate?.id && parentId
+      ? {
+          ...file,
+          layout: {
+            ...file.layout,
+            nodes: { ...file.layout.nodes, [draggedNodeId]: { ...layout, parentId } },
+          },
+        }
+      : file;
   return withLinkedWorkflowOrder(reorderedFile, highLevelNodeId, linkedIds);
 }
 
@@ -275,7 +296,9 @@ export function setLinkedWorkflowGateMember(
   const gateLayout = file.layout.nodes[gateId];
   const nodeLayout = file.layout.nodes[nodeId];
   if (!highLevelNode || !gate || !gateLayout?.parentId || !nodeLayout) return file;
-  const linkedIds = Array.from(new Set(highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? []));
+  const linkedIds = Array.from(
+    new Set(highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? []),
+  );
   const originalIndex = linkedIds.indexOf(nodeId);
   if (originalIndex < 0) return file;
   const currentGateId = linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes)?.id;
@@ -316,8 +339,12 @@ export function reorderLinkedWorkflowGate(
 ): WorkflowFile {
   const current = file.highLevel?.graph.nodes.find((node) => node.id === highLevelNodeId);
   if (!current) return file;
-  const linkedIds = Array.from(new Set(current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? []));
-  const gateIds = linkedIds.filter((id) => linkedWorkflowGate(id, file.graph.nodes, file.layout.nodes)?.id === gateId);
+  const linkedIds = Array.from(
+    new Set(current.linkedLayer2NodeIds ?? current.linkedDetailedNodeIds ?? []),
+  );
+  const gateIds = linkedIds.filter(
+    (id) => linkedWorkflowGate(id, file.graph.nodes, file.layout.nodes)?.id === gateId,
+  );
   if (!gateIds.length || gateIds.includes(targetNodeId)) return file;
   const remaining = linkedIds.filter((id) => !gateIds.includes(id));
   const targetIndex = remaining.indexOf(targetNodeId);
@@ -357,9 +384,10 @@ export function orderHighLevelNodes(nodes: HighLevelNode[], edges: HighLevelEdge
   }
   const queue = nodes
     .filter((node) => (incoming.get(node.id) || 0) === 0)
-    .sort((left, right) =>
-      Number(right.type === "start") - Number(left.type === "start") ||
-      originalIndex.get(left.id)! - originalIndex.get(right.id)!,
+    .sort(
+      (left, right) =>
+        Number(right.type === "start") - Number(left.type === "start") ||
+        originalIndex.get(left.id)! - originalIndex.get(right.id)!,
     )
     .map((node) => node.id);
   const orderedIds: string[] = [];
@@ -422,21 +450,14 @@ const defaultNode = (
  * the compact grouped lifecycle without mistaking a user-authored L1 for the
  * old default.
  */
-export function isLegacyDefaultHighLevelFamily(
-  highLevel: HighLevelWorkflow | undefined,
-) {
+export function isLegacyDefaultHighLevelFamily(highLevel: HighLevelWorkflow | undefined) {
   const nodes = highLevel?.graph.nodes || [];
-  return (
-    nodes.length === 13 &&
-    nodes.every((node, index) => node.id === `high-level-${index + 1}`)
-  );
+  return nodes.length === 13 && nodes.every((node, index) => node.id === `high-level-${index + 1}`);
 }
 
 /** Identifies the former seeded nine-step lifecycle so it cannot be restored
  * as a user project after the workspace was changed to start empty. */
-export function isDefaultHighLevelProcess(
-  highLevel: HighLevelWorkflow | undefined,
-) {
+export function isDefaultHighLevelProcess(highLevel: HighLevelWorkflow | undefined) {
   const nodes = highLevel?.graph.nodes || [];
   const expected = [
     "INITIAL CONTACT",
@@ -452,16 +473,12 @@ export function isDefaultHighLevelProcess(
   return (
     nodes.length === expected.length &&
     nodes.every(
-      (node, index) =>
-        node.id === `high-level-${index + 1}` && node.title === expected[index],
+      (node, index) => node.id === `high-level-${index + 1}` && node.title === expected[index],
     )
   );
 }
 
-export function createHighLevelNode(
-  type: HighLevelNodeType,
-  id: string,
-): HighLevelNode {
+export function createHighLevelNode(type: HighLevelNodeType, id: string): HighLevelNode {
   const definition = HIGH_LEVEL_NODE_CATALOG.find((item) => item.type === type)!;
   return defaultNode(id, type, definition.label, definition.description);
 }
@@ -475,7 +492,8 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
     {
       type: "start",
       title: "INITIAL CONTACT",
-      description: "Create the project record, capture the initial contact, and establish the project identifier.",
+      description:
+        "Create the project record, capture the initial contact, and establish the project identifier.",
     },
     {
       type: "phase",
@@ -485,27 +503,32 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
     {
       type: "primaryGate",
       title: "G1 — QUALIFIED & COMMERCIALLY ENGAGED",
-      description: "Release an eligible opportunity with a valid route, approval authority, and executed commercial engagement.",
+      description:
+        "Release an eligible opportunity with a valid route, approval authority, and executed commercial engagement.",
     },
     {
       type: "primaryGate",
       title: "G2 — TECHNICAL COMMITMENT",
-      description: "Complete pre-construction and authorize the project, technical basis, scope, and responsibility boundaries.",
+      description:
+        "Complete pre-construction and authorize the project, technical basis, scope, and responsibility boundaries.",
     },
     {
       type: "primaryGate",
       title: "G3 — PRODUCTION AUTHORIZATION",
-      description: "Complete production readiness and release the approved package to factory production.",
+      description:
+        "Complete production readiness and release the approved package to factory production.",
     },
     {
       type: "primaryGate",
       title: "G4 — FACTORY RELEASE",
-      description: "Complete factory production, accept quality evidence, and release the work to delivery.",
+      description:
+        "Complete factory production, accept quality evidence, and release the work to delivery.",
     },
     {
       type: "primaryGate",
       title: "G5 — WARRANTY START",
-      description: "Complete delivery and project completion, accept controlled deficiencies, and start warranty.",
+      description:
+        "Complete delivery and project completion, accept controlled deficiencies, and start warranty.",
     },
     {
       type: "phase",
@@ -515,7 +538,8 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
     {
       type: "end",
       title: "FINAL CLOSE",
-      description: "Close the project after warranty completion and outstanding obligations are resolved.",
+      description:
+        "Close the project after warranty completion and outstanding obligations are resolved.",
     },
   ];
   const nodes = steps.map((s, index) => {
@@ -530,7 +554,12 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
   let currentX = 0;
   const layoutNodes: Record<string, { nodeId: string; x: number; y: number }> = {};
   for (const node of nodes) {
-    const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
+    const width =
+      node.type === "phase" || node.type === "primaryGate"
+        ? 288
+        : node.type === "start" || node.type === "end"
+          ? 256
+          : 208;
     layoutNodes[node.id] = { nodeId: node.id, x: currentX, y: 220 };
     currentX += width + 64;
   }
@@ -587,7 +616,10 @@ export function validateHighLevelWorkflow(
       id: "high-level-start-count",
       severity: "error",
       code: "HIGH_LEVEL_START_COUNT",
-      message: starts.length === 0 ? "High-Level workflow needs a Start node" : "High-Level workflow must have exactly one Start node",
+      message:
+        starts.length === 0
+          ? "High-Level workflow needs a Start node"
+          : "High-Level workflow must have exactly one Start node",
       nodeId: starts[0]?.id,
     });
   }
@@ -596,7 +628,10 @@ export function validateHighLevelWorkflow(
       id: "high-level-end-count",
       severity: "error",
       code: "HIGH_LEVEL_END_COUNT",
-      message: ends.length === 0 ? "High-Level workflow needs a Final Close node" : "High-Level workflow must have exactly one Final Close node",
+      message:
+        ends.length === 0
+          ? "High-Level workflow needs a Final Close node"
+          : "High-Level workflow must have exactly one Final Close node",
       nodeId: ends[0]?.id,
     });
   }

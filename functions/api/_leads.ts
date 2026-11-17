@@ -14,7 +14,9 @@ CREATE INDEX IF NOT EXISTS idx_sales_leads_company ON sales_qualification_leads(
 `;
 
 export async function ensureSalesLeadsSchema(db: D1Database) {
-  const statements = SALES_LEADS_DDL.split(";").map((item) => item.trim()).filter(Boolean);
+  const statements = SALES_LEADS_DDL.split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
   for (const sql of statements) {
     await db.prepare(sql).run();
   }

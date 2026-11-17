@@ -9,9 +9,7 @@ async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
-  await expect(
-    page.getByText("Start", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
 }
 
 async function openExecution(page: Page, nodeId: string) {

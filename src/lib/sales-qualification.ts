@@ -1,9 +1,4 @@
-export const DECISION_AUTHORITY = [
-  "Confirmed",
-  "Partially Confirmed",
-  "Unknown",
-  "No",
-] as const;
+export const DECISION_AUTHORITY = ["Confirmed", "Partially Confirmed", "Unknown", "No"] as const;
 
 export const SITE_STATUS = [
   "Confirmed Site",
@@ -39,32 +34,13 @@ export const PROJECT_DEFINITION = [
   "Undefined / Early",
 ] as const;
 
-export const BUDGET_STATUS = [
-  "Confirmed",
-  "Indicative",
-  "Missing",
-  "Major Gap",
-] as const;
+export const BUDGET_STATUS = ["Confirmed", "Indicative", "Missing", "Major Gap"] as const;
 
-export const FUNDING_STATUS = [
-  "Secured",
-  "In Process",
-  "Not Secured",
-  "Unknown",
-] as const;
+export const FUNDING_STATUS = ["Secured", "In Process", "Not Secured", "Unknown"] as const;
 
-export const CUSTOMER_RELATIONSHIP = [
-  "Strategic / Returning",
-  "Standard",
-  "New",
-] as const;
+export const CUSTOMER_RELATIONSHIP = ["Strategic / Returning", "Standard", "New"] as const;
 
-export const COMMERCIAL_COMMITMENT = [
-  "None",
-  "CSA",
-  "PCS",
-  "Governed LOI Requested",
-] as const;
+export const COMMERCIAL_COMMITMENT = ["None", "CSA", "PCS", "Governed LOI Requested"] as const;
 
 export const QUALIFICATION_FILL_FIELDS = [
   { key: "decisionMakerName", label: "Decision Maker Name", placeholder: "Full name" },
@@ -89,19 +65,10 @@ export const QUALIFICATION_DROPDOWNS = [
 export type QualificationDropdownKey = (typeof QUALIFICATION_DROPDOWNS)[number]["key"];
 
 export type RecommendedService =
-  | "PCS"
-  | "CSA"
-  | "Governed LOI"
-  | "Site Feasibility"
-  | "Hold"
-  | "No-Go";
+  "PCS" | "CSA" | "Governed LOI" | "Site Feasibility" | "Hold" | "No-Go";
 
 export type QualificationStatus =
-  | "Incomplete"
-  | "Qualified"
-  | "Qualified with Risk"
-  | "Hold"
-  | "No-Go";
+  "Incomplete" | "Qualified" | "Qualified with Risk" | "Hold" | "No-Go";
 
 export type SalesQualificationAnswers = {
   decisionAuthority: string;
@@ -148,10 +115,12 @@ export const emptySalesQualificationAnswers = (): SalesQualificationAnswers => (
 });
 
 export function normalizeSalesQualificationAnswers(
-  raw?: Partial<SalesQualificationAnswers> & {
-    contactName?: string;
-    siteLocation?: string;
-  } | null,
+  raw?:
+    | (Partial<SalesQualificationAnswers> & {
+        contactName?: string;
+        siteLocation?: string;
+      })
+    | null,
 ): SalesQualificationAnswers {
   const empty = emptySalesQualificationAnswers();
   if (!raw) return empty;
@@ -232,8 +201,7 @@ function isSiteDiscovery(status: string) {
 function needsTechnicalHold(answers: SalesQualificationAnswers) {
   const design = answers.designStage;
   const modular = answers.modularCompatibility;
-  const mature =
-    design === "Permit Issued" || design === "IFC / Construction Ready";
+  const mature = design === "Permit Issued" || design === "IFC / Construction Ready";
   return (
     modular === "Partially Compatible" ||
     modular === "Major Rework Likely" ||
@@ -246,8 +214,7 @@ function isHardNoGo(answers: SalesQualificationAnswers) {
     return "Fatal site / logistics issue is not resolvable.";
   }
   const mature =
-    answers.designStage === "Permit Issued" ||
-    answers.designStage === "IFC / Construction Ready";
+    answers.designStage === "Permit Issued" || answers.designStage === "IFC / Construction Ready";
   if (mature && answers.modularCompatibility === "Not Compatible — No Corrective Path") {
     return "Design maturity cannot override modular incompatibility with no corrective path.";
   }
@@ -316,11 +283,7 @@ function computeReadinessScore(answers: SalesQualificationAnswers) {
     ],
     [
       answers.siteStatus,
-      answers.siteStatus === "Confirmed Site"
-        ? 12
-        : isSiteDiscovery(answers.siteStatus)
-          ? 5
-          : 0,
+      answers.siteStatus === "Confirmed Site" ? 12 : isSiteDiscovery(answers.siteStatus) ? 5 : 0,
     ],
     [
       answers.designStage,
@@ -367,11 +330,7 @@ function computeReadinessScore(answers: SalesQualificationAnswers) {
     ],
     [
       answers.fundingStatus,
-      answers.fundingStatus === "Secured"
-        ? 10
-        : answers.fundingStatus === "In Process"
-          ? 5
-          : 2,
+      answers.fundingStatus === "Secured" ? 10 : answers.fundingStatus === "In Process" ? 5 : 2,
     ],
     [
       answers.customerRelationship,
@@ -408,10 +367,7 @@ function computeReadinessScore(answers: SalesQualificationAnswers) {
 export function evaluateSalesQualification(
   answers: SalesQualificationAnswers,
 ): SalesQualificationResult {
-  const missingInformation = [
-    ...missingDropdowns(answers),
-    ...missingConditionals(answers),
-  ];
+  const missingInformation = [...missingDropdowns(answers), ...missingConditionals(answers)];
   const risks: string[] = [];
   if (answers.fundingStatus === "In Process") {
     risks.push("Funding is still in process.");
@@ -495,8 +451,5 @@ export function salesQualificationIsComplete(
 ) {
   if (!hasCompany) return false;
   const normalized = normalizeSalesQualificationAnswers(answers);
-  return (
-    missingDropdowns(normalized).length === 0 &&
-    missingConditionals(normalized).length === 0
-  );
+  return missingDropdowns(normalized).length === 0 && missingConditionals(normalized).length === 0;
 }

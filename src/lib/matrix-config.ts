@@ -80,10 +80,7 @@ export function matrixKindForNode(node: {
   if (node.config?.matrixKind === "approval" || node.type === "approvalMatrix") {
     return "approval";
   }
-  if (
-    node.config?.matrixKind === "responsibility" ||
-    node.type === "responsibilityLane"
-  ) {
+  if (node.config?.matrixKind === "responsibility" || node.type === "responsibilityLane") {
     return "responsibility";
   }
   return undefined;

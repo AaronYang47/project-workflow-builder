@@ -81,7 +81,8 @@ function FormSection({
 }
 
 function statusTone(status: string) {
-  if (status === "No-Go") return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+  if (status === "No-Go")
+    return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
   if (status === "Hold" || status === "Incomplete") {
     return "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300";
   }
@@ -110,10 +111,11 @@ export function CustomerSelectionForm({
 }) {
   const [query, setQuery] = useState(initialName);
   // Results of the last finished search, tagged with the query they answer.
-  const [searchResults, setSearchResults] = useState<{ query: string; items: FalconCustomerProfile[] }>({ query: "", items: [] });
-  const [profile, setProfile] = useState<FalconCustomerProfile | null>(
-    initialProfile || null,
-  );
+  const [searchResults, setSearchResults] = useState<{
+    query: string;
+    items: FalconCustomerProfile[];
+  }>({ query: "", items: [] });
+  const [profile, setProfile] = useState<FalconCustomerProfile | null>(initialProfile || null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [answers, setAnswers] = useState<CustomerFormAnswers>(
     normalizeSalesQualificationAnswers(initialAnswers),
@@ -165,9 +167,10 @@ export function CustomerSelectionForm({
 
   // Search once the query has two characters and is not the chosen company.
   const trimmedQuery = query.trim();
-  const searchQuery = open && trimmedQuery.length >= 2 && !(profile && trimmedQuery === profile.organizationName)
-    ? trimmedQuery
-    : "";
+  const searchQuery =
+    open && trimmedQuery.length >= 2 && !(profile && trimmedQuery === profile.organizationName)
+      ? trimmedQuery
+      : "";
   const matches = searchQuery ? searchResults.items : [];
   const searching = searchQuery !== "" && searchResults.query !== searchQuery;
 
@@ -185,10 +188,7 @@ export function CustomerSelectionForm({
     };
   }, [searchQuery]);
 
-  const location = useMemo(
-    () => (profile ? customerLocation(profile) : ""),
-    [profile],
-  );
+  const location = useMemo(() => (profile ? customerLocation(profile) : ""), [profile]);
   const extras = requiredConditionalFields(answers);
   const qualification = evaluateSalesQualification(answers);
   const canSave = customerFormIsComplete(profile, answers);
@@ -287,18 +287,14 @@ export function CustomerSelectionForm({
                         ) : null}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {[company.category, customerLocation(company)]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {[company.category, customerLocation(company)].filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
-            {searching ? (
-              <p className="text-[10px] text-muted-foreground">Searching…</p>
-            ) : null}
+            {searching ? <p className="text-[10px] text-muted-foreground">Searching…</p> : null}
             {profile ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-muted/10 px-3 py-2">
                 <span className="text-xs font-semibold text-foreground">
@@ -399,26 +395,36 @@ export function CustomerSelectionForm({
             </div>
           </FormSection>
 
-          <section className={`rounded-xl border p-4 space-y-3 ${statusTone(qualification.qualificationStatus)}`}>
+          <section
+            className={`rounded-xl border p-4 space-y-3 ${statusTone(qualification.qualificationStatus)}`}
+          >
             <p className="text-[10px] font-bold uppercase tracking-wider">
               System output · Hard Rules first
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider opacity-80">Recommended Service</p>
+                <p className="text-[10px] uppercase tracking-wider opacity-80">
+                  Recommended Service
+                </p>
                 <p className="mt-0.5 text-sm font-bold">{qualification.recommendedService}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider opacity-80">Qualification Status</p>
+                <p className="text-[10px] uppercase tracking-wider opacity-80">
+                  Qualification Status
+                </p>
                 <p className="mt-0.5 text-sm font-bold">{qualification.qualificationStatus}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider opacity-80">Project Readiness</p>
-                <p className="mt-0.5 text-sm font-bold tabular-nums">{qualification.readinessScore}</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums">
+                  {qualification.readinessScore}
+                </p>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider opacity-80">Hard Rule</p>
-                <p className="mt-0.5 text-sm font-bold">{qualification.hardRuleApplied ? "Yes" : "No"}</p>
+                <p className="mt-0.5 text-sm font-bold">
+                  {qualification.hardRuleApplied ? "Yes" : "No"}
+                </p>
               </div>
             </div>
             <div>
@@ -433,9 +439,7 @@ export function CustomerSelectionForm({
               <p className="text-[11px] leading-relaxed">{qualification.reasons[0]}</p>
             ) : null}
             {qualification.risks.length ? (
-              <p className="text-[11px] leading-relaxed">
-                Risk: {qualification.risks.join(" ")}
-              </p>
+              <p className="text-[11px] leading-relaxed">Risk: {qualification.risks.join(" ")}</p>
             ) : null}
           </section>
         </div>
@@ -447,7 +451,12 @@ export function CustomerSelectionForm({
               : "Required: customer, qualification criteria, and any extra details this path needs."}
           </p>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 text-xs cursor-pointer"
+            >
               Cancel
             </Button>
             <Button

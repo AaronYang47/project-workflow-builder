@@ -19,31 +19,26 @@ export const GATE_SERVICE_TYPES: readonly GateServiceType[] = [
     id: "included",
     label: "Included in Paid Service / Contract",
     color: "#d6a52a",
-    description:
-      "Work already included in the approved agreement or paid service scope.",
+    description: "Work already included in the approved agreement or paid service scope.",
   },
   {
     id: "free",
     label: "Free / No-Charge Service",
     color: "#5a8fc7",
-    description:
-      "Strategic or approved work provided without a client charge.",
+    description: "Strategic or approved work provided without a client charge.",
   },
   {
     id: "tbd",
     label: "TBD / Depends on Scope",
     color: "#8a6caf",
-    description:
-      "Classification must be confirmed after scope and responsibility are clarified.",
+    description: "Classification must be confirmed after scope and responsibility are clarified.",
   },
 ] as const;
 
 export const getGateServiceType = (id: string | undefined) =>
   GATE_SERVICE_TYPES.find((type) => type.id === id);
 
-export function parseGateServiceTypeId(
-  value: unknown,
-): GateServiceType["id"] | undefined {
+export function parseGateServiceTypeId(value: unknown): GateServiceType["id"] | undefined {
   const text = String(value ?? "").trim();
   if (!text) return undefined;
   const lower = text.toLowerCase();
@@ -55,14 +50,8 @@ export function parseGateServiceTypeId(
   return undefined;
 }
 
-export function documentServiceTypeId(
-  signature: { serviceType?: string },
-  fallback?: string,
-) {
-  return (
-    parseGateServiceTypeId(signature.serviceType) ||
-    parseGateServiceTypeId(fallback)
-  );
+export function documentServiceTypeId(signature: { serviceType?: string }, fallback?: string) {
+  return parseGateServiceTypeId(signature.serviceType) || parseGateServiceTypeId(fallback);
 }
 
 export function ruleHasPaidService(rule: {

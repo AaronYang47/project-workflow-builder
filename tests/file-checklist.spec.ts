@@ -38,17 +38,36 @@ test("L3 lists a condition's files in three columns and ticking them completes t
     await files.nth(index).check();
   }
   // L3 shows one release condition at a time; the node releases once all of them are complete.
-  await expect(page.getByText("This release condition is complete. Complete the remaining department requirements to release this node.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "This release condition is complete. Complete the remaining department requirements to release this node.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test("a release-condition checkbox stays in L2", async ({ page }) => {
   // Conditions with L3 forms are completed in L3, so add one without forms.
   const file = createE2EWorkflow();
   const preConstruction = file.graph.nodes.find((node) => node.id === "pre-construction")!;
-  preConstruction.conditions.push({ id: "no-forms-check", label: "Internal kickoff held", required: true, checked: false });
-  await page.addInitScript(({ key, file }) => {
-    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
-  }, { key: WORKFLOW_STORAGE_KEY, file });
+  preConstruction.conditions.push({
+    id: "no-forms-check",
+    label: "Internal kickoff held",
+    required: true,
+    checked: false,
+  });
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
@@ -56,7 +75,9 @@ test("a release-condition checkbox stays in L2", async ({ page }) => {
   await expect(node).toBeVisible();
   const index = preConstruction.conditions.length;
   await node.getByRole("button", { name: `Check release condition ${index}`, exact: true }).click();
-  await expect(node.getByRole("button", { name: `Uncheck release condition ${index}`, exact: true })).toBeVisible();
+  await expect(
+    node.getByRole("button", { name: `Uncheck release condition ${index}`, exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("L3 · Execution Layer", { exact: true })).toHaveCount(0);
 });
 
@@ -76,10 +97,7 @@ test("every L2 node uses the file checklist view", async ({ page }) => {
     "close-out",
   ]) {
     await openExecution(page, nodeId);
-    await expect(
-      page.getByTestId("required-file-checklist"),
-      nodeId,
-    ).toBeVisible();
+    await expect(page.getByTestId("required-file-checklist"), nodeId).toBeVisible();
     await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);
   }
 });
@@ -95,9 +113,7 @@ test("entering L3 for a condition without forms does not automatically check it"
   await expect(node).toBeVisible();
 
   // Condition 2 should initially be unchecked (has "Check release condition 2" button)
-  await expect(
-    node.getByRole("button", { name: "Check release condition 2" }),
-  ).toBeVisible();
+  await expect(node.getByRole("button", { name: "Check release condition 2" })).toBeVisible();
 
   // Open L3 for this node
   const conditionLink = node.getByRole("button", {
@@ -121,8 +137,5 @@ test("entering L3 for a condition without forms does not automatically check it"
   await page.getByRole("button", { name: "Back to L2" }).click();
 
   // Condition 2 should still be unchecked in L2
-  await expect(
-    node.getByRole("button", { name: "Check release condition 2" }),
-  ).toBeVisible();
+  await expect(node.getByRole("button", { name: "Check release condition 2" })).toBeVisible();
 });
-

@@ -5,7 +5,11 @@ import { joinRoom } from "trystero";
 import type { Room, MessageAction } from "trystero";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "./collaboration-store";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type { CollaborativeViewState, ReleaseConditionDragPreview, SyncMessage } from "./collaboration-types";
+import type {
+  CollaborativeViewState,
+  ReleaseConditionDragPreview,
+  SyncMessage,
+} from "./collaboration-types";
 
 const APP_ID = "pw-builder-collab-v1";
 // Use a shared, explicit discovery set. Random default relays can include
@@ -46,7 +50,8 @@ class CollaborationManager {
     this.leaveRoom();
     this.currentRoomId = roomId;
     const collaboration = useCollaborationStore.getState();
-    this.controlRevision = Number(sessionStorage.getItem(`workflow-control-revision:${roomId}`)) || 0;
+    this.controlRevision =
+      Number(sessionStorage.getItem(`workflow-control-revision:${roomId}`)) || 0;
     collaboration.setRoomId(roomId);
     collaboration.setLocalUser({ joinedAt: Date.now(), lastActiveAt: Date.now() });
     collaboration.setEditControl(preferredEditorPeerId ?? null, Boolean(preferredEditorPeerId));
@@ -97,13 +102,16 @@ class CollaborationManager {
     // Do not elect a viewer as editor when the owner is slow to reconnect; that
     // creates two editors after a mobile refresh. Only legacy links without an
     // editor hint use the join-window election.
-    this.editorElectionTimeout = setTimeout(() => {
-      if (preferredEditorPeerId) {
-        this.broadcastPresence();
-      } else {
-        this.electInitialEditor();
-      }
-    }, preferredEditorPeerId ? 10000 : 1200);
+    this.editorElectionTimeout = setTimeout(
+      () => {
+        if (preferredEditorPeerId) {
+          this.broadcastPresence();
+        } else {
+          this.electInitialEditor();
+        }
+      },
+      preferredEditorPeerId ? 10000 : 1200,
+    );
 
     // 3. Heartbeat presence broadcast
     this.presenceInterval = setInterval(() => {
@@ -124,7 +132,8 @@ class CollaborationManager {
 
   public transferEditControl(targetPeerId: string) {
     const collaboration = useCollaborationStore.getState();
-    if (!canEditCollaborativeWorkflow(collaboration) || !collaboration.editControlReady) return false;
+    if (!canEditCollaborativeWorkflow(collaboration) || !collaboration.editControlReady)
+      return false;
     if (!collaboration.remotePeers[targetPeerId]) return false;
 
     const local = collaboration.localUser;
@@ -147,21 +156,36 @@ class CollaborationManager {
     const collaboration = useCollaborationStore.getState();
     const editorPeerId = collaboration.editorPeerId;
     const editor = editorPeerId ? collaboration.remotePeers[editorPeerId] : undefined;
-    if (collaboration.editControlReady && !this.isLocalEditor() &&
+    if (
+      collaboration.editControlReady &&
+      !this.isLocalEditor() &&
       (!editor || Date.now() - editor.lastActiveAt >= 30000) &&
-      Date.now() - collaboration.localUser.joinedAt >= 10000) {
+      Date.now() - collaboration.localUser.joinedAt >= 10000
+    ) {
       this.controlRevision += 1;
       const peerId = collaboration.localUser.peerId;
       collaboration.setEditControl(peerId, true);
       this.rememberEditor(peerId);
-      this.broadcast({ type: "EDITOR_CONTROL", senderId: peerId, editorPeerId: peerId,
-        reason: "recovery", controlRevision: this.controlRevision, timestamp: Date.now() });
+      this.broadcast({
+        type: "EDITOR_CONTROL",
+        senderId: peerId,
+        editorPeerId: peerId,
+        reason: "recovery",
+        controlRevision: this.controlRevision,
+        timestamp: Date.now(),
+      });
       this.broadcastPresence();
       this.broadcastCurrentState();
       return true;
     }
-    if (!collaboration.editControlReady || !editorPeerId || this.isLocalEditor() ||
-      !collaboration.remotePeers[editorPeerId] || collaboration.controlRequestStatus === "pending") return false;
+    if (
+      !collaboration.editControlReady ||
+      !editorPeerId ||
+      this.isLocalEditor() ||
+      !collaboration.remotePeers[editorPeerId] ||
+      collaboration.controlRequestStatus === "pending"
+    )
+      return false;
     collaboration.setControlRequestStatus("pending");
     this.broadcast({
       type: "REQUEST_EDITOR_CONTROL",
@@ -185,18 +209,31 @@ class CollaborationManager {
     return true;
   }
 
-  public broadcastCursor(x: number, y: number, view: CollaborativeViewState, space: "canvas" | "surface", force = false) {
+  public broadcastCursor(
+    x: number,
+    y: number,
+    view: CollaborativeViewState,
+    space: "canvas" | "surface",
+    force = false,
+  ) {
     if (!this.isLocalEditor()) return;
     const page = collaborativePageFromPath(window.location.pathname) || "workflow";
-    view = { ...view, page, layer: page === "conditions" ? "L3" : page === "process-overview" ? "L4" : view.layer };
+    view = {
+      ...view,
+      page,
+      layer: page === "conditions" ? "L3" : page === "process-overview" ? "L4" : view.layer,
+    };
     const now = Date.now();
     if (this.cursorBroadcastTimeout) clearTimeout(this.cursorBroadcastTimeout);
     this.cursorBroadcastTimeout = null;
     if (!force && now - this.lastCursorBroadcastAt < 40) {
-      this.cursorBroadcastTimeout = setTimeout(() => {
-        this.cursorBroadcastTimeout = null;
-        this.broadcastCursor(x, y, view, space, true);
-      }, 40 - (now - this.lastCursorBroadcastAt));
+      this.cursorBroadcastTimeout = setTimeout(
+        () => {
+          this.cursorBroadcastTimeout = null;
+          this.broadcastCursor(x, y, view, space, true);
+        },
+        40 - (now - this.lastCursorBroadcastAt),
+      );
       return;
     }
     this.lastCursorBroadcastAt = now;
@@ -215,7 +252,11 @@ class CollaborationManager {
 
   public broadcastViewState(view: CollaborativeViewState) {
     const page = collaborativePageFromPath(window.location.pathname) || "workflow";
-    view = { ...view, page, layer: page === "conditions" ? "L3" : page === "process-overview" ? "L4" : view.layer };
+    view = {
+      ...view,
+      page,
+      layer: page === "conditions" ? "L3" : page === "process-overview" ? "L4" : view.layer,
+    };
     const collaboration = useCollaborationStore.getState();
     if (!this.isLocalEditor() || !collaboration.editControlReady) return;
     collaboration.setEditorViewState(view);
@@ -232,7 +273,12 @@ class CollaborationManager {
     const now = Date.now();
     if (preview && now - this.lastDragBroadcastAt < 40) return;
     this.lastDragBroadcastAt = Math.max(now, this.lastDragBroadcastAt + 1);
-    this.broadcast({ type: "RC_DRAG_PREVIEW", senderId: useCollaborationStore.getState().localUser.peerId, preview, timestamp: this.lastDragBroadcastAt });
+    this.broadcast({
+      type: "RC_DRAG_PREVIEW",
+      senderId: useCollaborationStore.getState().localUser.peerId,
+      preview,
+      timestamp: this.lastDragBroadcastAt,
+    });
   }
 
   public scheduleFullStateSync(file: import("@/types/workflow").WorkflowFile) {
@@ -245,7 +291,12 @@ class CollaborationManager {
       this.pendingFullState = null;
       if (!pending || !this.isLocalEditor()) return;
       const local = useCollaborationStore.getState().localUser;
-      this.broadcast({ type: "SYNC_FULL_STATE", senderId: local.peerId, file: pending, timestamp: Date.now() });
+      this.broadcast({
+        type: "SYNC_FULL_STATE",
+        senderId: local.peerId,
+        file: pending,
+        timestamp: Date.now(),
+      });
     }, 180);
   }
 
@@ -258,7 +309,9 @@ class CollaborationManager {
       profile: { ...local, lastActiveAt: Date.now() },
       editorPeerId: collaboration.editorPeerId,
       controlRevision: this.controlRevision,
-      ...(this.isLocalEditor() && collaboration.editorViewState ? { view: collaboration.editorViewState } : {}),
+      ...(this.isLocalEditor() && collaboration.editorViewState
+        ? { view: collaboration.editorViewState }
+        : {}),
     });
   }
 
@@ -347,15 +400,33 @@ class CollaborationManager {
     // Receiving a peer message is stronger evidence than initialization flags.
     if (!collabStore.isConnected) collabStore.setIsConnected(true);
 
-    const mutatesWorkflow = ["PATCH_NODE", "PATCH_RELEASE_CONDITION_INBOX", "UPDATE_LAYOUTS", "ADD_NODE", "DELETE_NODES", "ADD_EDGE", "UPDATE_EDGE"].includes(msg.type);
-    if (mutatesWorkflow && (!collabStore.editControlReady || msg.senderId !== collabStore.editorPeerId)) return;
+    const mutatesWorkflow = [
+      "PATCH_NODE",
+      "PATCH_RELEASE_CONDITION_INBOX",
+      "UPDATE_LAYOUTS",
+      "ADD_NODE",
+      "DELETE_NODES",
+      "ADD_EDGE",
+      "UPDATE_EDGE",
+    ].includes(msg.type);
+    if (
+      mutatesWorkflow &&
+      (!collabStore.editControlReady || msg.senderId !== collabStore.editorPeerId)
+    )
+      return;
 
     switch (msg.type) {
       case "RC_DRAG_PREVIEW": {
-        if (!collabStore.editControlReady || msg.senderId !== collabStore.editorPeerId ||
-          msg.timestamp <= (this.lastDragTimestampByPeer.get(msg.senderId) ?? 0)) break;
+        if (
+          !collabStore.editControlReady ||
+          msg.senderId !== collabStore.editorPeerId ||
+          msg.timestamp <= (this.lastDragTimestampByPeer.get(msg.senderId) ?? 0)
+        )
+          break;
         this.lastDragTimestampByPeer.set(msg.senderId, msg.timestamp);
-        collabStore.setRemoteDragPreview(msg.preview ? { senderId: msg.senderId, preview: msg.preview } : null);
+        collabStore.setRemoteDragPreview(
+          msg.preview ? { senderId: msg.senderId, preview: msg.preview } : null,
+        );
         break;
       }
       case "REQUEST_FULL_STATE": {
@@ -363,13 +434,17 @@ class CollaborationManager {
         break;
       }
       case "PRESENCE": {
-        if (remotePeerId && msg.senderId) this.remoteProfileByTransportPeer.set(remotePeerId, msg.senderId);
+        if (remotePeerId && msg.senderId)
+          this.remoteProfileByTransportPeer.set(remotePeerId, msg.senderId);
         const isNewPeer = !collabStore.remotePeers[msg.senderId];
         collabStore.addRemotePeer({
           ...msg.profile,
           peerId: msg.senderId || remotePeerId || msg.profile.peerId,
         });
-        if (msg.editorPeerId && (msg.senderId === msg.editorPeerId || (msg.controlRevision ?? 0) > 0)) {
+        if (
+          msg.editorPeerId &&
+          (msg.senderId === msg.editorPeerId || (msg.controlRevision ?? 0) > 0)
+        ) {
           this.reconcileEditor(msg.editorPeerId, msg.controlRevision ?? 0);
         }
         if (isNewPeer && this.isLocalEditor()) this.broadcastCurrentState();
@@ -379,12 +454,16 @@ class CollaborationManager {
       case "EDITOR_CONTROL": {
         if (msg.reason === "recovery") {
           const owner = collabStore.remotePeers[collabStore.editorPeerId || ""];
-          if (msg.senderId === msg.editorPeerId && (!owner || Date.now() - owner.lastActiveAt >= 30000)) {
+          if (
+            msg.senderId === msg.editorPeerId &&
+            (!owner || Date.now() - owner.lastActiveAt >= 30000)
+          ) {
             this.reconcileEditor(msg.editorPeerId, msg.controlRevision ?? 0);
           }
           break;
         }
-        const currentOwnerSentTransfer = msg.reason === "transfer" && msg.senderId === collabStore.editorPeerId;
+        const currentOwnerSentTransfer =
+          msg.reason === "transfer" && msg.senderId === collabStore.editorPeerId;
         if (currentOwnerSentTransfer) {
           this.reconcileEditor(msg.editorPeerId, msg.controlRevision ?? this.controlRevision + 1);
         } else if (msg.reason === "initial" && msg.senderId === msg.editorPeerId) {
@@ -393,14 +472,20 @@ class CollaborationManager {
         break;
       }
       case "REQUEST_EDITOR_CONTROL": {
-        if (this.isLocalEditor() && msg.editorPeerId === collabStore.localUser.peerId &&
-          collabStore.remotePeers[msg.senderId]) {
+        if (
+          this.isLocalEditor() &&
+          msg.editorPeerId === collabStore.localUser.peerId &&
+          collabStore.remotePeers[msg.senderId]
+        ) {
           collabStore.addControlRequest(msg.senderId, msg.timestamp);
         }
         break;
       }
       case "DECLINE_EDITOR_CONTROL": {
-        if (msg.targetPeerId === collabStore.localUser.peerId && msg.senderId === collabStore.editorPeerId) {
+        if (
+          msg.targetPeerId === collabStore.localUser.peerId &&
+          msg.senderId === collabStore.editorPeerId
+        ) {
           collabStore.setControlRequestStatus("declined");
         }
         break;
@@ -491,7 +576,9 @@ class CollaborationManager {
     const state = useCollaborationStore.getState();
     // Transfers supersede initial claims; concurrent equal-generation claims
     // use the same deterministic ordering on every participant.
-    const wins = !state.editControlReady || revision > this.controlRevision ||
+    const wins =
+      !state.editControlReady ||
+      revision > this.controlRevision ||
       (revision === this.controlRevision && editorPeerId < (state.editorPeerId || "~"));
     if (!wins) return;
     this.controlRevision = revision;
@@ -503,17 +590,28 @@ class CollaborationManager {
   }
 
   private rememberEditor(editorPeerId: string) {
-    sessionStorage.setItem(`workflow-control-revision:${this.currentRoomId}`, String(this.controlRevision));
+    sessionStorage.setItem(
+      `workflow-control-revision:${this.currentRoomId}`,
+      String(this.controlRevision),
+    );
     const url = new URL(window.location.href);
     url.searchParams.set("room", this.currentRoomId!);
     url.searchParams.set("editor", editorPeerId);
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }
 
   private applyRemoteView(senderId: string, view: CollaborativeViewState, timestamp: number) {
     const state = useCollaborationStore.getState();
-    if (!state.editControlReady || senderId !== state.editorPeerId ||
-      timestamp < (this.lastViewTimestampByPeer.get(senderId) ?? 0)) return;
+    if (
+      !state.editControlReady ||
+      senderId !== state.editorPeerId ||
+      timestamp < (this.lastViewTimestampByPeer.get(senderId) ?? 0)
+    )
+      return;
     this.lastViewTimestampByPeer.set(senderId, timestamp);
     state.setEditorViewState(view);
   }
@@ -563,7 +661,8 @@ class CollaborationManager {
     collaboration.setEditorViewState(null);
     collaboration.setRemoteDragPreview(null);
     collaboration.setControlRequestStatus("idle");
-    for (const peerId of Object.keys(collaboration.remotePeers)) collaboration.removeRemotePeer(peerId);
+    for (const peerId of Object.keys(collaboration.remotePeers))
+      collaboration.removeRemotePeer(peerId);
   }
 }
 

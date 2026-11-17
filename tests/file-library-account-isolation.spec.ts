@@ -1,21 +1,53 @@
 import { expect, test } from "playwright/test";
 import { execFileSync } from "node:child_process";
 import { useWorkflowStore } from "../src/store/workflow-store";
-import { deleteUploadedFile, fetchUploadedFilesFromR2, getUploadedFiles, isFormReferenceRecord, saveUploadedFile, uploadFileToR2, type UploadedFileRecord } from "../src/lib/file-storage";
+import {
+  deleteUploadedFile,
+  fetchUploadedFilesFromR2,
+  getUploadedFiles,
+  isFormReferenceRecord,
+  saveUploadedFile,
+  uploadFileToR2,
+  type UploadedFileRecord,
+} from "../src/lib/file-storage";
 import { CUSTOMER_SELECTION_FORM_ID } from "../src/lib/falcon-customer-intelligence";
 
 const alice = { id: "alice", name: "Alice", email: "alice@example.com" };
 const bob = { id: "bob", name: "Bob", email: "bob@example.com" };
-const record: UploadedFileRecord = { id: "private", key: "users/alice/legal/private.pdf", fileName: "private.pdf", title: "Alice private", fileType: "application/pdf", fileSize: 10, category: "legal", description: "", uploadedAt: "2026-10-30", url: "/api/files/download?key=users%2Falice%2Flegal%2Fprivate.pdf" };
+const record: UploadedFileRecord = {
+  id: "private",
+  key: "users/alice/legal/private.pdf",
+  fileName: "private.pdf",
+  title: "Alice private",
+  fileType: "application/pdf",
+  fileSize: 10,
+  category: "legal",
+  description: "",
+  uploadedAt: "2026-10-30",
+  url: "/api/files/download?key=users%2Falice%2Flegal%2Fprivate.pdf",
+};
 const originalFetch = globalThis.fetch;
 /** The library always lists the shared built-in form references; these tests are about each account's own uploads. */
 const uploads = (category: "legal" | "customer" | "supporting") =>
-  getUploadedFiles(category).filter((file) => file.id !== CUSTOMER_SELECTION_FORM_ID && !isFormReferenceRecord(file));
+  getUploadedFiles(category).filter(
+    (file) => file.id !== CUSTOMER_SELECTION_FORM_ID && !isFormReferenceRecord(file),
+  );
 
 test.beforeEach(() => {
   const storage = new Map<string, string>();
-  const local = { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value); }, removeItem: (key: string) => { storage.delete(key); } };
-  Object.assign(globalThis, { localStorage: local, window: { localStorage: local, dispatchEvent() {} } });
+  const local = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+  };
+  Object.assign(globalThis, {
+    localStorage: local,
+    window: { localStorage: local, dispatchEvent() {} },
+  });
   useWorkflowStore.setState({ authUser: alice, workspaceOwnerId: alice.id });
 });
 
@@ -28,10 +60,19 @@ test.afterEach(() => {
 test("account switching hides cached uploads and clears workspace, undo history and project", () => {
   saveUploadedFile(record);
   localStorage.setItem("falcon_uploaded_files", JSON.stringify([record]));
-  useWorkflowStore.setState({ activeProjectId: "alice-project", past: [useWorkflowStore.getState().file], future: [useWorkflowStore.getState().file] });
+  useWorkflowStore.setState({
+    activeProjectId: "alice-project",
+    past: [useWorkflowStore.getState().file],
+    future: [useWorkflowStore.getState().file],
+  });
   useWorkflowStore.getState().setAuthUser(bob);
   expect(uploads("legal")).toEqual([]);
-  expect(useWorkflowStore.getState()).toMatchObject({ activeProjectId: undefined, past: [], future: [], workspaceOwnerId: "bob" });
+  expect(useWorkflowStore.getState()).toMatchObject({
+    activeProjectId: undefined,
+    past: [],
+    future: [],
+    workspaceOwnerId: "bob",
+  });
   expect(useWorkflowStore.getState().file.graph.nodes).toEqual([]);
   expect(localStorage.getItem("falcon_uploaded_files_alice")).toBeNull();
   expect(localStorage.getItem("falcon_uploaded_files")).toBeNull();
@@ -43,7 +84,9 @@ test("a delayed library response cannot be returned or cached under the next acc
   let release!: (response: Response) => void;
   globalThis.fetch = async (_url, options) => {
     expect(new Headers(options?.headers).get("x-workflow-account")).toBe("alice");
-    return new Promise<Response>((resolve) => { release = resolve; });
+    return new Promise<Response>((resolve) => {
+      release = resolve;
+    });
   };
   const pending = fetchUploadedFilesFromR2("legal");
   useWorkflowStore.getState().setAuthUser(bob);
@@ -54,7 +97,8 @@ test("a delayed library response cannot be returned or cached under the next acc
 
 test("mismatched session responses and expired sessions never reveal cached files", async () => {
   saveUploadedFile(record);
-  globalThis.fetch = async () => Response.json({ ok: true, ownerUserId: "bob", files: [{ ...record, title: "Bob private" }] });
+  globalThis.fetch = async () =>
+    Response.json({ ok: true, ownerUserId: "bob", files: [{ ...record, title: "Bob private" }] });
   expect(await fetchUploadedFilesFromR2("legal")).toEqual([]);
   expect(uploads("legal")).toEqual([record]);
   globalThis.fetch = async () => Response.json({ error: "Please sign in" }, { status: 401 });
@@ -63,8 +107,15 @@ test("mismatched session responses and expired sessions never reveal cached file
 
 test("uploads finishing after a logout never enter another account's library", async () => {
   let release!: (response: Response) => void;
-  globalThis.fetch = async () => new Promise<Response>((resolve) => { release = resolve; });
-  const pending = uploadFileToR2(new File(["private"], "private.pdf"), { category: "legal", title: "Private", description: "" });
+  globalThis.fetch = async () =>
+    new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+  const pending = uploadFileToR2(new File(["private"], "private.pdf"), {
+    category: "legal",
+    title: "Private",
+    description: "",
+  });
   useWorkflowStore.getState().setAuthUser(bob);
   release(Response.json({ ok: true, ownerUserId: "alice", ...record }));
   await expect(pending).rejects.toThrow("account changed");
@@ -79,7 +130,11 @@ test("denied deletion leaves local file metadata intact", async () => {
 });
 
 test("legacy ownership never moves to the next user after its original owner is deleted", () => {
-  const result = execFileSync("python3", ["-c", `
+  const result = execFileSync(
+    "python3",
+    [
+      "-c",
+      `
 import sqlite3
 from pathlib import Path
 c = sqlite3.connect(':memory:')
@@ -89,6 +144,9 @@ c.executescript(sql)
 c.execute("DELETE FROM users WHERE id='alice'")
 c.executescript(sql)
 print(c.execute('SELECT user_id FROM legacy_file_owner').fetchone()[0])
-`], { encoding: "utf8" });
+`,
+    ],
+    { encoding: "utf8" },
+  );
   expect(result.trim()).toBe("alice");
 });

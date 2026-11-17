@@ -14,50 +14,104 @@ async function seedWorkspace(page: Page) {
     { id: "fitup", label: "Fit-up review", duration: 2 },
   ];
   file.graph.nodes = [chapter];
-  file.releaseConditionInbox = [{ id: "inbox-1", label: "Permit received", required: true, checked: false }];
-  file.highLevel!.graph.nodes = [{ id: "phase-1", type: "phase", title: "PHASE 1", description: "Technical", linkedLayer2NodeIds: [chapter.id] }];
-  file.highLevel!.graph.edges = [];
-  await page.route("**/api/files", (route) => route.fulfill({
-    json: {
-      ok: true,
-      ownerUserId: "dev-bypass",
-      files: [
-        { id: "lib-a", key: "users/dev-bypass/legal/a.pdf", fileName: "a.pdf", fileSize: 2048, fileType: "application/pdf", category: "legal", title: "Library permit", description: "", uploadedAt: "2026-01-01T00:00:00.000Z" },
-        { id: "lib-b", key: "users/dev-bypass/legal/b.pdf", fileName: "b.pdf", fileSize: 4096, fileType: "application/pdf", category: "legal", title: "Library drawings", description: "", uploadedAt: "2026-01-01T00:00:00.000Z" },
-      ],
+  file.releaseConditionInbox = [
+    { id: "inbox-1", label: "Permit received", required: true, checked: false },
+  ];
+  file.highLevel!.graph.nodes = [
+    {
+      id: "phase-1",
+      type: "phase",
+      title: "PHASE 1",
+      description: "Technical",
+      linkedLayer2NodeIds: [chapter.id],
     },
-  }));
-  await page.addInitScript(({ key, file }) => {
-    if (sessionStorage.getItem("dialogs-seeded")) return;
-    sessionStorage.setItem("dialogs-seeded", "yes");
-    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
-  }, { key: WORKFLOW_STORAGE_KEY, file });
+  ];
+  file.highLevel!.graph.edges = [];
+  await page.route("**/api/files", (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        ownerUserId: "dev-bypass",
+        files: [
+          {
+            id: "lib-a",
+            key: "users/dev-bypass/legal/a.pdf",
+            fileName: "a.pdf",
+            fileSize: 2048,
+            fileType: "application/pdf",
+            category: "legal",
+            title: "Library permit",
+            description: "",
+            uploadedAt: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "lib-b",
+            key: "users/dev-bypass/legal/b.pdf",
+            fileName: "b.pdf",
+            fileSize: 4096,
+            fileType: "application/pdf",
+            category: "legal",
+            title: "Library drawings",
+            description: "",
+            uploadedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    }),
+  );
+  await page.addInitScript(
+    ({ key, file }) => {
+      if (sessionStorage.getItem("dialogs-seeded")) return;
+      sessionStorage.setItem("dialogs-seeded", "yes");
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
 }
 
 const conditionRow = (page: Page, index: number, label: string) =>
-  page.locator('[data-release-condition-chapter-id="technical"]').getByRole("group", { name: `Release condition ${index}: ${label}` });
+  page
+    .locator('[data-release-condition-chapter-id="technical"]')
+    .getByRole("group", { name: `Release condition ${index}: ${label}` });
 
-test("forms window adds, retargets and removes a document, and adds Library forms in one batch", async ({ page }) => {
+test("forms window adds, retargets and removes a document, and adds Library forms in one batch", async ({
+  page,
+}) => {
   await seedWorkspace(page);
   await page.goto("/release-conditions");
 
-  await conditionRow(page, 1, "Design review").getByRole("button", { name: "View forms for Design review" }).click();
+  await conditionRow(page, 1, "Design review")
+    .getByRole("button", { name: "View forms for Design review" })
+    .click();
   const forms = page.getByRole("dialog", { name: "Design review" });
   await expect(forms).toBeVisible();
 
   // Single document: retarget to the second condition and mark it Optional.
   await forms.getByRole("button", { name: "Add Required Documents" }).click();
   const add = page.getByRole("dialog", { name: "Add Required Document" });
-  await add.getByRole("combobox", { name: "Choose release condition for document" }).selectOption("1");
+  await add
+    .getByRole("combobox", { name: "Choose release condition for document" })
+    .selectOption("1");
   await add.getByRole("textbox", { name: "Document title" }).fill("Permit set");
   await add.getByRole("button", { name: "Optional", exact: true }).click();
-  await expect(add.getByRole("button", { name: "Optional", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(add.getByRole("button", { name: "Optional", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await add.getByRole("button", { name: "Add to L3" }).click();
   await expect(add).toHaveCount(0);
   await expect(forms).not.toContainText("Permit set");
   await page.getByRole("button", { name: "Close forms window" }).click();
 
-  await conditionRow(page, 2, "Fit-up review").getByRole("button", { name: "View forms for Fit-up review" }).click();
+  await conditionRow(page, 2, "Fit-up review")
+    .getByRole("button", { name: "View forms for Fit-up review" })
+    .click();
   const fitup = page.getByRole("dialog", { name: "Fit-up review" });
   const required = fitup.getByRole("region", { name: "Required Documents" });
   await expect(required).toContainText("Permit set");
@@ -85,7 +139,9 @@ test("forms window adds, retargets and removes a document, and adds Library form
   await expect(required).toContainText("Library drawings");
 });
 
-test("phone Assign dialog moves an unassigned condition into the chosen department", async ({ page }) => {
+test("phone Assign dialog moves an unassigned condition into the chosen department", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await seedWorkspace(page);
   await page.goto("/release-conditions");

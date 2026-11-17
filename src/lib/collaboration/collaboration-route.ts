@@ -6,8 +6,11 @@ export const COLLABORATIVE_PATHS = {
   "process-overview": "/process-overview",
 } as const;
 
-export function collaborativePageFromPath(path: string): NonNullable<CollaborativeViewState["page"]> | undefined {
+export function collaborativePageFromPath(
+  path: string,
+): NonNullable<CollaborativeViewState["page"]> | undefined {
   const normalized = path.replace(/\/$/, "") || "/";
-  return (Object.keys(COLLABORATIVE_PATHS) as (keyof typeof COLLABORATIVE_PATHS)[])
-    .find((key) => COLLABORATIVE_PATHS[key] === normalized);
+  return (Object.keys(COLLABORATIVE_PATHS) as (keyof typeof COLLABORATIVE_PATHS)[]).find(
+    (key) => COLLABORATIVE_PATHS[key] === normalized,
+  );
 }

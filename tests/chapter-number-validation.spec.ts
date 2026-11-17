@@ -11,10 +11,19 @@ function setup(numbers: string[]) {
     node.config.stage = number;
     return node;
   });
-  file.highLevel!.graph.nodes = [{ id: "phase", type: "phase", title: "Phase", description: "", linkedLayer2NodeIds: file.graph.nodes.map((node) => node.id) }];
+  file.highLevel!.graph.nodes = [
+    {
+      id: "phase",
+      type: "phase",
+      title: "Phase",
+      description: "",
+      linkedLayer2NodeIds: file.graph.nodes.map((node) => node.id),
+    },
+  ];
   return file;
 }
-const orderIssues = (file: ReturnType<typeof setup>) => validateWorkflow(file).filter((issue) => issue.code === "CHAPTER_NUMBER_ORDER");
+const orderIssues = (file: ReturnType<typeof setup>) =>
+  validateWorkflow(file).filter((issue) => issue.code === "CHAPTER_NUMBER_ORDER");
 
 // Rule: each Chapter number repeats the preceding one or increases by exactly 1.
 test("Validation warns when a Chapter number goes back, allows repeats, and never edits them", () => {
@@ -33,8 +42,19 @@ test("Validation accepts repeats and +1 steps, ignores nonnumeric labels, and fl
 test("Without L1 links Validation follows forward L2 connections, not array position or return routes", () => {
   const file = setup(["11", "10"]);
   file.highLevel!.graph.nodes = [];
-  const edge = { id: "forward", source: "step-1", target: "step-0", type: "normal" as const, lineStyle: "solid" as const, arrowStyle: "closed" as const, customFields: {} };
-  file.graph.edges = [edge, { ...edge, id: "back", source: "step-0", target: "step-1", type: "rework" }];
+  const edge = {
+    id: "forward",
+    source: "step-1",
+    target: "step-0",
+    type: "normal" as const,
+    lineStyle: "solid" as const,
+    arrowStyle: "closed" as const,
+    customFields: {},
+  };
+  file.graph.edges = [
+    edge,
+    { ...edge, id: "back", source: "step-0", target: "step-1", type: "rework" },
+  ];
   expect(orderIssues(file)).toEqual([]);
   file.graph.edges = [{ ...edge, source: "step-0", target: "step-1" }];
   expect(orderIssues(file)).toHaveLength(1);
@@ -42,17 +62,58 @@ test("Without L1 links Validation follows forward L2 connections, not array posi
 
 test("zero is invalid, and reverse L2 connections are checked even when L1 links are present", () => {
   const file = setup(["00", "02"]);
-  expect(validateWorkflow(file)).toEqual(expect.arrayContaining([expect.objectContaining({ code: "INVALID_CHAPTER_NUMBER", nodeId: "step-0" })]));
+  expect(validateWorkflow(file)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ code: "INVALID_CHAPTER_NUMBER", nodeId: "step-0" }),
+    ]),
+  );
   file.graph.nodes[0].config.stage = "01";
-  file.graph.edges = [{ id: "reversed", source: "step-1", target: "step-0", type: "normal", lineStyle: "solid", arrowStyle: "closed", customFields: {} }];
+  file.graph.edges = [
+    {
+      id: "reversed",
+      source: "step-1",
+      target: "step-0",
+      type: "normal",
+      lineStyle: "solid",
+      arrowStyle: "closed",
+      customFields: {},
+    },
+  ];
   expect(orderIssues(file)).toEqual([expect.objectContaining({ nodeId: "step-0" })]);
 });
 
-test("Validation panel runs current checks on open and updates after chapter edits", async ({ page }) => {
+test("Validation panel runs current checks on open and updates after chapter edits", async ({
+  page,
+}) => {
   const file = setup(["00", "02"]);
-  file.layout.nodes = Object.fromEntries(file.graph.nodes.map((node, index) => [node.id, { nodeId: node.id, x: index * 600, y: 150, width: 384, height: 400 }]));
-  file.graph.edges = [{ id: "forward", source: "step-0", target: "step-1", type: "normal", lineStyle: "solid", arrowStyle: "closed", customFields: {} }];
-  await page.addInitScript(({ file }) => localStorage.setItem("project-workflow-builder:v43-no-default-workspace", JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 })), { file });
+  file.layout.nodes = Object.fromEntries(
+    file.graph.nodes.map((node, index) => [
+      node.id,
+      { nodeId: node.id, x: index * 600, y: 150, width: 384, height: 400 },
+    ]),
+  );
+  file.graph.edges = [
+    {
+      id: "forward",
+      source: "step-0",
+      target: "step-1",
+      type: "normal",
+      lineStyle: "solid",
+      arrowStyle: "closed",
+      customFields: {},
+    },
+  ];
+  await page.addInitScript(
+    ({ file }) =>
+      localStorage.setItem(
+        "project-workflow-builder:v43-no-default-workspace",
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      ),
+    { file },
+  );
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await page.getByRole("button", { name: /^Validation/ }).click();

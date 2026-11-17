@@ -4,7 +4,17 @@ import type {
   TimeEntry,
   WarrantyFollowUp,
 } from "@/types/project-operations";
-import { addDays, addMonths, clone, dateOnly, newId, number, parseDate, round2, text } from "./shared";
+import {
+  addDays,
+  addMonths,
+  clone,
+  dateOnly,
+  newId,
+  number,
+  parseDate,
+  round2,
+  text,
+} from "./shared";
 
 /** Warranty schedule, ICS time import, time budget, weekly report, GPF names and BIM stitch list. */
 export function scheduleWarranty(
@@ -113,23 +123,27 @@ export function parseIcsTimeEntries(
 }
 
 export function timeBudgetStatus(operations: ProjectOperations) {
-  const usedHours = round2((operations.timeBudget.entries || []).reduce((sum, entry) => sum + number(entry.hours), 0));
+  const usedHours = round2(
+    (operations.timeBudget.entries || []).reduce((sum, entry) => sum + number(entry.hours), 0),
+  );
   const budgetHours = number(operations.timeBudget.budgetHours);
   const percent = budgetHours > 0 ? round2((usedHours / budgetHours) * 100) : 0;
   const critical = number(operations.timeBudget.criticalThresholdPercent);
   const warning = number(operations.timeBudget.warningThresholdPercent);
-  const level = budgetHours > 0 && percent >= critical
-    ? "Critical"
-    : budgetHours > 0 && percent >= warning
-      ? "Warning"
-      : "On Track";
+  const level =
+    budgetHours > 0 && percent >= critical
+      ? "Critical"
+      : budgetHours > 0 && percent >= warning
+        ? "Warning"
+        : "On Track";
   return { usedHours, percent, level };
 }
 
 export function buildWeeklyReport(operations: ProjectOperations, weekEnding: string) {
   const end = dateOnly(weekEnding);
   const endDate = parseDate(end);
-  if (!end || Number.isNaN(endDate.getTime())) return "Weekly report unavailable: invalid week ending date.";
+  if (!end || Number.isNaN(endDate.getTime()))
+    return "Weekly report unavailable: invalid week ending date.";
   const startDate = new Date(endDate.getTime());
   startDate.setUTCDate(startDate.getUTCDate() - 6);
   const entries = (operations.timeBudget.entries || []).filter((entry) => {
@@ -138,7 +152,8 @@ export function buildWeeklyReport(operations: ProjectOperations, weekEnding: str
   });
   const total = round2(entries.reduce((sum, entry) => sum + number(entry.hours), 0));
   const byUser = new Map<string, number>();
-  for (const entry of entries) byUser.set(entry.user, round2((byUser.get(entry.user) || 0) + number(entry.hours)));
+  for (const entry of entries)
+    byUser.set(entry.user, round2((byUser.get(entry.user) || 0) + number(entry.hours)));
   const users = [...byUser.entries()].map(([user, hours]) => `${user}: ${hours}h`).join(", ");
   return `Weekly report ending ${end}: Recorded time: ${total}h${users ? ` (${users})` : ""}.`;
 }
@@ -156,9 +171,10 @@ export function validateGpfName(operations: ProjectOperations, value: string) {
 export function buildStitchList(objects: BimObjectResponsibility[]) {
   return objects
     .slice()
-    .sort((left, right) =>
-      text(left.masterFormatCode).localeCompare(text(right.masterFormatCode)) ||
-      text(left.gpfName).localeCompare(text(right.gpfName)),
+    .sort(
+      (left, right) =>
+        text(left.masterFormatCode).localeCompare(text(right.masterFormatCode)) ||
+        text(left.gpfName).localeCompare(text(right.gpfName)),
     )
     .map((object, index) => ({
       sequence: index + 1,

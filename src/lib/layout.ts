@@ -1,16 +1,9 @@
 import type { LayoutOptions } from "elkjs/lib/elk-api";
-import type {
-  NodeLayout,
-  WorkflowFile,
-  WorkflowNodeType,
-} from "@/types/workflow";
+import type { NodeLayout, WorkflowFile, WorkflowNodeType } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
 import { getAdaptiveNodeSize, getL1FallbackColor } from "@/lib/node-layout";
 import { synchronizeLinkedWorkflowOrder } from "@/lib/high-level-workflow";
-import {
-  normalizeGateHandles,
-  restoreChildCoordinates,
-} from "@/lib/layout-pack";
+import { normalizeGateHandles, restoreChildCoordinates } from "@/lib/layout-pack";
 
 // `unnecessaryBendpoints` is missing from elkjs' typed `LayoutOptions`; cast
 // through `Record<string, unknown>` so the option actually reaches ELK.
@@ -30,24 +23,12 @@ const layoutOptions = {
   "elk.padding": "[top=96,left=72,bottom=72,right=72]",
 } as unknown as LayoutOptions;
 
-const legacyAuxiliaryTypes = new Set<WorkflowNodeType>([
-  "document",
-  "documentGroup",
-  "note",
-]);
+const legacyAuxiliaryTypes = new Set<WorkflowNodeType>(["document", "documentGroup", "note"]);
 const isDecorativeReference = (type: WorkflowNodeType) =>
   isReferenceNodeType(type) && type !== "terminal";
-const secondaryEdges = new Set([
-  "supporting",
-  "dependency",
-  "rework",
-  "reopen",
-]);
+const secondaryEdges = new Set(["supporting", "dependency", "rework", "reopen"]);
 const rounded = (value: number | undefined) => Math.round(value || 0);
-const sizeForAutoLayout = (
-  node: WorkflowFile["graph"]["nodes"][number],
-  current?: NodeLayout,
-) => {
+const sizeForAutoLayout = (node: WorkflowFile["graph"]["nodes"][number], current?: NodeLayout) => {
   const adaptive = getAdaptiveNodeSize(node, current);
   // Gate heights are measured from their rendered Approval Conditions content.
   // Preserve that authoritative height when arranging instead of replacing it
@@ -95,8 +76,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   const mainNodes = file.graph.nodes.filter((node) => {
     if (node.type === "phase" || node.type === "gate") return false;
     if (legacyAuxiliaryTypes.has(node.type)) return false;
-    if (isDecorativeReference(node.type) && !isContainerChild(node.id))
-      return false;
+    if (isDecorativeReference(node.type) && !isContainerChild(node.id)) return false;
     return true;
   });
   const mainIds = new Set(mainNodes.map((node) => node.id));
@@ -280,9 +260,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       .filter(Boolean);
 
     if (memberNodes.length > 0) {
-      const containsGate = memberNodes.some(
-        (m) => nodeMap.get(m.nodeId)?.type === "gate",
-      );
+      const containsGate = memberNodes.some((m) => nodeMap.get(m.nodeId)?.type === "gate");
       const minX = Math.min(
         ...memberNodes.map((c) => {
           const domain = nodeMap.get(c.nodeId);

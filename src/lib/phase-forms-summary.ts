@@ -15,7 +15,10 @@ export type PhaseForms = {
 };
 
 /** One entry per form, ignoring differences in capitals ("Notice of Concern" / "Notice Of Concern"). */
-const uniqueTitles = (titles: string[]) => [...new Map(titles.map((title) => [title.trim().toLocaleLowerCase(), title.trim()])).values()].filter(Boolean);
+const uniqueTitles = (titles: string[]) =>
+  [
+    ...new Map(titles.map((title) => [title.trim().toLocaleLowerCase(), title.trim()])).values(),
+  ].filter(Boolean);
 
 /**
  * The forms each L1 phase needs, from the release conditions of its linked
@@ -39,30 +42,59 @@ export function phaseFormsSummary(file: WorkflowFile): PhaseForms[] {
         color: phaseColor(node, index),
         legal: uniqueTitles(documents.legal),
         customer: uniqueTitles(documents.customer),
-        supporting: uniqueTitles([...documents.supporting, ...documents.optional.map((item) => item.title)]),
+        supporting: uniqueTitles([
+          ...documents.supporting,
+          ...documents.optional.map((item) => item.title),
+        ]),
       };
     });
 }
 
-export type PrintHeader = { kicker: string; title: string; details: { label: string; value: string }[] };
+export type PrintHeader = {
+  kicker: string;
+  title: string;
+  details: { label: string; value: string }[];
+};
 
 /** Title block for the printed L1 / L2 flowchart: the project and what this sheet shows. */
-export function flowchartPrintHeader(file: WorkflowFile, layer: "l1" | "l2", phaseCount: number): PrintHeader {
+export function flowchartPrintHeader(
+  file: WorkflowFile,
+  layer: "l1" | "l2",
+  phaseCount: number,
+): PrintHeader {
   const metadata = file.graph.metadata;
-  const jobNumber = workflowLegacyJobNumber(file) || [
-    file.operations?.identity?.projectNumber,
-    file.operations?.identity?.projectId,
-    file.operations?.projectNumber,
-  ].map((value) => String(value || "").trim()).find((value) => /^\d{5}$/.test(value)) || "Not set";
+  const jobNumber =
+    workflowLegacyJobNumber(file) ||
+    [
+      file.operations?.identity?.projectNumber,
+      file.operations?.identity?.projectId,
+      file.operations?.projectNumber,
+    ]
+      .map((value) => String(value || "").trim())
+      .find((value) => /^\d{5}$/.test(value)) ||
+    "Not set";
   return {
-    kicker: layer === "l1" ? "L1 · High-Level Process Flowchart" : "L2 · Detailed Workflow Flowchart",
+    kicker:
+      layer === "l1" ? "L1 · High-Level Process Flowchart" : "L2 · Detailed Workflow Flowchart",
     title: metadata.name?.trim() || "Process Workflow",
     details: [
       { label: "Job Number", value: jobNumber },
       { label: "Version", value: metadata.version?.trim() || "—" },
-      { label: "Status", value: metadata.status ? metadata.status.charAt(0).toUpperCase() + metadata.status.slice(1) : "—" },
+      {
+        label: "Status",
+        value: metadata.status
+          ? metadata.status.charAt(0).toUpperCase() + metadata.status.slice(1)
+          : "—",
+      },
       { label: "Phases", value: String(phaseCount) },
-      { label: "Exported", value: new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) },
+      {
+        label: "Exported",
+        value: new Date().toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }),
+      },
     ],
   };
 }

@@ -4,7 +4,11 @@ import { Check, GripVertical, Plus, Settings2, ShieldCheck, Trash2 } from "lucid
 import type { ExecutionItem, Condition, DomainNode } from "@/types/workflow";
 import type { ProjectOperations } from "@/types/project-operations";
 import { conditionInspectorKey } from "@/lib/inspector-schema";
-import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady } from "@/lib/workflow-progress";
+import {
+  conditionHasL3Forms,
+  conditionIsSatisfied,
+  nodeReleaseReady,
+} from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { stopBubble } from "./node-utils";
@@ -25,36 +29,24 @@ export function ReleaseConditionsPanel({
 }) {
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const moveNodeCondition = useWorkflowStore((state) => state.moveNodeCondition);
-  const deleteNodeCondition = useWorkflowStore(
-    (state) => state.deleteNodeCondition,
-  );
-  const focusedInspectorField = useWorkflowStore(
-    (state) => state.focusedInspectorField,
-  );
+  const deleteNodeCondition = useWorkflowStore((state) => state.deleteNodeCondition);
+  const focusedInspectorField = useWorkflowStore((state) => state.focusedInspectorField);
   const conditions = node.conditions || [];
   const sequenceLocked = node.metadata.executionOrder === "strict-sequential" && !reached;
-  const statusReady = reached && nodeReleaseReady(
-    node,
-    projectStartNode,
-    executionItems,
-    operations,
-  );
-  const saveConditions = (next: Condition[]) =>
-    updateNode(node.id, { conditions: next });
+  const statusReady =
+    reached && nodeReleaseReady(node, projectStartNode, executionItems, operations);
+  const saveConditions = (next: Condition[]) => updateNode(node.id, { conditions: next });
 
   return (
-    <section className="rounded-lg border bg-background/70 p-2.5" data-release-condition-drop-node-id={node.id}>
-
+    <section
+      className="rounded-lg border bg-background/70 p-2.5"
+      data-release-condition-drop-node-id={node.id}
+    >
       <div className="mb-2 flex items-center gap-2">
         <ShieldCheck
-          className={cn(
-            "size-4",
-            statusReady ? "text-emerald-600" : "text-amber-600",
-          )}
+          className={cn("size-4", statusReady ? "text-emerald-600" : "text-amber-600")}
         />
-        <span className="text-xs font-bold uppercase tracking-wide">
-          Release conditions
-        </span>
+        <span className="text-xs font-bold uppercase tracking-wide">Release conditions</span>
         <span
           className={cn(
             "ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold uppercase",
@@ -119,11 +111,24 @@ export function ReleaseConditionsPanel({
                 aria-label={`Drag to reorder release condition ${index + 1}`}
                 title="Drag to reorder"
                 onPointerDown={(event) => {
-                  if (condition.locked && !(condition.id === "project-id-required" && node.type === "projectStart")) return;
-                  beginReleaseConditionDrag(event.nativeEvent, event.currentTarget, {
-                    nodeId: node.id, index,
-                    label: condition.label || condition.description || `Release condition ${index + 1}`,
-                  }, (target) => moveNodeCondition(node.id, index, target.nodeId, target.index));
+                  if (
+                    condition.locked &&
+                    !(condition.id === "project-id-required" && node.type === "projectStart")
+                  )
+                    return;
+                  beginReleaseConditionDrag(
+                    event.nativeEvent,
+                    event.currentTarget,
+                    {
+                      nodeId: node.id,
+                      index,
+                      label:
+                        condition.label ||
+                        condition.description ||
+                        `Release condition ${index + 1}`,
+                    },
+                    (target) => moveNodeCondition(node.id, index, target.nodeId, target.index),
+                  );
                 }}
                 onClick={stopBubble(() => undefined)}
                 className="nodrag flex size-6 shrink-0 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground/70 hover:bg-primary/10 hover:text-primary active:cursor-grabbing"
@@ -134,16 +139,19 @@ export function ReleaseConditionsPanel({
                 type="button"
                 aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                 title={
-                  condition.id === "project-id-required" ? "Automatically checked when a complete Job Number is entered" : sequenceLocked && !checked
+                  condition.id === "project-id-required"
+                    ? "Automatically checked when a complete Job Number is entered"
+                    : sequenceLocked && !checked
                       ? "Complete the preceding department first"
-                    : checked
-                      ? "Uncheck this release condition"
-                      : "Mark this release condition complete"
+                      : checked
+                        ? "Uncheck this release condition"
+                        : "Mark this release condition complete"
                 }
                 disabled={
                   condition.id === "project-id-required" ||
                   (sequenceLocked && !checked) ||
-                  (Boolean(condition.linkedExecutionItemId) && condition.id !== "project-id-required") ||
+                  (Boolean(condition.linkedExecutionItemId) &&
+                    condition.id !== "project-id-required") ||
                   (conditionHasL3Forms(condition, node) && condition.id !== "project-id-required")
                 }
                 onClick={stopBubble(toggleCondition)}
@@ -165,7 +173,9 @@ export function ReleaseConditionsPanel({
                 className="min-w-0 flex-1 whitespace-normal break-words bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {condition.label || condition.description || `Release condition ${index + 1}`}
-                {condition.required !== false && condition.id !== "project-id-required" ? <span className="ml-1 text-xs font-bold text-destructive">*</span> : null}
+                {condition.required !== false && condition.id !== "project-id-required" ? (
+                  <span className="ml-1 text-xs font-bold text-destructive">*</span>
+                ) : null}
               </button>
               <button
                 type="button"

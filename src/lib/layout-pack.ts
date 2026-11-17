@@ -54,10 +54,8 @@ function layoutDisplayLabel(file: WorkflowFile, edge: DomainEdge) {
     source?.type === "projectStart";
   const denied =
     !preGateSales &&
-    (edge.sourceHandle?.startsWith("no") ||
-      ["rework", "exception", "hold"].includes(edge.type));
-  const approved =
-    !preGateSales && (edge.sourceHandle === "yes" || edge.type === "approval");
+    (edge.sourceHandle?.startsWith("no") || ["rework", "exception", "hold"].includes(edge.type));
+  const approved = !preGateSales && (edge.sourceHandle === "yes" || edge.type === "approval");
   return approved ? "APPROVED" : denied ? "DENIED" : (edge.label ?? "");
 }
 
@@ -120,16 +118,9 @@ export function packPhases(
   phases: DomainNode[],
 ) {
   const childTop = PHASE_TOP + PHASE_CONTENT_TOP;
-  const projectStartNode = file.graph.nodes.find(
-    (node) => node.type === "projectStart",
-  );
-  const projectStartLayout = projectStartNode
-    ? nodes[projectStartNode.id]
-    : undefined;
-  let phaseCursorX =
-    projectStartLayout
-      ? 64 + projectStartLayout.width + 144
-      : 64;
+  const projectStartNode = file.graph.nodes.find((node) => node.type === "projectStart");
+  const projectStartLayout = projectStartNode ? nodes[projectStartNode.id] : undefined;
+  let phaseCursorX = projectStartLayout ? 64 + projectStartLayout.width + 144 : 64;
   let groupBottom = childTop;
   for (const phase of phases) {
     const children = file.graph.nodes
@@ -150,13 +141,7 @@ export function packPhases(
         parentId: undefined,
       };
       const gap = next
-        ? gapForLabeledPair(
-            file,
-            child.nodeId,
-            next.nodeId,
-            "horizontal",
-            GATE_CONNECTOR_GAP,
-          )
+        ? gapForLabeledPair(file, child.nodeId, next.nodeId, "horizontal", GATE_CONNECTOR_GAP)
         : GATE_CONNECTOR_GAP;
       childCursorX += child.width + gap;
       phaseBottom = Math.max(phaseBottom, childTop + child.height);
@@ -187,8 +172,7 @@ export function placeDecorativeReferences(
 ) {
   const decorativeNodes = file.graph.nodes.filter(
     (item) =>
-      !isPhaseChild(item.id) &&
-      (isDecorative(item.type) || legacyAuxiliaryTypes.has(item.type)),
+      !isPhaseChild(item.id) && (isDecorative(item.type) || legacyAuxiliaryTypes.has(item.type)),
   );
   const decorativeIds = new Set(decorativeNodes.map((node) => node.id));
   const mainBottom = Math.max(
@@ -209,9 +193,7 @@ export function placeDecorativeReferences(
     // Matrix nodes use the normal L2 card renderer, whose release-condition
     // section is taller than the compact auto-layout estimate. Reserve a
     // conservative rendered height so the stacked cards cannot touch.
-    const renderedHeight = matrixKindForNode(node)
-      ? Math.max(current.height, 360)
-      : current.height;
+    const renderedHeight = matrixKindForNode(node) ? Math.max(current.height, 360) : current.height;
     referenceY += renderedHeight + 72;
   }
 }
@@ -263,15 +245,7 @@ export function placeProjectStart(
         };
         disconnectedX +=
           layout.width +
-          (next
-            ? gapForLabeledPair(
-                file,
-                layout.nodeId,
-                next.nodeId,
-                "horizontal",
-                144,
-              )
-            : 144);
+          (next ? gapForLabeledPair(file, layout.nodeId, next.nodeId, "horizontal", 144) : 144);
       }
     }
   }
@@ -292,8 +266,7 @@ export function placeEmptyPhases(
         .map((layout) => layout.x + layout.width),
     ) + 180;
   for (const phase of phases.filter(
-    (item) =>
-      !file.graph.nodes.some((node) => original[node.id]?.parentId === item.id),
+    (item) => !file.graph.nodes.some((node) => original[node.id]?.parentId === item.id),
   )) {
     const current = nodes[phase.id];
     nodes[phase.id] = {
@@ -309,14 +282,10 @@ export function placeEmptyPhases(
   }
 }
 
-export function placeBranchNodes(
-  file: WorkflowFile,
-  nodes: Record<string, NodeLayout>,
-) {
+export function placeBranchNodes(file: WorkflowFile, nodes: Record<string, NodeLayout>) {
   const branches = new Map<string, string[]>();
   for (const edge of file.graph.edges) {
-    if (!isBranchEdge(edge) || !nodes[edge.source] || !nodes[edge.target])
-      continue;
+    if (!isBranchEdge(edge) || !nodes[edge.source] || !nodes[edge.target]) continue;
     const targets = branches.get(edge.source) || [];
     if (!targets.includes(edge.target)) targets.push(edge.target);
     branches.set(edge.source, targets);
@@ -330,8 +299,7 @@ export function placeBranchNodes(
         .filter(([id]) => id !== sourceId && !targets.includes(id))
         .filter(
           ([, layout]) =>
-            layout.x < source.x + source.width + 640 &&
-            layout.x + layout.width > source.x - 640,
+            layout.x < source.x + source.width + 640 && layout.x + layout.width > source.x - 640,
         )
         .map(([, layout]) => layout.height + 64),
     );
@@ -368,9 +336,7 @@ function refitPhases(
     if (!children.length || !current) continue;
     const minX = Math.min(...children.map((child) => child.x));
     const maxX = Math.max(...children.map((child) => child.x + child.width));
-    const maxBottom = Math.max(
-      ...children.map((child) => child.y + child.height),
-    );
+    const maxBottom = Math.max(...children.map((child) => child.y + child.height));
     const nextX = Math.min(current.x, minX - 42);
     nodes[phase.id] = {
       ...current,
@@ -426,12 +392,7 @@ export function expandGapsForLabeledEdges(
             layout.x + layout.width <= left.x + 1,
         );
         if (!hasLeftNeighbor) {
-          translateAxis(
-            nodes,
-            "x",
-            -deficit,
-            (layout) => layout.nodeId === left.nodeId,
-          );
+          translateAxis(nodes, "x", -deficit, (layout) => layout.nodeId === left.nodeId);
         } else {
           const threshold = right.x;
           translateAxis(
@@ -439,9 +400,7 @@ export function expandGapsForLabeledEdges(
             "x",
             deficit,
             (layout) =>
-              layout.nodeId !== left.nodeId &&
-              layout.x >= threshold &&
-              overlapsY(layout, right),
+              layout.nodeId !== left.nodeId && layout.x >= threshold && overlapsY(layout, right),
           );
         }
         moved = true;
@@ -458,12 +417,7 @@ export function expandGapsForLabeledEdges(
             layout.y + layout.height <= top.y + 1,
         );
         if (!hasAboveNeighbor) {
-          translateAxis(
-            nodes,
-            "y",
-            -deficit,
-            (layout) => layout.nodeId === top.nodeId,
-          );
+          translateAxis(nodes, "y", -deficit, (layout) => layout.nodeId === top.nodeId);
         } else {
           const threshold = bottom.y;
           translateAxis(
@@ -471,9 +425,7 @@ export function expandGapsForLabeledEdges(
             "y",
             deficit,
             (layout) =>
-              layout.nodeId !== top.nodeId &&
-              layout.y >= threshold &&
-              overlapsX(layout, bottom),
+              layout.nodeId !== top.nodeId && layout.y >= threshold && overlapsX(layout, bottom),
           );
         }
         moved = true;
@@ -491,12 +443,7 @@ export function expandGapsForLabeledEdges(
   );
 }
 
-function segmentIntersectsRect(
-  start: RoutePoint,
-  end: RoutePoint,
-  node: NodeLayout,
-  margin = 8,
-) {
+function segmentIntersectsRect(start: RoutePoint, end: RoutePoint, node: NodeLayout, margin = 8) {
   const left = node.x - margin;
   const right = node.x + node.width + margin;
   const top = node.y - margin;
@@ -581,9 +528,7 @@ function safeReroute(
     .map((node) => nodes[node.id])
     .filter((layout): layout is NodeLayout => Boolean(layout));
   const topChannel =
-    Math.min(source.y, target.y, ...obstacleLayouts.map((layout) => layout.y)) -
-    96 -
-    lane * 28;
+    Math.min(source.y, target.y, ...obstacleLayouts.map((layout) => layout.y)) - 96 - lane * 28;
   const bottomChannel =
     Math.max(
       source.y + source.height,
@@ -610,16 +555,10 @@ function safeSupportingReroute(
   lane: number,
 ): RoutePoint[] {
   const layouts = Object.values(nodes);
-  const outerRight =
-    Math.max(...layouts.map((layout) => layout.x + layout.width)) +
-    96 +
-    lane * 64;
-  const outerLeft =
-    Math.min(...layouts.map((layout) => layout.x)) - 96 - lane * 64;
+  const outerRight = Math.max(...layouts.map((layout) => layout.x + layout.width)) + 96 + lane * 64;
+  const outerLeft = Math.min(...layouts.map((layout) => layout.x)) - 96 - lane * 64;
   const bottomChannel =
-    Math.max(...layouts.map((layout) => layout.y + layout.height)) +
-    96 +
-    lane * 64;
+    Math.max(...layouts.map((layout) => layout.y + layout.height)) + 96 + lane * 64;
   const sourceEdge = source.x + source.width;
   const targetEdge = target.x;
   const sourceY = centerY(source);
@@ -657,14 +596,10 @@ export function routeRemainingEdges(
   const supportingLanes = new Map(
     file.graph.edges
       .map((edge, index) => ({ edge, index }))
-      .filter(
-        ({ edge }) =>
-          edge.type === "supporting" || edge.type === "dependency",
-      )
+      .filter(({ edge }) => edge.type === "supporting" || edge.type === "dependency")
       .sort(
         (left, right) =>
-          (nodes[right.edge.target]?.y ?? 0) -
-            (nodes[left.edge.target]?.y ?? 0) ||
+          (nodes[right.edge.target]?.y ?? 0) - (nodes[left.edge.target]?.y ?? 0) ||
           left.index - right.index,
       )
       .map(({ edge }, index) => [edge.id, index]),
@@ -674,27 +609,18 @@ export function routeRemainingEdges(
       target = nodes[edge.target];
     if (!source || !target) continue;
     const projectStartEdge =
-      source &&
-      file.graph.nodes.find((node) => node.id === edge.source)?.type ===
-        "projectStart";
-    const preGateSales =
-      edge.customFields.workflowSection === "Pre-Gate Sales" ||
-      projectStartEdge;
+      source && file.graph.nodes.find((node) => node.id === edge.source)?.type === "projectStart";
+    const preGateSales = edge.customFields.workflowSection === "Pre-Gate Sales" || projectStartEdge;
     const isReturn =
-      edge.type === "rework" ||
-      edge.type === "reopen" ||
-      edge.sourceHandle?.startsWith("no");
+      edge.type === "rework" || edge.type === "reopen" || edge.sourceHandle?.startsWith("no");
     if (preGateSales) {
       // Dynamic live routing with obstacle avoidance will compute obstacle-free paths in real-time
       continue;
     } else if (isReturn) {
       topReturnChannel -= 34;
       const sourceX = source.x + source.width;
-      const targetType = file.graph.nodes.find(
-        (node) => node.id === edge.target,
-      )?.type;
-      const targetX =
-        target.x + target.width * (targetType === "gate" ? 0.78 : 0.5);
+      const targetType = file.graph.nodes.find((node) => node.id === edge.target)?.type;
+      const targetX = target.x + target.width * (targetType === "gate" ? 0.78 : 0.5);
       edges[edge.id] = {
         edgeId: edge.id,
         points: [
@@ -708,12 +634,7 @@ export function routeRemainingEdges(
     } else if (edge.type === "supporting" || edge.type === "dependency") {
       edges[edge.id] = {
         edgeId: edge.id,
-        points: safeSupportingReroute(
-          source,
-          target,
-          nodes,
-          supportingLanes.get(edge.id) ?? 0,
-        ),
+        points: safeSupportingReroute(source, target, nodes, supportingLanes.get(edge.id) ?? 0),
       };
     } else {
       bottomChannel += 32;
@@ -754,19 +675,15 @@ export function normalizeGateHandles(file: WorkflowFile) {
     const source = file.graph.nodes.find((node) => node.id === edge.source);
     const sourceHandle =
       source?.type === "gate"
-        ? source.config.outcomes?.some(
-            (outcome) => outcome.id === edge.sourceHandle,
-          )
+        ? source.config.outcomes?.some((outcome) => outcome.id === edge.sourceHandle)
           ? edge.sourceHandle
           : edge.sourceHandle?.startsWith("no")
             ? "no"
             : "yes"
         : edge.sourceHandle || "out";
-    const deniedReturn =
-      edge.type === "rework" || sourceHandle?.startsWith("no");
+    const deniedReturn = edge.type === "rework" || sourceHandle?.startsWith("no");
     const preGateSales = edge.customFields.workflowSection === "Pre-Gate Sales";
-    const targetHandle =
-      deniedReturn && !preGateSales ? "rework-in" : edge.targetHandle || "in";
+    const targetHandle = deniedReturn && !preGateSales ? "rework-in" : edge.targetHandle || "in";
     return { ...edge, sourceHandle, targetHandle };
   });
 }

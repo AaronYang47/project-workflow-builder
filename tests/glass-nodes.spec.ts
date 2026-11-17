@@ -96,14 +96,15 @@ async function expectGlassMaterial(page: Page, selector: string) {
   expect(materials.every((material) => material.borderColor.length > 0)).toBe(true);
 }
 
-test("L1 and L2 cards keep their glass material in dark and light themes", async ({
-  page,
-}) => {
+test("L1 and L2 cards keep their glass material in dark and light themes", async ({ page }) => {
   test.setTimeout(60_000);
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     // Public collaboration relays are third-party servers; an outage of one is not an app error.
-    if (message.type() === "error" && !/^WebSocket connection to 'wss:\/\/[^']+' failed/.test(message.text())) {
+    if (
+      message.type() === "error" &&
+      !/^WebSocket connection to 'wss:\/\/[^']+' failed/.test(message.text())
+    ) {
       browserErrors.push(message.text());
     }
   });
@@ -117,16 +118,20 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
   await expect(page.getByText("Start · GLASS QA", { exact: true }).first()).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expectGlassMaterial(page, ".high-level-node-card");
-  const l1Tints = await page.locator('.high-level-node-card[data-glass-tint="true"]').evaluateAll((cards) =>
-    cards.map((card) => ({
-      tint: getComputedStyle(card).getPropertyValue("--node-glass-tint").trim(),
-      backgroundImage: getComputedStyle(card).backgroundImage,
-    })),
+  const l1Tints = await page
+    .locator('.high-level-node-card[data-glass-tint="true"]')
+    .evaluateAll((cards) =>
+      cards.map((card) => ({
+        tint: getComputedStyle(card).getPropertyValue("--node-glass-tint").trim(),
+        backgroundImage: getComputedStyle(card).backgroundImage,
+      })),
+    );
+  expect(l1Tints).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ tint: "52 211 153" }),
+      expect.objectContaining({ tint: "251 191 36" }),
+    ]),
   );
-  expect(l1Tints).toEqual(expect.arrayContaining([
-    expect.objectContaining({ tint: "52 211 153" }),
-    expect.objectContaining({ tint: "251 191 36" }),
-  ]));
   expect(new Set(l1Tints.map((card) => card.backgroundImage)).size).toBeGreaterThan(1);
   await page.screenshot({
     path: join(outputDir, "l1-dark.png"),
@@ -135,7 +140,9 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
 
   await page.locator('button[aria-label="L2 · Detailed Workflow"]').click();
   await expect(page.locator('[data-id="pre-construction"]')).toBeVisible();
-  await expect(page.locator('[data-id="glass-qa-node"] .workflow-node.l2-node-card')).toHaveCount(1);
+  await expect(page.locator('[data-id="glass-qa-node"] .workflow-node.l2-node-card')).toHaveCount(
+    1,
+  );
   await expect(page.locator('[data-id="glass-qa-phase"] .l2-phase-card')).toHaveCount(1);
   await expect(page.locator('[data-id="glass-qa-reference"] .l2-node-card')).toHaveCount(1);
   await expect(page.locator('[data-id="glass-qa-reference"]')).toContainText("Release conditions");
@@ -156,9 +163,7 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
   await page
     .locator('[data-id="glass-qa-reference"] [aria-label="Completion description"]')
     .fill("Final completion record is ready");
-  await page
-    .locator('[data-id="glass-qa-reference"] [aria-label="Completion description"]')
-    .blur();
+  await page.locator('[data-id="glass-qa-reference"] [aria-label="Completion description"]').blur();
   await expect(inspectorDescription).toHaveValue("Final completion record is ready");
   await expect(
     page.locator('[data-id="glass-qa-reference"] button[aria-label="Check release condition 1"]'),
@@ -170,10 +175,12 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
       backgroundImage: getComputedStyle(card).backgroundImage,
     })),
   );
-  expect(l2Tints).toEqual(expect.arrayContaining([
-    expect.objectContaining({ tint: "251 191 36" }),
-    expect.objectContaining({ tint: "52 211 153" }),
-  ]));
+  expect(l2Tints).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ tint: "251 191 36" }),
+      expect.objectContaining({ tint: "52 211 153" }),
+    ]),
+  );
   await page.screenshot({
     path: join(outputDir, "l2-dark.png"),
     animations: "disabled",

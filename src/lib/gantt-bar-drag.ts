@@ -62,20 +62,29 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     guide?.remove();
     label?.remove();
     bar.style.cssText = originalStyle;
-    if (options.task.start !== undefined) options.onPreview?.(bar, options.task.start, options.task.days ?? 1);
+    if (options.task.start !== undefined)
+      options.onPreview?.(bar, options.task.start, options.task.days ?? 1);
     bar.removeAttribute("data-gantt-dragging");
     if (activeCleanup === cleanup) activeCleanup = undefined;
     if (bar.hasPointerCapture(pointerId)) bar.releasePointerCapture(pointerId);
   };
   const preview = () => {
     const shiftedX = latestX - originX + board.scrollLeft - initialScroll;
-    current = planGanttPlacement(options.schedule, options.task,
-      Math.min(scheduleDay(options.totalDays) - (options.task.days ?? 0), scheduleDay(displayDay(options.task.start!) + shiftedX / pixelsPerDay)),
-      Math.min(0.45, 10 / pixelsPerDay));
+    current = planGanttPlacement(
+      options.schedule,
+      options.task,
+      Math.min(
+        scheduleDay(options.totalDays) - (options.task.days ?? 0),
+        scheduleDay(displayDay(options.task.start!) + shiftedX / pixelsPerDay),
+      ),
+      Math.min(0.45, 10 / pixelsPerDay),
+    );
     if (!current) return;
-    const left = displayDay(current.startDay) / options.totalDays * track.getBoundingClientRect().width;
+    const left =
+      (displayDay(current.startDay) / options.totalDays) * track.getBoundingClientRect().width;
     bar.style.transform = `translateX(${(displayDay(current.startDay) - displayDay(options.task.start!)) * pixelsPerDay}px)`;
-    if (options.toDisplayDay) bar.style.width = `${(displayDay(current.startDay + (options.task.days ?? 1), "end") - displayDay(current.startDay)) / options.totalDays * 100}%`;
+    if (options.toDisplayDay)
+      bar.style.width = `${((displayDay(current.startDay + (options.task.days ?? 1), "end") - displayDay(current.startDay)) / options.totalDays) * 100}%`;
     options.onPreview?.(bar, current.startDay, options.task.days ?? 1);
     if (guide) guide.style.left = `${left}px`;
     if (label) {
@@ -85,8 +94,10 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     }
     clearSnapTarget();
     if (current.snappedToTask) {
-      snapTarget = Array.from(board.querySelectorAll<HTMLElement>("[data-gantt-task-key]"))
-        .find((item) => item.dataset.ganttTaskKey === current!.snappedToTask) || null;
+      snapTarget =
+        Array.from(board.querySelectorAll<HTMLElement>("[data-gantt-task-key]")).find(
+          (item) => item.dataset.ganttTaskKey === current!.snappedToTask,
+        ) || null;
       snapTarget?.setAttribute("data-gantt-snap-target", "true");
     }
   };
@@ -95,8 +106,12 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     const rect = board.getBoundingClientRect();
     if (latestX >= rect.left && latestX <= rect.right) {
       const edge = 48;
-      const speed = latestX < rect.left + edge ? -Math.max(2, Math.round((rect.left + edge - latestX) / edge * 12))
-        : latestX > rect.right - edge ? Math.max(2, Math.round((latestX - rect.right + edge) / edge * 12)) : 0;
+      const speed =
+        latestX < rect.left + edge
+          ? -Math.max(2, Math.round(((rect.left + edge - latestX) / edge) * 12))
+          : latestX > rect.right - edge
+            ? Math.max(2, Math.round(((latestX - rect.right + edge) / edge) * 12))
+            : 0;
       if (speed) {
         const before = board.scrollLeft;
         board.scrollLeft += speed;
@@ -127,18 +142,23 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     if (!dragging && Math.hypot(deltaX, deltaY) < (event.pointerType === "touch" ? 8 : 4)) return;
     if (!dragging) {
       dragging = true;
-      vertical = Boolean(options.onMoveChapter && (options.task.start === undefined || Math.abs(deltaY) > Math.abs(deltaX) * 1.2));
+      vertical = Boolean(
+        options.onMoveChapter &&
+        (options.task.start === undefined || Math.abs(deltaY) > Math.abs(deltaX) * 1.2),
+      );
       bar.setAttribute("data-gantt-dragging", "true");
       bar.style.zIndex = "20";
       bar.style.outline = "2px solid #0f172a";
       bar.style.outlineOffset = "2px";
       if (!vertical) {
         guide = document.createElement("div");
-        guide.style.cssText = "position:absolute;top:0;bottom:0;border-left:2px dashed #0f766e;pointer-events:none;z-index:10";
+        guide.style.cssText =
+          "position:absolute;top:0;bottom:0;border-left:2px dashed #0f766e;pointer-events:none;z-index:10";
         track.appendChild(guide);
       }
       label = document.createElement("div");
-      label.style.cssText = "position:fixed;z-index:99999;pointer-events:none;max-width:240px;padding:6px 8px;border-radius:6px;background:#0f172a;color:white;font:11px/1.3 Arial,sans-serif;box-shadow:0 6px 18px #0004";
+      label.style.cssText =
+        "position:fixed;z-index:99999;pointer-events:none;max-width:240px;padding:6px 8px;border-radius:6px;background:#0f172a;color:white;font:11px/1.3 Arial,sans-serif;box-shadow:0 6px 18px #0004";
       document.body.appendChild(label);
       scrollFrame = requestAnimationFrame(autoScroll);
       if (vertical) activateVertical();
@@ -146,10 +166,18 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
     pointer.preventDefault();
     latestX = pointer.clientX;
     const trackRect = track.getBoundingClientRect();
-    if (!vertical && options.onMoveChapter && (pointer.clientY < trackRect.top - 8 || pointer.clientY > trackRect.bottom + 8)) activateVertical();
+    if (
+      !vertical &&
+      options.onMoveChapter &&
+      (pointer.clientY < trackRect.top - 8 || pointer.clientY > trackRect.bottom + 8)
+    )
+      activateVertical();
     if (vertical) {
       if (ghost) ghost.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-      const target = document.elementFromPoint(pointer.clientX, pointer.clientY)?.closest<HTMLElement>("[data-release-condition-drop-node-id]") || null;
+      const target =
+        document
+          .elementFromPoint(pointer.clientX, pointer.clientY)
+          ?.closest<HTMLElement>("[data-release-condition-drop-node-id]") || null;
       if (target !== chapterTarget) {
         chapterTarget?.removeAttribute("data-drop-chapter");
         chapterTarget = target;
@@ -157,12 +185,23 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
       }
       if (target) {
         const sourceRow = bar.closest<HTMLElement>("[data-release-condition-index]");
-        const rows = Array.from(target.querySelectorAll<HTMLElement>("[data-release-condition-index]"))
-          .filter((row) => row !== sourceRow);
-        const after = rows.find((row) => pointer.clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
-        const raw = after ? Number(after.dataset.releaseConditionIndex) : Number(target.dataset.releaseConditionCount || 0);
+        const rows = Array.from(
+          target.querySelectorAll<HTMLElement>("[data-release-condition-index]"),
+        ).filter((row) => row !== sourceRow);
+        const after = rows.find(
+          (row) =>
+            pointer.clientY <
+            row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2,
+        );
+        const raw = after
+          ? Number(after.dataset.releaseConditionIndex)
+          : Number(target.dataset.releaseConditionCount || 0);
         const sourceIndex = Number(sourceRow?.dataset.releaseConditionIndex);
-        chapterIndex = target === sourceRow?.closest("[data-release-condition-drop-node-id]") && raw > sourceIndex ? raw - 1 : raw;
+        chapterIndex =
+          target === sourceRow?.closest("[data-release-condition-drop-node-id]") &&
+          raw > sourceIndex
+            ? raw - 1
+            : raw;
       }
       if (label) {
         label.style.left = `${Math.min(pointer.clientX + 12, window.innerWidth - label.offsetWidth - 8)}px`;
@@ -173,15 +212,26 @@ export function beginGanttBarDrag(event: PointerEvent, bar: HTMLElement, options
   const finish = (pointer: PointerEvent) => {
     if (pointer.pointerId !== pointerId) return;
     pointer.preventDefault();
-    const placement = dragging && !vertical && current?.startDay !== options.task.start ? current : null;
-    const destination = vertical && chapterTarget ? { nodeId: chapterTarget.dataset.releaseConditionDropNodeId!, index: chapterIndex } : null;
+    const placement =
+      dragging && !vertical && current?.startDay !== options.task.start ? current : null;
+    const destination =
+      vertical && chapterTarget
+        ? { nodeId: chapterTarget.dataset.releaseConditionDropNodeId!, index: chapterIndex }
+        : null;
     cleanup();
-    if (destination) { options.onMoveChapter?.(destination.nodeId, destination.index); return; }
+    if (destination) {
+      options.onMoveChapter?.(destination.nodeId, destination.index);
+      return;
+    }
     if (placement) options.onDrop(placement);
     else if (!dragging) options.onClick?.();
   };
-  const cancel = (pointer: PointerEvent) => { if (pointer.pointerId === pointerId) cleanup(); };
-  const onKeyDown = (keyEvent: KeyboardEvent) => { if (keyEvent.key === "Escape") cleanup(); };
+  const cancel = (pointer: PointerEvent) => {
+    if (pointer.pointerId === pointerId) cleanup();
+  };
+  const onKeyDown = (keyEvent: KeyboardEvent) => {
+    if (keyEvent.key === "Escape") cleanup();
+  };
   bar.setPointerCapture(pointerId);
   activeCleanup = cleanup;
   document.addEventListener("pointermove", move, true);

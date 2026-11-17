@@ -14,9 +14,7 @@ export function createDefaultTerminalConditions(): DomainNode["conditions"] {
   ];
 }
 
-const referenceDefaults: Partial<
-  Record<WorkflowNodeType, DomainNode["config"]["reference"]>
-> = {
+const referenceDefaults: Partial<Record<WorkflowNodeType, DomainNode["config"]["reference"]>> = {
   terminal: {},
 };
 
@@ -33,14 +31,22 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       ? "Review the work item before approval"
       : projectStart
         ? "Start the project and establish its project record."
-      : def.description,
+        : def.description,
     color: def.color,
     metadata: {},
     conditions: projectStart
-      ? [{ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true }]
+      ? [
+          {
+            id: "project-id-required",
+            label: "Job Number is entered",
+            required: false,
+            checked: false,
+            locked: true,
+          },
+        ]
       : type === "terminal"
         ? createDefaultTerminalConditions()
-      : [],
+        : [],
     documents: [],
     criteria: [],
     customFields: projectStart
@@ -54,65 +60,65 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       ? { serviceType: "Standard", buildingCode: "", moduleCode: "" }
       : gate
         ? {
-          gateLabel: "DECISION",
-          decisionMode: "binary",
-          gateIconKey: "check",
-          gateHeaderColor: "#2563a9",
-          gateTitleColor: "#ffffff",
-          conditionsTitle: "Approval conditions",
-          conditionsSubtitle: "requirements complete",
-          checklistTitle: "Conditions checklist",
-          checklistHint: "Every applicable required document must be complete",
-          conditionLabel: "Condition",
-          addConditionLabel: "Add condition",
-          documentsLabel: "All applicable required documents",
-          addDocumentLabel: "Add document",
-          decisionTitle: "Decision",
-          decisionSubtitle: "Approval routing",
-          departmentLabel: "Department",
-          approverLabel: "Approved by",
-          detailsNeededLabel: "Details needed",
-          outcomes: [
-            {
-              id: "yes",
-              label: "YES",
-              edgeType: "success",
-              color: "#16866f",
-              enabled: true,
-            },
-            {
-              id: "no",
-              label: "NO",
-              edgeType: "failure",
-              color: "#b34a47",
-              enabled: true,
-            },
-          ],
-          gateRules: [
-            {
-              id: `rule-${crypto.randomUUID().slice(0, 6)}`,
-              label: "Enter required condition",
-              checked: false,
-              requirementType: "Required",
-              signatures: [],
-            },
-          ],
-          approvedDepartment: "",
-          approvedBy: "",
-        }
-      : type === "phase"
-        ? { locked: false }
-        : type === "terminal"
-          ? { chapterNumber: "", reference: clone(referenceDefaults.terminal!) }
-        : matrixKind
-          ? {
-              stage: "Governance",
-              iconKey: "document",
-              matrixKind,
-              reference: createDefaultMatrixReference(matrixKind),
-            }
-        : referenceDefaults[type]
-          ? { reference: clone(referenceDefaults[type]!) }
-          : { stage: "Department", iconKey: "activity" },
+            gateLabel: "DECISION",
+            decisionMode: "binary",
+            gateIconKey: "check",
+            gateHeaderColor: "#2563a9",
+            gateTitleColor: "#ffffff",
+            conditionsTitle: "Approval conditions",
+            conditionsSubtitle: "requirements complete",
+            checklistTitle: "Conditions checklist",
+            checklistHint: "Every applicable required document must be complete",
+            conditionLabel: "Condition",
+            addConditionLabel: "Add condition",
+            documentsLabel: "All applicable required documents",
+            addDocumentLabel: "Add document",
+            decisionTitle: "Decision",
+            decisionSubtitle: "Approval routing",
+            departmentLabel: "Department",
+            approverLabel: "Approved by",
+            detailsNeededLabel: "Details needed",
+            outcomes: [
+              {
+                id: "yes",
+                label: "YES",
+                edgeType: "success",
+                color: "#16866f",
+                enabled: true,
+              },
+              {
+                id: "no",
+                label: "NO",
+                edgeType: "failure",
+                color: "#b34a47",
+                enabled: true,
+              },
+            ],
+            gateRules: [
+              {
+                id: `rule-${crypto.randomUUID().slice(0, 6)}`,
+                label: "Enter required condition",
+                checked: false,
+                requirementType: "Required",
+                signatures: [],
+              },
+            ],
+            approvedDepartment: "",
+            approvedBy: "",
+          }
+        : type === "phase"
+          ? { locked: false }
+          : type === "terminal"
+            ? { chapterNumber: "", reference: clone(referenceDefaults.terminal!) }
+            : matrixKind
+              ? {
+                  stage: "Governance",
+                  iconKey: "document",
+                  matrixKind,
+                  reference: createDefaultMatrixReference(matrixKind),
+                }
+              : referenceDefaults[type]
+                ? { reference: clone(referenceDefaults[type]!) }
+                : { stage: "Department", iconKey: "activity" },
   };
 }

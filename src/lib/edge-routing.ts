@@ -9,15 +9,10 @@ export type RouteObstacle = {
   kind?: "phase-header";
 };
 
-const spansOverlap = (
-  left: number,
-  right: number,
-  obstacle: Pick<RouteObstacle, "x" | "width">,
-) => obstacle.x < right && obstacle.x + obstacle.width > left;
+const spansOverlap = (left: number, right: number, obstacle: Pick<RouteObstacle, "x" | "width">) =>
+  obstacle.x < right && obstacle.x + obstacle.width > left;
 
-export function phaseHeaderObstacles(
-  obstacles: RouteObstacle[],
-): RouteObstacle[] {
+export function phaseHeaderObstacles(obstacles: RouteObstacle[]): RouteObstacle[] {
   return obstacles.filter((item) => item.kind === "phase-header");
 }
 
@@ -45,9 +40,7 @@ export function corridorYAboveCards(
   headers: RouteObstacle[],
 ) {
   const preferred = cardTop - 48 - (Math.abs(lane) % 3) * 18;
-  const crossed = headers.filter((header) =>
-    spansOverlap(spanLeft, spanRight, header),
-  );
+  const crossed = headers.filter((header) => spansOverlap(spanLeft, spanRight, header));
   if (!crossed.length) return preferred;
 
   let y = preferred;

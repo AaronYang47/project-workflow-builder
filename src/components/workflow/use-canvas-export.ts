@@ -56,9 +56,9 @@ export function useCanvasExport(
     };
     const focusMany = (event: Event) => {
       const ids = (event as CustomEvent<string[]>).detail;
-      const nodes = ids.map((id) => ({ id })).filter((node) =>
-        flow.getNodes().some((current) => current.id === node.id),
-      );
+      const nodes = ids
+        .map((id) => ({ id }))
+        .filter((node) => flow.getNodes().some((current) => current.id === node.id));
       if (!nodes.length) return;
       flow.fitView({ nodes, duration: 500, padding: 0.8, maxZoom: 1.25 });
     };
@@ -94,9 +94,7 @@ export function useCanvasExport(
 
       const wrapperEl = wrapper.current;
       const flowElement = wrapperEl?.querySelector<HTMLElement>(".react-flow");
-      const viewport = flowElement?.querySelector<HTMLElement>(
-        ".react-flow__viewport",
-      );
+      const viewport = flowElement?.querySelector<HTMLElement>(".react-flow__viewport");
       if (!flowElement || !viewport) return;
 
       const bounds = flow.getNodesBounds(flow.getNodes());
@@ -108,7 +106,16 @@ export function useCanvasExport(
           const internal = flow.getInternalNode(node.id);
           if (!internal?.measured.width || !internal.measured.height) return [];
           const { x, y } = internal.internals.positionAbsolute;
-          return [{ id: node.id, parentId: node.parentId, x, y, width: internal.measured.width, height: internal.measured.height }];
+          return [
+            {
+              id: node.id,
+              parentId: node.parentId,
+              x,
+              y,
+              width: internal.measured.width,
+              height: internal.measured.height,
+            },
+          ];
         });
         const links = flow.getEdges().map((edge) => ({
           id: edge.id,
@@ -124,7 +131,9 @@ export function useCanvasExport(
           cards,
           links,
           padding,
-          detail.format === "l1-pdf" ? "workflow-L1-high-level-11x17" : "workflow-L2-detailed-11x17",
+          detail.format === "l1-pdf"
+            ? "workflow-L1-high-level-11x17"
+            : "workflow-L2-detailed-11x17",
           forms,
           flowchartPrintHeader(file, detail.format === "l1-pdf" ? "l1" : "l2", forms.length),
         );
@@ -140,16 +149,19 @@ export function useCanvasExport(
 
       // Keep the live React Flow container at its original size. Resizing it
       // triggers its ResizeObserver and can change the viewport during capture.
-      viewport.style.setProperty("transform", `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`, "important");
+      viewport.style.setProperty(
+        "transform",
+        `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`,
+        "important",
+      );
       // Stay below browser canvas dimension and area limits for large projects.
       const pixelRatio = exportPixelRatio(targetWidth, targetHeight);
       const captureStyle = { width: `${targetWidth}px`, height: `${targetHeight}px` };
 
       try {
         const backgroundColor =
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--canvas-export")
-            .trim() || "#ffffff";
+          getComputedStyle(document.documentElement).getPropertyValue("--canvas-export").trim() ||
+          "#ffffff";
 
         if (detail.format === "pdf") {
           const { captureToPng: toPng } = await import("@/lib/export/capture");
@@ -165,8 +177,7 @@ export function useCanvasExport(
               !node.classList?.contains("react-flow__minimap"),
           });
 
-          const orientation =
-            targetWidth >= targetHeight ? "landscape" : "portrait";
+          const orientation = targetWidth >= targetHeight ? "landscape" : "portrait";
           // PDF readers impose a page size limit as well; scale the page and
           // its image together without changing the workflow's proportions.
           const pageScale = Math.min(1, 12000 / Math.max(targetWidth, targetHeight));
@@ -212,12 +223,15 @@ export function useCanvasExport(
         anchor.href = data;
         anchor.click();
       } finally {
-        viewport.style.setProperty("transform", original.viewportTransform, original.viewportTransformPriority);
+        viewport.style.setProperty(
+          "transform",
+          original.viewportTransform,
+          original.viewportTransformPriority,
+        );
       }
     };
 
     window.addEventListener(EXPORT_EVENT, capture as EventListener);
-    return () =>
-      window.removeEventListener(EXPORT_EVENT, capture as EventListener);
+    return () => window.removeEventListener(EXPORT_EVENT, capture as EventListener);
   }, [flow, wrapper, viewType]);
 }

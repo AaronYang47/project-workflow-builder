@@ -1,18 +1,9 @@
 import type { Borders, Cell, Worksheet } from "exceljs";
 import { GATE_SERVICE_TYPES } from "@/lib/gate-service-types";
-import {
-  getInspectorSchema,
-  isInspectorFieldVisible,
-} from "@/lib/inspector-schema";
+import { getInspectorSchema, isInspectorFieldVisible } from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { projectNodeUuid, projectWideLocationCodes } from "@/lib/project-id";
-import {
-  applyListValidation,
-  asBoolean,
-  hexArgb,
-  KEY,
-  LISTS,
-} from "@/lib/excel-format";
+import { applyListValidation, asBoolean, hexArgb, KEY, LISTS } from "@/lib/excel-format";
 import {
   conditionDisplaySatisfied,
   gateApprovalReady,
@@ -147,13 +138,7 @@ function merge(sheet: Worksheet, row: number, from: number, to: number) {
   sheet.mergeCells(row, from, row, to);
 }
 
-function fillRange(
-  sheet: Worksheet,
-  row: number,
-  from: number,
-  to: number,
-  argb: string,
-) {
+function fillRange(sheet: Worksheet, row: number, from: number, to: number, argb: string) {
   for (let col = from; col <= to; col += 1) {
     sheet.getCell(row, col).fill = {
       type: "pattern",
@@ -180,13 +165,7 @@ function writeField(
   return row + 1;
 }
 
-function writeReadonly(
-  sheet: Worksheet,
-  row: number,
-  key: string,
-  label: string,
-  value: string,
-) {
+function writeReadonly(sheet: Worksheet, row: number, key: string, label: string, value: string) {
   writeKey(sheet, row, key);
   const labelCell = sheet.getCell(row, 2);
   labelCell.value = label;
@@ -202,8 +181,7 @@ function writeReadonly(
 function departmentList(file: WorkflowFile) {
   const values = new Set<string>();
   for (const node of file.graph.nodes) {
-    const department =
-      node.config.approvedDepartment || node.metadata.responsibleDepartment;
+    const department = node.config.approvedDepartment || node.metadata.responsibleDepartment;
     if (department) values.add(department);
     for (const rule of node.config.gateRules || []) {
       for (const signature of rule.signatures || []) {
@@ -270,13 +248,7 @@ function writeDocumentRow(
   writeEditable(sheet, row, 4, document.fullName || "");
   writeEditable(sheet, row, 5, document.status || "Draft", LISTS.docStatus);
   writeEditable(sheet, row, 6, document.revision || "");
-  writeEditable(
-    sheet,
-    row,
-    7,
-    document.department || "",
-    lists.departments,
-  );
+  writeEditable(sheet, row, 7, document.department || "", lists.departments);
   writeEditable(sheet, row, 8, document.signedBy || "", lists.people);
   writeEditable(sheet, row, 9, document.owner || "", lists.people);
   writeEditable(
@@ -290,12 +262,7 @@ function writeDocumentRow(
   return row + 1;
 }
 
-function writeInspectorFields(
-  sheet: Worksheet,
-  row: number,
-  node: DomainNode,
-  file: WorkflowFile,
-) {
+function writeInspectorFields(sheet: Worksheet, row: number, node: DomainNode, file: WorkflowFile) {
   const fields = getInspectorSchema(node.type).filter(
     (field) =>
       !SKIP_INSPECTOR_KEYS.has(field.key) &&
@@ -311,9 +278,7 @@ function writeInspectorFields(
   );
   if (!fields.length) return row;
   const locationCodes =
-    node.type === "projectStart"
-      ? projectWideLocationCodes(file.graph.nodes)
-      : null;
+    node.type === "projectStart" ? projectWideLocationCodes(file.graph.nodes) : null;
   for (const field of fields) {
     if (!isInspectorFieldVisible(field, node)) continue;
     let raw = readPath(node, field.key);
@@ -330,13 +295,7 @@ function writeInspectorFields(
     if (field.type === "boolean") {
       writeEditable(sheet, row, 3, Boolean(raw), LISTS.boolean, true);
     } else if (field.type === "select" && field.options?.length) {
-      writeEditable(
-        sheet,
-        row,
-        3,
-        String(raw ?? ""),
-        `"${field.options.join(",")}"`,
-      );
+      writeEditable(sheet, row, 3, String(raw ?? ""), `"${field.options.join(",")}"`);
     } else if (field.readOnly) {
       const cell = sheet.getCell(row, 3);
       cell.value = String(raw ?? "");
@@ -473,11 +432,7 @@ function writeGateBlock(
 
   // If node status is Blocked, use a dark rose/crimson header to avoid misleading green backgrounds
   const headerFillColor =
-    status === "Blocked"
-      ? "FF881337"
-      : status === "In Progress"
-        ? "FF1E3A8A"
-        : hexArgb(color);
+    status === "Blocked" ? "FF881337" : status === "In Progress" ? "FF1E3A8A" : hexArgb(color);
   fillRange(sheet, row, 2, LAST_COL, headerFillColor);
   const header = sheet.getCell(row, 2);
   header.value = `${node.title}    ·    ${getNodeDefinition(node.type).label}    ·    [${status.toUpperCase()}]`;
@@ -522,21 +477,12 @@ function writeGateBlock(
     sheet.getRow(row).height = 18;
     row += 1;
     for (const condition of nodeConditions) {
-      writeKey(
-        sheet,
-        row,
-        `${KEY.condition}:${condition.id || condition.label || ""}:node`,
-      );
+      writeKey(sheet, row, `${KEY.condition}:${condition.id || condition.label || ""}:node`);
       writeEditable(
         sheet,
         row,
         2,
-        conditionDisplaySatisfied(
-          condition,
-          node,
-          projectStart,
-          file.execution?.items ?? [],
-        ),
+        conditionDisplaySatisfied(condition, node, projectStart, file.execution?.items ?? []),
         LISTS.boolean,
         true,
       );
@@ -557,13 +503,7 @@ function writeGateBlock(
       writeEditable(sheet, row, 2, Boolean(rule.checked), LISTS.boolean, true);
       merge(sheet, row, 3, 4);
       writeEditable(sheet, row, 3, rule.label || "");
-      writeEditable(
-        sheet,
-        row,
-        5,
-        rule.requirementType || "Required",
-        LISTS.requirement,
-      );
+      writeEditable(sheet, row, 5, rule.requirementType || "Required", LISTS.requirement);
       writeEditable(
         sheet,
         row,
@@ -623,21 +563,9 @@ function writeGateBlock(
       node.config.approvedBy || "",
       lists.people,
     );
-    row = writeOutcomes(
-      sheet,
-      row,
-      node,
-      gateApprovalReady(node),
-      gateChecklistSatisfied(node),
-    );
+    row = writeOutcomes(sheet, row, node, gateApprovalReady(node), gateChecklistSatisfied(node));
   } else if (node.customFields.notes) {
-    row = writeField(
-      sheet,
-      row,
-      KEY.gateNotes,
-      "Notes",
-      String(node.customFields.notes || ""),
-    );
+    row = writeField(sheet, row, KEY.gateNotes, "Notes", String(node.customFields.notes || ""));
   }
 
   row = writeReference(sheet, row, node);
@@ -691,9 +619,7 @@ export function writePhaseSheet(
     writeEditable(sheet, 2, 3, phase.description || "");
   } else {
     const standalone = nodes[0];
-    const kindLabel = standalone
-      ? getNodeDefinition(standalone.type).label
-      : "Standalone";
+    const kindLabel = standalone ? getNodeDefinition(standalone.type).label : "Standalone";
     const hint = sheet.getCell(2, 2);
     hint.value = kindLabel;
     styleLabel(hint);
@@ -717,9 +643,7 @@ export function writePhaseSheet(
 
   let row = 5;
   if (!nodes.length) {
-    sheet.getCell(row, 2).value = independent
-      ? "No independent nodes."
-      : "No nodes in this phase.";
+    sheet.getCell(row, 2).value = independent ? "No independent nodes." : "No nodes in this phase.";
     styleLabel(sheet.getCell(row, 2));
     return;
   }

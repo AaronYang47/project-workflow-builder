@@ -2,23 +2,13 @@
 
 import { memo, useMemo } from "react";
 import { Check, GripVertical, Plus, Trash2 } from "lucide-react";
-import {
-  Handle,
-  NodeResizer,
-  Position,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
+import { Handle, NodeResizer, Position, type Node, type NodeProps } from "@xyflow/react";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { L2_NODE_CARD_WIDTH } from "@/lib/node-layout";
 import { projectNodeUuid } from "@/lib/project-id";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type {
-  DomainNode,
-  ReferenceConfig,
-  ReferenceSection,
-} from "@/types/workflow";
+import type { DomainNode, ReferenceConfig, ReferenceSection } from "@/types/workflow";
 import { ComponentNoteButton } from "./component-note-button";
 import { isSectionBasedReference } from "./node-utils";
 import { ReleaseConditionsPanel } from "./release-conditions-panel";
@@ -36,17 +26,10 @@ const rowsFor = (value: string | undefined, characters = 38, minimum = 1) =>
     minimum,
     (value || "")
       .split("\n")
-      .reduce(
-        (total, line) =>
-          total + Math.max(1, Math.ceil(line.length / characters)),
-        0,
-      ),
+      .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / characters)), 0),
   );
 
-function ReferenceNodeComponent({
-  data,
-  selected,
-}: NodeProps<ReferenceFlowNode>) {
+function ReferenceNodeComponent({ data, selected }: NodeProps<ReferenceFlowNode>) {
   const node = data.domain;
   const definition = getNodeDefinition(node.type);
   const Icon = definition.icon;
@@ -54,9 +37,7 @@ function ReferenceNodeComponent({
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateLayout = useWorkflowStore((state) => state.updateLayout);
   const projectNodes = useWorkflowStore((state) => state.file.graph.nodes);
-  const executionItems = useWorkflowStore(
-    (state) => state.file.execution?.items ?? [],
-  );
+  const executionItems = useWorkflowStore((state) => state.file.execution?.items ?? []);
   const operations = useWorkflowStore((state) => state.file.operations);
   const projectStartNode = useMemo(
     () => projectNodes.find((item) => item.type === "projectStart"),
@@ -95,14 +76,11 @@ function ReferenceNodeComponent({
         className={cn(
           "l2-node-card min-w-0 h-full w-full overflow-hidden rounded-2xl border bg-card shadow-[0_8px_28px_rgba(15,23,42,.12)] transition duration-200",
           node.type === "terminal" && "border-2",
-          selected &&
-            "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+          selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
         )}
         style={{
           borderColor: nodeColor ? nodeColor.border : `${node.color || definition.color}66`,
-          ...(nodeColor
-            ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
-            : {}),
+          ...(nodeColor ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties) : {}),
         }}
       >
         <NodeResizer
@@ -112,11 +90,7 @@ function ReferenceNodeComponent({
           lineClassName="!border-primary"
           handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"
           onResizeEnd={(_, params) =>
-            updateLayout(
-              node.id,
-              { width: params.width, height: params.height },
-              true,
-            )
+            updateLayout(node.id, { width: params.width, height: params.height }, true)
           }
         />
         <div
@@ -168,11 +142,8 @@ function ReferenceNodeComponent({
                     defaultValue={column}
                     onBlur={(event) =>
                       save({
-                        columns: (reference.columns || []).map(
-                          (item, itemIndex) =>
-                            itemIndex === index
-                              ? event.target.value.trim()
-                              : item,
+                        columns: (reference.columns || []).map((item, itemIndex) =>
+                          itemIndex === index ? event.target.value.trim() : item,
                         ),
                       })
                     }
@@ -195,9 +166,7 @@ function ReferenceNodeComponent({
                     onBlur={(event) =>
                       save({
                         rows: (reference.rows || []).map((item, index) =>
-                          index === rowIndex
-                            ? { ...item, label: event.target.value.trim() }
-                            : item,
+                          index === rowIndex ? { ...item, label: event.target.value.trim() } : item,
                         ),
                       })
                     }
@@ -214,11 +183,10 @@ function ReferenceNodeComponent({
                             index === rowIndex
                               ? {
                                   ...item,
-                                  approvals: (reference.columns || []).map(
-                                    (__, columnIndex) =>
-                                      columnIndex === approvalIndex
-                                        ? !item.approvals[columnIndex]
-                                        : Boolean(item.approvals[columnIndex]),
+                                  approvals: (reference.columns || []).map((__, columnIndex) =>
+                                    columnIndex === approvalIndex
+                                      ? !item.approvals[columnIndex]
+                                      : Boolean(item.approvals[columnIndex]),
                                   ),
                                 }
                               : item,
@@ -233,10 +201,7 @@ function ReferenceNodeComponent({
                       )}
                     >
                       <Check
-                        className={cn(
-                          "size-3.5",
-                          !row.approvals[approvalIndex] && "opacity-0",
-                        )}
+                        className={cn("size-3.5", !row.approvals[approvalIndex] && "opacity-0")}
                       />
                     </button>
                   ))}
@@ -249,9 +214,7 @@ function ReferenceNodeComponent({
                     aria-label={`Delete ${row.label}`}
                     onClick={() =>
                       save({
-                        rows: (reference.rows || []).filter(
-                          (_, index) => index !== rowIndex,
-                        ),
+                        rows: (reference.rows || []).filter((_, index) => index !== rowIndex),
                       })
                     }
                     className="text-muted-foreground hover:text-destructive"
@@ -310,10 +273,7 @@ function ReferenceNodeComponent({
                 }}
               >
                 {sections.map((section, index) => (
-                  <div
-                    key={section.id}
-                    className="rounded-xl border bg-muted/15 p-2"
-                  >
+                  <div key={section.id} className="rounded-xl border bg-muted/15 p-2">
                     <div className="flex items-start gap-1">
                       <textarea
                         defaultValue={section.title}
@@ -333,9 +293,7 @@ function ReferenceNodeComponent({
                       <button
                         onClick={() =>
                           save({
-                            sections: sections.filter(
-                              (_, itemIndex) => itemIndex !== index,
-                            ),
+                            sections: sections.filter((_, itemIndex) => itemIndex !== index),
                           })
                         }
                       >
@@ -361,20 +319,14 @@ function ReferenceNodeComponent({
           {node.type === "serviceLegend" ? (
             <div className="grid grid-cols-2 gap-2">
               {(reference.items || []).map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 rounded-lg border p-2"
-                >
+                <div key={item.id} className="flex items-center gap-2 rounded-lg border p-2">
                   <input
                     type="color"
                     value={item.color}
                     onChange={(event) =>
                       save({
-                        items: (reference.items || []).map(
-                          (entry, itemIndex) =>
-                            itemIndex === index
-                              ? { ...entry, color: event.target.value }
-                              : entry,
+                        items: (reference.items || []).map((entry, itemIndex) =>
+                          itemIndex === index ? { ...entry, color: event.target.value } : entry,
                         ),
                       })
                     }
@@ -384,11 +336,10 @@ function ReferenceNodeComponent({
                     defaultValue={item.label}
                     onBlur={(event) =>
                       save({
-                        items: (reference.items || []).map(
-                          (entry, itemIndex) =>
-                            itemIndex === index
-                              ? { ...entry, label: event.target.value.trim() }
-                              : entry,
+                        items: (reference.items || []).map((entry, itemIndex) =>
+                          itemIndex === index
+                            ? { ...entry, label: event.target.value.trim() }
+                            : entry,
                         ),
                       })
                     }
@@ -400,14 +351,13 @@ function ReferenceNodeComponent({
                     aria-label={`${item.label} explanation`}
                     onBlur={(event) =>
                       save({
-                        items: (reference.items || []).map(
-                          (entry, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...entry,
-                                  description: event.target.value.trim(),
-                                }
-                              : entry,
+                        items: (reference.items || []).map((entry, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...entry,
+                                description: event.target.value.trim(),
+                              }
+                            : entry,
                         ),
                       })
                     }
@@ -468,15 +418,11 @@ function ReferenceNodeComponent({
                 <textarea
                   defaultValue={(reference.current || []).join("\n")}
                   rows={rowsFor((reference.current || []).join("\n"), 50, 4)}
-                  onBlur={(event) =>
-                    save({ current: lines(event.target.value) })
-                  }
+                  onBlur={(event) => save({ current: lines(event.target.value) })}
                   className="mt-2 min-h-24 w-full resize-none overflow-hidden rounded border bg-background p-2 text-[9px] leading-[17px]"
                 />
               </label>
-              <span className="flex items-center justify-center text-xl text-primary">
-                →
-              </span>
+              <span className="flex items-center justify-center text-xl text-primary">→</span>
               <label className="rounded-xl border bg-emerald-50/40 p-3">
                 <span className="flex items-center text-[9px] font-black uppercase">
                   Proposed
@@ -490,9 +436,7 @@ function ReferenceNodeComponent({
                 <textarea
                   defaultValue={(reference.proposed || []).join("\n")}
                   rows={rowsFor((reference.proposed || []).join("\n"), 50, 4)}
-                  onBlur={(event) =>
-                    save({ proposed: lines(event.target.value) })
-                  }
+                  onBlur={(event) => save({ proposed: lines(event.target.value) })}
                   className="mt-2 min-h-24 w-full resize-none overflow-hidden rounded border bg-background p-2 text-[9px] leading-[17px]"
                 />
               </label>

@@ -15,8 +15,7 @@ import {
 import type { DomainEdge, DomainNode } from "@/types/workflow";
 
 export function nodeIdFromPointer(event: MouseEvent | TouchEvent) {
-  const point =
-    "changedTouches" in event ? event.changedTouches.item(0) : event;
+  const point = "changedTouches" in event ? event.changedTouches.item(0) : event;
   if (!point) return undefined;
   for (const el of document.elementsFromPoint(point.clientX, point.clientY)) {
     const id = el.closest(".react-flow__node")?.getAttribute("data-id");
@@ -38,11 +37,8 @@ export function useCanvasConnections({
     (connection) => {
       if (!connection.source || !connection.target) return;
       const source = nodes.find((node) => node.id === connection.source);
-      const outcome = source?.config.outcomes?.find(
-        (item) => item.id === connection.sourceHandle,
-      );
-      const preGateSales =
-        source?.metadata.workflowSection === "Pre-Gate Sales";
+      const outcome = source?.config.outcomes?.find((item) => item.id === connection.sourceHandle);
+      const preGateSales = source?.metadata.workflowSection === "Pre-Gate Sales";
       const edge: DomainEdge = {
         id: `edge-${crypto.randomUUID().slice(0, 8)}`,
         source: connection.source,
@@ -57,8 +53,7 @@ export function useCanvasConnections({
           }) ||
           "in",
         type:
-          outcome?.edgeType ||
-          (connection.sourceHandle?.startsWith("no") ? "failure" : "normal"),
+          outcome?.edgeType || (connection.sourceHandle?.startsWith("no") ? "failure" : "normal"),
         label: outcome?.label
           ? outcome.label[0] + outcome.label.slice(1).toLowerCase()
           : connection.sourceHandle?.startsWith("no")
@@ -100,11 +95,12 @@ export function useCanvasConnections({
         source: sourceId,
         sourceHandle: sourceHandle ?? null,
         target: targetId,
-        targetHandle: deniedTargetHandle({
-          sourceHandle,
-          preGateSales: source.metadata.workflowSection === "Pre-Gate Sales",
-          droppedHandle: "rework-in",
-        }) ?? null,
+        targetHandle:
+          deniedTargetHandle({
+            sourceHandle,
+            preGateSales: source.metadata.workflowSection === "Pre-Gate Sales",
+            droppedHandle: "rework-in",
+          }) ?? null,
       });
     },
     [nodes, onConnect],
@@ -153,18 +149,13 @@ export function useCanvasConnections({
       const targetId = nodeIdFromPointer(event);
       if (!targetId) return;
       const target = nodes.find((node) => node.id === targetId);
-      if (
-        !target ||
-        target.type === "phase" ||
-        target.type === "projectStart"
-      ) {
+      if (!target || target.type === "phase" || target.type === "projectStart") {
         return;
       }
       const source = nodes.find((node) => node.id === edge.source);
       const domain = (edge.data as { domain?: DomainEdge } | undefined)?.domain;
       const sourceHandle = domain?.sourceHandle ?? edge.sourceHandle;
-      const preGateSales =
-        source?.metadata.workflowSection === "Pre-Gate Sales";
+      const preGateSales = source?.metadata.workflowSection === "Pre-Gate Sales";
 
       updateEdge(edge.id, {
         target: targetId,

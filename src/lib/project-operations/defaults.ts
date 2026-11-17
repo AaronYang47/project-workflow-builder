@@ -144,9 +144,30 @@ function siteGates(): SecondaryGate[] {
 
 function defaultConvergenceTasks(): ConvergenceTask[] {
   return [
-    { id: "convergence-d-c", fromClass: "D", toClass: "C", status: "Not Started", evidence: "", owner: "" },
-    { id: "convergence-c-b", fromClass: "C", toClass: "B", status: "Not Started", evidence: "", owner: "" },
-    { id: "convergence-b-a", fromClass: "B", toClass: "A", status: "Not Started", evidence: "", owner: "" },
+    {
+      id: "convergence-d-c",
+      fromClass: "D",
+      toClass: "C",
+      status: "Not Started",
+      evidence: "",
+      owner: "",
+    },
+    {
+      id: "convergence-c-b",
+      fromClass: "C",
+      toClass: "B",
+      status: "Not Started",
+      evidence: "",
+      owner: "",
+    },
+    {
+      id: "convergence-b-a",
+      fromClass: "B",
+      toClass: "A",
+      status: "Not Started",
+      evidence: "",
+      owner: "",
+    },
   ];
 }
 
@@ -253,7 +274,8 @@ export function normalizeProjectOperations(
   const value = (raw || {}) as any;
   const defaults = createDefaultProjectOperations(name, legacyJobNumber);
   const rawIdentity = value.identity || {};
-  const projectNumber = text(rawIdentity.projectNumber) ||
+  const projectNumber =
+    text(rawIdentity.projectNumber) ||
     (canonicalProjectNumber(legacyJobNumber) ? text(legacyJobNumber) : "");
   const defaultIdentity = defaults.identity;
   const identity = {
@@ -266,9 +288,10 @@ export function normalizeProjectOperations(
       text(rawIdentity.legacyJobNumber) ||
       (canonicalProjectNumber(projectNumber)
         ? `${projectNumber.slice(2, 4)}${projectNumber.slice(-3)}`
-        : /^\d{5}$/.test(legacyJobNumber) ? legacyJobNumber : ""),
-    lifecycleState:
-      text(rawIdentity.lifecycleState) || (projectNumber ? "Project" : "Client"),
+        : /^\d{5}$/.test(legacyJobNumber)
+          ? legacyJobNumber
+          : ""),
+    lifecycleState: text(rawIdentity.lifecycleState) || (projectNumber ? "Project" : "Client"),
   };
   const rawClientPath = value.clientPath || {};
   const rawCommercial = value.commercial || {};
@@ -314,17 +337,13 @@ export function normalizeProjectOperations(
           rawPaymentRelease.evidence === undefined
             ? defaults.commercial.paymentRelease.evidence
             : rawPaymentRelease.evidence,
-        reasons: Array.isArray(rawPaymentRelease.reasons)
-          ? rawPaymentRelease.reasons
-          : [],
+        reasons: Array.isArray(rawPaymentRelease.reasons) ? rawPaymentRelease.reasons : [],
       },
     },
     approvals: {
       ...(defaults.approvals || {}),
       ...(value.approvals || {}),
-      requests: Array.isArray(value.approvals?.requests)
-        ? value.approvals.requests
-        : [],
+      requests: Array.isArray(value.approvals?.requests) ? value.approvals.requests : [],
     },
     designBoundary: {
       ...defaults.designBoundary,
@@ -358,10 +377,8 @@ export function normalizeProjectOperations(
     production: {
       ...defaults.production,
       ...rawProduction,
-      factoryWeeklyCapacityHours:
-        rawProduction.factoryWeeklyCapacityHours ?? 0,
-      committedWeeklyCapacityHours:
-        rawProduction.committedWeeklyCapacityHours ?? 0,
+      factoryWeeklyCapacityHours: rawProduction.factoryWeeklyCapacityHours ?? 0,
+      committedWeeklyCapacityHours: rawProduction.committedWeeklyCapacityHours ?? 0,
       procurementUnlocked: Boolean(rawProduction.procurementUnlocked),
       productionStartAuthorized: Boolean(rawProduction.productionStartAuthorized),
       activities: Array.isArray(rawProduction.activities) ? rawProduction.activities : [],

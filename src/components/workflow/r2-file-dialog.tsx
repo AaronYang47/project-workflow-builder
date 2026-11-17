@@ -29,7 +29,11 @@ import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import { cn } from "@/lib/utils";
 
 function titleIsFileName(title: string, fileName: string) {
-  const withoutExtension = (value: string) => value.trim().replace(/\.[^.]+$/, "").toLocaleLowerCase();
+  const withoutExtension = (value: string) =>
+    value
+      .trim()
+      .replace(/\.[^.]+$/, "")
+      .toLocaleLowerCase();
   return Boolean(title.trim()) && withoutExtension(title) === withoutExtension(fileName);
 }
 
@@ -68,7 +72,9 @@ export function R2FileDialog({
     void fetchUploadedFilesFromR2().then((remoteFiles) => {
       if (active) setFileList(remoteFiles);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -99,10 +105,15 @@ export function R2FileDialog({
     try {
       const currentFiles = await fetchUploadedFilesFromR2();
       setFileList(currentFiles);
-      const normalizeName = (fileName: string) => fileName.normalize("NFKC").trim().toLocaleLowerCase();
+      const normalizeName = (fileName: string) =>
+        fileName.normalize("NFKC").trim().toLocaleLowerCase();
       const existingByName = new Map<string, UploadedFileRecord>();
       for (const existing of currentFiles) {
-        if (existing.category === category && existing.key && !existingByName.has(normalizeName(existing.fileName))) {
+        if (
+          existing.category === category &&
+          existing.key &&
+          !existingByName.has(normalizeName(existing.fileName))
+        ) {
           existingByName.set(normalizeName(existing.fileName), existing);
         }
       }
@@ -117,11 +128,24 @@ export function R2FileDialog({
       }
       if (libraryDuplicates.size || batchDuplicates.size) {
         const details = [
-          libraryDuplicates.size ? `Already in this Library category:\n${[...libraryDuplicates].map((name) => `• ${name}`).join("\n")}` : "",
-          batchDuplicates.size ? `Selected more than once:\n${[...batchDuplicates].map((name) => `• ${name}`).join("\n")}` : "",
-        ].filter(Boolean).join("\n\n");
-        const batchNote = batchDuplicates.size ? " Later selected files with the same name will replace earlier ones." : "";
-        if (!window.confirm(`${details}\n\nReplace matching Library files? Replacing keeps the existing Library link and updates its contents.${batchNote}`)) return;
+          libraryDuplicates.size
+            ? `Already in this Library category:\n${[...libraryDuplicates].map((name) => `• ${name}`).join("\n")}`
+            : "",
+          batchDuplicates.size
+            ? `Selected more than once:\n${[...batchDuplicates].map((name) => `• ${name}`).join("\n")}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        const batchNote = batchDuplicates.size
+          ? " Later selected files with the same name will replace earlier ones."
+          : "";
+        if (
+          !window.confirm(
+            `${details}\n\nReplace matching Library files? Replacing keeps the existing Library link and updates its contents.${batchNote}`,
+          )
+        )
+          return;
       }
 
       for (const [index, file] of selectedFiles.entries()) {
@@ -129,7 +153,10 @@ export function R2FileDialog({
           const existing = existingByName.get(normalizeName(file.name));
           const uploaded = await uploadFileToR2(file, {
             category,
-            title: selectedFiles.length === 1 && title.trim() ? title.trim() : titleFromFileName(file.name),
+            title:
+              selectedFiles.length === 1 && title.trim()
+                ? title.trim()
+                : titleFromFileName(file.name),
             description,
             ...(existing?.key ? { replaceKey: existing.key } : {}),
           });
@@ -137,7 +164,9 @@ export function R2FileDialog({
           uploadedCount += 1;
         } catch (error) {
           failedFiles.push(file);
-          failureMessages.push(`${file.name}: ${error instanceof Error ? error.message : "Upload failed."}`);
+          failureMessages.push(
+            `${file.name}: ${error instanceof Error ? error.message : "Upload failed."}`,
+          );
         }
         setUploadProgress(index + 1);
       }
@@ -147,7 +176,9 @@ export function R2FileDialog({
         setSelectedFiles(failedFiles);
         setTitle(failedFiles.length === 1 ? titleFromFileName(failedFiles[0].name) : "");
         setUploadProgress(0);
-        setUploadError(`${uploadedCount} uploaded; ${failedFiles.length} failed. ${failureMessages[0]}`);
+        setUploadError(
+          `${uploadedCount} uploaded; ${failedFiles.length} failed. ${failureMessages[0]}`,
+        );
         return;
       }
       setUploadSuccess(true);
@@ -167,9 +198,7 @@ export function R2FileDialog({
   };
 
   const filteredFiles =
-    filterCategory === "all"
-      ? fileList
-      : fileList.filter((f) => f.category === filterCategory);
+    filterCategory === "all" ? fileList : fileList.filter((f) => f.category === filterCategory);
 
   if (!open) return null;
 
@@ -183,9 +212,7 @@ export function R2FileDialog({
               <CloudUpload className="size-4" />
             </span>
             <div>
-              <h2 className="text-sm font-bold text-foreground">
-                Cloudflare R2 Document Center
-              </h2>
+              <h2 className="text-sm font-bold text-foreground">Cloudflare R2 Document Center</h2>
               <p className="text-[11px] text-muted-foreground">
                 Upload & manage persistent workflow documents categorized for L3 execution
               </p>
@@ -205,7 +232,11 @@ export function R2FileDialog({
         <div className="flex border-b bg-muted/10 px-5 pt-2">
           <button
             type="button"
-            onClick={() => { setUploadSuccess(false); setUploadError(""); setActiveTab("upload"); }}
+            onClick={() => {
+              setUploadSuccess(false);
+              setUploadError("");
+              setActiveTab("upload");
+            }}
             className={cn(
               "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition-colors cursor-pointer",
               activeTab === "upload"
@@ -304,8 +335,12 @@ export function R2FileDialog({
                   {selectedFiles.length ? (
                     <div className="flex flex-col items-center gap-1">
                       <FileCheck className="size-8 text-primary" />
-                      <p className="text-xs font-bold text-foreground mt-1">{selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected</p>
-                      <p className="text-[11px] text-muted-foreground">Click to change files · document names are taken from filenames</p>
+                      <p className="text-xs font-bold text-foreground mt-1">
+                        {selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Click to change files · document names are taken from filenames
+                      </p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-1">
@@ -325,18 +360,54 @@ export function R2FileDialog({
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
-                    {selectedFiles.length > 1 ? "Detected Document / Form Titles" : "Document / Form Title"}{selectedFiles.length <= 1 ? <span className="text-destructive"> *</span> : null}
+                    {selectedFiles.length > 1
+                      ? "Detected Document / Form Titles"
+                      : "Document / Form Title"}
+                    {selectedFiles.length <= 1 ? (
+                      <span className="text-destructive"> *</span>
+                    ) : null}
                   </label>
                   {selectedFiles.length > 1 ? (
                     <div className="max-h-32 space-y-1 overflow-y-auto rounded-md border bg-background/60 p-2">
-                      {selectedFiles.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex min-w-0 items-center gap-2 text-[11px]"><FileCheck className="size-3 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate font-medium">{titleFromFileName(file.name)}</span><span className="shrink-0 text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span><button type="button" aria-label={`Remove ${file.name} from upload batch`} onClick={() => { const next = selectedFiles.filter((_, selectedIndex) => selectedIndex !== index); setSelectedFiles(next); setTitle(next.length === 1 ? titleFromFileName(next[0].name) : ""); }} className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3.5" /></button></div>)}
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                          className="flex min-w-0 items-center gap-2 text-[11px]"
+                        >
+                          <FileCheck className="size-3 shrink-0 text-primary" />
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {titleFromFileName(file.name)}
+                          </span>
+                          <span className="shrink-0 text-muted-foreground">
+                            {(file.size / 1024).toFixed(0)} KB
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${file.name} from upload batch`}
+                            onClick={() => {
+                              const next = selectedFiles.filter(
+                                (_, selectedIndex) => selectedIndex !== index,
+                              );
+                              setSelectedFiles(next);
+                              setTitle(next.length === 1 ? titleFromFileName(next[0].name) : "");
+                            }}
+                            className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <input
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder={selectedFiles.length === 1 ? titleFromFileName(selectedFiles[0].name) : "Enter a document name or select a file"}
+                      placeholder={
+                        selectedFiles.length === 1
+                          ? titleFromFileName(selectedFiles[0].name)
+                          : "Enter a document name or select a file"
+                      }
                       className="w-full rounded-md border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   )}
@@ -360,7 +431,11 @@ export function R2FileDialog({
                 <Button
                   type="button"
                   onClick={handleUpload}
-                  disabled={!selectedFiles.length || (selectedFiles.length === 1 && !title.trim()) || uploading}
+                  disabled={
+                    !selectedFiles.length ||
+                    (selectedFiles.length === 1 && !title.trim()) ||
+                    uploading
+                  }
                   className="w-full gap-2 h-9 text-xs font-bold"
                 >
                   {uploading ? (
@@ -376,11 +451,19 @@ export function R2FileDialog({
                   ) : (
                     <>
                       <Upload className="size-3.5" />
-                      Upload to Library{selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}
+                      Upload to Library
+                      {selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}
                     </>
                   )}
                 </Button>
-                {uploadError ? <p role="alert" className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{uploadError}</p> : null}
+                {uploadError ? (
+                  <p
+                    role="alert"
+                    className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive"
+                  >
+                    {uploadError}
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : (
@@ -432,24 +515,36 @@ export function R2FileDialog({
                             {file.category === "legal" ? "Required Documents" : file.category}
                           </span>
                           <span className="font-mono text-xs font-bold text-foreground truncate">
-                            {isFormReferenceRecord(file) ? `Form code: ${file.fileName}` : file.fileName}
+                            {isFormReferenceRecord(file)
+                              ? `Form code: ${file.fileName}`
+                              : file.fileName}
                           </span>
                         </div>
-                        {!titleIsFileName(file.title, file.fileName) ? <p className="text-xs font-semibold text-foreground mt-1">{file.title}</p> : null}
+                        {!titleIsFileName(file.title, file.fileName) ? (
+                          <p className="text-xs font-semibold text-foreground mt-1">{file.title}</p>
+                        ) : null}
                         {file.description ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                             {file.description}
                           </p>
                         ) : null}
-                        {isFormReferenceRecord(file) ? <p className="text-[10px] text-muted-foreground/80 mt-1">Title only · File can be uploaded later</p> : <p className="text-[10px] text-muted-foreground/80 mt-1 font-mono">
-                          {(file.fileSize / 1024).toFixed(1)} KB · Uploaded{" "}
-                          {new Date(file.uploadedAt).toLocaleDateString()}
-                        </p>}
+                        {isFormReferenceRecord(file) ? (
+                          <p className="text-[10px] text-muted-foreground/80 mt-1">
+                            Title only · File can be uploaded later
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground/80 mt-1 font-mono">
+                            {(file.fileSize / 1024).toFixed(1)} KB · Uploaded{" "}
+                            {new Date(file.uploadedAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isFormReferenceRecord(file) ? (
-                          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-muted text-muted-foreground">Title only</span>
+                          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-muted text-muted-foreground">
+                            Title only
+                          </span>
                         ) : isCustomerSelectionForm(file) ? (
                           <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-sky-500/15 text-sky-700 dark:text-sky-300">
                             Built-in Form
@@ -477,7 +572,11 @@ export function R2FileDialog({
                                     const latest = await fetchUploadedFilesFromR2();
                                     setFileList(latest);
                                   } catch (error) {
-                                    window.alert(error instanceof Error ? error.message : "Could not delete file.");
+                                    window.alert(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Could not delete file.",
+                                    );
                                   }
                                 }
                               }}

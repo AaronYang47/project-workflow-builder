@@ -2,35 +2,29 @@
 import { conditionDurationLabel } from "@/lib/condition-duration";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  Check,
-  FolderArchive,
-  Scale,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, Check, FolderArchive, Scale, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
+import { type ExecutionItem } from "@/types/workflow";
 import {
-  executionItemProgress,
-  getExecutionSummary,
-} from "@/lib/execution";
-import {
-  type ExecutionItem,
-} from "@/types/workflow";
-import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady, sequentialExecutionBlocker } from "@/lib/workflow-progress";
+  conditionHasL3Forms,
+  conditionIsSatisfied,
+  nodeReleaseReady,
+  sequentialExecutionBlocker,
+} from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
-import {
-  isCustomerSelectionForm,
-} from "@/lib/falcon-customer-intelligence";
+import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
-import { CustomerSelectionForm, customerFormIsComplete } from "@/components/workflow/customer-selection-form";
+import {
+  CustomerSelectionForm,
+  customerFormIsComplete,
+} from "@/components/workflow/customer-selection-form";
 import { AddDocumentModal } from "./execution/add-document-modal";
 import type { DocRecord } from "./execution/doc-record";
 import { DOCUMENT_BOX_THEMES, DocumentBox } from "./execution/document-box";
 import { CustomerInfoBox } from "./execution/customer-info-box";
-
 
 export function ExecutionView({
   nodeId,
@@ -51,18 +45,14 @@ export function ExecutionView({
 }) {
   const file = useWorkflowStore((state) => state.file);
   const updateNode = useWorkflowStore((state) => state.updateNode);
-  const updateExecutionItem = useWorkflowStore(
-    (state) => state.updateExecutionItem,
-  );
+  const updateExecutionItem = useWorkflowStore((state) => state.updateExecutionItem);
   const [addModalCategory, setAddModalCategory] = useState<
     "legal" | "customer" | "supporting" | null
   >(null);
   const [selectionFormDocId, setSelectionFormDocId] = useState<string | null>(null);
 
   const node = file.graph.nodes.find((item) => item.id === nodeId);
-  const highLevelNodes = useWorkflowStore(
-    (state) => state.file.highLevel?.graph.nodes ?? [],
-  );
+  const highLevelNodes = useWorkflowStore((state) => state.file.highLevel?.graph.nodes ?? []);
 
   const owningL1Node = useMemo(() => {
     if (!nodeId) return null;
@@ -73,15 +63,10 @@ export function ExecutionView({
     if (directOwner) return directOwner;
 
     // Check if node.config.stage matches any high level node
-    if (
-      node?.config?.stage &&
-      typeof node.config.stage === "string" &&
-      node.config.stage.trim()
-    ) {
+    if (node?.config?.stage && typeof node.config.stage === "string" && node.config.stage.trim()) {
       const match = highLevelNodes.find(
         (hl) =>
-          hl.title.trim().toLowerCase() ===
-          (node.config.stage as string).trim().toLowerCase(),
+          hl.title.trim().toLowerCase() === (node.config.stage as string).trim().toLowerCase(),
       );
       if (match) return match;
     }
@@ -106,10 +91,7 @@ export function ExecutionView({
 
   const l1Color = useMemo(() => {
     if (!owningL1Node) return undefined;
-    if (
-      owningL1Node.backgroundColor &&
-      owningL1Node.backgroundColor !== "transparent"
-    ) {
+    if (owningL1Node.backgroundColor && owningL1Node.backgroundColor !== "transparent") {
       return owningL1Node.backgroundColor;
     }
     const title = (owningL1Node.title || "").toUpperCase();
@@ -128,9 +110,7 @@ export function ExecutionView({
   const currentCondition = useMemo(() => {
     if (!conditions.length) return null;
     if (activeConditionId) {
-      return (
-        conditions.find((c) => c.id === activeConditionId) || conditions[0]
-      );
+      return conditions.find((c) => c.id === activeConditionId) || conditions[0];
     }
     return conditions[0];
   }, [conditions, activeConditionId]);
@@ -140,9 +120,7 @@ export function ExecutionView({
 
   const l2Title = node?.title?.trim() || "Detailed Workflow";
   const l3Title =
-    currentCondition?.label?.trim() ||
-    currentCondition?.description?.trim() ||
-    "Execution Layer";
+    currentCondition?.label?.trim() || currentCondition?.description?.trim() || "Execution Layer";
 
   // L3 documents belong to a specific release condition. Keep the legacy
   // node-level key visible only for the first condition so existing projects
@@ -151,17 +129,15 @@ export function ExecutionView({
   const conditionStorageKey = currentCondition?.id?.trim() || "default";
   const useLegacyDocumentKeys =
     conditions.length === 0 || currentCondition?.id === firstConditionId;
-  const customFieldForCondition = useCallback((field: string) =>
-    node?.customFields?.[
-      `${field}::release-condition::${conditionStorageKey}`
-    ] ?? (useLegacyDocumentKeys ? node?.customFields?.[field] : undefined),
-  [node?.customFields, conditionStorageKey, useLegacyDocumentKeys]);
+  const customFieldForCondition = useCallback(
+    (field: string) =>
+      node?.customFields?.[`${field}::release-condition::${conditionStorageKey}`] ??
+      (useLegacyDocumentKeys ? node?.customFields?.[field] : undefined),
+    [node?.customFields, conditionStorageKey, useLegacyDocumentKeys],
+  );
 
   const items = useMemo(
-    () =>
-      (file.execution?.items || []).filter(
-        (item) => item.linkedLayer2NodeId === nodeId,
-      ),
+    () => (file.execution?.items || []).filter((item) => item.linkedLayer2NodeId === nodeId),
     [file.execution?.items, nodeId],
   );
   // A release condition may link to one execution task. Keep the chapter-wide
@@ -177,29 +153,19 @@ export function ExecutionView({
     return hasConditionLinks ? [] : items;
   }, [conditions, currentCondition, items]);
 
-  const projectStartNode = file.graph.nodes.find(
-    (item) => item.type === "projectStart",
-  );
+  const projectStartNode = file.graph.nodes.find((item) => item.type === "projectStart");
 
-  const summary = getExecutionSummary(
-    nodeId,
-    file.execution?.items,
-    file.operations,
-    { checklistOnly: true },
-  );
+  const summary = getExecutionSummary(nodeId, file.execution?.items, file.operations, {
+    checklistOnly: true,
+  });
 
   const releaseReady = node
-    ? nodeReleaseReady(
-        node,
-        projectStartNode,
-        file.execution?.items,
-        file.operations,
-      )
+    ? nodeReleaseReady(node, projectStartNode, file.execution?.items, file.operations)
     : false;
 
   // 1. Required Documents Data
   const customLegalDocs: DocRecord[] = useMemo(
-    () => node ? releaseConditionForms(node, currentCondition) : [],
+    () => (node ? releaseConditionForms(node, currentCondition) : []),
     [node, currentCondition],
   );
 
@@ -255,15 +221,18 @@ export function ExecutionView({
     });
   };
 
-  const saveCustomerDocs = useCallback((docs: DocRecord[]) => {
-    if (!node) return;
-    updateNode(node.id, {
-      customFields: {
-        ...node.customFields,
-        [`customerDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
-      },
-    });
-  }, [node, updateNode, conditionStorageKey]);
+  const saveCustomerDocs = useCallback(
+    (docs: DocRecord[]) => {
+      if (!node) return;
+      updateNode(node.id, {
+        customFields: {
+          ...node.customFields,
+          [`customerDocuments::release-condition::${conditionStorageKey}`]: JSON.stringify(docs),
+        },
+      });
+    },
+    [node, updateNode, conditionStorageKey],
+  );
 
   const skippedFormAutoCheck = useRef(new Set<string>());
   useEffect(() => {
@@ -342,31 +311,36 @@ export function ExecutionView({
       if (!linkedItem) return condition;
 
       const fields = ["customerDocuments", "supportingDocuments"];
-      const documents = [...releaseConditionForms(node, condition), ...fields.flatMap((field) => {
-        const key = `${field}::release-condition::${condition.id?.trim() || "default"}`;
-        const raw = node.customFields?.[key] ??
-          (index === 0 ? node.customFields?.[field] : undefined);
-        if (typeof raw !== "string") return [];
-        try {
-          const docs = JSON.parse(raw);
-          return Array.isArray(docs) ? docs : [];
-        } catch {
-          return [];
-        }
-      })];
+      const documents = [
+        ...releaseConditionForms(node, condition),
+        ...fields.flatMap((field) => {
+          const key = `${field}::release-condition::${condition.id?.trim() || "default"}`;
+          const raw =
+            node.customFields?.[key] ?? (index === 0 ? node.customFields?.[field] : undefined);
+          if (typeof raw !== "string") return [];
+          try {
+            const docs = JSON.parse(raw);
+            return Array.isArray(docs) ? docs : [];
+          } catch {
+            return [];
+          }
+        }),
+      ];
       const requiredDocuments = documents.filter((doc) => doc.required !== false);
       const documentsComplete = requiredDocuments.every((doc) => doc.checked);
       // Specified Forms are the checklist for this step, not a second task
       // checkbox that the user must also tick inside Required Documents.
-      if (documents.length && linkedItem.checklistComplete !== documentsComplete &&
-          (!documentsComplete || !blocked)) {
+      if (
+        documents.length &&
+        linkedItem.checklistComplete !== documentsComplete &&
+        (!documentsComplete || !blocked)
+      ) {
         updateExecutionItem(linkedItem.id, { checklistComplete: documentsComplete });
       }
-      const taskComplete = documents.length ? documentsComplete : executionItemProgress(
-        linkedItem,
-        file.operations,
-        { checklistOnly: true },
-      ) === "complete";
+      const taskComplete = documents.length
+        ? documentsComplete
+        : executionItemProgress(linkedItem, file.operations, { checklistOnly: true }) ===
+          "complete";
       const complete = taskComplete && requiredDocuments.every((doc) => doc.checked);
       const nextChecked = complete && blocked ? condition.checked === true : complete;
       if (condition.checked === nextChecked) return condition;
@@ -466,7 +440,9 @@ export function ExecutionView({
                 <span>{l1Title}</span>
               </button>
 
-              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">&gt;</span>
+              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">
+                &gt;
+              </span>
 
               <button
                 type="button"
@@ -482,7 +458,9 @@ export function ExecutionView({
                 <span>{l2Title}</span>
               </button>
 
-              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">&gt;</span>
+              <span className="text-muted-foreground/60 text-xs font-sans font-normal select-none">
+                &gt;
+              </span>
 
               <h1
                 className="inline-flex items-center gap-1.5 font-sans text-xs font-semibold text-violet-600 dark:text-violet-400 truncate p-0 m-0"
@@ -495,9 +473,20 @@ export function ExecutionView({
               {currentCondition && currentCondition.id !== "project-id-required" ? (
                 <button
                   type="button"
-                  aria-label={currentCondition.checked ? "Uncheck release condition" : "Check release condition"}
-                  title={currentCondition.checked ? "Uncheck release condition" : "Mark release condition complete"}
-                  disabled={(currentConditionHasL3Forms && currentCondition.id !== "project-id-required") || Boolean(sequenceBlocker && !currentCondition.checked)}
+                  aria-label={
+                    currentCondition.checked
+                      ? "Uncheck release condition"
+                      : "Check release condition"
+                  }
+                  title={
+                    currentCondition.checked
+                      ? "Uncheck release condition"
+                      : "Mark release condition complete"
+                  }
+                  disabled={
+                    (currentConditionHasL3Forms && currentCondition.id !== "project-id-required") ||
+                    Boolean(sequenceBlocker && !currentCondition.checked)
+                  }
                   onClick={() => {
                     const nextChecked = !currentCondition.checked;
                     const updatedConditions = (node.conditions || []).map((c) =>
@@ -524,7 +513,10 @@ export function ExecutionView({
             </div>
             {currentCondition?.description && currentCondition.description.trim() !== l3Title ? (
               <p className="text-[11px] font-medium text-muted-foreground truncate max-w-md mt-0.5">
-                Condition: <span className="font-semibold text-foreground">{currentCondition.description.trim()}</span>
+                Condition:{" "}
+                <span className="font-semibold text-foreground">
+                  {currentCondition.description.trim()}
+                </span>
               </p>
             ) : null}
           </div>
@@ -547,7 +539,10 @@ export function ExecutionView({
       </header>
 
       {sequenceBlocker ? (
-        <p role="status" className="shrink-0 border-b border-amber-500/25 bg-amber-500/10 px-6 py-2 text-xs text-amber-700 dark:text-amber-300">
+        <p
+          role="status"
+          className="shrink-0 border-b border-amber-500/25 bg-amber-500/10 px-6 py-2 text-xs text-amber-700 dark:text-amber-300"
+        >
           {sequenceBlocker}
         </p>
       ) : null}
@@ -560,11 +555,17 @@ export function ExecutionView({
           </span>
           {conditions.map((condition, idx) => {
             const isSelected =
-              currentCondition?.id === condition.id ||
-              (!currentCondition && idx === 0);
-            const isPassed = condition.id === "project-id-required" && node
-              ? conditionIsSatisfied(condition, node, projectStartNode, file.execution?.items, file.operations)
-              : Boolean(condition.checked) || (isSelected && allRequiredChecked);
+              currentCondition?.id === condition.id || (!currentCondition && idx === 0);
+            const isPassed =
+              condition.id === "project-id-required" && node
+                ? conditionIsSatisfied(
+                    condition,
+                    node,
+                    projectStartNode,
+                    file.execution?.items,
+                    file.operations,
+                  )
+                : Boolean(condition.checked) || (isSelected && allRequiredChecked);
             const hasL3Forms = node ? conditionHasL3Forms(condition, node) : false;
 
             return (
@@ -578,9 +579,9 @@ export function ExecutionView({
                     ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold condition-breathe-glow"
                     : hasL3Forms
                       ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold condition-forms-breathe"
-                    : isSelected
-                      ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
-                      : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                      : isSelected
+                        ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
+                        : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <span
@@ -588,7 +589,9 @@ export function ExecutionView({
                   aria-checked={Boolean(isPassed)}
                   aria-disabled={condition.id === "project-id-required" || hasL3Forms}
                   title={
-                    condition.id === "project-id-required" ? "Automatically checked when a complete Job Number is entered" : isPassed
+                    condition.id === "project-id-required"
+                      ? "Automatically checked when a complete Job Number is entered"
+                      : isPassed
                         ? "Click to uncheck condition"
                         : "Click to mark condition complete"
                   }
@@ -597,7 +600,7 @@ export function ExecutionView({
                     e.stopPropagation();
                     const nextChecked = !isPassed;
                     const updatedConditions = (node.conditions || []).map((c, i) =>
-                      (c.id === condition.id || (!c.id && i === idx))
+                      c.id === condition.id || (!c.id && i === idx)
                         ? { ...c, checked: nextChecked }
                         : c,
                     );
@@ -615,11 +618,12 @@ export function ExecutionView({
                   {isPassed ? <Check className="size-2.5" /> : idx + 1}
                 </span>
                 <span className="truncate max-w-[14rem]">
-                  {conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}{condition.label || condition.description || `Condition ${idx + 1}`}
+                  {conditionDurationLabel(condition)
+                    ? `${conditionDurationLabel(condition)} · `
+                    : ""}
+                  {condition.label || condition.description || `Condition ${idx + 1}`}
                 </span>
-                {isPassed ? (
-                  <Sparkles className="size-3 text-emerald-500 animate-pulse" />
-                ) : null}
+                {isPassed ? <Sparkles className="size-3 text-emerald-500 animate-pulse" /> : null}
               </button>
             );
           })}
@@ -631,63 +635,62 @@ export function ExecutionView({
         data-testid="required-file-checklist"
         className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 lg:p-5"
       >
-        {conditionItems.length > 0 && customLegalDocs.length + customCustomerDocs.length + customSupportingDocs.length === 0 ? (
+        {conditionItems.length > 0 &&
+        customLegalDocs.length + customCustomerDocs.length + customSupportingDocs.length === 0 ? (
           <div className="mb-4 rounded-xl border bg-card p-3">
-              {conditionItems.length > 0 ? (
-                <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3">
-                  <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Execution Requirements
-                  </h3>
-                  <p className="mb-2 text-[10px] text-muted-foreground">
-                    Complete this step when its execution requirements are satisfied.
-                  </p>
-                </div>
-              ) : null}
-              {conditionItems.map((item) => {
-                const checked =
-                  executionItemProgress(item, file.operations, {
-                    checklistOnly: true,
-                  }) === "complete";
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 transition-colors",
-                      checked
-                        ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                        : "border-border/80 bg-background hover:border-indigo-500/40",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Required task: ${item.title || item.type}`}
-                      checked={checked}
-                      onChange={() => handleToggleExecutionItem(item)}
-                      disabled={Boolean(sequenceBlocker && !checked)}
-                      title={sequenceBlocker}
-                      className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {item.documentCode || item.catalogId || "CONTROLLED"}
-                        </span>
-                        <span className="rounded px-1.5 py-0.2 text-[9px] font-bold uppercase bg-muted text-muted-foreground">
-                          {checked ? "Checked" : "Required"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                        {item.title || item.type}
-                      </p>
+            {conditionItems.length > 0 ? (
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3">
+                <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Execution Requirements
+                </h3>
+                <p className="mb-2 text-[10px] text-muted-foreground">
+                  Complete this step when its execution requirements are satisfied.
+                </p>
+              </div>
+            ) : null}
+            {conditionItems.map((item) => {
+              const checked =
+                executionItemProgress(item, file.operations, {
+                  checklistOnly: true,
+                }) === "complete";
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex items-start gap-3 rounded-lg border p-3 transition-colors",
+                    checked
+                      ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                      : "border-border/80 bg-background hover:border-indigo-500/40",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Required task: ${item.title || item.type}`}
+                    checked={checked}
+                    onChange={() => handleToggleExecutionItem(item)}
+                    disabled={Boolean(sequenceBlocker && !checked)}
+                    title={sequenceBlocker}
+                    className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {item.documentCode || item.catalogId || "CONTROLLED"}
+                      </span>
+                      <span className="rounded px-1.5 py-0.2 text-[9px] font-bold uppercase bg-muted text-muted-foreground">
+                        {checked ? "Checked" : "Required"}
+                      </span>
                     </div>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
+                      {item.title || item.type}
+                    </p>
                   </div>
-                );
-              })}
-
+                </div>
+              );
+            })}
           </div>
         ) : null}
         <div className="grid h-full min-h-[560px] grid-cols-1 gap-4 lg:grid-cols-3">
-          
           {/* ============================================================ */}
           {/* Box 1 (Left): Required Documents                                */}
           {/* ============================================================ */}
@@ -761,23 +764,23 @@ export function ExecutionView({
       </footer>
 
       {/* Add Document Modal */}
-      {addModalCategory ? <AddDocumentModal
-        category={addModalCategory}
-        onClose={() => setAddModalCategory(null)}
-        onAdd={(newDoc) => {
-          if (newDoc.category === "legal") {
-            saveLegalDocs([...customLegalDocs, newDoc]);
-          } else if (newDoc.category === "customer") {
-            saveCustomerDocs([...customCustomerDocs, newDoc]);
-          } else if (newDoc.category === "supporting") {
-            saveSupportingDocs([...customSupportingDocs, newDoc]);
-          }
-        }}
-      /> : null}
+      {addModalCategory ? (
+        <AddDocumentModal
+          category={addModalCategory}
+          onClose={() => setAddModalCategory(null)}
+          onAdd={(newDoc) => {
+            if (newDoc.category === "legal") {
+              saveLegalDocs([...customLegalDocs, newDoc]);
+            } else if (newDoc.category === "customer") {
+              saveCustomerDocs([...customCustomerDocs, newDoc]);
+            } else if (newDoc.category === "supporting") {
+              saveSupportingDocs([...customSupportingDocs, newDoc]);
+            }
+          }}
+        />
+      ) : null}
       {(() => {
-        const selectionFormDoc = customCustomerDocs.find(
-          (doc) => doc.id === selectionFormDocId,
-        );
+        const selectionFormDoc = customCustomerDocs.find((doc) => doc.id === selectionFormDocId);
         if (!selectionFormDoc) return null;
         return (
           <CustomerSelectionForm
@@ -800,7 +803,7 @@ export function ExecutionView({
                       customerName,
                       customerProfile,
                       customerForm,
-                        notes: `${customerName} · ${customerForm.decisionAuthority || "Sales"} · ${customerForm.siteMunicipality || customerForm.siteStatus}`,
+                      notes: `${customerName} · ${customerForm.decisionAuthority || "Sales"} · ${customerForm.siteMunicipality || customerForm.siteStatus}`,
                       checked: complete,
                       required: true,
                       status: complete ? "Verified" : "Required",

@@ -13,7 +13,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (auth.response) return auth.response;
   const result = await env.DB.prepare(
     "SELECT id, name, project_number, created_at, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
-  ).bind(auth.user!.id).all();
+  )
+    .bind(auth.user!.id)
+    .all();
   return json({ projects: result.results });
 };
 
@@ -26,7 +28,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     workflow?: unknown;
     changeReason?: string;
   }>(request);
-  if (!body?.name?.trim() || !body.workflow) return json({ error: "Project name and workflow are required." }, 400);
+  if (!body?.name?.trim() || !body.workflow)
+    return json({ error: "Project name and workflow are required." }, 400);
   const id = crypto.randomUUID();
   const versionId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -70,21 +73,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     trimProjectVersionsStatement(env.DB, id),
   ]);
 
-  return json({
-    project: {
-      id,
-      name,
-      project_number: projectNumber,
-      created_at: now,
-      updated_at: now,
+  return json(
+    {
+      project: {
+        id,
+        name,
+        project_number: projectNumber,
+        created_at: now,
+        updated_at: now,
+      },
+      version: {
+        id: versionId,
+        version_number: 1,
+        content_hash: contentHash,
+        hash_algorithm: "SHA-256",
+        change_kind: "created",
+        created_at: now,
+      },
     },
-    version: {
-      id: versionId,
-      version_number: 1,
-      content_hash: contentHash,
-      hash_algorithm: "SHA-256",
-      change_kind: "created",
-      created_at: now,
-    },
-  }, 201);
+    201,
+  );
 };

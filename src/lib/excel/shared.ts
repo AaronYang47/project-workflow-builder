@@ -1,11 +1,6 @@
 import { GATE_SERVICE_TYPES, parseGateServiceTypeId } from "@/lib/gate-service-types";
 import { asString } from "@/lib/excel-format";
-import type {
-  DomainNode,
-  GateRule,
-  RequirementType,
-  WorkflowFile,
-} from "@/types/workflow";
+import type { DomainNode, GateRule, RequirementType, WorkflowFile } from "@/types/workflow";
 
 export function signatureDocumentNames(rules: GateRule[] | undefined) {
   return (rules || []).flatMap((rule) =>
@@ -13,10 +8,7 @@ export function signatureDocumentNames(rules: GateRule[] | undefined) {
   );
 }
 
-export function extraNodeDocuments(
-  node: DomainNode,
-  rules = node.config.gateRules,
-) {
+export function extraNodeDocuments(node: DomainNode, rules = node.config.gateRules) {
   const names = new Set(signatureDocumentNames(rules));
   return (node.documents || []).filter((name) => Boolean(name) && !names.has(name));
 }
@@ -28,10 +20,7 @@ export function withSignatureDocuments(
 ): DomainNode {
   return {
     ...node,
-    documents: [
-      ...signatureDocumentNames(rules),
-      ...extras.filter((name) => Boolean(name)),
-    ],
+    documents: [...signatureDocumentNames(rules), ...extras.filter((name) => Boolean(name))],
     config: { ...node.config, gateRules: rules },
   };
 }
@@ -45,21 +34,14 @@ function phaseSheetKey(text: string) {
   return match ? `phase-${match[1]}` : text.trim().toLowerCase();
 }
 
-export function resolveSheetPhase(
-  file: WorkflowFile,
-  sheetName: string,
-  phaseId: string,
-) {
-  const byId = file.graph.nodes.find(
-    (node) => node.id === phaseId && node.type === "phase",
-  );
+export function resolveSheetPhase(file: WorkflowFile, sheetName: string, phaseId: string) {
+  const byId = file.graph.nodes.find((node) => node.id === phaseId && node.type === "phase");
   if (byId) return byId;
   const sheetKey = phaseSheetKey(sheetName);
   return file.graph.nodes.find((node) => {
     if (node.type !== "phase") return false;
     return (
-      node.title.toLowerCase() === sheetName.toLowerCase() ||
-      phaseSheetKey(node.title) === sheetKey
+      node.title.toLowerCase() === sheetName.toLowerCase() || phaseSheetKey(node.title) === sheetKey
     );
   });
 }
@@ -81,21 +63,15 @@ export function parseRequirement(value: unknown, fallback?: RequirementType) {
 }
 
 export function usesGateForm(node: DomainNode) {
-  return (
-    node.type === "gate" ||
-    node.type === "decision" ||
-    Boolean(node.config.gateRules?.length)
-  );
+  return node.type === "gate" || node.type === "decision" || Boolean(node.config.gateRules?.length);
 }
 
 export function interfaceText(node: DomainNode) {
   const gate = usesGateForm(node);
   return {
     conditionsTitle:
-      node.config.conditionsTitle ||
-      (gate ? "Approval conditions" : "Release conditions"),
-    documentsLabel:
-      node.config.documentsLabel || "All applicable required documents",
+      node.config.conditionsTitle || (gate ? "Approval conditions" : "Release conditions"),
+    documentsLabel: node.config.documentsLabel || "All applicable required documents",
     departmentLabel: node.config.departmentLabel || "Department",
     approverLabel: node.config.approverLabel || "Approved by",
     decisionTitle: node.config.decisionTitle || "Decision",
@@ -113,9 +89,7 @@ export function updateGraphNode(
     ...file,
     graph: {
       ...file.graph,
-      nodes: file.graph.nodes.map((node) =>
-        node.id === nodeId ? updater(node) : node,
-      ),
+      nodes: file.graph.nodes.map((node) => (node.id === nodeId ? updater(node) : node)),
     },
   };
 }

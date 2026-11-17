@@ -28,10 +28,7 @@ const approvalRequests = (workflow: unknown) => {
   return operations.approvals.requests.filter(isRecord);
 };
 
-const validateApprovalLedgerUpdate = (
-  existingWorkflowJson: string,
-  nextWorkflow: unknown,
-) => {
+const validateApprovalLedgerUpdate = (existingWorkflowJson: string, nextWorkflow: unknown) => {
   let existingWorkflow: unknown;
   try {
     existingWorkflow = JSON.parse(existingWorkflowJson) as unknown;
@@ -87,10 +84,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (auth.response) return auth.response;
   const project = await env.DB.prepare(
     "SELECT id, name, project_number, workflow_json, created_at, updated_at FROM projects WHERE id = ? AND user_id = ?",
-  ).bind(String(params.id), auth.user!.id).first<Record<string, string>>();
+  )
+    .bind(String(params.id), auth.user!.id)
+    .first<Record<string, string>>();
   if (!project) return json({ error: "Project not found." }, 404);
   try {
-    return json({ project: { ...project, workflow: JSON.parse(project.workflow_json), workflow_json: undefined } });
+    return json({
+      project: {
+        ...project,
+        workflow: JSON.parse(project.workflow_json),
+        workflow_json: undefined,
+      },
+    });
   } catch {
     return json({ error: "This project's saved workflow is damaged and cannot be opened." }, 500);
   }
@@ -105,12 +110,15 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     workflow?: unknown;
     changeReason?: string;
   }>(request);
-  if (!body?.name?.trim() || !body.workflow) return json({ error: "Project name and workflow are required." }, 400);
+  if (!body?.name?.trim() || !body.workflow)
+    return json({ error: "Project name and workflow are required." }, 400);
   const id = String(params.id);
   const userId = auth.user!.id;
   const existing = await env.DB.prepare(
     "SELECT id, name, project_number, workflow_json, created_at, updated_at FROM projects WHERE id = ? AND user_id = ?",
-  ).bind(id, userId).first<StoredProject>();
+  )
+    .bind(id, userId)
+    .first<StoredProject>();
   if (!existing) return json({ error: "Project not found." }, 404);
 
   const updatedAt = new Date().toISOString();
@@ -118,11 +126,14 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
   const projectNumber = body.projectNumber?.trim() || "";
   const approvalViolation = validateApprovalLedgerUpdate(existing.workflow_json, body.workflow);
   if (approvalViolation) {
-    return json({
-      error: approvalViolation.message,
-      code: "APPROVAL_DECISION_REQUIRES_ENDPOINT",
-      request_id: approvalViolation.requestId,
-    }, 409);
+    return json(
+      {
+        error: approvalViolation.message,
+        code: "APPROVAL_DECISION_REQUIRES_ENDPOINT",
+        request_id: approvalViolation.requestId,
+      },
+      409,
+    );
   }
   const workflowJson = JSON.stringify(body.workflow);
   if (!workflowJson) return json({ error: "Project workflow must be valid JSON." }, 400);
@@ -181,7 +192,9 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
   const version = await env.DB.prepare(
     `SELECT id, version_number, content_hash, hash_algorithm, change_kind, created_at
      FROM project_versions WHERE id = ? AND project_id = ? AND owner_user_id = ?`,
-  ).bind(versionId, id, userId).first();
+  )
+    .bind(versionId, id, userId)
+    .first();
   return json({
     project: { id, name, project_number: projectNumber, updated_at: updatedAt },
     version,
@@ -195,7 +208,9 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const userId = auth.user!.id;
   const existing = await env.DB.prepare(
     "SELECT id, name, project_number, workflow_json, created_at, updated_at FROM projects WHERE id = ? AND user_id = ?",
-  ).bind(id, userId).first<StoredProject>();
+  )
+    .bind(id, userId)
+    .first<StoredProject>();
   if (!existing) return json({ error: "Project not found." }, 404);
   const deletedAt = new Date().toISOString();
   const finalSnapshotHash = await projectSnapshotHash(
@@ -221,9 +236,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
       id,
       userId,
     ),
-    env.DB.prepare(
-      "DELETE FROM projects WHERE id = ? AND user_id = ?",
-    ).bind(id, userId),
+    env.DB.prepare("DELETE FROM projects WHERE id = ? AND user_id = ?").bind(id, userId),
   ]);
   if (!results[1].meta.changes) return json({ error: "Project not found." }, 404);
   return json({ deleted: true, id });

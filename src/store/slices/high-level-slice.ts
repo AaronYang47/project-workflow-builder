@@ -2,7 +2,14 @@
 
 import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
 import { clone } from "@/lib/clone";
-import { autoArrangeHighLevel, createHighLevelNode, reorderLinkedWorkflowNodes, reorderLinkedWorkflowGate, setLinkedWorkflowGateMember, validateHighLevelWorkflow } from "@/lib/high-level-workflow";
+import {
+  autoArrangeHighLevel,
+  createHighLevelNode,
+  reorderLinkedWorkflowNodes,
+  reorderLinkedWorkflowGate,
+  setLinkedWorkflowGateMember,
+  validateHighLevelWorkflow,
+} from "@/lib/high-level-workflow";
 import { appendHistory } from "@/store/workflow-persist";
 import { normalizeHighLevelLayer2Links } from "@/store/workflow-store-helpers";
 import type { StoreGet, StoreSet, WorkflowState } from "@/store/workflow-store-types";
@@ -41,9 +48,7 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
         if (nodeIds.length > 0) {
           if (selectionUnchanged && state.rightOpen) return state;
           return {
-            ...(selectionUnchanged
-              ? {}
-              : { highLevelSelection: { nodeIds, edgeId: undefined } }),
+            ...(selectionUnchanged ? {} : { highLevelSelection: { nodeIds, edgeId: undefined } }),
             rightOpen: true,
           };
         }
@@ -255,9 +260,7 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
               layout: {
                 ...highLevel.layout,
                 nodes: Object.fromEntries(
-                  Object.entries(highLevel.layout.nodes).filter(
-                    ([id]) => !deleted.has(id),
-                  ),
+                  Object.entries(highLevel.layout.nodes).filter(([id]) => !deleted.has(id)),
                 ),
               },
             },

@@ -1,4 +1,8 @@
-import { DAYS_PER_WEEK, type buildProcessSchedule, type ScheduleTask } from "@/lib/process-schedule";
+import {
+  DAYS_PER_WEEK,
+  type buildProcessSchedule,
+  type ScheduleTask,
+} from "@/lib/process-schedule";
 import { calendarTickDays, type buildProcessTimeline } from "@/lib/schedule-calendar";
 import { ganttAxisMinimumWidth } from "@/lib/gantt-bar-label";
 
@@ -6,7 +10,11 @@ type Schedule = ReturnType<typeof buildProcessSchedule>;
 type Timeline = ReturnType<typeof buildProcessTimeline>;
 
 /** Day 0 of the axis is the Sales handoff when Sales durations are known. */
-export type GanttHandoff = { originDay: number | null; elapsedDays: number | null; hasSalesDepartment: boolean };
+export type GanttHandoff = {
+  originDay: number | null;
+  elapsedDays: number | null;
+  hasSalesDepartment: boolean;
+};
 
 const weekNumber = (days: number) => Number((days / DAYS_PER_WEEK + 1).toFixed(1));
 
@@ -26,14 +34,24 @@ export function buildGanttAxis(schedule: Schedule, timeline: Timeline, handoff: 
     Math.ceil((timeline.totalDays + tickSize * 3) / tickSize) * tickSize,
     (handoff.originDay ?? 0) + tickSize,
   );
-  const minimumTimelineWidth = schedule.totalDays > 56
-    ? Math.min(ganttAxisMinimumWidth(schedule.tasks, total), Math.max(1200, Math.min(3200, total * 18)))
-    : ganttAxisMinimumWidth(schedule.tasks, total);
+  const minimumTimelineWidth =
+    schedule.totalDays > 56
+      ? Math.min(
+          ganttAxisMinimumWidth(schedule.tasks, total),
+          Math.max(1200, Math.min(3200, total * 18)),
+        )
+      : ganttAxisMinimumWidth(schedule.tasks, total);
   const origin = handoff.originDay;
-  const ticks = origin === null ? [] : [
-    ...(origin > 0 ? [0] : []),
-    ...Array.from({ length: Math.ceil((total - origin) / tickSize) }, (_, index) => origin + index * tickSize),
-  ];
+  const ticks =
+    origin === null
+      ? []
+      : [
+          ...(origin > 0 ? [0] : []),
+          ...Array.from(
+            { length: Math.ceil((total - origin) / tickSize) },
+            (_, index) => origin + index * tickSize,
+          ),
+        ];
 
   const timeLabel = (value: number) => {
     if (origin === null || value < origin) return "";
@@ -48,25 +66,41 @@ export function buildGanttAxis(schedule: Schedule, timeline: Timeline, handoff: 
   const dragDayLabel = (day: number) => {
     if (timeline.enabled) return timeline.dateLabel(timeline.toDisplayDay(day));
     if (origin === null) return `Project week ${weekNumber(day)}`;
-    return day < origin ? `Sales lead week ${weekNumber(day)}` : `Week ${weekNumber(day - origin)} after handoff`;
+    return day < origin
+      ? `Sales lead week ${weekNumber(day)}`
+      : `Week ${weekNumber(day - origin)} after handoff`;
   };
 
   const taskTimeLabel = (task: ScheduleTask) => {
-    if (task.start === undefined || task.end === undefined || origin === null) return "Sales handoff pending";
+    if (task.start === undefined || task.end === undefined || origin === null)
+      return "Sales handoff pending";
     if (timeline.enabled) {
       return `${timeline.dateLabel(timeline.toDisplayDay(task.start))} – ${timeline.dateLabel(timeline.toDisplayDay(task.end, "end") - 1)}`;
     }
-    const start = task.start < origin ? "Before handoff" : `Week ${weekNumber(task.start - origin)}`;
-    const end = task.end <= origin ? "Before handoff" : `Week ${Number(((task.end - origin) / DAYS_PER_WEEK).toFixed(1))}`;
+    const start =
+      task.start < origin ? "Before handoff" : `Week ${weekNumber(task.start - origin)}`;
+    const end =
+      task.end <= origin
+        ? "Before handoff"
+        : `Week ${Number(((task.end - origin) / DAYS_PER_WEEK).toFixed(1))}`;
     return `${start} to ${end}`;
   };
 
   const gridBackground = {
     backgroundImage: "linear-gradient(to right, var(--border) 1px, transparent 1px)",
-    backgroundSize: `${tickSize / total * 100}% 100%`,
+    backgroundSize: `${(tickSize / total) * 100}% 100%`,
   };
 
-  return { tickSize, total, minimumTimelineWidth, ticks, gridBackground, timeLabel, dragDayLabel, taskTimeLabel };
+  return {
+    tickSize,
+    total,
+    minimumTimelineWidth,
+    ticks,
+    gridBackground,
+    timeLabel,
+    dragDayLabel,
+    taskTimeLabel,
+  };
 }
 
 export type GanttAxis = ReturnType<typeof buildGanttAxis>;

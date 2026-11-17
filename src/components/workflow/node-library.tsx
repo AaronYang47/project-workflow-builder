@@ -3,42 +3,42 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { GripVertical, ListChecks, Search, Shapes } from "lucide-react";
 import { AVAILABLE_NODE_CATALOG } from "@/lib/node-catalog";
-import {
-  HIGH_LEVEL_NODE_CATALOG,
-  type HighLevelNodeDefinition,
-} from "@/lib/high-level-workflow";
+import { HIGH_LEVEL_NODE_CATALOG, type HighLevelNodeDefinition } from "@/lib/high-level-workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import type { HighLevelNodeType, WorkflowNodeType } from "@/types/workflow";
 
 export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean }) {
   const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
   const collaborationRoomId = useCollaborationStore((state) => state.roomId);
   const collaborationEditorId = useCollaborationStore((state) => state.editorPeerId);
-  const conditionsHref = collaborationRoomId !== "local-only"
-    ? `/release-conditions?room=${encodeURIComponent(collaborationRoomId)}${collaborationEditorId ? `&editor=${encodeURIComponent(collaborationEditorId)}` : ""}`
-    : "/release-conditions";
+  const conditionsHref =
+    collaborationRoomId !== "local-only"
+      ? `/release-conditions?room=${encodeURIComponent(collaborationRoomId)}${collaborationEditorId ? `&editor=${encodeURIComponent(collaborationEditorId)}` : ""}`
+      : "/release-conditions";
   const [query, setQuery] = useState("");
-  const catalog = useMemo<Array<typeof AVAILABLE_NODE_CATALOG[number] | HighLevelNodeDefinition>>(
+  const catalog = useMemo<Array<(typeof AVAILABLE_NODE_CATALOG)[number] | HighLevelNodeDefinition>>(
     () =>
       (highLevelMode ? HIGH_LEVEL_NODE_CATALOG : AVAILABLE_NODE_CATALOG).filter((item) =>
-        `${item.label} ${item.description}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
+        `${item.label} ${item.description}`.toLowerCase().includes(query.toLowerCase()),
       ),
     [highLevelMode, query],
   );
   const hasProjectStart = useWorkflowStore((state) =>
     state.file.graph.nodes.some((node) => node.type === "projectStart"),
   );
-  const conditionCount = useWorkflowStore((state) =>
-    (state.file.releaseConditionInbox?.length ?? 0) + state.file.graph.nodes.reduce((count, node) =>
-      count + node.conditions.filter((condition) => !condition.locked).length, 0),
+  const conditionCount = useWorkflowStore(
+    (state) =>
+      (state.file.releaseConditionInbox?.length ?? 0) +
+      state.file.graph.nodes.reduce(
+        (count, node) => count + node.conditions.filter((condition) => !condition.locked).length,
+        0,
+      ),
   );
-  const onDragStart = (
-    event: React.DragEvent,
-    type: WorkflowNodeType | HighLevelNodeType,
-  ) => {
+  const onDragStart = (event: React.DragEvent, type: WorkflowNodeType | HighLevelNodeType) => {
     event.dataTransfer.setData(
       highLevelMode ? "application/high-level-node" : "application/workflow-node",
       type,
@@ -93,11 +93,9 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
                 <Icon className="size-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold">
-                  {item.label}
-                </span>
+                <span className="block text-xs font-semibold">{item.label}</span>
                 <span className="block whitespace-normal break-words text-xs leading-4 text-muted-foreground">
-                {disabled ? "Already added to this project" : item.description}
+                  {disabled ? "Already added to this project" : item.description}
                 </span>
               </span>
               <GripVertical className="size-3.5 shrink-0 text-muted-foreground/35 group-hover:text-muted-foreground" />
@@ -111,11 +109,29 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
             ? "Drag to canvas · High-level process nodes"
             : "Drag to canvas · Add workflow nodes"}
         </p>
-        {canEditWorkflow ? <Link href={conditionsHref} aria-label="Open Release Conditions Workspace" onClick={() => sessionStorage.setItem("release-conditions:return-view", highLevelMode ? "l1" : "l2")} className="group flex items-center gap-2.5 rounded-xl border border-primary/35 bg-primary/[0.07] px-3 py-3 text-left transition hover:border-primary hover:bg-primary/[0.12]">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"><ListChecks className="size-4" /></span>
-          <span className="min-w-0 flex-1"><span className="block text-xs font-bold">Release Conditions</span><span className="block text-[10px] leading-4 text-muted-foreground">Open full-screen workspace</span></span>
-          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{conditionCount}</span>
-        </Link> : null}
+        {canEditWorkflow ? (
+          <Link
+            href={conditionsHref}
+            aria-label="Open Release Conditions Workspace"
+            onClick={() =>
+              sessionStorage.setItem("release-conditions:return-view", highLevelMode ? "l1" : "l2")
+            }
+            className="group flex items-center gap-2.5 rounded-xl border border-primary/35 bg-primary/[0.07] px-3 py-3 text-left transition hover:border-primary hover:bg-primary/[0.12]"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <ListChecks className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-bold">Release Conditions</span>
+              <span className="block text-[10px] leading-4 text-muted-foreground">
+                Open full-screen workspace
+              </span>
+            </span>
+            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+              {conditionCount}
+            </span>
+          </Link>
+        ) : null}
       </div>
     </aside>
   );

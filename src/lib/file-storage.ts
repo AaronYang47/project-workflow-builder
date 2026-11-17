@@ -20,7 +20,8 @@ export interface UploadedFileRecord {
 }
 
 export const FORM_REFERENCE_FILE_TYPE = "application/x-falcon-form-reference";
-export const isFormReferenceRecord = (record: Pick<UploadedFileRecord, "fileType">) => record.fileType === FORM_REFERENCE_FILE_TYPE;
+export const isFormReferenceRecord = (record: Pick<UploadedFileRecord, "fileType">) =>
+  record.fileType === FORM_REFERENCE_FILE_TYPE;
 
 const FORM_REFERENCE_FILES: UploadedFileRecord[] = formReferenceCatalog.map((form) => ({
   id: `form-reference-${form.category}-${form.code.toLowerCase()}`,
@@ -62,7 +63,9 @@ function persistLibraryFiles(files: UploadedFileRecord[]): void {
   } catch {
     // Keep lightweight library metadata cached if base64 previews fill the browser quota.
     try {
-      const metadataOnly = JSON.stringify(persistable, (field, value) => field === "dataUrl" ? undefined : value);
+      const metadataOnly = JSON.stringify(persistable, (field, value) =>
+        field === "dataUrl" ? undefined : value,
+      );
       localStorage.setItem(key, metadataOnly);
     } catch {
       // R2 remains authoritative even when browser storage is unavailable.
@@ -77,11 +80,21 @@ function withBuiltInLibraryForms(
   const withoutBuiltIn = files.filter(
     (item) => item.id !== CUSTOMER_SELECTION_FORM_ID && !isFormReferenceRecord(item),
   );
-  const matchingRealFile = (reference: UploadedFileRecord) => withoutBuiltIn.some((file) =>
-    file.category === reference.category &&
-    (file.title.trim().toLowerCase() === reference.title.toLowerCase() ||
-      file.fileName.replace(/\.[^.]+$/, "").trim().toLowerCase() === reference.fileName.toLowerCase()));
-  const merged = [CUSTOMER_SELECTION_FORM, ...FORM_REFERENCE_FILES.filter((reference) => !matchingRealFile(reference)), ...withoutBuiltIn];
+  const matchingRealFile = (reference: UploadedFileRecord) =>
+    withoutBuiltIn.some(
+      (file) =>
+        file.category === reference.category &&
+        (file.title.trim().toLowerCase() === reference.title.toLowerCase() ||
+          file.fileName
+            .replace(/\.[^.]+$/, "")
+            .trim()
+            .toLowerCase() === reference.fileName.toLowerCase()),
+    );
+  const merged = [
+    CUSTOMER_SELECTION_FORM,
+    ...FORM_REFERENCE_FILES.filter((reference) => !matchingRealFile(reference)),
+    ...withoutBuiltIn,
+  ];
   if (!category) return merged;
   return merged.filter((item) => item.category === category);
 }
@@ -92,7 +105,9 @@ function createPlaceholderDataUrl(name: string, title: string) {
   return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
 }
 
-export function getUploadedFiles(category?: "legal" | "customer" | "supporting"): UploadedFileRecord[] {
+export function getUploadedFiles(
+  category?: "legal" | "customer" | "supporting",
+): UploadedFileRecord[] {
   if (typeof window === "undefined") return [];
   const key = storageKey();
   if (!key) return withBuiltInLibraryForms([], category);
@@ -108,7 +123,7 @@ export function getUploadedFiles(category?: "legal" | "customer" | "supporting")
         item.fileName !== "Customer_Project_Spec_2026.pdf" &&
         item.fileName !== "Client_Signatory_Authorization.pdf" &&
         item.fileName !== "Site_Foundation_Survey_Plan.pdf" &&
-        item.fileName !== "Class_CD_Cost_Estimate_Model.xlsx"
+        item.fileName !== "Class_CD_Cost_Estimate_Model.xlsx",
     );
     if (cleaned.length !== files.length || !raw) {
       persistLibraryFiles(cleaned);
@@ -126,7 +141,10 @@ export async function fetchUploadedFilesFromR2(
   const account = useWorkflowStore.getState().authUser;
   if (!account) return withBuiltInLibraryForms([], category);
   try {
-    const response = await fetch("/api/files", { cache: "no-store", headers: { "x-workflow-account": account.id } });
+    const response = await fetch("/api/files", {
+      cache: "no-store",
+      headers: { "x-workflow-account": account.id },
+    });
     if (useWorkflowStore.getState().authUser !== account) return [];
     if (response.status === 401 || response.status === 409) return [];
     if (response.ok) {
@@ -135,7 +153,8 @@ export async function fetchUploadedFilesFromR2(
         ownerUserId?: string;
         files?: UploadedFileRecord[];
       };
-      if (useWorkflowStore.getState().authUser !== account || data.ownerUserId !== account.id) return [];
+      if (useWorkflowStore.getState().authUser !== account || data.ownerUserId !== account.id)
+        return [];
       if (data.ok && Array.isArray(data.files)) {
         if (typeof window !== "undefined") {
           const local = getUploadedFiles();
@@ -170,7 +189,11 @@ export function saveUploadedFile(file: UploadedFileRecord): void {
 
 export async function deleteUploadedFile(fileId: string, key?: string): Promise<void> {
   if (typeof window === "undefined") return;
-  if (fileId === CUSTOMER_SELECTION_FORM_ID || FORM_REFERENCE_FILES.some((item) => item.id === fileId)) return;
+  if (
+    fileId === CUSTOMER_SELECTION_FORM_ID ||
+    FORM_REFERENCE_FILES.some((item) => item.id === fileId)
+  )
+    return;
   const account = useWorkflowStore.getState().authUser;
   if (!account) throw new Error("Please sign in.");
   const current = getUploadedFiles();
@@ -212,10 +235,7 @@ export async function uploadFileToR2(
     const formData = new FormData();
     formData.append("file", file);
     formData.append("category", meta.category);
-    formData.append(
-      "title",
-      (meta.title || cleanName).replace(/^r2-\d+(-[a-z0-9]+)?-/, ""),
-    );
+    formData.append("title", (meta.title || cleanName).replace(/^r2-\d+(-[a-z0-9]+)?-/, ""));
     formData.append("description", meta.description);
     if (meta.replaceKey) formData.append("replaceKey", meta.replaceKey);
 
@@ -225,10 +245,15 @@ export async function uploadFileToR2(
       body: formData,
     });
   } catch (error) {
-    throw new Error(error instanceof Error ? `Could not reach Library: ${error.message}` : "Could not reach Library.");
+    throw new Error(
+      error instanceof Error
+        ? `Could not reach Library: ${error.message}`
+        : "Could not reach Library.",
+    );
   }
 
-  const data = (await response.json().catch(() => null)) as (Partial<UploadedFileRecord> & { ok?: boolean; error?: string; ownerUserId?: string }) | null;
+  const data = (await response.json().catch(() => null)) as
+    (Partial<UploadedFileRecord> & { ok?: boolean; error?: string; ownerUserId?: string }) | null;
   if (!response.ok || !data?.ok || !data.key) {
     throw new Error(data?.error || `Upload failed (${response.status}). Please try again.`);
   }
@@ -260,12 +285,9 @@ export function downloadFile(record: {
   title?: string;
 }) {
   if (typeof window === "undefined") return;
-  const fileName =
-    record.fileName || `${(record.title || "document").replace(/\s+/g, "_")}.pdf`;
+  const fileName = record.fileName || `${(record.title || "document").replace(/\s+/g, "_")}.pdf`;
   const href =
-    record.url ||
-    record.dataUrl ||
-    createPlaceholderDataUrl(fileName, record.title || fileName);
+    record.url || record.dataUrl || createPlaceholderDataUrl(fileName, record.title || fileName);
 
   const anchor = document.createElement("a");
   anchor.href = href;

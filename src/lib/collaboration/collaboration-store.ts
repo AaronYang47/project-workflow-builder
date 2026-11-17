@@ -2,7 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CollaboratorProfile, CollaborativeViewState, ReleaseConditionDragPreview } from "./collaboration-types";
+import type {
+  CollaboratorProfile,
+  CollaborativeViewState,
+  ReleaseConditionDragPreview,
+} from "./collaboration-types";
 
 const COLLAB_COLORS = [
   "#10b981", // Emerald
@@ -49,13 +53,15 @@ interface CollaborationState {
   editControlReady: boolean;
   editorViewState: CollaborativeViewState | null;
   remoteDragPreview: { senderId: string; preview: ReleaseConditionDragPreview } | null;
-  setRemoteDragPreview: (value: { senderId: string; preview: ReleaseConditionDragPreview } | null) => void;
+  setRemoteDragPreview: (
+    value: { senderId: string; preview: ReleaseConditionDragPreview } | null,
+  ) => void;
   controlRequests: Record<string, number>;
   controlRequestStatus: "idle" | "pending" | "declined";
   localUser: CollaboratorProfile;
   remotePeers: Record<string, CollaboratorProfile>;
   isRemoteApplying: boolean;
-  
+
   setRoomId: (roomId: string) => void;
   setIsConnected: (connected: boolean) => void;
   setIsHost: (isHost: boolean) => void;
@@ -109,14 +115,16 @@ export const useCollaborationStore = create<CollaborationState>()(
             controlRequests: {},
             controlRequestStatus: "idle",
           }),
-        addControlRequest: (peerId, timestamp) => set((state) => ({
-          controlRequests: { ...state.controlRequests, [peerId]: timestamp },
-        })),
-        removeControlRequest: (peerId) => set((state) => {
-          const controlRequests = { ...state.controlRequests };
-          delete controlRequests[peerId];
-          return { controlRequests };
-        }),
+        addControlRequest: (peerId, timestamp) =>
+          set((state) => ({
+            controlRequests: { ...state.controlRequests, [peerId]: timestamp },
+          })),
+        removeControlRequest: (peerId) =>
+          set((state) => {
+            const controlRequests = { ...state.controlRequests };
+            delete controlRequests[peerId];
+            return { controlRequests };
+          }),
         setControlRequestStatus: (controlRequestStatus) => set({ controlRequestStatus }),
         setEditorViewState: (editorViewState) =>
           set((state) => {
@@ -124,7 +132,8 @@ export const useCollaborationStore = create<CollaborationState>()(
               state.editorViewState?.page === editorViewState?.page &&
               state.editorViewState?.layer === editorViewState?.layer &&
               state.editorViewState?.executionNodeId === editorViewState?.executionNodeId
-            ) return state;
+            )
+              return state;
             return { editorViewState };
           }),
         setLocalUser: (patch) =>
@@ -132,10 +141,7 @@ export const useCollaborationStore = create<CollaborationState>()(
             localUser: {
               ...state.localUser,
               ...patch,
-              avatar: (patch.name || state.localUser.name)
-                .trim()
-                .slice(0, 2)
-                .toUpperCase(),
+              avatar: (patch.name || state.localUser.name).trim().slice(0, 2).toUpperCase(),
             },
           })),
         setFocusedNodeId: (focusedNodeId) =>

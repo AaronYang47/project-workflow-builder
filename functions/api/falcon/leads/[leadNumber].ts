@@ -16,7 +16,8 @@ const parseJson = (value: string | null | undefined) => {
 
 const ownsProject = async (env: Env, projectId: string, userId: string) => {
   const row = await env.DB.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?")
-    .bind(projectId, userId).first<{ id: string }>();
+    .bind(projectId, userId)
+    .first<{ id: string }>();
   return Boolean(row);
 };
 
@@ -29,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (!leadNumber) return json({ error: "Lead Number must be 5 digits." }, 400);
   const row = await getLead(db, leadNumber);
   if (!row) return json({ exists: false, leadNumber });
-  if (!row.pwb_project_id || !await ownsProject(env, row.pwb_project_id, auth.user!.id))
+  if (!row.pwb_project_id || !(await ownsProject(env, row.pwb_project_id, auth.user!.id)))
     return json({ error: "Lead not found." }, 404);
   const company = parseJson(row.company_json);
   return json({
@@ -57,7 +58,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     projectId?: string;
   }>(request);
   if (!body?.customer) return json({ error: "Customer is required." }, 400);
-  if (!body.projectId || !await ownsProject(env, body.projectId, auth.user!.id))
+  if (!body.projectId || !(await ownsProject(env, body.projectId, auth.user!.id)))
     return json({ error: "Save the project before syncing its lead record." }, 403);
   const existing = await getLead(db, leadNumber);
   if (existing && existing.pwb_project_id !== body.projectId)

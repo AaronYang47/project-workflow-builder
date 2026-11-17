@@ -13,12 +13,14 @@ export function parseReleaseConditionLines(input: string): Condition[] {
     const value = line.trim();
     if (!value) return [];
     const dated = value.match(/^(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)$/);
-    return [{
-      id: `condition-${crypto.randomUUID()}`,
-      label: dated ? dated[2].trim() : value,
-      ...(dated ? { displayDate: dated[1] } : {}),
-      required: true,
-      checked: false,
-    }];
+    return [
+      {
+        id: `condition-${crypto.randomUUID()}`,
+        label: dated ? dated[2].trim() : value,
+        ...(dated ? { displayDate: dated[1] } : {}),
+        required: true,
+        checked: false,
+      },
+    ];
   });
 }

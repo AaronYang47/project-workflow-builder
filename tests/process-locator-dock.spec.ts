@@ -1,7 +1,9 @@
 import { expect, test } from "playwright/test";
 import { seedE2EWorkflow } from "./support/e2e-workflow";
 
-test("process locator button snaps to the corner it is dragged to and still opens on click", async ({ page }) => {
+test("process locator button snaps to the corner it is dragged to and still opens on click", async ({
+  page,
+}) => {
   await seedE2EWorkflow(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
@@ -22,7 +24,9 @@ test("process locator button snaps to the corner it is dragged to and still open
   await page.mouse.move(900, 200, { steps: 8 });
   await page.mouse.move(1270, 10, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("pwb.process-locator.dock"))).toBe("top-right");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("pwb.process-locator.dock")))
+    .toBe("top-right");
   await expect.poll(async () => (await button.boundingBox())!.x).toBeGreaterThan(640);
   expect((await button.boundingBox())!.y).toBeLessThan(400);
   await expect(page.getByRole("img", { name: /process locator diagram/ })).toHaveCount(0);

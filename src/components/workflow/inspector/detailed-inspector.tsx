@@ -2,7 +2,11 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ClipboardList, Settings2, Trash2 } from "lucide-react";
-import { getInspectorSchema, isInspectorFieldVisible, conditionInspectorKey } from "@/lib/inspector-schema";
+import {
+  getInspectorSchema,
+  isInspectorFieldVisible,
+  conditionInspectorKey,
+} from "@/lib/inspector-schema";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { WorkflowEdgeType } from "@/types/workflow";
@@ -30,41 +34,29 @@ export function DetailedInspector({
     toggleNodeInPhase,
     fitPhaseToChildren,
     focusedInspectorField,
-  } =
-    useWorkflowStore(
-      useShallow((state) => ({
-        file: state.file,
-        selection: state.selection,
-        updateNode: state.updateNode,
-        updateEdge: state.updateEdge,
-        deleteSelected: state.deleteSelected,
-        deleteNodeCondition: state.deleteNodeCondition,
-        toggleNodeInPhase: state.toggleNodeInPhase,
-        fitPhaseToChildren: state.fitPhaseToChildren,
-        focusedInspectorField: state.focusedInspectorField,
-      })),
-    );
-  const node = file.graph.nodes.find(
-    (item) => item.id === selection.nodeIds[0],
+  } = useWorkflowStore(
+    useShallow((state) => ({
+      file: state.file,
+      selection: state.selection,
+      updateNode: state.updateNode,
+      updateEdge: state.updateEdge,
+      deleteSelected: state.deleteSelected,
+      deleteNodeCondition: state.deleteNodeCondition,
+      toggleNodeInPhase: state.toggleNodeInPhase,
+      fitPhaseToChildren: state.fitPhaseToChildren,
+      focusedInspectorField: state.focusedInspectorField,
+    })),
   );
+  const node = file.graph.nodes.find((item) => item.id === selection.nodeIds[0]);
   const edge = file.graph.edges.find((item) => item.id === selection.edgeId);
   const executionSummary = node
-    ? getExecutionSummary(
-        node.id,
-        file.execution?.items,
-        file.operations,
-        { checklistOnly: true },
-      )
+    ? getExecutionSummary(node.id, file.execution?.items, file.operations, { checklistOnly: true })
     : undefined;
-  const schema = useMemo(
-    () => (node ? getInspectorSchema(node.type) : []),
-    [node],
-  );
+  const schema = useMemo(() => (node ? getInspectorSchema(node.type) : []), [node]);
   const activeConditionIndex = node
     ? node.conditions.findIndex(
         (condition, index) =>
-          conditionInspectorKey(node.id, condition.id, index) ===
-          focusedInspectorField,
+          conditionInspectorKey(node.id, condition.id, index) === focusedInspectorField,
       )
     : -1;
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -97,8 +89,7 @@ export function DetailedInspector({
               <span
                 className="flex size-9 shrink-0 aspect-square items-center justify-center rounded-xl text-white shadow-sm"
                 style={{
-                  backgroundColor:
-                    node.color || getNodeDefinition(node.type).color,
+                  backgroundColor: node.color || getNodeDefinition(node.type).color,
                 }}
               >
                 {(() => {
@@ -131,7 +122,8 @@ export function DetailedInspector({
                 </div>
                 {executionSummary?.hasItems ? (
                   <p className="mt-2 text-[11px] font-medium text-muted-foreground">
-                    {executionSummary.completedCount}/{executionSummary.itemCount} Requirements Complete
+                    {executionSummary.completedCount}/{executionSummary.itemCount} Requirements
+                    Complete
                     <span className="mx-1">·</span>
                     <span
                       className={
@@ -184,52 +176,48 @@ export function DetailedInspector({
                 }
               />
             ) : null}
-            {Array.from(new Set(schema.map((field) => field.section))).map(
-                (section) => {
-                  const open = openSections[section] ?? true;
-                  return (
-                    <Fragment key={section}>
-                      <button
-                        type="button"
-                        aria-expanded={open}
-                        onClick={() =>
-                          setOpenSections((state) => ({
-                            ...state,
-                            [section]: !open,
-                          }))
-                        }
-                        className="mb-3 flex w-full items-center gap-1 text-left text-xs font-semibold"
-                      >
-                        {open ? (
-                          <ChevronDown className="size-3.5" />
-                        ) : (
-                          <ChevronRight className="size-3.5" />
-                        )}
-                        {section}
-                      </button>
-                      {open ? (
-                        <div className="mb-5 space-y-4">
-                          {schema
-                            .filter(
-                              (field) =>
-                                field.section === section &&
-                                isInspectorFieldVisible(field, node),
-                            )
-                            .map((field) => (
-                              <Field
-                                key={field.key}
-                                field={field}
-                                node={node}
-                                update={(next) => updateNode(node.id, next)}
-                              />
-                            ))}
-                        </div>
-                      ) : null}
-                    </Fragment>
-                  );
-                },
-              )
-            }
+            {Array.from(new Set(schema.map((field) => field.section))).map((section) => {
+              const open = openSections[section] ?? true;
+              return (
+                <Fragment key={section}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() =>
+                      setOpenSections((state) => ({
+                        ...state,
+                        [section]: !open,
+                      }))
+                    }
+                    className="mb-3 flex w-full items-center gap-1 text-left text-xs font-semibold"
+                  >
+                    {open ? (
+                      <ChevronDown className="size-3.5" />
+                    ) : (
+                      <ChevronRight className="size-3.5" />
+                    )}
+                    {section}
+                  </button>
+                  {open ? (
+                    <div className="mb-5 space-y-4">
+                      {schema
+                        .filter(
+                          (field) =>
+                            field.section === section && isInspectorFieldVisible(field, node),
+                        )
+                        .map((field) => (
+                          <Field
+                            key={field.key}
+                            field={field}
+                            node={node}
+                            update={(next) => updateNode(node.id, next)}
+                          />
+                        ))}
+                    </div>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </div>
         </div>
       ) : edge ? (

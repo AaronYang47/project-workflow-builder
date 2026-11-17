@@ -80,9 +80,7 @@ export function buildPhaseTabs(file: WorkflowFile): PhaseTab[] {
   const sequence = [
     ...phases.map((phase) => ({ kind: "phase" as const, id: phase.id, phase })),
     ...loose.map((node) => ({ kind: "node" as const, id: node.id, node })),
-  ].sort((a, b) =>
-    compareCanvas(file, a.id, b.id, phases.length ? bandOf : undefined),
-  );
+  ].sort((a, b) => compareCanvas(file, a.id, b.id, phases.length ? bandOf : undefined));
 
   const tabs: PhaseTab[] = [];
   for (const item of sequence) {

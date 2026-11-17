@@ -41,10 +41,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
   const nodes = file.graph.nodes;
   const layout = file.layout.nodes;
   const highLevel = file.highLevel;
-  const orderedL1 = orderHighLevelNodes(
-    highLevel?.graph.nodes || [],
-    highLevel?.graph.edges || [],
-  );
+  const orderedL1 = orderHighLevelNodes(highLevel?.graph.nodes || [], highLevel?.graph.edges || []);
 
   // Group nodes by phase
   const phases = nodes.filter((n) => n.type === "phase");

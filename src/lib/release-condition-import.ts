@@ -1,4 +1,7 @@
-import { isReleaseConditionChapter, RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
+import {
+  isReleaseConditionChapter,
+  RELEASE_CONDITION_INBOX_ID,
+} from "@/lib/release-condition-inbox";
 import type { Condition, WorkflowFile } from "@/types/workflow";
 
 export interface ReleaseConditionImportRow {
@@ -34,29 +37,49 @@ export function applyReleaseConditionImport(file: WorkflowFile, rows: ReleaseCon
   const destination = new Map<string, Condition[]>();
   const movedExecutionItems = new Map<string, string>();
   const result: ReleaseConditionImportResult = {
-    addedAssigned: 0, addedUnassigned: 0, updated: 0, moved: 0, unchanged: 0,
-    inboxChanged: false, changedNodeIds: [],
+    addedAssigned: 0,
+    addedUnassigned: 0,
+    updated: 0,
+    moved: 0,
+    unchanged: 0,
+    inboxChanged: false,
+    changedNodeIds: [],
   };
   for (const row of rows) {
     const label = row.label.trim();
     if (!label) continue;
-    const targetId = row.chapterId && chapterIds.has(row.chapterId) ? row.chapterId : RELEASE_CONDITION_INBOX_ID;
+    const targetId =
+      row.chapterId && chapterIds.has(row.chapterId) ? row.chapterId : RELEASE_CONDITION_INBOX_ID;
     let condition: Condition;
     if (row.conditionId) {
-      if (seen.has(row.conditionId)) throw new Error(`Condition ID ${row.conditionId} appears more than once in the spreadsheet.`);
+      if (seen.has(row.conditionId))
+        throw new Error(
+          `Condition ID ${row.conditionId} appears more than once in the spreadsheet.`,
+        );
       const previous = existing.get(row.conditionId);
-      if (!previous) throw new Error(`Condition ID ${row.conditionId} is not in this project. Download a fresh template or clear the ID to add a new condition.`);
+      if (!previous)
+        throw new Error(
+          `Condition ID ${row.conditionId} is not in this project. Download a fresh template or clear the ID to add a new condition.`,
+        );
       seen.add(row.conditionId);
-      if (previous.condition.locked && (label !== previous.condition.label || targetId !== previous.nodeId)) {
-        throw new Error(`“${previous.condition.label}” is locked and cannot be edited or moved from Excel.`);
+      if (
+        previous.condition.locked &&
+        (label !== previous.condition.label || targetId !== previous.nodeId)
+      ) {
+        throw new Error(
+          `“${previous.condition.label}” is locked and cannot be edited or moved from Excel.`,
+        );
       }
       if (previous.condition.linkedExecutionItemId && targetId === RELEASE_CONDITION_INBOX_ID) {
-        throw new Error(`“${previous.condition.label}” is linked to L3 and cannot be moved to Unassigned.`);
+        throw new Error(
+          `“${previous.condition.label}” is linked to L3 and cannot be moved to Unassigned.`,
+        );
       }
       condition = { ...previous.condition, label };
       if (targetId !== previous.nodeId) {
         result.moved++;
-        if (condition.linkedExecutionItemId) movedExecutionItems.set(condition.linkedExecutionItemId, targetId);
+        if (condition.linkedExecutionItemId)
+          movedExecutionItems.set(condition.linkedExecutionItemId, targetId);
       } else if (label !== previous.condition.label) result.updated++;
       else result.unchanged++;
     } else {
@@ -72,7 +95,8 @@ export function applyReleaseConditionImport(file: WorkflowFile, rows: ReleaseCon
     ...(destination.get(nodeId) ?? []),
   ];
   const nextInbox = nextList(RELEASE_CONDITION_INBOX_ID, file.releaseConditionInbox ?? []);
-  result.inboxChanged = JSON.stringify(nextInbox) !== JSON.stringify(file.releaseConditionInbox ?? []);
+  result.inboxChanged =
+    JSON.stringify(nextInbox) !== JSON.stringify(file.releaseConditionInbox ?? []);
   const nextNodes = file.graph.nodes.map((node) => {
     if (!isReleaseConditionChapter(node)) return node;
     const conditions = nextList(node.id, node.conditions);
@@ -80,14 +104,24 @@ export function applyReleaseConditionImport(file: WorkflowFile, rows: ReleaseCon
     result.changedNodeIds.push(node.id);
     return { ...node, conditions };
   });
-  const execution = movedExecutionItems.size && file.execution
-    ? { ...file.execution, items: file.execution.items.map((item) => {
-      const nodeId = movedExecutionItems.get(item.id);
-      return nodeId ? { ...item, linkedLayer2NodeId: nodeId } : item;
-    }) }
-    : file.execution;
-  const nextFile = result.inboxChanged || result.changedNodeIds.length || movedExecutionItems.size
-    ? { ...file, releaseConditionInbox: nextInbox, graph: { ...file.graph, nodes: nextNodes }, execution }
-    : file;
+  const execution =
+    movedExecutionItems.size && file.execution
+      ? {
+          ...file.execution,
+          items: file.execution.items.map((item) => {
+            const nodeId = movedExecutionItems.get(item.id);
+            return nodeId ? { ...item, linkedLayer2NodeId: nodeId } : item;
+          }),
+        }
+      : file.execution;
+  const nextFile =
+    result.inboxChanged || result.changedNodeIds.length || movedExecutionItems.size
+      ? {
+          ...file,
+          releaseConditionInbox: nextInbox,
+          graph: { ...file.graph, nodes: nextNodes },
+          execution,
+        }
+      : file;
   return { file: nextFile, result };
 }

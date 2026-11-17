@@ -7,11 +7,8 @@ import type {
 import { newId, number, round2, text } from "./shared";
 
 /** Payments, invoices, Class D estimate, approvals, audit trail and client path. */
-export function paymentMilestoneAmount(
-  operations: ProjectOperations,
-  milestone: PaymentMilestone,
-) {
-  return round2(number(operations.commercial.contractValue) * number(milestone.percent) / 100);
+export function paymentMilestoneAmount(operations: ProjectOperations, milestone: PaymentMilestone) {
+  return round2((number(operations.commercial.contractValue) * number(milestone.percent)) / 100);
 }
 
 export function invoicePaidAmount(operations: ProjectOperations, invoiceId: string) {
@@ -28,11 +25,10 @@ export function calculateClassD(operations: ProjectOperations) {
   if (direct > 0) return round2(direct);
 
   const area = number(inputs.grossSquareFeet ?? inputs.grossFloorArea ?? inputs.area);
-  const fixedFactor = number(
-    inputs.fixedFactorPerSquareFoot ?? inputs.costPerSqFt ?? inputs.rate,
-  );
+  const fixedFactor = number(inputs.fixedFactorPerSquareFoot ?? inputs.costPerSqFt ?? inputs.rate);
   const windowCost = number(inputs.windowCount) * number(inputs.windowUnitRate);
-  const doorCost = number(inputs.exteriorDoorCount ?? inputs.doorCount) *
+  const doorCost =
+    number(inputs.exteriorDoorCount ?? inputs.doorCount) *
     number(inputs.exteriorDoorUnitRate ?? inputs.doorUnitRate);
   const roofCost = number(inputs.roofSquareFeet) * number(inputs.roofRate);
   const assemblies = (operations.estimating.assemblies || [])
@@ -47,9 +43,7 @@ export function calculateClassD(operations: ProjectOperations) {
     );
   const base = area * fixedFactor + windowCost + doorCost + roofCost + assemblies;
   if (base <= 0) return 0;
-  return round2(
-    base * number(inputs.complexityFactor || 1) * number(inputs.locationFactor || 1),
-  );
+  return round2(base * number(inputs.complexityFactor || 1) * number(inputs.locationFactor || 1));
 }
 
 export function requiredApprovalRole(
@@ -104,41 +98,51 @@ export function classifyClientPath(operations: ProjectOperations) {
     return {
       type: "Special LOI",
       subGates: ["Executive LOI approval", "Controlled scope boundary", "Gate 1 decision"],
-      reason: "Strategic or expressly governed LOI route requires executive approval and a bounded scope before Gate 1.",
+      reason:
+        "Strategic or expressly governed LOI route requires executive approval and a bounded scope before Gate 1.",
     };
   }
   if (design === "ifc" && site === "ready" && funding === "secured") {
     return {
       type: "P1",
       subGates: ["Production capacity reservation", "IFC package validation", "Gate 1 release"],
-      reason: "IFC design, ready site, and secured funding support the shortest controlled path to production capacity.",
+      reason:
+        "IFC design, ready site, and secured funding support the shortest controlled path to production capacity.",
     };
   }
-  if (design === "permit" && site === "controlled" && (funding === "in process" || funding === "secured")) {
+  if (
+    design === "permit" &&
+    site === "controlled" &&
+    (funding === "in process" || funding === "secured")
+  ) {
     return {
       type: "P2",
       subGates: ["Responsibility matrix", "Permit/interface validation", "Commercial release"],
-      reason: "Permit-level design and a controlled site support a defined responsibility and commercial pathway.",
+      reason:
+        "Permit-level design and a controlled site support a defined responsibility and commercial pathway.",
     };
   }
   if (design === "preliminary" && site === "controlled") {
     return {
       type: "P3",
       subGates: ["D to C convergence", "Responsibility matrix", "Feasibility closure"],
-      reason: "Preliminary design with a controlled site requires structured D-to-C convergence before technical commitment.",
+      reason:
+        "Preliminary design with a controlled site requires structured D-to-C convergence before technical commitment.",
     };
   }
   if (design === "concept" && site === "candidate") {
     return {
       type: "P4",
       subGates: ["Consultation scope", "Site feasibility", "Client funding plan"],
-      reason: "Concept design and a candidate site call for bounded consultation and feasibility work before commitment.",
+      reason:
+        "Concept design and a candidate site call for bounded consultation and feasibility work before commitment.",
     };
   }
   return {
     type: "P5",
     subGates: ["Client pre-qualification", "Site and design discovery", "Funding evidence"],
-    reason: "The available evidence is not yet mature enough for a faster pathway, so pre-qualification remains the controlled route.",
+    reason:
+      "The available evidence is not yet mature enough for a faster pathway, so pre-qualification remains the controlled route.",
   };
 }
 
@@ -171,19 +175,25 @@ export function evaluatePaymentRelease(operations: ProjectOperations) {
     const expected = paymentMilestoneAmount(operations, deposit);
     const paid = invoicePaidAmount(operations, invoice.id);
     if (paid + 0.005 < expected) {
-      reasons.push(`Verified deposit receipt is short by ${round2(expected - paid)} ${commercial.currency || "CAD"}.`);
+      reasons.push(
+        `Verified deposit receipt is short by ${round2(expected - paid)} ${commercial.currency || "CAD"}.`,
+      );
     }
     const matchingReceipts = (commercial.receipts || []).filter(
       (receipt) => text(receipt.invoiceId) === invoice.id,
     );
-    if (!matchingReceipts.length || matchingReceipts.some((receipt) => !evidencePresent(receipt.evidenceReference))) {
+    if (
+      !matchingReceipts.length ||
+      matchingReceipts.some((receipt) => !evidencePresent(receipt.evidenceReference))
+    ) {
       reasons.push("Verified deposit receipt evidence is missing.");
     }
     if (!matchingReceipts.length || matchingReceipts.some((receipt) => !text(receipt.verifiedBy))) {
       reasons.push("Verified deposit receipt evidence is missing.");
     }
   }
-  const release = commercial.paymentRelease || ({} as ProjectOperations["commercial"]["paymentRelease"]);
+  const release =
+    commercial.paymentRelease || ({} as ProjectOperations["commercial"]["paymentRelease"]);
   if (text(release.status).toLowerCase() === "released") {
     if (!evidencePresent(release.evidence)) reasons.push("Payment release evidence is required.");
     if (!text(release.releasedBy)) reasons.push("Payment release approver is required.");

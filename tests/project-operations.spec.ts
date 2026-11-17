@@ -156,10 +156,7 @@ function approvalRequest(
   };
 }
 
-function approveEstimateClasses(
-  operations: ProjectOperations,
-  through: EstimateClass,
-) {
+function approveEstimateClasses(operations: ProjectOperations, through: EstimateClass) {
   const order: EstimateClass[] = ["D", "C", "B", "A"];
   const targetIndex = order.indexOf(through);
   for (const estimateClass of order.slice(0, targetIndex + 1)) {
@@ -194,8 +191,7 @@ function approveEstimateClasses(
 
 function applyAcceptedDesignBoundary(
   operations: ProjectOperations,
-  deliveryModel: ProjectOperations["designBoundary"]["deliveryModel"] =
-    "Client Design / ProFab Consultation",
+  deliveryModel: ProjectOperations["designBoundary"]["deliveryModel"] = "Client Design / ProFab Consultation",
 ) {
   operations.designBoundary = {
     deliveryModel,
@@ -326,16 +322,11 @@ test.describe("Gate 1 qualification and paid commercial release", () => {
       25, 25, 25, 25,
     ]);
     expect(
-      operations.commercial.paymentPlan.reduce(
-        (sum, milestone) => sum + milestone.percent,
-        0,
-      ),
+      operations.commercial.paymentPlan.reduce((sum, milestone) => sum + milestone.percent, 0),
     ).toBe(100);
 
     operations.commercial.contractValue = 123_456.78;
-    expect(paymentMilestoneAmount(operations, operations.commercial.paymentPlan[0])).toBe(
-      30_864.2,
-    );
+    expect(paymentMilestoneAmount(operations, operations.commercial.paymentPlan[0])).toBe(30_864.2);
   });
 
   test("blocks an invalid plan, a missing invoice, a short deposit, and missing receipt proof", () => {
@@ -358,9 +349,7 @@ test.describe("Gate 1 qualification and paid commercial release", () => {
 
     applyPaidCommercialEvidence(operations, { released: false });
     operations.commercial.receipts[0].amount = 20_000;
-    expect(evaluatePaymentRelease(operations).reasons.join(" ")).toContain(
-      "short by 5000 CAD",
-    );
+    expect(evaluatePaymentRelease(operations).reasons.join(" ")).toContain("short by 5000 CAD");
 
     operations.commercial.receipts[0].amount = 25_000;
     operations.commercial.receipts[0].verifiedBy = "";
@@ -438,22 +427,13 @@ test.describe("approval authority and threshold control", () => {
   test("escalates Change requests at CRO and CEO percentage thresholds", () => {
     const operations = freshOperations();
     expect(
-      requiredApprovalRole(
-        operations,
-        approvalRequest({ kind: "Change", contractPercent: 4.99 }),
-      ),
+      requiredApprovalRole(operations, approvalRequest({ kind: "Change", contractPercent: 4.99 })),
     ).toBe("Project Manager");
     expect(
-      requiredApprovalRole(
-        operations,
-        approvalRequest({ kind: "Change", contractPercent: 5 }),
-      ),
+      requiredApprovalRole(operations, approvalRequest({ kind: "Change", contractPercent: 5 })),
     ).toBe("CRO");
     expect(
-      requiredApprovalRole(
-        operations,
-        approvalRequest({ kind: "Change", contractPercent: 10 }),
-      ),
+      requiredApprovalRole(operations, approvalRequest({ kind: "Change", contractPercent: 10 })),
     ).toBe("CEO");
   });
 
@@ -501,7 +481,11 @@ test.describe("client classification and controlled numbering", () => {
       },
       {
         expected: "P2",
-        patch: { designMaturity: "Permit", siteMaturity: "Controlled", fundingMaturity: "In Process" },
+        patch: {
+          designMaturity: "Permit",
+          siteMaturity: "Controlled",
+          fundingMaturity: "In Process",
+        },
         subGate: "Responsibility matrix",
       },
       {
@@ -680,9 +664,7 @@ test.describe("Class D calculator and D/C/B/A maturity", () => {
     );
 
     operations.estimating.convergenceTasks[0].evidence = "";
-    expect(estimateMaturityReady(operations, "C").missing).toContain(
-      "D→C convergence evidence",
-    );
+    expect(estimateMaturityReady(operations, "C").missing).toContain("D→C convergence evidence");
 
     const mature = freshOperations();
     approveEstimateClasses(mature, "A");
@@ -706,16 +688,12 @@ test.describe("design boundary, site gates, purchasing, and production capacity"
 
   test("requires evidence and authorization for every secondary gate, including N/A disposition", () => {
     const operations = freshOperations();
-    const foundation = operations.siteReadiness.gates.find(
-      (gate) => gate.id === "foundation",
-    )!;
+    const foundation = operations.siteReadiness.gates.find((gate) => gate.id === "foundation")!;
     expect(secondaryGateReady(foundation)).toBe(false);
     expect(secondaryGateReady(passedSecondaryGate(foundation))).toBe(true);
-    expect(
-      secondaryGateReady(
-        passedSecondaryGate(foundation, { evidenceReferences: [""] }),
-      ),
-    ).toBe(false);
+    expect(secondaryGateReady(passedSecondaryGate(foundation, { evidenceReferences: [""] }))).toBe(
+      false,
+    );
     expect(
       secondaryGateReady({
         ...foundation,
@@ -739,7 +717,10 @@ test.describe("design boundary, site gates, purchasing, and production capacity"
     approveEstimateClasses(operations, "C");
     applyAcceptedDesignBoundary(operations);
     expect(procurementUnlockReady(operations)).toEqual(
-      expect.objectContaining({ ready: false, blockers: expect.arrayContaining(["Payment release"]) }),
+      expect.objectContaining({
+        ready: false,
+        blockers: expect.arrayContaining(["Payment release"]),
+      }),
     );
     operations.commercial.paymentRelease.status = "Released";
     expect(procurementUnlockReady(operations)).toEqual({ ready: true, blockers: [] });
@@ -816,27 +797,15 @@ test.describe("Warranty Day 0 and 30/60/90 follow-up control", () => {
   });
 
   test("moves follow-ups from Scheduled to Due, Overdue, and Complete using an injected clock", () => {
-    expect(
-      warrantyFollowUpStatus(
-        "2026-09-30",
-        "",
-        new Date("2026-09-20T12:00:00.000Z"),
-      ),
-    ).toBe("Scheduled");
-    expect(
-      warrantyFollowUpStatus(
-        "2026-09-30",
-        "",
-        new Date("2026-09-24T12:00:00.000Z"),
-      ),
-    ).toBe("Due");
-    expect(
-      warrantyFollowUpStatus(
-        "2026-09-30",
-        "",
-        new Date("2026-10-01T00:00:00.000Z"),
-      ),
-    ).toBe("Overdue");
+    expect(warrantyFollowUpStatus("2026-09-30", "", new Date("2026-09-20T12:00:00.000Z"))).toBe(
+      "Scheduled",
+    );
+    expect(warrantyFollowUpStatus("2026-09-30", "", new Date("2026-09-24T12:00:00.000Z"))).toBe(
+      "Due",
+    );
+    expect(warrantyFollowUpStatus("2026-09-30", "", new Date("2026-10-01T00:00:00.000Z"))).toBe(
+      "Overdue",
+    );
     expect(
       warrantyFollowUpStatus(
         "2026-09-30",
@@ -895,20 +864,17 @@ test.describe("ICS time, weekly reporting, MasterFormat/GPF, and Stitch List", (
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
-    const entries = parseIcsTimeEntries(
-      ics,
-      "Taylor Planner",
-      "P-26-007",
-      "calendar-2026-w35.ics",
-    );
+    const entries = parseIcsTimeEntries(ics, "Taylor Planner", "P-26-007", "calendar-2026-w35.ics");
     expect(entries).toHaveLength(2);
-    expect(entries.map(({ date, activity, hours, source, projectNumber }) => ({
-      date,
-      activity,
-      hours,
-      source,
-      projectNumber,
-    }))).toEqual([
+    expect(
+      entries.map(({ date, activity, hours, source, projectNumber }) => ({
+        date,
+        activity,
+        hours,
+        source,
+        projectNumber,
+      })),
+    ).toEqual([
       {
         date: "2026-08-24",
         activity: "Design coordination",
@@ -1068,9 +1034,7 @@ test.describe("L1/L2 operational gate and store wiring", () => {
     const condition = { ...sourceCondition, checked: false };
     linkedItem.checklistComplete = true;
 
-    expect(
-      conditionIsSatisfied(condition, node, undefined, [linkedItem]),
-    ).toBe(false);
+    expect(conditionIsSatisfied(condition, node, undefined, [linkedItem])).toBe(false);
     expect(
       conditionIsSatisfied({ ...condition, checked: true }, node, undefined, [linkedItem]),
     ).toBe(true);
@@ -1106,12 +1070,7 @@ test.describe("L1/L2 operational gate and store wiring", () => {
     expect(file.operations?.identity.clientId).toBeTruthy();
     expect(file.operations?.identity.projectNumber).toBe("");
     expect(
-      nodeReleaseReady(
-        projectStart,
-        projectStart,
-        file.execution?.items,
-        file.operations,
-      ),
+      nodeReleaseReady(projectStart, projectStart, file.execution?.items, file.operations),
     ).toBe(true);
 
     const progress = getWorkflowProgress(
@@ -1135,28 +1094,20 @@ test.describe("L1/L2 operational gate and store wiring", () => {
         checked: true,
       })),
     };
-    const linkedL1 = lifecycle.highLevel.graph.nodes.find(
-      (node) => node.id === "high-level-3",
-    )!;
-    expect(linkedL1.linkedLayer2NodeIds).toEqual([
-      "gate-g1-qualified",
-    ]);
+    const linkedL1 = lifecycle.highLevel.graph.nodes.find((node) => node.id === "high-level-3")!;
+    expect(linkedL1.linkedLayer2NodeIds).toEqual(["gate-g1-qualified"]);
 
     const blockedOperations = freshOperations();
-    expect(
-      nodeReleaseReady(checklistCompleteGate, projectStart, [], blockedOperations),
-    ).toBe(false);
-    expect(
-      nodeStatusLabel(checklistCompleteGate, projectStart, [], blockedOperations),
-    ).not.toBe("Ready");
-
-    const readyOperations = gateOneReadyOperations();
-    expect(nodeReleaseReady(checklistCompleteGate, projectStart, [], readyOperations)).toBe(
-      true,
+    expect(nodeReleaseReady(checklistCompleteGate, projectStart, [], blockedOperations)).toBe(
+      false,
     );
-    expect(nodeStatusLabel(checklistCompleteGate, projectStart, [], readyOperations)).toBe(
+    expect(nodeStatusLabel(checklistCompleteGate, projectStart, [], blockedOperations)).not.toBe(
       "Ready",
     );
+
+    const readyOperations = gateOneReadyOperations();
+    expect(nodeReleaseReady(checklistCompleteGate, projectStart, [], readyOperations)).toBe(true);
+    expect(nodeStatusLabel(checklistCompleteGate, projectStart, [], readyOperations)).toBe("Ready");
   });
 
   test("store enforces payment authority, records release approval, and mirrors conversion identity into Project Start", () => {
@@ -1192,9 +1143,7 @@ test.describe("L1/L2 operational gate and store wiring", () => {
         approverRole: "Finance",
       }),
     );
-    expect(released.commercial.paymentRelease.releasedAt).toMatch(
-      /^\d{4}-\d{2}-\d{2}T/,
-    );
+    expect(released.commercial.paymentRelease.releasedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(released.approvals.requests).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1278,8 +1227,6 @@ test.describe("L1/L2 operational gate and store wiring", () => {
         ]),
       }),
     );
-    expect(useWorkflowStore.getState().file.operations?.identity.lifecycleState).toBe(
-      "Warranty",
-    );
+    expect(useWorkflowStore.getState().file.operations?.identity.lifecycleState).toBe("Warranty");
   });
 });

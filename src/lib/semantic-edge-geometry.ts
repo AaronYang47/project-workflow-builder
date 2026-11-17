@@ -86,14 +86,14 @@ export const withMinEndStub = (
   const target = result[result.length - 1];
   const vertical = position === Position.Top || position === Position.Bottom;
   const aligned = (point: Point) =>
-    vertical
-      ? Math.abs(point.x - target.x) < 0.5
-      : Math.abs(point.y - target.y) < 0.5;
+    vertical ? Math.abs(point.x - target.x) < 0.5 : Math.abs(point.y - target.y) < 0.5;
   let penIndex = result.length - 2;
   if (!aligned(result[penIndex])) {
-    result.splice(result.length - 1, 0, vertical
-      ? { x: target.x, y: result[penIndex].y }
-      : { x: result[penIndex].x, y: target.y });
+    result.splice(
+      result.length - 1,
+      0,
+      vertical ? { x: target.x, y: result[penIndex].y } : { x: result[penIndex].x, y: target.y },
+    );
     penIndex = result.length - 2;
   }
   const corner = result[penIndex];
@@ -132,11 +132,7 @@ export const roundedPath = (points: Point[], radius = 14) => {
     const previous = points[index - 1];
     const corner = points[index];
     const next = points[index + 1];
-    const size = Math.min(
-      radius,
-      distance(previous, corner) / 2,
-      distance(corner, next) / 2,
-    );
+    const size = Math.min(radius, distance(previous, corner) / 2, distance(corner, next) / 2);
     const entry = toward(corner, previous, size);
     const exit = toward(corner, next, size);
     path += ` L${entry.x},${entry.y} Q${corner.x},${corner.y} ${exit.x},${exit.y}`;
@@ -205,8 +201,7 @@ export const collapseRedundantBends = (points: Point[]) => {
       const collinearX = previous.x === after.x;
       const collinearY = previous.y === after.y;
       const onSharedAxis =
-        (collinearX && point.x === previous.x) ||
-        (collinearY && point.y === previous.y);
+        (collinearX && point.x === previous.x) || (collinearY && point.y === previous.y);
       if (onSharedAxis) continue;
       // U-turn: segment went +x then -x (or +y then -y).
       const xSeg1 = Math.sign(point.x - previous.x);
@@ -287,20 +282,21 @@ export const placeLabel = (
   const pathClearance = Math.max(LABEL_STROKE_GAP + height / 2, 28);
   const source = obstacles.find((obstacle) => obstacle.id === sourceId);
   const target = obstacles.find((obstacle) => obstacle.id === targetId);
-  const gapCenterX = source && target
-    ? source.x < target.x
-      ? (source.x + source.width + target.x) / 2
-      : (target.x + target.width + source.x) / 2
-    : undefined;
-  const closestGapPoint = gapCenterX === undefined
-    ? undefined
-    : Array.from({ length: 101 }, (_, index) => pointAlongPath(points, index / 100)).sort(
-        (a, b) => Math.abs(a.x - gapCenterX) - Math.abs(b.x - gapCenterX),
-      )[0];
+  const gapCenterX =
+    source && target
+      ? source.x < target.x
+        ? (source.x + source.width + target.x) / 2
+        : (target.x + target.width + source.x) / 2
+      : undefined;
+  const closestGapPoint =
+    gapCenterX === undefined
+      ? undefined
+      : Array.from({ length: 101 }, (_, index) => pointAlongPath(points, index / 100)).sort(
+          (a, b) => Math.abs(a.x - gapCenterX) - Math.abs(b.x - gapCenterX),
+        )[0];
 
   if (siblingCount <= 1 && lockToConnectorGap && gapCenterX !== undefined && closestGapPoint) {
-    const tangentLength =
-      Math.hypot(closestGapPoint.tangent.x, closestGapPoint.tangent.y) || 1;
+    const tangentLength = Math.hypot(closestGapPoint.tangent.x, closestGapPoint.tangent.y) || 1;
     const normal = {
       x: -closestGapPoint.tangent.y / tangentLength,
       y: closestGapPoint.tangent.x / tangentLength,
@@ -329,7 +325,11 @@ export const placeLabel = (
 
   const preferredReturnPoint = pointAlongPath(points, preferredReturnFraction);
   const returnEscapePoints = labelHugsPath
-    ? [...new Map([source, target].filter(Boolean).map((obstacle) => [obstacle!.id, obstacle!])).values()]
+    ? [
+        ...new Map(
+          [source, target].filter(Boolean).map((obstacle) => [obstacle!.id, obstacle!]),
+        ).values(),
+      ]
         .flatMap((obstacle) => [
           { ...preferredReturnPoint, x: obstacle.x - width / 2 - 20 },
           { ...preferredReturnPoint, x: obstacle.x + obstacle.width + width / 2 + 20 },
@@ -350,10 +350,7 @@ export const placeLabel = (
     (a, b) => Math.abs(a - preferredFraction) - Math.abs(b - preferredFraction),
   );
 
-  const lane =
-    siblingCount > 1
-      ? (siblingIndex - (siblingCount - 1) / 2) * 28
-      : labelLane || 0;
+  const lane = siblingCount > 1 ? (siblingIndex - (siblingCount - 1) / 2) * 28 : labelLane || 0;
 
   const offsets = labelHugsPath
     ? [pathClearance, -pathClearance, 40, -40, 56, -56, 72, -72]
@@ -403,13 +400,10 @@ export const placeLabel = (
         (sum, obstacle) => sum + overlapArea(candidate, width, height, obstacle),
         0,
       ),
-      arrowPenalty:
-        distanceFromEnd < arrowKeepout ? arrowKeepout - distanceFromEnd : 0,
+      arrowPenalty: distanceFromEnd < arrowKeepout ? arrowKeepout - distanceFromEnd : 0,
     };
   });
-  const clear = scored.find(
-    (candidate) => candidate.overlap === 0 && candidate.arrowPenalty === 0,
-  );
+  const clear = scored.find((candidate) => candidate.overlap === 0 && candidate.arrowPenalty === 0);
   const chosen =
     clear ??
     scored.sort(
@@ -419,5 +413,8 @@ export const placeLabel = (
         Math.abs(a.fraction - preferredFraction) - Math.abs(b.fraction - preferredFraction) ||
         Math.abs(a.offset - lane) - Math.abs(b.offset - lane),
     )[0];
-  return { point: { x: chosen.x, y: chosen.y }, avoided: chosen.offset !== 0 || chosen.fraction !== 0.5 };
+  return {
+    point: { x: chosen.x, y: chosen.y },
+    avoided: chosen.offset !== 0 || chosen.fraction !== 0.5,
+  };
 };

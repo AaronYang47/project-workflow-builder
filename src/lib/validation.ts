@@ -42,10 +42,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
         message: "Project Start cannot have an incoming connection",
         nodeId: projectStart.id,
       });
-    if (
-      nodes.length > 1 &&
-      !edges.some((edge) => edge.source === projectStart.id)
-    )
+    if (nodes.length > 1 && !edges.some((edge) => edge.source === projectStart.id))
       issues.push({
         id: `project-start-outgoing-${projectStart.id}`,
         severity: "error",
@@ -84,10 +81,14 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   // Chapter numbers are user-entered identifiers. Read the same sources used
   // by L1 badges. Repeats are valid, but the sequence cannot skip or go back.
   const chapterNumberEntry = (node: DomainNode | undefined) => {
-    if (!node || !["projectStart", "general", "terminal", "end"].includes(node.type)) return undefined;
-    const manualChapter = node.type === "terminal" ? String(node.config.chapterNumber ?? "").trim() : "";
+    if (!node || !["projectStart", "general", "terminal", "end"].includes(node.type))
+      return undefined;
+    const manualChapter =
+      node.type === "terminal" ? String(node.config.chapterNumber ?? "").trim() : "";
     const titleMatch = node.title.trim().match(/^chapter\s*(\d+)$/i);
-    const stageMatch = String(node.config.stage ?? "").trim().match(/^(?:(?:chapter|department)\s*)?(\d+)$/i);
+    const stageMatch = String(node.config.stage ?? "")
+      .trim()
+      .match(/^(?:(?:chapter|department)\s*)?(\d+)$/i);
     const raw = manualChapter || titleMatch?.[1] || stageMatch?.[1];
     const match = raw?.match(/^(\d+)$/);
     return match ? { number: Number(match[1]), label: raw } : undefined;
@@ -106,14 +107,24 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   }
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const highLevel = file.highLevel;
-  const linked = highLevel ? Array.from(new Set(orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges)
-    .flatMap((node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []))) : [];
-  const numbered = linked.map((id) => nodeById.get(id)).filter((node): node is DomainNode => chapterNumber(node) !== undefined);
+  const linked = highLevel
+    ? Array.from(
+        new Set(
+          orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).flatMap(
+            (node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? [],
+          ),
+        ),
+      )
+    : [];
+  const numbered = linked
+    .map((id) => nodeById.get(id))
+    .filter((node): node is DomainNode => chapterNumber(node) !== undefined);
   const reportedPairs = new Set<string>();
   const reportOrder = (previous: DomainNode, current: DomainNode) => {
     const before = chapterNumber(previous);
     const after = chapterNumber(current);
-    if (before === undefined || after === undefined || after === before || after === before + 1) return;
+    if (before === undefined || after === undefined || after === before || after === before + 1)
+      return;
     const pair = `${previous.id}\0${current.id}`;
     if (reportedPairs.has(pair)) return;
     reportedPairs.add(pair);
@@ -127,7 +138,8 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
       nodeId: current.id,
     });
   };
-  for (let index = 1; index < numbered.length; index++) reportOrder(numbered[index - 1], numbered[index]);
+  for (let index = 1; index < numbered.length; index++)
+    reportOrder(numbered[index - 1], numbered[index]);
   // When chapters are not in L1, only compare directly connected forward
   // chapters; disconnected or branching paths should not be sorted by position.
   for (const edge of edges) {
@@ -138,9 +150,12 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   }
   const executionItems = file.execution?.items || [];
   const executionItemIds = new Set(executionItems.map((item) => item.id));
-  const unassignedItemIds = new Set((file.releaseConditionInbox ?? []).map((condition) => condition.linkedExecutionItemId));
+  const unassignedItemIds = new Set(
+    (file.releaseConditionInbox ?? []).map((condition) => condition.linkedExecutionItemId),
+  );
   for (const item of executionItems) {
-    if (item.linkedLayer2NodeId === RELEASE_CONDITION_INBOX_ID && unassignedItemIds.has(item.id)) continue;
+    if (item.linkedLayer2NodeId === RELEASE_CONDITION_INBOX_ID && unassignedItemIds.has(item.id))
+      continue;
     if (!ids.has(item.linkedLayer2NodeId)) {
       issues.push({
         id: `broken-l3-l2-${item.id}-${item.linkedLayer2NodeId}`,
@@ -233,14 +248,10 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   const startNodes = nodes.filter(
     (node) =>
       !edges.some(
-        (edge) =>
-          edge.target === node.id &&
-          !["rework", "reopen", "failure"].includes(edge.type),
+        (edge) => edge.target === node.id && !["rework", "reopen", "failure"].includes(edge.type),
       ) && !exemptTypes.has(node.type),
   );
-  const connected = new Set(
-    edges.flatMap((edge) => [edge.source, edge.target]),
-  );
+  const connected = new Set(edges.flatMap((edge) => [edge.source, edge.target]));
   nodes
     .filter((node) => !connected.has(node.id) && !exemptTypes.has(node.type))
     .forEach((node) =>
@@ -275,9 +286,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
     const id = queue.shift()!;
     if (reachable.has(id)) continue;
     reachable.add(id);
-    edges
-      .filter((edge) => edge.source === id)
-      .forEach((edge) => queue.push(edge.target));
+    edges.filter((edge) => edge.source === id).forEach((edge) => queue.push(edge.target));
   }
   nodes
     .filter((node) => !reachable.has(node.id) && !exemptTypes.has(node.type))
@@ -303,9 +312,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   for (const rule of rules.filter(
     (item) => item.enabled && item.kind === "requiredField" && item.field,
   ))
-    for (const node of nodes.filter(
-      (item) => !rule.nodeType || item.type === rule.nodeType,
-    ))
+    for (const node of nodes.filter((item) => !rule.nodeType || item.type === rule.nodeType))
       if (!readPath(node, rule.field!))
         issues.push({
           id: `rule-${rule.id}-${node.id}`,
@@ -321,9 +328,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
       if (visiting.has(id)) return true;
       if (visited.has(id)) return false;
       visiting.add(id);
-      const cycle = edges
-        .filter((e) => e.source === id)
-        .some((e) => hasCycle(e.target));
+      const cycle = edges.filter((e) => e.source === id).some((e) => hasCycle(e.target));
       visiting.delete(id);
       visited.add(id);
       return cycle;

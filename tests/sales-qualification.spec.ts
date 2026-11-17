@@ -123,11 +123,9 @@ test("Standard client cannot use governed LOI", () => {
 test("Storeys and Approx. GFA are required separately once design exists", () => {
   expect(salesQualificationIsComplete(false, answers({}))).toBe(false);
   expect(salesQualificationIsComplete(true, answers({ decisionMakerName: "" }))).toBe(false);
-  expect(
-    salesQualificationIsComplete(true, answers({ storeys: "", approxGfa: "48000" })),
-  ).toBe(false);
-  expect(
-    salesQualificationIsComplete(true, answers({ storeys: "4", approxGfa: "" })),
-  ).toBe(false);
+  expect(salesQualificationIsComplete(true, answers({ storeys: "", approxGfa: "48000" }))).toBe(
+    false,
+  );
+  expect(salesQualificationIsComplete(true, answers({ storeys: "4", approxGfa: "" }))).toBe(false);
   expect(salesQualificationIsComplete(true, answers({}))).toBe(true);
 });

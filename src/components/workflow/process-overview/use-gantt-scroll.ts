@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type DependencyList, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DependencyList,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 /**
  * Horizontal scrolling for the Gantt board: tracks how far it can scroll,
@@ -38,9 +44,19 @@ export function useGanttScroll(enabled: boolean, remeasureOn: DependencyList) {
 
   const beginPan = (event: ReactPointerEvent<HTMLDivElement>) => {
     const board = boardRef.current;
-    if (event.pointerType === "touch" || event.button !== 0 || !board || board.scrollWidth <= board.clientWidth) return;
+    if (
+      event.pointerType === "touch" ||
+      event.button !== 0 ||
+      !board ||
+      board.scrollWidth <= board.clientWidth
+    )
+      return;
     const target = event.target as HTMLElement;
-    if (!target.closest("[data-gantt-pan-surface]") || target.closest("[data-gantt-task-key], button, input, [role='slider']")) return;
+    if (
+      !target.closest("[data-gantt-pan-surface]") ||
+      target.closest("[data-gantt-task-key], button, input, [role='slider']")
+    )
+      return;
     const handle = event.currentTarget;
     const pointerId = event.pointerId;
     const startX = event.clientX;

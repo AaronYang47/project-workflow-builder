@@ -23,7 +23,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     headers.set("etag", object.httpEtag);
     headers.set("cache-control", "private, no-store");
     headers.set("x-content-type-options", "nosniff");
-    const fileName = cleanGeneratedFileName(object.customMetadata?.fileName || key.split("/").at(-1) || "download");
+    const fileName = cleanGeneratedFileName(
+      object.customMetadata?.fileName || key.split("/").at(-1) || "download",
+    );
     headers.set("content-disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
     return new Response(object.body, { headers });
   } catch {

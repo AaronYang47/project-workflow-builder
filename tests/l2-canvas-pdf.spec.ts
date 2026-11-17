@@ -9,7 +9,9 @@ const cases = [
 ];
 
 for (const { item, startOnL2, title } of cases) {
-  test(`${item} prints an 11 x 17 vector page ${startOnL2 ? "from L2" : "from L1"}`, async ({ page }) => {
+  test(`${item} prints an 11 x 17 vector page ${startOnL2 ? "from L2" : "from L1"}`, async ({
+    page,
+  }) => {
     test.setTimeout(90000);
     await seedE2EWorkflow(page);
     await page.addInitScript(() => {
@@ -19,12 +21,20 @@ for (const { item, startOnL2, title } of cases) {
         (window as unknown as { printed: unknown[] }).printed.push({
           title: document.title,
           nodes: root?.querySelectorAll(".react-flow__node").length ?? 0,
-          controls: root?.querySelectorAll(".react-flow__controls, .react-flow__minimap").length ?? 0,
+          controls:
+            root?.querySelectorAll(".react-flow__controls, .react-flow__minimap").length ?? 0,
           // Arrowheads must point at the copy's own definitions, not the hidden original's.
-          strayRefs: Array.from(root?.querySelectorAll("[marker-end]") ?? [])
-            .filter((edge) => !edge.getAttribute("marker-end")!.includes("print-")).length,
+          strayRefs: Array.from(root?.querySelectorAll("[marker-end]") ?? []).filter(
+            (edge) => !edge.getAttribute("marker-end")!.includes("print-"),
+          ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
-          formGroups: Array.from(new Set(Array.from(root?.querySelectorAll<HTMLElement>("[data-print-forms-group]") ?? []).map((group) => group.dataset.printFormsGroup))),
+          formGroups: Array.from(
+            new Set(
+              Array.from(root?.querySelectorAll<HTMLElement>("[data-print-forms-group]") ?? []).map(
+                (group) => group.dataset.printFormsGroup,
+              ),
+            ),
+          ),
         });
       };
     });
@@ -33,8 +43,24 @@ for (const { item, startOnL2, title } of cases) {
     await expect(page.locator(".react-flow__node").first()).toBeVisible();
     await page.getByRole("button", { name: "Export", exact: true }).click();
     await page.getByText(item, { exact: true }).last().click();
-    await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length > 0);
-    const [printed] = await page.evaluate(() => (window as unknown as { printed: { title: string; nodes: number; controls: number; strayRefs: number; formPhases: number; formGroups: string[] }[] }).printed);
+    await page.waitForFunction(
+      () => (window as unknown as { printed: unknown[] }).printed.length > 0,
+    );
+    const [printed] = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            printed: {
+              title: string;
+              nodes: number;
+              controls: number;
+              strayRefs: number;
+              formPhases: number;
+              formGroups: string[];
+            }[];
+          }
+        ).printed,
+    );
     expect(printed.title).toBe(title);
     expect(printed.nodes).toBeGreaterThan(3);
     expect(printed.controls).toBe(0);
@@ -43,7 +69,9 @@ for (const { item, startOnL2, title } of cases) {
     expect(printed.formPhases).toBeGreaterThan(0);
     expect(printed.formGroups).toEqual(["legal", "customer", "supporting"]);
 
-    const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString("latin1");
+    const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString(
+      "latin1",
+    );
     expect(pdf).toMatch(/\/MediaBox\s*\[0 0 1224 792\]/);
     expect((pdf.match(/\/Type\s*\/Page\b/g) || []).length).toBe(1);
     // Text stays text: the page carries fonts rather than one flat picture.

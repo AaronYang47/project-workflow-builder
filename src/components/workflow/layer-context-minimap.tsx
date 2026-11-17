@@ -6,7 +6,20 @@ import { Position, getSmoothStepPath } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { getSemanticEdgeColor } from "@/lib/semantic-edge-geometry";
 import type { DomainEdge } from "@/types/workflow";
-import { type LayerContextMinimapProps, MAP_PADDING, MIN_ZOOM, MAX_ZOOM, HIGH_LEVEL_EDGE_COLOR, subscribeToHydration, getClientHydrationSnapshot, getServerHydrationSnapshot, MIN_L1_EDGE_GAP, MIN_L2_EDGE_GAP, spaceLayerNodes, roundedPath } from "@/lib/layer-context-minimap-layout";
+import {
+  type LayerContextMinimapProps,
+  MAP_PADDING,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  HIGH_LEVEL_EDGE_COLOR,
+  subscribeToHydration,
+  getClientHydrationSnapshot,
+  getServerHydrationSnapshot,
+  MIN_L1_EDGE_GAP,
+  MIN_L2_EDGE_GAP,
+  spaceLayerNodes,
+  roundedPath,
+} from "@/lib/layer-context-minimap-layout";
 
 export function LayerContextMinimap({
   level,
@@ -80,25 +93,13 @@ export function LayerContextMinimap({
   const activeNodeId = activeNode?.id;
 
   const baseInnerHeight =
-    level === "L1"
-      ? expanded
-        ? 180
-        : 88
-      : expanded
-        ? compact
-          ? 200
-          : 320
-        : compact
-          ? 140
-          : 180;
+    level === "L1" ? (expanded ? 180 : 88) : expanded ? (compact ? 200 : 320) : compact ? 140 : 180;
   const svgHeight = Math.round(baseInnerHeight * zoom);
   const svgWidth = Math.round((vbWidth / vbHeight) * svgHeight);
 
   const orderedNavigatorNodes = useMemo(
     () =>
-      [...displayNodes]
-        .filter((node) => !node.container)
-        .sort((a, b) => a.x - b.x || a.y - b.y),
+      [...displayNodes].filter((node) => !node.container).sort((a, b) => a.x - b.x || a.y - b.y),
     [displayNodes],
   );
   const isDraggingRef = useRef(false);
@@ -193,7 +194,9 @@ export function LayerContextMinimap({
         title={onReveal ? `Open ${level} detailed workflow` : `Show ${level} minimap`}
       >
         <Layers3 className="size-3.5 text-primary" />
-        <span>{level} · {title}</span>
+        <span>
+          {level} · {title}
+        </span>
       </button>
     );
   }
@@ -250,9 +253,7 @@ export function LayerContextMinimap({
                 {level} · Context
               </p>
               <span className="text-muted-foreground/40">·</span>
-              <p className="truncate text-xs font-bold text-foreground">
-                {title}
-              </p>
+              <p className="truncate text-xs font-bold text-foreground">{title}</p>
             </div>
           </div>
         </div>
@@ -276,11 +277,7 @@ export function LayerContextMinimap({
               aria-label={`${expanded ? "Restore" : "Expand"} ${level} minimap`}
               title={`${expanded ? "Restore" : "Expand"} minimap`}
             >
-              {expanded ? (
-                <Minimize2 className="size-3.5" />
-              ) : (
-                <Maximize2 className="size-3.5" />
-              )}
+              {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             </button>
           ) : null}
         </div>
@@ -296,18 +293,18 @@ export function LayerContextMinimap({
         onWheel={handleWheel}
         className={cn(
           "scroll-thin relative overflow-x-auto overflow-y-hidden p-2 overscroll-contain transition-all select-none cursor-grab active:cursor-grabbing flex items-center",
-            level === "L1"
-              ? "bg-transparent h-[92px] sm:h-[98px]"
+          level === "L1"
+            ? "bg-transparent h-[92px] sm:h-[98px]"
+            : compact
+              ? "bg-canvas/90 h-[160px] sm:h-[176px]"
+              : "bg-canvas/90 h-[240px] sm:h-[270px]",
+          expandable &&
+            expanded &&
+            (level === "L1"
+              ? "!h-[180px] sm:!h-[200px]"
               : compact
-                ? "bg-canvas/90 h-[160px] sm:h-[176px]"
-                : "bg-canvas/90 h-[240px] sm:h-[270px]",
-            expandable &&
-              expanded &&
-              (level === "L1"
-                ? "!h-[180px] sm:!h-[200px]"
-                : compact
-                  ? "!h-[280px] sm:!h-[320px]"
-                  : "!h-[460px] sm:!h-[520px]"),
+                ? "!h-[280px] sm:!h-[320px]"
+                : "!h-[460px] sm:!h-[520px]"),
         )}
       >
         {hasNodes ? (
@@ -345,8 +342,20 @@ export function LayerContextMinimap({
                   />
                 </marker>
               ))}
-              <filter id={`context-card-shadow-${level}`} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#0f172a" floodOpacity="0.08" />
+              <filter
+                id={`context-card-shadow-${level}`}
+                x="-20%"
+                y="-20%"
+                width="140%"
+                height="140%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="4"
+                  stdDeviation="8"
+                  floodColor="#0f172a"
+                  floodOpacity="0.08"
+                />
               </filter>
             </defs>
 
@@ -358,19 +367,11 @@ export function LayerContextMinimap({
                 if (!source || !target) return null;
                 const isEdgeConnectedToActive = source.active || target.active;
                 const edgeColor =
-                  level === "L2"
-                    ? getSemanticEdgeColor(edge as DomainEdge)
-                    : HIGH_LEVEL_EDGE_COLOR;
+                  level === "L2" ? getSemanticEdgeColor(edge as DomainEdge) : HIGH_LEVEL_EDGE_COLOR;
                 const isDashed = edge.lineStyle === "dashed";
                 const isDotted = edge.lineStyle === "dotted";
                 const dashStyle =
-                  level === "L1"
-                    ? "5"
-                    : isDashed
-                      ? "10 6"
-                      : isDotted
-                        ? "4 4"
-                        : undefined;
+                  level === "L1" ? "5" : isDashed ? "10 6" : isDotted ? "4 4" : undefined;
 
                 let sourceX = source.x + source.width;
                 let sourceY = source.y + source.height / 2;
@@ -381,7 +382,7 @@ export function LayerContextMinimap({
                   sourceY = source.y + source.height * 0.35;
                   preferCorridor = "direct";
                 } else if (edge.sourceHandle === "no") {
-                  sourceY = source.y + source.height * 0.70;
+                  sourceY = source.y + source.height * 0.7;
                   preferCorridor = "below";
                   corridorLane = 1;
                 }
@@ -423,31 +424,30 @@ export function LayerContextMinimap({
                 // keep routes outside of cards. This also covers L1 edges that
                 // skip a card, which previously used a direct path.
                 const mustUseCorridor =
-                  isDeniedOrNoGo ||
-                  isBackward ||
-                  directCollides ||
-                  hasIntermediates;
+                  isDeniedOrNoGo || isBackward || directCollides || hasIntermediates;
 
                 let dPath: string;
 
                 if (mustUseCorridor) {
                   const cardsInSpan = displayNodes.filter(
-                    (c) =>
-                      !c.container &&
-                      c.x + c.width >= minSpanX - 16 &&
-                      c.x <= maxSpanX + 16,
+                    (c) => !c.container && c.x + c.width >= minSpanX - 16 && c.x <= maxSpanX + 16,
                   );
                   cardsInSpan.sort((a, b) => a.x - b.x);
 
                   const firstObs = cardsInSpan.find((c) => c.id !== source.id && c.x >= sourceX);
-                  const lastObs = [...cardsInSpan].reverse().find((c) => c.id !== target.id && c.x + c.width <= targetX);
+                  const lastObs = [...cardsInSpan]
+                    .reverse()
+                    .find((c) => c.id !== target.id && c.x + c.width <= targetX);
 
                   const escapeX = isBackward
                     ? sourceX + 20 + corridorLane * 6
                     : Math.max(
                         sourceX + 16 + corridorLane * 6,
                         firstObs
-                          ? Math.min(firstObs.x - 16, sourceX + (firstObs.x - sourceX) * 0.5 + corridorLane * 6)
+                          ? Math.min(
+                              firstObs.x - 16,
+                              sourceX + (firstObs.x - sourceX) * 0.5 + corridorLane * 6,
+                            )
                           : sourceX + 24 + corridorLane * 6,
                       );
 
@@ -458,7 +458,10 @@ export function LayerContextMinimap({
                         lastObs
                           ? Math.max(
                               lastObs.x + lastObs.width + 12,
-                              lastObs.x + lastObs.width + (targetX - (lastObs.x + lastObs.width)) * 0.45 - corridorLane * 6,
+                              lastObs.x +
+                                lastObs.width +
+                                (targetX - (lastObs.x + lastObs.width)) * 0.45 -
+                                corridorLane * 6,
                             )
                           : targetX - 36 - corridorLane * 6,
                       );
@@ -470,11 +473,7 @@ export function LayerContextMinimap({
                     (preferCorridor !== "below" && targetY < sourceY);
 
                   if (useAbove) {
-                    const highestTop = Math.min(
-                      ...cardsInSpan.map((c) => c.y),
-                      source.y,
-                      target.y,
-                    );
+                    const highestTop = Math.min(...cardsInSpan.map((c) => c.y), source.y, target.y);
                     const effectiveLane = isDeniedOrNoGo ? 2 : corridorLane;
                     const corridorY = highestTop - 36 - effectiveLane * 20;
 
@@ -598,13 +597,15 @@ export function LayerContextMinimap({
               // Project Start cards stay readable at a smaller fixed size so
               // they don't visually overpower the canvas at large L2 widths.
               const isProjectStart =
-                node.type === "projectStart" ||
-                node.label.trim().toLowerCase() === "project start";
+                node.type === "projectStart" || node.label.trim().toLowerCase() === "project start";
               const adaptiveFontSize = isProjectStart
                 ? 14
                 : Math.max(
                     level === "L1" ? 14 : 13,
-                    Math.min(level === "L1" ? 22 : 16, Math.round(Math.min(widthScale, heightScale))),
+                    Math.min(
+                      level === "L1" ? 22 : 16,
+                      Math.round(Math.min(widthScale, heightScale)),
+                    ),
                   );
 
               return (
@@ -696,55 +697,53 @@ export function LayerContextMinimap({
       {/* Interactive Step Navigator Strip */}
       {hasNodes ? (
         <>
-        <div
-          ref={nodeListScroller}
-          className={cn(
-            "scroll-thin flex overflow-x-auto border-t",
-            level === "L1"
-              ? "gap-1.5 px-2.5 py-1.5 bg-transparent"
-              : compact
-                ? "gap-1 px-2 py-1 bg-background/80"
-                : "gap-1.5 px-2.5 py-1.5 bg-background/80",
-          )}
-        >
-          {orderedNavigatorNodes.map((node, index) => {
-            const chipClassName = cn(
-              "flex shrink-0 items-center transition-all",
-              compact
-                ? "gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium"
-                : "gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold",
-              node.active
-                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 shadow-xs"
-                : "cursor-default bg-card/70 text-muted-foreground",
-            );
-            const chipBody = (
-              <>
-                <span
-                  className={cn(
-                    "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
-                    compact ? "size-3.5 text-[8px]" : "size-4 text-[9px]",
-                    node.active
-                      ? "bg-emerald-500 text-white"
-                      : "bg-muted text-muted-foreground",
-                  )}
+          <div
+            ref={nodeListScroller}
+            className={cn(
+              "scroll-thin flex overflow-x-auto border-t",
+              level === "L1"
+                ? "gap-1.5 px-2.5 py-1.5 bg-transparent"
+                : compact
+                  ? "gap-1 px-2 py-1 bg-background/80"
+                  : "gap-1.5 px-2.5 py-1.5 bg-background/80",
+            )}
+          >
+            {orderedNavigatorNodes.map((node, index) => {
+              const chipClassName = cn(
+                "flex shrink-0 items-center transition-all",
+                compact
+                  ? "gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium"
+                  : "gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold",
+                node.active
+                  ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 shadow-xs"
+                  : "cursor-default bg-card/70 text-muted-foreground",
+              );
+              const chipBody = (
+                <>
+                  <span
+                    className={cn(
+                      "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
+                      compact ? "size-3.5 text-[8px]" : "size-4 text-[9px]",
+                      node.active ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <span>{node.label}</span>
+                </>
+              );
+              return (
+                <div
+                  key={node.id}
+                  data-context-node-active={node.active ? "true" : undefined}
+                  title={node.label}
+                  className={chipClassName}
                 >
-                  {index + 1}
-                </span>
-                <span>{node.label}</span>
-              </>
-            );
-            return (
-              <div
-                key={node.id}
-                data-context-node-active={node.active ? "true" : undefined}
-                title={node.label}
-                className={chipClassName}
-              >
-                {chipBody}
-              </div>
-            );
-          })}
-        </div>
+                  {chipBody}
+                </div>
+              );
+            })}
+          </div>
         </>
       ) : null}
 

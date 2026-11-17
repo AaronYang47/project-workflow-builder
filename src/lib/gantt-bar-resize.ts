@@ -2,9 +2,16 @@
 export function beginGanttBarResize(
   event: PointerEvent,
   handle: HTMLElement,
-  options: { startDay: number; initialDays: number; totalDays: number; daysPerWeek?: number; onDrop: (days: number) => void;
-    toDisplayDay?: (day: number, boundary?: "start" | "end") => number; toScheduleDay?: (day: number) => number;
-    onPreview?: (bar: HTMLElement, start: number, days: number) => void },
+  options: {
+    startDay: number;
+    initialDays: number;
+    totalDays: number;
+    daysPerWeek?: number;
+    onDrop: (days: number) => void;
+    toDisplayDay?: (day: number, boundary?: "start" | "end") => number;
+    toScheduleDay?: (day: number) => number;
+    onPreview?: (bar: HTMLElement, start: number, days: number) => void;
+  },
 ) {
   if (event.button !== 0) return;
   const bar = handle.closest<HTMLElement>("[data-gantt-task-key]");
@@ -23,7 +30,8 @@ export function beginGanttBarResize(
   let nextDays = options.initialDays;
   let moved = false;
   const tooltip = document.createElement("div");
-  tooltip.style.cssText = "position:fixed;z-index:99999;pointer-events:none;padding:5px 7px;border-radius:5px;background:#0f172a;color:white;font:11px Arial,sans-serif;box-shadow:0 6px 18px #0004";
+  tooltip.style.cssText =
+    "position:fixed;z-index:99999;pointer-events:none;padding:5px 7px;border-radius:5px;background:#0f172a;color:white;font:11px Arial,sans-serif;box-shadow:0 6px 18px #0004";
   const cleanup = () => {
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", finish);
@@ -42,9 +50,16 @@ export function beginGanttBarResize(
     const shift = pointer.clientX - originX + board.scrollLeft - initialScroll;
     if (Math.abs(shift) < (event.pointerType === "touch" ? 8 : 3) && !moved) return;
     moved = true;
-    const desiredEnd = displayDay(options.startDay + options.initialDays, "end") + shift / pixelsPerDay;
-    nextDays = Math.max(1, Math.min(scheduleDay(options.totalDays) - options.startDay, Math.round(scheduleDay(desiredEnd) - options.startDay)));
-    bar.style.width = `${(displayDay(options.startDay + nextDays, "end") - displayDay(options.startDay)) / options.totalDays * 100}%`;
+    const desiredEnd =
+      displayDay(options.startDay + options.initialDays, "end") + shift / pixelsPerDay;
+    nextDays = Math.max(
+      1,
+      Math.min(
+        scheduleDay(options.totalDays) - options.startDay,
+        Math.round(scheduleDay(desiredEnd) - options.startDay),
+      ),
+    );
+    bar.style.width = `${((displayDay(options.startDay + nextDays, "end") - displayDay(options.startDay)) / options.totalDays) * 100}%`;
     options.onPreview?.(bar, options.startDay, nextDays);
     bar.setAttribute("data-gantt-resizing", "true");
     const weeks = Number((nextDays / (options.daysPerWeek ?? 7)).toFixed(nextDays < 7 ? 2 : 1));
@@ -60,8 +75,12 @@ export function beginGanttBarResize(
     cleanup();
     if (days !== null) options.onDrop(days);
   };
-  const cancel = (pointer: PointerEvent) => { if (pointer.pointerId === pointerId) cleanup(); };
-  const onKeyDown = (key: KeyboardEvent) => { if (key.key === "Escape") cleanup(); };
+  const cancel = (pointer: PointerEvent) => {
+    if (pointer.pointerId === pointerId) cleanup();
+  };
+  const onKeyDown = (key: KeyboardEvent) => {
+    if (key.key === "Escape") cleanup();
+  };
   handle.setPointerCapture(pointerId);
   handle.addEventListener("pointermove", move);
   handle.addEventListener("pointerup", finish);

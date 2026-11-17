@@ -1,10 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  PROJECT_ID_PATTERN,
-  legacyJobNumberFromProjectId,
-} from "@/lib/project-id";
+import { PROJECT_ID_PATTERN, legacyJobNumberFromProjectId } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 
 /**
@@ -29,8 +26,10 @@ export function ProjectIdBadge({
   const projectId = rawProjectId;
   const ready = PROJECT_ID_PATTERN.test(projectId);
   const legacy = legacyJobNumberFromProjectId(projectId);
-  const customerCode = String(projectStart?.customFields.customerCode || "").toUpperCase() ||
-    projectName.match(/^\d{5}[_ -]([A-Za-z]{4})(?=[_ -]|$)/)?.[1]?.toUpperCase() || "";
+  const customerCode =
+    String(projectStart?.customFields.customerCode || "").toUpperCase() ||
+    projectName.match(/^\d{5}[_ -]([A-Za-z]{4})(?=[_ -]|$)/)?.[1]?.toUpperCase() ||
+    "";
   const displayedId = [legacy, customerCode].filter(Boolean).join(" ");
 
   if (!ready && !showPlaceholder) return null;
@@ -61,7 +60,13 @@ export function ProjectIdBadge({
         className,
       )}
     >
-      <span className={cn(idSize, "whitespace-nowrap font-bold text-right", ready ? "text-foreground dark:text-white" : "text-amber-900 dark:text-amber-200")}>
+      <span
+        className={cn(
+          idSize,
+          "whitespace-nowrap font-bold text-right",
+          ready ? "text-foreground dark:text-white" : "text-amber-900 dark:text-amber-200",
+        )}
+      >
         {ready ? displayedId : "JOB # NOT SET"}
       </span>
     </span>

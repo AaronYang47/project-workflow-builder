@@ -23,15 +23,15 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
   const width = useWorkflowStore((state) => state.file.layout.nodes[node.id]?.width ?? 720);
   const headerRows = phaseHeaderRows(node, width);
   const childCount = useWorkflowStore(
-    (state) =>
-      Object.values(state.file.layout.nodes).filter(
-        (l) => l.parentId === node.id,
-      ).length,
+    (state) => Object.values(state.file.layout.nodes).filter((l) => l.parentId === node.id).length,
   );
   const defaultColor = isGate ? "#7c3aed" : "#0d9488";
   const color = isGate
     ? node.color || "#7c3aed"
-    : node.color || data.phaseColor || (data as { phaseColor?: string })?.phaseColor || defaultColor;
+    : node.color ||
+      data.phaseColor ||
+      (data as { phaseColor?: string })?.phaseColor ||
+      defaultColor;
   const Icon = isGate ? ShieldCheck : Layers3;
 
   return (
@@ -43,8 +43,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
       className={cn(
         "h-full w-full rounded-2xl border-2 transition duration-200 pointer-events-none",
         isGate ? "l2-gate-container border-dashed" : "l2-phase-card",
-        selected &&
-          "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
+        selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
       )}
       style={{
         borderColor: isGate ? `${color}99` : `${color}77`,
@@ -57,11 +56,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
           minHeight={isGate ? 180 : 260}
           isVisible={selected}
           onResizeEnd={(_, params) =>
-            updateLayout(
-              node.id,
-              { width: params.width, height: params.height },
-              true,
-            )
+            updateLayout(node.id, { width: params.width, height: params.height }, true)
           }
         />
       </div>
@@ -122,9 +117,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
             aria-label="Phase description"
             defaultValue={node.description}
             rows={isGate ? rowsFor(node.description, 48) : headerRows.description}
-            onBlur={(event) =>
-              updateNode(node.id, { description: event.target.value.trim() })
-            }
+            onBlur={(event) => updateNode(node.id, { description: event.target.value.trim() })}
             className={cn(
               "nodrag mt-0.5 w-full resize-none overflow-hidden bg-transparent font-medium text-muted-foreground outline-none",
               isGate ? "text-xs leading-4 min-h-4 line-clamp-2" : "text-sm leading-6 min-h-6",
@@ -138,11 +131,7 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
             noteKey="phase-card"
             label={`${node.title} phase card`}
           />
-          <span
-            role="img"
-            aria-label="Drag phase"
-            className="text-muted-foreground/50"
-          >
+          <span role="img" aria-label="Drag phase" className="text-muted-foreground/50">
             <GripVertical className="size-4" />
           </span>
           <ChevronDown className="size-4 text-muted-foreground" />

@@ -1,4 +1,10 @@
-import { fileForbidden, filePrefix, isLegacyFileOwner, mayAccessFile, requireFileUser } from "../_file-access";
+import {
+  fileForbidden,
+  filePrefix,
+  isLegacyFileOwner,
+  mayAccessFile,
+  requireFileUser,
+} from "../_file-access";
 
 function cleanGeneratedFileName(value: string) {
   return value
@@ -9,11 +15,19 @@ function cleanGeneratedFileName(value: string) {
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const auth = await requireFileUser(request, env);
   if (auth.response) return auth.response;
-  if (!env.R2_BUCKET) return Response.json({ ok: true, ownerUserId: auth.user!.id, files: [] }, { headers: { "cache-control": "private, no-store" } });
+  if (!env.R2_BUCKET)
+    return Response.json(
+      { ok: true, ownerUserId: auth.user!.id, files: [] },
+      { headers: { "cache-control": "private, no-store" } },
+    );
 
   try {
-    const own = await env.R2_BUCKET.list({ prefix: filePrefix(auth.user!.id), limit: 200, include: ["customMetadata", "httpMetadata"] });
-    const legacy = await isLegacyFileOwner(env.DB, auth.user!.id)
+    const own = await env.R2_BUCKET.list({
+      prefix: filePrefix(auth.user!.id),
+      limit: 200,
+      include: ["customMetadata", "httpMetadata"],
+    });
+    const legacy = (await isLegacyFileOwner(env.DB, auth.user!.id))
       ? await env.R2_BUCKET.list({ limit: 200, include: ["customMetadata", "httpMetadata"] })
       : null;
     const objects = [
@@ -23,7 +37,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const files = objects.map((obj) => {
       const meta = obj.customMetadata || {};
       const keyParts = obj.key.split("/");
-      const category = meta.category || (obj.key.startsWith("users/") ? keyParts[2] : keyParts[0]) || "supporting";
+      const category =
+        meta.category || (obj.key.startsWith("users/") ? keyParts[2] : keyParts[0]) || "supporting";
       const rawFileName = meta.fileName || keyParts.at(-1) || obj.key;
       const fileName = cleanGeneratedFileName(rawFileName);
       const title = cleanGeneratedFileName(meta.title || fileName);
@@ -42,7 +57,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       };
     });
     files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
-    return Response.json({ ok: true, ownerUserId: auth.user!.id, files }, { headers: { "cache-control": "private, no-store" } });
+    return Response.json(
+      { ok: true, ownerUserId: auth.user!.id, files },
+      { headers: { "cache-control": "private, no-store" } },
+    );
   } catch {
     return Response.json({ ok: false, error: "Failed to list files." }, { status: 500 });
   }
@@ -54,10 +72,14 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
   const key = new URL(request.url).searchParams.get("key");
   if (!key) return Response.json({ ok: false, error: "Key is required." }, { status: 400 });
   if (!(await mayAccessFile(env.DB, auth.user!.id, key))) return fileForbidden();
-  if (!env.R2_BUCKET) return Response.json({ ok: false, error: "Storage unavailable." }, { status: 503 });
+  if (!env.R2_BUCKET)
+    return Response.json({ ok: false, error: "Storage unavailable." }, { status: 503 });
   try {
     await env.R2_BUCKET.delete(key);
-    return Response.json({ ok: true, deletedKey: key }, { headers: { "cache-control": "private, no-store" } });
+    return Response.json(
+      { ok: true, deletedKey: key },
+      { headers: { "cache-control": "private, no-store" } },
+    );
   } catch {
     return Response.json({ ok: false, error: "Failed to delete file." }, { status: 500 });
   }

@@ -35,9 +35,7 @@ const GATE_REVISION_ROW_HEIGHT = 108;
 const wrappedLines = (value: string | undefined, charactersPerLine: number) =>
   Math.max(1, Math.ceil((value?.length || 0) / charactersPerLine));
 
-export function getGateLayoutMetrics(
-  node: Pick<DomainNode, "config" | "title" | "description">,
-) {
+export function getGateLayoutMetrics(node: Pick<DomainNode, "config" | "title" | "description">) {
   const gateTitleLines = wrappedLines(node.title, 48);
   const gateDescriptionLines = wrappedLines(node.description, 58);
   const gateCardHeight = Math.max(
@@ -60,8 +58,7 @@ export function getGateLayoutMetrics(
     (sum, rule) =>
       sum +
       (rule.signatures || []).reduce((documentHeight, signature) => {
-        if (signature.collapsed)
-          return documentHeight + GATE_SIGNATURE_COLLAPSED_HEIGHT;
+        if (signature.collapsed) return documentHeight + GATE_SIGNATURE_COLLAPSED_HEIGHT;
         const topLines = Math.max(
           wrappedLines(signature.abbreviation, 8),
           wrappedLines(signature.fullName, 34),
@@ -75,8 +72,7 @@ export function getGateLayoutMetrics(
         const revisionHistoryHeight = !signature.revisionControlled
           ? 0
           : revisionCount
-            ? GATE_REVISION_HISTORY_HEADER_HEIGHT +
-              revisionCount * GATE_REVISION_ROW_HEIGHT
+            ? GATE_REVISION_HISTORY_HEADER_HEIGHT + revisionCount * GATE_REVISION_ROW_HEIGHT
             : GATE_EMPTY_REVISION_HISTORY_HEIGHT;
         return (
           documentHeight +
@@ -89,22 +85,14 @@ export function getGateLayoutMetrics(
       }, 0),
     0,
   );
-  const conditionsHeight =
-    GATE_CONDITIONS_BASE_HEIGHT + ruleHeight + signatureHeight;
+  const conditionsHeight = GATE_CONDITIONS_BASE_HEIGHT + ruleHeight + signatureHeight;
   const outcomeCount = Math.max(2, node.config.outcomes?.length || 0);
   const outcomeExtra = (node.config.outcomes || []).reduce(
     (total, outcome) =>
-      total +
-      Math.max(
-        0,
-        wrappedLines(`${outcome.label} ${outcome.rule || ""}`, 56) - 1,
-      ) *
-        20,
+      total + Math.max(0, wrappedLines(`${outcome.label} ${outcome.rule || ""}`, 56) - 1) * 20,
     0,
   );
-  const decisionPaidCodesHeight = (node.config.gateRules || []).some(
-    ruleHasPaidService,
-  )
+  const decisionPaidCodesHeight = (node.config.gateRules || []).some(ruleHasPaidService)
     ? GATE_PAID_CODES_HEIGHT
     : 0;
   const decisionHeight =
@@ -137,10 +125,7 @@ export function withMeasuredGateHeight(
 ): GateLayoutMetrics {
   if (!layoutHeight) return metrics;
   const measuredConditions =
-    layoutHeight -
-    metrics.conditionsTop -
-    GATE_SECTION_GAP -
-    metrics.decisionHeight;
+    layoutHeight - metrics.conditionsTop - GATE_SECTION_GAP - metrics.decisionHeight;
   if (measuredConditions <= metrics.conditionsHeight) return metrics;
   const extra = measuredConditions - metrics.conditionsHeight;
   return {

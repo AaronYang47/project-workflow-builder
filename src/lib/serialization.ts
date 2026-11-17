@@ -1,11 +1,6 @@
-import {
-  EDGE_TYPES,
-  NODE_TYPES,
-  type WorkflowFile,
-} from "@/types/workflow";
+import { EDGE_TYPES, NODE_TYPES, type WorkflowFile } from "@/types/workflow";
 
-export const serializeWorkflow = (file: WorkflowFile) =>
-  JSON.stringify(file, null, 2);
+export const serializeWorkflow = (file: WorkflowFile) => JSON.stringify(file, null, 2);
 export function parseWorkflow(input: string): WorkflowFile {
   return parseWorkflowValue(JSON.parse(input));
 }
@@ -54,25 +49,19 @@ export function parseWorkflowValue(input: unknown): WorkflowFile {
     !value.layout.nodes ||
     typeof value.layout.nodes !== "object" ||
     !value.layout.viewport ||
-    ![
-      value.layout.viewport.x,
-      value.layout.viewport.y,
-      value.layout.viewport.zoom,
-    ].every(Number.isFinite) ||
+    ![value.layout.viewport.x, value.layout.viewport.y, value.layout.viewport.zoom].every(
+      Number.isFinite,
+    ) ||
     value.layout.viewport.zoom <= 0 ||
     !Object.values(value.layout.nodes).every(
       (layout) =>
         layout &&
         typeof layout.nodeId === "string" &&
-        [layout.x, layout.y, layout.width, layout.height].every(
-          Number.isFinite,
-        ),
+        [layout.x, layout.y, layout.width, layout.height].every(Number.isFinite),
     ) ||
     !value.graph.nodes.every((node) => Boolean(value.layout!.nodes[node.id]))
   )
-    throw new Error(
-      "This workflow file is incomplete or contains unsupported data.",
-    );
+    throw new Error("This workflow file is incomplete or contains unsupported data.");
   return value as WorkflowFile;
 }
 export function downloadBlob(name: string, data: BlobPart, type: string) {
@@ -83,10 +72,6 @@ export function downloadBlob(name: string, data: BlobPart, type: string) {
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
-export function downloadText(
-  name: string,
-  content: string,
-  type = "application/json",
-) {
+export function downloadText(name: string, content: string, type = "application/json") {
   downloadBlob(name, content, type);
 }

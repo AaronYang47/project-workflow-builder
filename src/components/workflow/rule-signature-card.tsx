@@ -19,11 +19,7 @@ import {
 } from "@/lib/gate-service-types";
 import { signatureFieldsComplete as signatureIsComplete } from "@/lib/workflow-progress";
 import { stopBubble, textareaRows } from "./node-utils";
-import type {
-  GateSignatureRequirement,
-  RequirementType,
-  RevisionRecord,
-} from "@/types/workflow";
+import type { GateSignatureRequirement, RequirementType, RevisionRecord } from "@/types/workflow";
 
 /**
  * One signature/document row inside an approval condition. Tracks its own
@@ -84,16 +80,11 @@ export function RuleSignatureCard({
       checked: false,
     });
   const removeRevision = (revisionId: string) => {
-    const remaining = revisions.filter(
-      (revision) => revision.id !== revisionId,
-    );
+    const remaining = revisions.filter((revision) => revision.id !== revisionId);
     update({
       revisions: remaining.map((revision, index) => ({
         ...revision,
-        status:
-          index === remaining.length - 1
-            ? ("Current" as const)
-            : ("Superseded" as const),
+        status: index === remaining.length - 1 ? ("Current" as const) : ("Superseded" as const),
       })),
       checked: false,
     });
@@ -115,11 +106,7 @@ export function RuleSignatureCard({
           aria-label={`${prefix} completed`}
           aria-pressed={signature.checked}
           disabled={!complete}
-          title={
-            complete
-              ? "Mark signature complete"
-              : "Complete every field before checking"
-          }
+          title={complete ? "Mark signature complete" : "Complete every field before checking"}
           onClick={stopBubble(() => update({ checked: !signature.checked }))}
           className={cn(
             "flex size-4 items-center justify-center rounded border",
@@ -188,9 +175,7 @@ export function RuleSignatureCard({
                 defaultValue={signature.abbreviation}
                 rows={textareaRows(signature.abbreviation, 16, 1)}
                 placeholder="NDA"
-                onBlur={(event) =>
-                  updateText("abbreviation", event.target.value)
-                }
+                onBlur={(event) => updateText("abbreviation", event.target.value)}
                 className="min-h-8 w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1 text-xs font-black uppercase leading-5 outline-none focus:border-primary"
               />
             </label>
@@ -219,8 +204,7 @@ export function RuleSignatureCard({
               className="size-3.5 shrink-0 rounded-full border border-background shadow-sm"
               style={{
                 backgroundColor:
-                  getGateServiceType(documentServiceTypeId(signature))?.color ||
-                  "#cbd5e1",
+                  getGateServiceType(documentServiceTypeId(signature))?.color || "#cbd5e1",
               }}
             />
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -229,9 +213,7 @@ export function RuleSignatureCard({
             <select
               aria-label={`${prefix} service type`}
               value={documentServiceTypeId(signature) || ""}
-              onChange={(event) =>
-                update({ serviceType: event.target.value || undefined })
-              }
+              onChange={(event) => update({ serviceType: event.target.value || undefined })}
               className="h-full min-w-0 flex-1 bg-transparent text-xs font-bold outline-none"
             >
               <option value="">Select a service type</option>
@@ -294,9 +276,7 @@ export function RuleSignatureCard({
                 aria-label={`${prefix} status`}
                 defaultValue={signature.status || ""}
                 placeholder="Draft"
-                onBlur={(event) =>
-                  update({ status: event.target.value.trim() })
-                }
+                onBlur={(event) => update({ status: event.target.value.trim() })}
                 className="h-8 w-full rounded border bg-background px-2.5 text-xs font-semibold"
               />
             </label>
@@ -307,12 +287,11 @@ export function RuleSignatureCard({
                 update({
                   revisionControlled: !signature.revisionControlled,
                   checked: false,
-                })
+                }),
               )}
               className={cn(
                 "mt-[18px] min-h-8 rounded border px-2 text-[10px] font-bold",
-                signature.revisionControlled &&
-                  "border-primary bg-primary/10 text-primary",
+                signature.revisionControlled && "border-primary bg-primary/10 text-primary",
               )}
             >
               Revision control
@@ -360,7 +339,7 @@ export function RuleSignatureCard({
                               value={revision.revision}
                               onChange={(event) =>
                                 updateRevision(revision.id, {
-                                 revision: event.target.value,
+                                  revision: event.target.value,
                                 })
                               }
                               placeholder="Rev 1"

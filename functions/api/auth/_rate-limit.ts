@@ -14,15 +14,14 @@ export const checkAuthRateLimit = async (
   email: string,
 ) => {
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
-  const rules = action === "login"
-    ? [
-        { scope: "login-account", identity: `${ip}|${email}`, limit: 8, windowSeconds: 900 },
-        { scope: "login-email", identity: email, limit: 20, windowSeconds: 900 },
-        { scope: "login-ip", identity: ip, limit: 40, windowSeconds: 900 },
-      ]
-    : [
-        { scope: "register-ip", identity: ip, limit: 5, windowSeconds: 3600 },
-      ];
+  const rules =
+    action === "login"
+      ? [
+          { scope: "login-account", identity: `${ip}|${email}`, limit: 8, windowSeconds: 900 },
+          { scope: "login-email", identity: email, limit: 20, windowSeconds: 900 },
+          { scope: "login-ip", identity: ip, limit: 40, windowSeconds: 900 },
+        ]
+      : [{ scope: "register-ip", identity: ip, limit: 5, windowSeconds: 3600 }];
 
   for (const rule of rules) {
     const now = Math.floor(Date.now() / 1000);
@@ -38,16 +37,17 @@ export const checkAuthRateLimit = async (
            THEN auth_rate_limits.attempts + 1
            ELSE 1
          END`,
-    ).bind(key, windowStart).run();
+    )
+      .bind(key, windowStart)
+      .run();
     const row = await env.DB.prepare("SELECT attempts FROM auth_rate_limits WHERE key_hash = ?")
-      .bind(key).first<{ attempts: number }>();
+      .bind(key)
+      .first<{ attempts: number }>();
     if ((row?.attempts || 0) > rule.limit) {
       const retryAfter = Math.max(1, windowStart + rule.windowSeconds - now);
-      return json(
-        { error: "Too many attempts. Please try again later." },
-        429,
-        { "retry-after": String(retryAfter) },
-      );
+      return json({ error: "Too many attempts. Please try again later." }, 429, {
+        "retry-after": String(retryAfter),
+      });
     }
   }
   return null;

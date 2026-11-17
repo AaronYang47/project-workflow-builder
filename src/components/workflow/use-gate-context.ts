@@ -48,15 +48,9 @@ export function useGateContext(node: DomainNode) {
     // Building / module codes are project-wide: the Decision card and every
     // paid condition show the same pair. Prefer the paid-condition values so
     // a code typed above the Decision card is what the Decision card displays.
-    const paidRule = (node.config.gateRules || []).find((rule) =>
-      ruleHasPaidService(rule),
-    );
-    const buildingCode = String(
-      paidRule?.buildingCode || config.buildingCode || "",
-    );
-    const moduleCode = String(
-      paidRule?.moduleCode || config.moduleCode || "",
-    );
+    const paidRule = (node.config.gateRules || []).find((rule) => ruleHasPaidService(rule));
+    const buildingCode = String(paidRule?.buildingCode || config.buildingCode || "");
+    const moduleCode = String(paidRule?.moduleCode || config.moduleCode || "");
     const displayedProjectId = baseProjectId;
     const isPaid = serviceType === "Paid Service";
     return {
@@ -65,8 +59,7 @@ export function useGateContext(node: DomainNode) {
       legacyJobNumber: legacyJobNumberFromProjectId(baseProjectId),
       buildingCode,
       moduleCode,
-      paidMissingBuilding:
-        isPaid && !BUILDING_PATTERN.test(buildingCode),
+      paidMissingBuilding: isPaid && !BUILDING_PATTERN.test(buildingCode),
       paidMissingModule: isPaid && !MODULE_PATTERN.test(moduleCode),
       showBadge: PROJECT_ID_PATTERN.test(baseProjectId),
     };
@@ -75,23 +68,19 @@ export function useGateContext(node: DomainNode) {
   const interfaceText = useMemo(
     () => ({
       conditionsTitle: node.config.conditionsTitle || "Approval conditions",
-      conditionsSubtitle:
-        node.config.conditionsSubtitle || "requirements complete",
+      conditionsSubtitle: node.config.conditionsSubtitle || "requirements complete",
       checklistTitle: node.config.checklistTitle || "Conditions checklist",
       checklistHint:
-        node.config.checklistHint ||
-        "Every applicable required document must be complete",
+        node.config.checklistHint || "Every applicable required document must be complete",
       conditionLabel: node.config.conditionLabel || "Condition",
       addConditionLabel: node.config.addConditionLabel || "Add condition",
-      documentsLabel:
-        node.config.documentsLabel || "All applicable required documents",
+      documentsLabel: node.config.documentsLabel || "All applicable required documents",
       addDocumentLabel: node.config.addDocumentLabel || "Add document",
       decisionTitle: node.config.decisionTitle || "Decision",
       decisionSubtitle: node.config.decisionSubtitle || "Approval routing",
       departmentLabel: node.config.departmentLabel || "Department",
       approverLabel: node.config.approverLabel || "Approved by",
-      detailsNeededLabel:
-        node.config.detailsNeededLabel || "Details needed",
+      detailsNeededLabel: node.config.detailsNeededLabel || "Details needed",
     }),
     [node.config],
   );
@@ -104,15 +93,9 @@ export function useGateContext(node: DomainNode) {
   const conditionProgress = getGateConditionProgress(node);
   const conditionState = conditionProgress.state;
   const decisionState: GateCompletionState =
-    conditionProgress.completed === 0
-      ? "none"
-      : approvalReady
-        ? "complete"
-        : "partial";
+    conditionProgress.completed === 0 ? "none" : approvalReady ? "complete" : "partial";
 
-  const layoutHeight = useWorkflowStore(
-    (state) => state.file.layout.nodes[node.id]?.height,
-  );
+  const layoutHeight = useWorkflowStore((state) => state.file.layout.nodes[node.id]?.height);
   const metrics = useMemo(() => {
     return withMeasuredGateHeight(getGateLayoutMetrics(node), layoutHeight);
   }, [node, layoutHeight]);

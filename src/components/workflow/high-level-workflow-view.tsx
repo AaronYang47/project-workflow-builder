@@ -20,7 +20,10 @@ import { linkedWorkflowGate, orderLinkedWorkflowNodeIds } from "@/lib/high-level
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import { departmentDisplayName } from "@/lib/department-label";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { HighLevelNode as HighLevelNodeComponent, type HighLevelFlowNode } from "./high-level-node";
 
 import { useShallow } from "zustand/react/shallow";
@@ -113,7 +116,9 @@ function HighLevelCanvasInner({
   const workflowGateCount = useMemo(() => {
     const gateIds = new Set<string>();
     for (const highLevelNode of highLevel.graph.nodes) {
-      for (const nodeId of highLevelNode.linkedLayer2NodeIds ?? highLevelNode.linkedDetailedNodeIds ?? []) {
+      for (const nodeId of highLevelNode.linkedLayer2NodeIds ??
+        highLevelNode.linkedDetailedNodeIds ??
+        []) {
         const gate = linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes);
         if (gate) gateIds.add(gate.id);
       }
@@ -172,15 +177,24 @@ function HighLevelCanvasInner({
           }
         }
         const availableGates = file.graph.nodes
-          .filter((layer2Node) => layer2Node.type === "gate" &&
-            linkedPhaseIds.has(file.layout.nodes[layer2Node.id]?.parentId ?? ""))
+          .filter(
+            (layer2Node) =>
+              layer2Node.type === "gate" &&
+              linkedPhaseIds.has(file.layout.nodes[layer2Node.id]?.parentId ?? ""),
+          )
           .map((gate) => ({
             id: gate.id,
             title: gate.title,
-            eligibleNodeIds: linkedLayer2NodeIds.filter((id) =>
-              linkedPhaseById.get(id) === file.layout.nodes[gate.id]?.parentId),
+            eligibleNodeIds: linkedLayer2NodeIds.filter(
+              (id) => linkedPhaseById.get(id) === file.layout.nodes[gate.id]?.parentId,
+            ),
           }));
-        const width = node.type === "phase" || node.type === "primaryGate" ? 288 : node.type === "start" || node.type === "end" ? 256 : 208;
+        const width =
+          node.type === "phase" || node.type === "primaryGate"
+            ? 288
+            : node.type === "start" || node.type === "end"
+              ? 256
+              : 208;
         return {
           id: node.id,
           type: node.type,
@@ -202,7 +216,10 @@ function HighLevelCanvasInner({
                 (candidate) => candidate.id === linkedPhaseById.get(nodeId),
               );
               const parentPhaseNumber = parentPhase?.title.match(/\d+/)?.[0];
-              const manualChapterNumber = String(layer2Node.config.chapterNumber ?? "").replace(/\D/g, "");
+              const manualChapterNumber = String(layer2Node.config.chapterNumber ?? "").replace(
+                /\D/g,
+                "",
+              );
               const phaseGradientColors =
                 (layer2Node.type === "general" || layer2Node.type === "projectStart") &&
                 layer2Node.config.blendAdjacentPhaseColors === true
@@ -213,20 +230,25 @@ function HighLevelCanvasInner({
                       highLevel.graph.nodes,
                     )
                   : undefined;
-              return [{
-                id: nodeId,
-                chapterTitle: manualChapterNumber
-                  ? `CHAPTER ${manualChapterNumber.padStart(2, "0")}`
-                  : /^chapter\s+\d+$/i.test(layer2Node.title.trim())
-                  ? layer2Node.title.trim().toUpperCase()
-                  : (layer2Node.type === "end" || layer2Node.type === "terminal") && parentPhaseNumber
-                    ? `CHAPTER ${parentPhaseNumber.padStart(2, "0")}`
-                  : `CHAPTER ${String(linkedIndex + 1).padStart(2, "0")}`,
-                title: linkedWorkflowDisplayName(layer2Node),
-                gate: linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes),
-                conditionLabels: layer2Node.conditions.map((condition) => condition.label || condition.description || "Release condition"),
-                phaseGradientColors,
-              }];
+              return [
+                {
+                  id: nodeId,
+                  chapterTitle: manualChapterNumber
+                    ? `CHAPTER ${manualChapterNumber.padStart(2, "0")}`
+                    : /^chapter\s+\d+$/i.test(layer2Node.title.trim())
+                      ? layer2Node.title.trim().toUpperCase()
+                      : (layer2Node.type === "end" || layer2Node.type === "terminal") &&
+                          parentPhaseNumber
+                        ? `CHAPTER ${parentPhaseNumber.padStart(2, "0")}`
+                        : `CHAPTER ${String(linkedIndex + 1).padStart(2, "0")}`,
+                  title: linkedWorkflowDisplayName(layer2Node),
+                  gate: linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes),
+                  conditionLabels: layer2Node.conditions.map(
+                    (condition) => condition.label || condition.description || "Release condition",
+                  ),
+                  phaseGradientColors,
+                },
+              ];
             }),
             onLinkedLayer2NodeClick: focusLayer2Node,
             onViewAllLinkedLayer2Nodes: () => focusLayer2Nodes(linkedLayer2NodeIds),
@@ -319,12 +341,7 @@ function HighLevelCanvasInner({
     };
 
     document.addEventListener("pointerdown", onNodePointerDownCapture, true);
-    return () =>
-      document.removeEventListener(
-        "pointerdown",
-        onNodePointerDownCapture,
-        true,
-      );
+    return () => document.removeEventListener("pointerdown", onNodePointerDownCapture, true);
   }, [selectHighLevelEdge, selectHighLevelNodes]);
 
   const edges = useMemo<Edge[]>(
@@ -365,12 +382,11 @@ function HighLevelCanvasInner({
     (event: React.DragEvent) => {
       event.preventDefault();
       if (!canEditWorkflow) return;
-      const type = event.dataTransfer.getData("application/high-level-node") as HighLevelNode["type"];
+      const type = event.dataTransfer.getData(
+        "application/high-level-node",
+      ) as HighLevelNode["type"];
       if (!type) return;
-      addHighLevelNode(
-        type,
-        flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      );
+      addHighLevelNode(type, flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
     },
     [addHighLevelNode, canEditWorkflow, flow],
   );
@@ -414,10 +430,12 @@ function HighLevelCanvasInner({
           if (!canEditWorkflow) return;
           const before = dragBefore.current;
           if (before[node.id]) {
-            useWorkflowStore.getState().commitHighLevelLayoutDrag(
-              { [node.id]: { x: node.position.x, y: node.position.y } },
-              before,
-            );
+            useWorkflowStore
+              .getState()
+              .commitHighLevelLayoutDrag(
+                { [node.id]: { x: node.position.x, y: node.position.y } },
+                before,
+              );
           }
           dragBefore.current = {};
         }}
@@ -466,12 +484,7 @@ function HighLevelCanvasInner({
         deleteKeyCode={canEditWorkflow ? ["Backspace", "Delete"] : null}
         className="workflow-flow"
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={16}
-          size={1.2}
-          color="var(--grid-dot)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--grid-dot)" />
         <Controls
           position="bottom-left"
           className="!left-4 !bottom-20 !m-0 !overflow-hidden !rounded-lg !border !shadow-sm"
@@ -491,9 +504,7 @@ function HighLevelCanvasInner({
       ) : null}
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <p className="text-xs text-muted-foreground/70">
-            Drag a node from the library to begin.
-          </p>
+          <p className="text-xs text-muted-foreground/70">Drag a node from the library to begin.</p>
         </div>
       ) : null}
     </section>

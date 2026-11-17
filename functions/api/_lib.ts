@@ -7,9 +7,7 @@ export const json = (body: unknown, status = 200, headers?: HeadersInit) =>
   });
 
 const toHex = (buffer: ArrayBuffer) =>
-  [...new Uint8Array(buffer)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 
 const randomToken = (bytes = 32) => {
   const value = new Uint8Array(bytes);
@@ -22,12 +20,7 @@ const sha256 = async (value: string) =>
 
 export const PROJECT_VERSION_RETENTION = 50;
 
-export type ProjectVersionChangeKind =
-  | "baseline"
-  | "created"
-  | "updated"
-  | "restored"
-  | "approval";
+export type ProjectVersionChangeKind = "baseline" | "created" | "updated" | "restored" | "approval";
 
 export type ProjectAuditAction =
   | "project.created"
@@ -76,17 +69,13 @@ type ProjectAuditEntry = {
 
 // Hash the exact persisted strings, including metadata that is restored with
 // the workflow. The array encoding avoids ambiguous delimiter combinations.
-export const projectSnapshotHash = (
-  name: string,
-  projectNumber: string,
-  workflowJson: string,
-) => sha256(JSON.stringify([name, projectNumber, workflowJson]));
+export const projectSnapshotHash = (name: string, projectNumber: string, workflowJson: string) =>
+  sha256(JSON.stringify([name, projectNumber, workflowJson]));
 
-export const appendProjectVersionStatement = (
-  db: D1Database,
-  snapshot: ProjectSnapshot,
-) => db.prepare(
-  `INSERT INTO project_versions (
+export const appendProjectVersionStatement = (db: D1Database, snapshot: ProjectSnapshot) =>
+  db
+    .prepare(
+      `INSERT INTO project_versions (
     id, project_id, owner_user_id, version_number, name, project_number,
     workflow_json, content_hash, change_kind, restored_from_version_id,
     created_by_user_id, created_at
@@ -95,28 +84,31 @@ export const appendProjectVersionStatement = (
     (SELECT COALESCE(MAX(version_number), 0) + 1 FROM project_versions WHERE project_id = ?),
     ?, ?, ?, ?, ?, ?, ?, ?
   )`,
-).bind(
-  snapshot.id,
-  snapshot.projectId,
-  snapshot.ownerUserId,
-  snapshot.projectId,
-  snapshot.name,
-  snapshot.projectNumber,
-  snapshot.workflowJson,
-  snapshot.contentHash,
-  snapshot.changeKind,
-  snapshot.restoredFromVersionId ?? null,
-  snapshot.actorUserId,
-  snapshot.createdAt,
-);
+    )
+    .bind(
+      snapshot.id,
+      snapshot.projectId,
+      snapshot.ownerUserId,
+      snapshot.projectId,
+      snapshot.name,
+      snapshot.projectNumber,
+      snapshot.workflowJson,
+      snapshot.contentHash,
+      snapshot.changeKind,
+      snapshot.restoredFromVersionId ?? null,
+      snapshot.actorUserId,
+      snapshot.createdAt,
+    );
 
 // Projects created before migration 0002 receive one recoverable copy of their
 // pre-update state the first time they are saved after the migration.
 export const appendBaselineIfMissingStatement = (
   db: D1Database,
   snapshot: Omit<ProjectSnapshot, "changeKind">,
-) => db.prepare(
-  `INSERT INTO project_versions (
+) =>
+  db
+    .prepare(
+      `INSERT INTO project_versions (
     id, project_id, owner_user_id, version_number, name, project_number,
     workflow_json, content_hash, change_kind, restored_from_version_id,
     created_by_user_id, created_at
@@ -125,45 +117,45 @@ export const appendBaselineIfMissingStatement = (
   WHERE NOT EXISTS (
     SELECT 1 FROM project_versions WHERE project_id = ?
   )`,
-).bind(
-  snapshot.id,
-  snapshot.projectId,
-  snapshot.ownerUserId,
-  snapshot.name,
-  snapshot.projectNumber,
-  snapshot.workflowJson,
-  snapshot.contentHash,
-  snapshot.actorUserId,
-  snapshot.createdAt,
-  snapshot.projectId,
-);
+    )
+    .bind(
+      snapshot.id,
+      snapshot.projectId,
+      snapshot.ownerUserId,
+      snapshot.name,
+      snapshot.projectNumber,
+      snapshot.workflowJson,
+      snapshot.contentHash,
+      snapshot.actorUserId,
+      snapshot.createdAt,
+      snapshot.projectId,
+    );
 
-export const appendProjectAuditStatement = (
-  db: D1Database,
-  entry: ProjectAuditEntry,
-) => db.prepare(
-  `INSERT INTO project_audit_log (
+export const appendProjectAuditStatement = (db: D1Database, entry: ProjectAuditEntry) =>
+  db
+    .prepare(
+      `INSERT INTO project_audit_log (
     id, project_id, owner_user_id, actor_user_id, actor_role, action,
     version_id, restored_from_version_id, details_json, created_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-).bind(
-  entry.id,
-  entry.projectId,
-  entry.ownerUserId,
-  entry.actorUserId,
-  entry.actorRole,
-  entry.action,
-  entry.versionId ?? null,
-  entry.restoredFromVersionId ?? null,
-  JSON.stringify(entry.details),
-  entry.createdAt,
-);
+    )
+    .bind(
+      entry.id,
+      entry.projectId,
+      entry.ownerUserId,
+      entry.actorUserId,
+      entry.actorRole,
+      entry.action,
+      entry.versionId ?? null,
+      entry.restoredFromVersionId ?? null,
+      JSON.stringify(entry.details),
+      entry.createdAt,
+    );
 
-export const trimProjectVersionsStatement = (
-  db: D1Database,
-  projectId: string,
-) => db.prepare(
-  `DELETE FROM project_versions
+export const trimProjectVersionsStatement = (db: D1Database, projectId: string) =>
+  db
+    .prepare(
+      `DELETE FROM project_versions
   WHERE project_id = ?
     AND id NOT IN (
       SELECT id
@@ -172,16 +164,13 @@ export const trimProjectVersionsStatement = (
       ORDER BY version_number DESC
       LIMIT ?
     )`,
-).bind(projectId, projectId, PROJECT_VERSION_RETENTION);
+    )
+    .bind(projectId, projectId, PROJECT_VERSION_RETENTION);
 
 export const hashPassword = async (password: string, salt = randomToken(16)) => {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
+  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, [
+    "deriveBits",
+  ]);
   const hash = await crypto.subtle.deriveBits(
     // Workers Web Crypto currently supports PBKDF2 up to 100,000 rounds.
     { name: "PBKDF2", salt: encoder.encode(salt), iterations: 100000, hash: "SHA-256" },
@@ -202,11 +191,7 @@ export const secureEqual = (left: string, right: string) => {
 export const sessionCookie = (token: string, maxAge = 60 * 60 * 24 * 30) =>
   `pwb_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-export const createSession = async (
-  db: D1Database,
-  userId: string,
-  secret = "",
-) => {
+export const createSession = async (db: D1Database, userId: string, secret = "") => {
   const rawToken = randomToken();
   // When a SESSION_SECRET is configured we bind it into the stored hash so
   // tokens leaked from the DB alone can't be replayed.
@@ -215,18 +200,22 @@ export const createSession = async (
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await db.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(now.toISOString()).run();
   await db
-    .prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(crypto.randomUUID(), userId, await sha256(token), expires.toISOString(), now.toISOString())
+    .prepare(
+      "INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(
+      crypto.randomUUID(),
+      userId,
+      await sha256(token),
+      expires.toISOString(),
+      now.toISOString(),
+    )
     .run();
   // Return only the random half to the client; secret never leaves the server.
   return rawToken;
 };
 
-export const currentUser = async (
-  request: Request,
-  db: D1Database,
-  secret = "",
-) => {
+export const currentUser = async (request: Request, db: D1Database, secret = "") => {
   const token = request.headers.get("cookie")?.match(/(?:^|; )pwb_session=([^;]+)/)?.[1];
   if (!token) return null;
   const hashed = await sha256(secret ? `${token}.${secret}` : token);
@@ -238,11 +227,7 @@ export const currentUser = async (
     .first<{ id: string; email: string; name: string; role: UserRole }>();
 };
 
-export const requireUser = async (
-  request: Request,
-  db: D1Database,
-  secret = "",
-) => {
+export const requireUser = async (request: Request, db: D1Database, secret = "") => {
   const user = await currentUser(request, db, secret);
   return user
     ? { user, response: null }

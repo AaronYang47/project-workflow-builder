@@ -61,9 +61,9 @@ const parseWorkflowSafe = (raw: string): WorkflowFile | null => {
 const resolveOwnerUserId = async (env: Env) => {
   const configured = String(env.CMS_PROJECT_OWNER_USER_ID || "").trim();
   if (configured) return configured;
-  const row = await env.DB.prepare(
-    "SELECT id FROM users ORDER BY created_at ASC LIMIT 1",
-  ).first<{ id: string }>();
+  const row = await env.DB.prepare("SELECT id FROM users ORDER BY created_at ASC LIMIT 1").first<{
+    id: string;
+  }>();
   return row?.id || "";
 };
 
@@ -170,7 +170,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       leadNumber,
       projectId: project?.id || stored?.pwb_project_id || null,
       customer: fromWorkflow?.customerProfile || storedCompany,
-      form: fromWorkflow?.customerForm || (storedForm ? normalizeSalesQualificationAnswers(storedForm) : null),
+      form:
+        fromWorkflow?.customerForm ||
+        (storedForm ? normalizeSalesQualificationAnswers(storedForm) : null),
     }),
   );
 };
@@ -207,7 +209,8 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
           procurementType: String(raw.procurement_type || raw.procurementType || ""),
           intelligenceSummary: String(raw.intelligence_summary || raw.intelligenceSummary || ""),
           modularRelevance: String(raw.modular_relevance || raw.modularRelevance || ""),
-          customerQualityScore: Number(raw.customer_quality_score ?? raw.customerQualityScore) || null,
+          customerQualityScore:
+            Number(raw.customer_quality_score ?? raw.customerQualityScore) || null,
           opportunityScore: Number(raw.opportunity_score ?? raw.opportunityScore) || null,
           confidenceScore: Number(raw.confidence_score ?? raw.confidenceScore) || null,
           ratingTier: "",
@@ -226,7 +229,9 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
 
   const ownerUserId = await resolveOwnerUserId(env);
   if (!ownerUserId) {
-    return withCors(json({ error: "No Project Workflow Builder user exists to own the project." }, 409));
+    return withCors(
+      json({ error: "No Project Workflow Builder user exists to own the project." }, 409),
+    );
   }
 
   const existing = await env.DB.prepare(

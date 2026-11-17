@@ -27,7 +27,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if ((file as File).size > 50 * 1024 * 1024) {
       return Response.json({ ok: false, error: "File must be 50 MB or smaller." }, { status: 413 });
     }
-    const fileName = (file as File).name.replace(/[\\/\x00-\x1f\x7f]/g, "_").slice(0, 160) || "upload";
+    const fileName =
+      (file as File).name.replace(/[\\/\x00-\x1f\x7f]/g, "_").slice(0, 160) || "upload";
     const fileSize = (file as File).size;
     const fileType = (file as File).type || "application/octet-stream";
 
@@ -42,45 +43,61 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       if (!existing) return fileForbidden();
       const existingMeta = existing.customMetadata || {};
       const keyParts = replaceKey.split("/");
-      const existingCategory = existingMeta.category || (replaceKey.startsWith("users/") ? keyParts[2] : keyParts[0]);
-      const existingName = cleanGeneratedFileName(existingMeta.fileName || keyParts.at(-1) || replaceKey);
+      const existingCategory =
+        existingMeta.category || (replaceKey.startsWith("users/") ? keyParts[2] : keyParts[0]);
+      const existingName = cleanGeneratedFileName(
+        existingMeta.fileName || keyParts.at(-1) || replaceKey,
+      );
       const normalizeName = (value: string) => value.normalize("NFKC").trim().toLocaleLowerCase();
-      if (existingCategory !== category || normalizeName(existingName) !== normalizeName(fileName)) {
-        return Response.json({ ok: false, error: "The selected Library file no longer matches this filename and category." }, { status: 409 });
+      if (
+        existingCategory !== category ||
+        normalizeName(existingName) !== normalizeName(fileName)
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: "The selected Library file no longer matches this filename and category.",
+          },
+          { status: 409 },
+        );
       }
-      id = existingMeta.id && existingMeta.id !== (existingMeta.fileName || existingName)
-        ? existingMeta.id
-        : replaceKey;
+      id =
+        existingMeta.id && existingMeta.id !== (existingMeta.fileName || existingName)
+          ? existingMeta.id
+          : replaceKey;
       key = replaceKey;
     }
     await env.R2_BUCKET.put(key, (file as File).stream(), {
-        httpMetadata: {
-          contentType: fileType,
-        },
-        customMetadata: {
-          ownerUserId: auth.user!.id,
-          id,
-          title: title || fileName,
-          description,
-          category,
-          fileName,
-        },
+      httpMetadata: {
+        contentType: fileType,
+      },
+      customMetadata: {
+        ownerUserId: auth.user!.id,
+        id,
+        title: title || fileName,
+        description,
+        category,
+        fileName,
+      },
     });
     const r2Url = `/api/files/download?key=${encodeURIComponent(key)}`;
 
-    return Response.json({
-      ok: true,
-      ownerUserId: auth.user!.id,
-      id,
-      key,
-      fileName,
-      fileSize,
-      fileType,
-      category,
-      title: title || fileName,
-      description,
-      url: r2Url,
-    }, { headers: { "cache-control": "private, no-store" } });
+    return Response.json(
+      {
+        ok: true,
+        ownerUserId: auth.user!.id,
+        id,
+        key,
+        fileName,
+        fileSize,
+        fileType,
+        category,
+        title: title || fileName,
+        description,
+        url: r2Url,
+      },
+      { headers: { "cache-control": "private, no-store" } },
+    );
   } catch (error) {
     return Response.json({ ok: false, error: "Upload failed." }, { status: 500 });
   }

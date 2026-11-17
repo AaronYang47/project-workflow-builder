@@ -113,9 +113,7 @@ function isRetiredOpportunityId(id: string) {
 
 function migrateProjectStartNode(node: DomainNode): DomainNode {
   const legacyProjectNumber =
-    typeof node.customFields.projectNumber === "string"
-      ? node.customFields.projectNumber
-      : "";
+    typeof node.customFields.projectNumber === "string" ? node.customFields.projectNumber : "";
   const rawProjectId =
     typeof node.customFields.projectId === "string"
       ? node.customFields.projectId
@@ -125,12 +123,9 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
     : rawProjectId && /^\d{5}$/.test(rawProjectId)
       ? `L-${rawProjectId.slice(0, 2)}-${rawProjectId.slice(2)}`
       : "";
-  const legacyJobNumber = projectId
-    ? `${projectId.slice(2, 4)}${projectId.slice(5)}`
-    : "";
+  const legacyJobNumber = projectId ? `${projectId.slice(2, 4)}${projectId.slice(5)}` : "";
   const nodeUuid =
-    typeof node.customFields.nodeUuid === "string" &&
-    node.customFields.nodeUuid.length === 36
+    typeof node.customFields.nodeUuid === "string" && node.customFields.nodeUuid.length === 36
       ? node.customFields.nodeUuid
       : crypto.randomUUID();
   const serviceType =
@@ -162,7 +157,12 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
   // Update only the old built-in wording; preserve any custom condition label.
   const normalizedBaseConditions = baseConditions.map((condition) =>
     condition.id === "project-id-required"
-      ? { ...condition, required: false, label: condition.label === "Project ID is entered" ? "Job Number is entered" : condition.label }
+      ? {
+          ...condition,
+          required: false,
+          label:
+            condition.label === "Project ID is entered" ? "Job Number is entered" : condition.label,
+        }
       : condition,
   );
   const conditions =
@@ -170,8 +170,7 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
       ? [
           ...normalizedBaseConditions.filter(
             (condition) =>
-              condition.id !== "paid-building-required" &&
-              condition.id !== "paid-module-required",
+              condition.id !== "paid-building-required" && condition.id !== "paid-module-required",
           ),
           {
             id: "paid-building-required",
@@ -188,8 +187,7 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
         ]
       : normalizedBaseConditions.filter(
           (condition) =>
-            condition.id !== "paid-building-required" &&
-            condition.id !== "paid-module-required",
+            condition.id !== "paid-building-required" && condition.id !== "paid-module-required",
         );
   return {
     ...node,
@@ -210,8 +208,7 @@ function migrateGateNode(node: DomainNode): DomainNode {
   delete normalizedConfig.showGateNumber;
   const decisionMode =
     node.config.decisionMode ||
-    (node.config.gateLabel &&
-    String(node.config.gateLabel).trim().toUpperCase() !== "GATE"
+    (node.config.gateLabel && String(node.config.gateLabel).trim().toUpperCase() !== "GATE"
       ? "binary"
       : "approval");
   const customDecisionGate = decisionMode === "binary";
@@ -230,9 +227,7 @@ function migrateGateNode(node: DomainNode): DomainNode {
   const legacySignatures = Array.isArray(node.config.signatureRequirements)
     ? node.config.signatureRequirements
     : [];
-  const hasNestedSignatures = baseRules.some((rule) =>
-    Array.isArray(rule.signatures),
-  );
+  const hasNestedSignatures = baseRules.some((rule) => Array.isArray(rule.signatures));
   const gateRules = baseRules.map((rule, index) => {
     const signatures = (
       Array.isArray(rule.signatures)
@@ -249,13 +244,9 @@ function migrateGateNode(node: DomainNode): DomainNode {
               revision: String(revision.revision || ""),
               receivedDate: String(revision.receivedDate || ""),
               department: String(revision.department || signature.department || ""),
-              modifiedBy:
-                String(
-                  revision.modifiedBy ||
-                    legacy.receivedBy ||
-                    signature.signedBy ||
-                    "",
-                ),
+              modifiedBy: String(
+                revision.modifiedBy || legacy.receivedBy || signature.signedBy || "",
+              ),
               status: revision.status,
             };
           })
@@ -271,9 +262,7 @@ function migrateGateNode(node: DomainNode): DomainNode {
               },
             ]
           : [];
-      const currentRevision = revisions.find(
-        (revision) => revision.status === "Current",
-      );
+      const currentRevision = revisions.find((revision) => revision.status === "Current");
       const revisionReady =
         !signature.revisionControlled ||
         Boolean(
@@ -309,8 +298,8 @@ function migrateGateNode(node: DomainNode): DomainNode {
       ...rule,
       checked: Boolean(
         rule.checked &&
-          requiredDocumentsReady &&
-          !(index === 0 && legacySignatures.length > 0 && !hasNestedSignatures),
+        requiredDocumentsReady &&
+        !(index === 0 && legacySignatures.length > 0 && !hasNestedSignatures),
       ),
       requirementType: rule.requirementType || "Required",
       signatureLogic: undefined,
@@ -336,54 +325,42 @@ function migrateGateNode(node: DomainNode): DomainNode {
   ];
   return {
     ...node,
-    title:
-      !node.title || node.title === "Approval" ? "Gate review" : node.title,
+    title: !node.title || node.title === "Approval" ? "Gate review" : node.title,
     description: node.description || "Review the work item before approval",
     config: {
       ...normalizedConfig,
       gateHeaderColor:
-        node.config.gateHeaderColor ||
-        (customDecisionGate ? node.color || "#2563a9" : "#0d233b"),
+        node.config.gateHeaderColor || (customDecisionGate ? node.color || "#2563a9" : "#0d233b"),
       gateTitleColor: node.config.gateTitleColor || "#ffffff",
       gateIconKey: node.config.gateIconKey || "building",
       conditionsTitle: node.config.conditionsTitle || "Approval conditions",
-      conditionsSubtitle:
-        node.config.conditionsSubtitle || "requirements complete",
+      conditionsSubtitle: node.config.conditionsSubtitle || "requirements complete",
       checklistTitle: node.config.checklistTitle || "Conditions checklist",
       checklistHint:
-        node.config.checklistHint ||
-        "Every applicable required document must be complete",
+        node.config.checklistHint || "Every applicable required document must be complete",
       conditionLabel: node.config.conditionLabel || "Condition",
       addConditionLabel: node.config.addConditionLabel || "Add condition",
-      documentsLabel:
-        node.config.documentsLabel || "All applicable required documents",
+      documentsLabel: node.config.documentsLabel || "All applicable required documents",
       addDocumentLabel: node.config.addDocumentLabel || "Add document",
       decisionTitle: node.config.decisionTitle || "Decision",
       decisionSubtitle: node.config.decisionSubtitle || "Approval routing",
       departmentLabel: node.config.departmentLabel || "Department",
       approverLabel: node.config.approverLabel || "Approved by",
-      detailsNeededLabel:
-        node.config.detailsNeededLabel || "Details needed",
+      detailsNeededLabel: node.config.detailsNeededLabel || "Details needed",
       decisionMode,
       outcomes,
       gateRules,
       signatureRequirements: undefined,
       approvedDepartment:
-        typeof node.config.approvedDepartment === "string"
-          ? node.config.approvedDepartment
-          : "",
-      approvedBy:
-        typeof node.config.approvedBy === "string"
-          ? node.config.approvedBy
-          : "",
+        typeof node.config.approvedDepartment === "string" ? node.config.approvedDepartment : "",
+      approvedBy: typeof node.config.approvedBy === "string" ? node.config.approvedBy : "",
     },
   };
 }
 
 const SERVICE_LEGEND_DESCRIPTIONS: Record<string, string> = {
   paid: "Additional paid work outside the included contract scope.",
-  included:
-    "Work already included in the approved agreement or paid service scope.",
+  included: "Work already included in the approved agreement or paid service scope.",
   free: "Strategic or approved work provided without a client charge.",
   tbd: "Classification must be confirmed after scope and responsibility are clarified.",
 };
@@ -412,8 +389,7 @@ function migrateNode(node: DomainNode): DomainNode {
   if (node.type === "projectStart") return migrateProjectStartNode(node);
   if (node.type === "gate") return migrateGateNode(node);
   if (node.type === "serviceLegend") return migrateServiceLegendNode(node);
-  if (preservedTypes.has(node.type))
-    return { ...node, config: { ...node.config } };
+  if (preservedTypes.has(node.type)) return { ...node, config: { ...node.config } };
   return {
     ...node,
     type: "general",
@@ -433,18 +409,23 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   if (file.calendar) file.calendar = normalizeScheduleCalendar(file.calendar);
   const retiredNodeIds = new Set(
     file.graph.nodes
-      .filter((node) => isRemovedOpportunityNode(node) || isCommercialPathwayNode(node) || isRemovedMatrixNode(node))
+      .filter(
+        (node) =>
+          isRemovedOpportunityNode(node) ||
+          isCommercialPathwayNode(node) ||
+          isRemovedMatrixNode(node),
+      )
       .map((node) => node.id),
   );
-  const isRetiredNodeId = (id: string) =>
-    retiredNodeIds.has(id) || isRetiredOpportunityId(id);
+  const isRetiredNodeId = (id: string) => retiredNodeIds.has(id) || isRetiredOpportunityId(id);
   file.highLevel ??= createEmptyHighLevelWorkflow();
   const projectStart = file.graph.nodes.find((node) => node.type === "projectStart");
-  const legacyJobNumber = typeof projectStart?.customFields.projectId === "string" && projectStart.customFields.projectId
-    ? projectStart.customFields.projectId
-    : typeof projectStart?.customFields.legacyJobNumber === "string"
-      ? projectStart.customFields.legacyJobNumber
-      : "";
+  const legacyJobNumber =
+    typeof projectStart?.customFields.projectId === "string" && projectStart.customFields.projectId
+      ? projectStart.customFields.projectId
+      : typeof projectStart?.customFields.legacyJobNumber === "string"
+        ? projectStart.customFields.legacyJobNumber
+        : "";
   file.operations = normalizeProjectOperations(
     file.operations,
     file.graph.metadata.name,
@@ -460,7 +441,12 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     return {
       ...file,
       graph: { ...file.graph, nodes: scaffold.graph.nodes, edges: scaffold.graph.edges },
-      layout: { ...file.layout, nodes: scaffold.layout.nodes, edges: scaffold.layout.edges, viewport: scaffold.layout.viewport },
+      layout: {
+        ...file.layout,
+        nodes: scaffold.layout.nodes,
+        edges: scaffold.layout.edges,
+        viewport: scaffold.layout.viewport,
+      },
       highLevel: scaffold.highLevel,
     };
   }
@@ -480,10 +466,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   file.highLevel.graph.nodes = file.highLevel.graph.nodes.map((node) => ({
     ...node,
     linkedLayer2NodeIds: Array.from(
-      new Set([
-        ...(node.linkedLayer2NodeIds ?? []),
-        ...(node.linkedDetailedNodeIds ?? []),
-      ]),
+      new Set([...(node.linkedLayer2NodeIds ?? []), ...(node.linkedDetailedNodeIds ?? [])]),
     ).filter((linkedId) => highLevelOwnership.get(linkedId) === node.id),
   }));
   let originalNodes = file.layout.nodes;
@@ -513,12 +496,13 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     "hold-gap-rework",
     "no-go-archive",
   ]);
-  const hasLegacyPreGate = file.graph.nodes.some((node) =>
-    legacyPreGateIds.has(node.id) ||
-    isRetiredOpportunityId(node.id) ||
-    isRemovedOpportunityNode(node) ||
-    isCommercialPathwayNode(node) ||
-    retiredNodeIds.has(node.id),
+  const hasLegacyPreGate = file.graph.nodes.some(
+    (node) =>
+      legacyPreGateIds.has(node.id) ||
+      isRetiredOpportunityId(node.id) ||
+      isRemovedOpportunityNode(node) ||
+      isCommercialPathwayNode(node) ||
+      retiredNodeIds.has(node.id),
   );
   if (hasLegacyPreGate) {
     file.graph.nodes = file.graph.nodes.filter(
@@ -529,7 +513,13 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         !isCommercialPathwayNode(node) &&
         !retiredNodeIds.has(node.id),
     );
-    const legacyEdgePrefixes = ["pre-sales-", "opp-", "lifecycle-opportunity-", "lifecycle-project-start-opportunity", "lifecycle-hold-rework"];
+    const legacyEdgePrefixes = [
+      "pre-sales-",
+      "opp-",
+      "lifecycle-opportunity-",
+      "lifecycle-project-start-opportunity",
+      "lifecycle-hold-rework",
+    ];
     file.graph.edges = file.graph.edges.filter(
       (edge) =>
         !legacyEdgePrefixes.some((prefix) => edge.id.startsWith(prefix)) &&
@@ -548,8 +538,17 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     .map(migrateNode)
     .map((node) => {
       const conditions = [...(node.conditions || [])];
-      if (node.type === "projectStart" && !conditions.some((item) => item.id === "project-id-required")) {
-        conditions.unshift({ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true });
+      if (
+        node.type === "projectStart" &&
+        !conditions.some((item) => item.id === "project-id-required")
+      ) {
+        conditions.unshift({
+          id: "project-id-required",
+          label: "Job Number is entered",
+          required: false,
+          checked: false,
+          locked: true,
+        });
       }
       if (node.type === "terminal" && conditions.length === 0) {
         conditions.push(...createDefaultTerminalConditions());
@@ -578,11 +577,25 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         description: "Enter the required Project ID before the workflow can continue.",
         color: "#2563a9",
         metadata: {},
-        conditions: [{ id: "project-id-required", label: "Job Number is entered", required: false, checked: false, locked: true }],
+        conditions: [
+          {
+            id: "project-id-required",
+            label: "Job Number is entered",
+            required: false,
+            checked: false,
+            locked: true,
+          },
+        ],
         documents: [],
         criteria: [],
         customFields: { projectId: "", legacyJobNumber: "", nodeUuid: crypto.randomUUID() },
-        config: { stage: "Project", iconKey: "building", serviceType: "Standard", buildingCode: "", moduleCode: "" },
+        config: {
+          stage: "Project",
+          iconKey: "building",
+          serviceType: "Standard",
+          buildingCode: "",
+          moduleCode: "",
+        },
       },
       ...nodes,
     ];
@@ -595,13 +608,33 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       : 180;
     originalNodes = {
       ...originalNodes,
-      "project-start": { nodeId: "project-start", x: leftMost - 440, y: topMost, width: 320, height: 384 },
+      "project-start": {
+        nodeId: "project-start",
+        x: leftMost - 440,
+        y: topMost,
+        width: 320,
+        height: 384,
+      },
     };
     file.layout.nodes = originalNodes;
     const incomingTargets = new Set(file.graph.edges.map((edge) => edge.target));
-    const firstNode = nodes.find((node) => node.id !== "project-start" && !incomingTargets.has(node.id) && node.type !== "phase");
+    const firstNode = nodes.find(
+      (node) =>
+        node.id !== "project-start" && !incomingTargets.has(node.id) && node.type !== "phase",
+    );
     if (firstNode) {
-      file.graph.edges.unshift({ id: "project-start-to-first", source: "project-start", target: firstNode.id, sourceHandle: "out", targetHandle: "in", type: "normal", label: "Project ID confirmed", lineStyle: "solid", arrowStyle: "closed", customFields: {} });
+      file.graph.edges.unshift({
+        id: "project-start-to-first",
+        source: "project-start",
+        target: firstNode.id,
+        sourceHandle: "out",
+        targetHandle: "in",
+        type: "normal",
+        label: "Project ID confirmed",
+        lineStyle: "solid",
+        arrowStyle: "closed",
+        customFields: {},
+      });
     }
   }
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
@@ -625,7 +658,9 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       isContainer && current.width && current.height
         ? { width: current.width, height: current.height }
         : node.type === "gate"
-          ? (current.width && current.height ? { width: current.width, height: current.height } : getGateLayoutMetrics(node))
+          ? current.width && current.height
+            ? { width: current.width, height: current.height }
+            : getGateLayoutMetrics(node)
           : getAdaptiveNodeSize(node, current);
     layouts[node.id] = {
       nodeId: node.id,
@@ -634,17 +669,18 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       width: current.width && current.width > 0 ? current.width : size.width,
       height: current.height && current.height > 0 ? current.height : size.height,
       parentId,
-      zIndex: typeof current.zIndex === "number"
-        ? current.zIndex
-        : node.type === "phase" ? 0 : node.type === "gate" ? 1 : 10,
+      zIndex:
+        typeof current.zIndex === "number"
+          ? current.zIndex
+          : node.type === "phase"
+            ? 0
+            : node.type === "gate"
+              ? 1
+              : 10,
     };
   }
   const edges = file.graph.edges
-    .filter(
-      (edge) =>
-        nodeById.has(edge.source) &&
-        nodeById.has(edge.target),
-    )
+    .filter((edge) => nodeById.has(edge.source) && nodeById.has(edge.target))
     .map((edge) => {
       const source = nodeById.get(edge.source)!;
       const sourceHandle =
@@ -655,14 +691,11 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
             ? "no"
             : "yes"
           : edge.sourceHandle || "out";
-      const deniedReturn =
-        edge.type === "rework" || sourceHandle?.startsWith("no");
+      const deniedReturn = edge.type === "rework" || sourceHandle?.startsWith("no");
       const targetHandle = deniedReturn
         ? edge.targetHandle || "rework-in"
         : edge.targetHandle || "in";
-      const outcome = source.config.outcomes?.find(
-        (item) => item.id === sourceHandle,
-      );
+      const outcome = source.config.outcomes?.find((item) => item.id === sourceHandle);
       return {
         ...edge,
         sourceHandle,
@@ -685,13 +718,16 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   file.highLevel.graph.nodes = file.highLevel.graph.nodes.map((node) => ({
     ...node,
     linkedLayer2NodeIds: keepExisting(node.linkedLayer2NodeIds),
-    ...(node.linkedDetailedNodeIds ? { linkedDetailedNodeIds: keepExisting(node.linkedDetailedNodeIds) } : {}),
+    ...(node.linkedDetailedNodeIds
+      ? { linkedDetailedNodeIds: keepExisting(node.linkedDetailedNodeIds) }
+      : {}),
   }));
   // Ad-hoc L3 items of retired Opportunity / Commercial Pathway / matrix nodes go with
   // their node. Controlled register forms (catalogId) are kept and relinked,
   // and items of user-deleted nodes stay so Validation can report them.
   if (file.execution) {
-    const onRetiredNode = (id: string) => !finalNodeIds.has(id) && (legacyPreGateIds.has(id) || isRetiredNodeId(id));
+    const onRetiredNode = (id: string) =>
+      !finalNodeIds.has(id) && (legacyPreGateIds.has(id) || isRetiredNodeId(id));
     file.execution.items = file.execution.items
       .filter((item) => Boolean(item.catalogId) || !onRetiredNode(item.linkedLayer2NodeId))
       .map((item) => {
@@ -702,8 +738,17 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   }
   const migratedFile = {
     ...file,
-    releaseConditionInbox: file.releaseConditionInbox?.map((condition) => wholeDayCondition(condition)),
-    graph: { ...file.graph, nodes: nodes.map((node) => ({ ...node, conditions: node.conditions.map((condition) => wholeDayCondition(condition)) })), edges },
+    releaseConditionInbox: file.releaseConditionInbox?.map((condition) =>
+      wholeDayCondition(condition),
+    ),
+    graph: {
+      ...file.graph,
+      nodes: nodes.map((node) => ({
+        ...node,
+        conditions: node.conditions.map((condition) => wholeDayCondition(condition)),
+      })),
+      edges,
+    },
     layout: { ...file.layout, nodes: layouts, edges: undefined },
   };
   // Migration normalizes the saved document in place. It must not inject the

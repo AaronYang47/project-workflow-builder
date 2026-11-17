@@ -3,7 +3,11 @@
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { createEmptyWorkspace } from "@/lib/project-template";
 import { migrateWorkflowFile } from "@/lib/workflow-migration";
-import { isDefaultHighLevelProcess, isLegacyDefaultHighLevelFamily, synchronizeLinkedWorkflowOrder } from "@/lib/high-level-workflow";
+import {
+  isDefaultHighLevelProcess,
+  isLegacyDefaultHighLevelFamily,
+  synchronizeLinkedWorkflowOrder,
+} from "@/lib/high-level-workflow";
 import { DETAILED_LIFECYCLE_IDS } from "@/lib/detailed-workflow";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
@@ -20,20 +24,31 @@ export function broadcastIfLocal(createMessage: (senderId: string) => SyncMessag
   }
 }
 
-
 export function textEditKey(node: DomainNode, patch: Partial<DomainNode>): string | undefined {
-  const changed = Object.keys(patch).filter((key) =>
-    JSON.stringify(patch[key as keyof DomainNode]) !== JSON.stringify(node[key as keyof DomainNode]));
+  const changed = Object.keys(patch).filter(
+    (key) =>
+      JSON.stringify(patch[key as keyof DomainNode]) !==
+      JSON.stringify(node[key as keyof DomainNode]),
+  );
   if (changed.length !== 1) return undefined;
   if (changed[0] === "title" || changed[0] === "description") return `${node.id}:${changed[0]}`;
-  if (changed[0] !== "conditions" || !patch.conditions || patch.conditions.length !== node.conditions.length) return undefined;
-  const conditionIndex = node.conditions.findIndex((condition, index) =>
-    JSON.stringify(condition) !== JSON.stringify(patch.conditions?.[index]));
+  if (
+    changed[0] !== "conditions" ||
+    !patch.conditions ||
+    patch.conditions.length !== node.conditions.length
+  )
+    return undefined;
+  const conditionIndex = node.conditions.findIndex(
+    (condition, index) => JSON.stringify(condition) !== JSON.stringify(patch.conditions?.[index]),
+  );
   if (conditionIndex < 0) return undefined;
   const oldCondition = node.conditions[conditionIndex];
   const nextCondition = patch.conditions[conditionIndex];
-  const fields = Object.keys(nextCondition).filter((key) =>
-    JSON.stringify(nextCondition[key as keyof typeof nextCondition]) !== JSON.stringify(oldCondition[key as keyof typeof oldCondition]));
+  const fields = Object.keys(nextCondition).filter(
+    (key) =>
+      JSON.stringify(nextCondition[key as keyof typeof nextCondition]) !==
+      JSON.stringify(oldCondition[key as keyof typeof oldCondition]),
+  );
   if (fields.length !== 1 || !["label", "description"].includes(fields[0])) return undefined;
   return `${node.id}:condition:${oldCondition.id ?? conditionIndex}:${fields[0]}`;
 }
@@ -73,7 +88,8 @@ export function findAvailableNodePosition(
 
 export function isViewOnlyFileChange(current: WorkflowFile, next: WorkflowFile | undefined) {
   if (!next) return false;
-  return current.graph === next.graph &&
+  return (
+    current.graph === next.graph &&
     current.calendar === next.calendar &&
     current.releaseConditionInbox === next.releaseConditionInbox &&
     current.execution === next.execution &&
@@ -83,7 +99,8 @@ export function isViewOnlyFileChange(current: WorkflowFile, next: WorkflowFile |
     current.layout.snapToGrid === next.layout.snapToGrid &&
     current.layout.gridSize === next.layout.gridSize &&
     current.highLevel?.graph === next.highLevel?.graph &&
-    current.highLevel?.layout.nodes === next.highLevel?.layout.nodes;
+    current.highLevel?.layout.nodes === next.highLevel?.layout.nodes
+  );
 }
 
 export function normalizeHighLevelLayer2Links(
@@ -98,10 +115,11 @@ export function normalizeHighLevelLayer2Links(
       .flatMap((node) => node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []),
   );
   const workflowNodeById = new Map(workflowNodes.map((node) => [node.id, node]));
-  return Array.from(new Set(linkedIds)).filter((linkedId) =>
-    !alreadyClaimed.has(linkedId) &&
-    workflowNodeById.has(linkedId) &&
-    workflowNodeById.get(linkedId)?.type !== "phase",
+  return Array.from(new Set(linkedIds)).filter(
+    (linkedId) =>
+      !alreadyClaimed.has(linkedId) &&
+      workflowNodeById.has(linkedId) &&
+      workflowNodeById.get(linkedId)?.type !== "phase",
   );
 }
 
@@ -139,9 +157,7 @@ export function removePrimaryGates(file: WorkflowFile) {
   const highLevel = file.highLevel;
   if (!highLevel) return { file, removed: false };
   const removedIds = new Set(
-    highLevel.graph.nodes
-      .filter((node) => node.type === "primaryGate")
-      .map((node) => node.id),
+    highLevel.graph.nodes.filter((node) => node.type === "primaryGate").map((node) => node.id),
   );
   if (!removedIds.size) return { file, removed: false };
 
@@ -167,7 +183,9 @@ export function removePrimaryGates(file: WorkflowFile) {
 
 export function removePhaseSelfLinks(file: WorkflowFile) {
   if (!file.highLevel) return { file, removed: false };
-  const phaseIds = new Set(file.graph.nodes.filter((node) => node.type === "phase").map((node) => node.id));
+  const phaseIds = new Set(
+    file.graph.nodes.filter((node) => node.type === "phase").map((node) => node.id),
+  );
   if (!phaseIds.size) return { file, removed: false };
   let removed = false;
   const nodes = file.highLevel.graph.nodes.map((node) => {
@@ -177,17 +195,19 @@ export function removePhaseSelfLinks(file: WorkflowFile) {
     removed = true;
     return { ...node, linkedLayer2NodeIds: filtered, linkedDetailedNodeIds: filtered };
   });
-  return removed ? {
-    file: { ...file, highLevel: { ...file.highLevel, graph: { ...file.highLevel.graph, nodes } } },
-    removed,
-  } : { file, removed };
+  return removed
+    ? {
+        file: {
+          ...file,
+          highLevel: { ...file.highLevel, graph: { ...file.highLevel.graph, nodes } },
+        },
+        removed,
+      }
+    : { file, removed };
 }
 
 export function normalizeLoadedWorkflow(file: WorkflowFile) {
-  if (
-    isDefaultHighLevelProcess(file.highLevel) ||
-    isLegacyDefaultHighLevelFamily(file.highLevel)
-  ) {
+  if (isDefaultHighLevelProcess(file.highLevel) || isLegacyDefaultHighLevelFamily(file.highLevel)) {
     return { file: clearDefaultWorkflow(file), clearedDefault: true };
   }
   if (isBlankWorkflow(file)) return { file, clearedDefault: false };
@@ -205,7 +225,11 @@ export function normalizeLoadedWorkflow(file: WorkflowFile) {
   const sanitized = removePrimaryGates(migrated);
   const withoutSelfLinks = removePhaseSelfLinks(sanitized.file);
   const ordered = synchronizeLinkedWorkflowOrder(withoutSelfLinks.file);
-  return { file: ordered, clearedDefault: sanitized.removed || withoutSelfLinks.removed || ordered !== withoutSelfLinks.file };
+  return {
+    file: ordered,
+    clearedDefault:
+      sanitized.removed || withoutSelfLinks.removed || ordered !== withoutSelfLinks.file,
+  };
 }
 
 export function withOperationalIdentity(file: WorkflowFile, operations: ProjectOperations) {
@@ -236,9 +260,8 @@ export function withOperationalIdentity(file: WorkflowFile, operations: ProjectO
                 clientId: identity.clientId,
                 leadId: identity.leadId,
                 projectId: identity.projectNumber,
-                legacyJobNumber: typeof identity.legacyJobNumber === "string"
-                  ? identity.legacyJobNumber
-                  : "",
+                legacyJobNumber:
+                  typeof identity.legacyJobNumber === "string" ? identity.legacyJobNumber : "",
               },
             }
           : node,

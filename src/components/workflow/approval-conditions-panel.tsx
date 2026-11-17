@@ -4,15 +4,8 @@ import { Fragment } from "react";
 import { Check, FilePenLine, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
-import {
-  GATE_PANEL_WIDTH,
-  type GateLayoutMetrics,
-} from "@/lib/gate-layout";
-import {
-  projectNodeUuid,
-  sanitizeBuildingCode,
-  sanitizeModuleCode,
-} from "@/lib/project-id";
+import { GATE_PANEL_WIDTH, type GateLayoutMetrics } from "@/lib/gate-layout";
+import { projectNodeUuid, sanitizeBuildingCode, sanitizeModuleCode } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import {
   requirementApplies,
@@ -62,10 +55,7 @@ export interface ApprovalConditionsPanelProps {
   ) => void;
   locationBuildingCode: string;
   locationModuleCode: string;
-  onChangeLocationCode: (
-    field: "buildingCode" | "moduleCode",
-    value: string,
-  ) => void;
+  onChangeLocationCode: (field: "buildingCode" | "moduleCode", value: string) => void;
 }
 
 /**
@@ -92,230 +82,213 @@ export function ApprovalConditionsPanel({
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   return (
     <Fragment>
-    <div
-      className="absolute"
-      style={{
-        left: metrics.conditionsLeft,
-        top: metrics.conditionsTop,
-        width: GATE_PANEL_WIDTH,
-        height: metrics.conditionsHeight,
-      }}
-    >
-    <section
-      data-completion-state={conditionState}
-      aria-label="Approval conditions card"
-      className={cn(
-        "l2-node-card h-full overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
-        conditionStyle.card,
-      )}
-    >
       <div
-        className={cn(
-          "flex h-12 items-center border-b px-4",
-          conditionStyle.header,
-        )}
+        className="absolute"
+        style={{
+          left: metrics.conditionsLeft,
+          top: metrics.conditionsTop,
+          width: GATE_PANEL_WIDTH,
+          height: metrics.conditionsHeight,
+        }}
       >
-        <span
+        <section
+          data-completion-state={conditionState}
+          aria-label="Approval conditions card"
           className={cn(
-            "flex size-7 items-center justify-center rounded-lg text-white shadow-sm",
-            conditionStyle.accent,
+            "l2-node-card h-full overflow-hidden rounded-2xl border shadow-[0_8px_28px_rgba(15,23,42,.11)] transition-colors",
+            conditionStyle.card,
           )}
         >
-          <ShieldCheck className="size-4" />
-        </span>
-        <span className="ml-2">
-          <span
-            data-inspector-target="config.conditionsTitle"
-            className="block text-xs font-black uppercase tracking-[0.13em] text-foreground"
-          >
-            {interfaceText.conditionsTitle}
-          </span>
-          <span
-            data-inspector-target="config.conditionsSubtitle"
-            className="mt-0.5 block text-[11px] font-medium text-muted-foreground"
-          >
-            {conditionProgress.completed} of {conditionProgress.total}{" "}
-            {interfaceText.conditionsSubtitle}
-          </span>
-        </span>
-        <ComponentNoteButton
-          nodeId={node.id}
-          noteKey="approval-conditions"
-          label={`${node.title} approval conditions`}
-          className="ml-auto"
-        />
-        <span className="ml-2 rounded-full border bg-background/75 px-2.5 py-1 text-[10px] font-bold uppercase text-foreground">
-          {conditionStyle.label}
-        </span>
-      </div>
-      <div data-conditions-content className="nodrag px-4 py-3">
-        <div className="mb-2 flex h-7 items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+          <div className={cn("flex h-12 items-center border-b px-4", conditionStyle.header)}>
             <span
-              data-inspector-target="config.checklistTitle"
-              className="shrink-0 text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground whitespace-nowrap"
+              className={cn(
+                "flex size-7 items-center justify-center rounded-lg text-white shadow-sm",
+                conditionStyle.accent,
+              )}
             >
-              {interfaceText.checklistTitle}
+              <ShieldCheck className="size-4" />
             </span>
-            <span
-              data-inspector-target="config.checklistHint"
-              className="text-[11px] text-muted-foreground truncate"
-            >
-              {interfaceText.checklistHint}
+            <span className="ml-2">
+              <span
+                data-inspector-target="config.conditionsTitle"
+                className="block text-xs font-black uppercase tracking-[0.13em] text-foreground"
+              >
+                {interfaceText.conditionsTitle}
+              </span>
+              <span
+                data-inspector-target="config.conditionsSubtitle"
+                className="mt-0.5 block text-[11px] font-medium text-muted-foreground"
+              >
+                {conditionProgress.completed} of {conditionProgress.total}{" "}
+                {interfaceText.conditionsSubtitle}
+              </span>
+            </span>
+            <ComponentNoteButton
+              nodeId={node.id}
+              noteKey="approval-conditions"
+              label={`${node.title} approval conditions`}
+              className="ml-auto"
+            />
+            <span className="ml-2 rounded-full border bg-background/75 px-2.5 py-1 text-[10px] font-bold uppercase text-foreground">
+              {conditionStyle.label}
             </span>
           </div>
-          <button
-            aria-label="Add decision condition"
-            data-inspector-target="config.addConditionLabel"
-            onClick={stopBubble(() =>
-              saveRules([
-                ...rules,
-                {
-                  id: `rule-${crypto.randomUUID().slice(0, 6)}`,
-                  label: "New condition",
-                  checked: false,
-                  requirementType: "Required",
-                  signatures: [],
-                },
-              ])
-            )}
-            className="shrink-0 whitespace-nowrap inline-flex h-6 items-center gap-1 rounded-md border bg-background px-2.5 text-[11px] font-bold text-primary shadow-xs hover:bg-primary/5 transition"
-          >
-            <Plus className="size-3 shrink-0" />
-            <span>{interfaceText.addConditionLabel}</span>
-          </button>
-        </div>
-        <div className="space-y-2">
-          {rules.map((rule, index) => {
-            const signatures = rule.signatures || [];
-            const activeSignatures = signatures.filter(requirementApplies);
-            const signaturesReady =
-              !activeSignatures.length ||
-              activeSignatures.every(
-                (signature) =>
-                  signature.checked && signatureIsComplete(signature),
-              );
-            const updateSignatures = (next: GateSignatureRequirement[]) =>
-              saveRules(
-                rules.map((item) =>
-                  item.id === rule.id
-                    ? {
-                        ...item,
-                        signatures: next,
-                        checked:
-                          item.checked &&
-                          (!next.filter(requirementApplies).length ||
-                            next
-                              .filter(requirementApplies)
-                              .every(
-                                (signature) =>
-                                  signature.checked &&
-                                  signatureIsComplete(signature),
-                              )),
-                      }
-                    : item,
-                ),
-              );
-            const requirementType = rule.requirementType || "Required";
-            return (
-              <ConditionRow
-                key={rule.id}
-                rule={rule}
-                index={index}
-                signatures={signatures}
-                requirementType={requirementType}
-                signaturesReady={signaturesReady}
-                interfaceText={interfaceText}
-                nodeId={node.id}
-                onToggleChecked={() =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? { ...item, checked: !item.checked }
-                        : item,
-                    ),
-                  )
-                }
-                onChangeRequirementType={(value) =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? {
-                            ...item,
-                            requirementType: value as RequirementType,
-                          }
-                        : item,
-                    ),
-                  )
-                }
-                onLabelBlur={(value) =>
-                  saveRules(
-                    rules.map((item) =>
-                      item.id === rule.id
-                        ? {
-                            ...item,
-                            label: value || item.label,
-                          }
-                        : item,
-                    ),
-                  )
-                }
-                onDelete={() =>
-                  saveRules(rules.filter((item) => item.id !== rule.id))
-                }
-                locationBuildingCode={locationBuildingCode}
-                locationModuleCode={locationModuleCode}
-                onChangeBuildingCode={(value) =>
-                  onChangeLocationCode("buildingCode", value)
-                }
-                onChangeModuleCode={(value) =>
-                  onChangeLocationCode("moduleCode", value)
-                }
-                onAddDocument={() =>
-                  updateSignatures([
-                    ...signatures,
+          <div data-conditions-content className="nodrag px-4 py-3">
+            <div className="mb-2 flex h-7 items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                <span
+                  data-inspector-target="config.checklistTitle"
+                  className="shrink-0 text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground whitespace-nowrap"
+                >
+                  {interfaceText.checklistTitle}
+                </span>
+                <span
+                  data-inspector-target="config.checklistHint"
+                  className="text-[11px] text-muted-foreground truncate"
+                >
+                  {interfaceText.checklistHint}
+                </span>
+              </div>
+              <button
+                aria-label="Add decision condition"
+                data-inspector-target="config.addConditionLabel"
+                onClick={stopBubble(() =>
+                  saveRules([
+                    ...rules,
                     {
-                      id: `signature-${crypto.randomUUID().slice(0, 6)}`,
-                      abbreviation: "DOC",
-                      fullName: "Required agreement",
-                      department: "",
-                      signedBy: "",
+                      id: `rule-${crypto.randomUUID().slice(0, 6)}`,
+                      label: "New condition",
                       checked: false,
                       requirementType: "Required",
-                      status: "Draft",
-                      revisionControlled: true,
-                      revisions: [],
+                      signatures: [],
                     },
-                  ])
-                }
-                onUpdateSignature={(signatureId, patch) =>
-                  updateSignature(rule.id, signatureId, patch)
-                }
-                onRemoveSignature={(signatureId) =>
-                  updateSignatures(
-                    signatures.filter((item) => item.id !== signatureId),
-                  )
-                }
-              />
-            );
-          })}
-        </div>
+                  ]),
+                )}
+                className="shrink-0 whitespace-nowrap inline-flex h-6 items-center gap-1 rounded-md border bg-background px-2.5 text-[11px] font-bold text-primary shadow-xs hover:bg-primary/5 transition"
+              >
+                <Plus className="size-3 shrink-0" />
+                <span>{interfaceText.addConditionLabel}</span>
+              </button>
+            </div>
+            <div className="space-y-2">
+              {rules.map((rule, index) => {
+                const signatures = rule.signatures || [];
+                const activeSignatures = signatures.filter(requirementApplies);
+                const signaturesReady =
+                  !activeSignatures.length ||
+                  activeSignatures.every(
+                    (signature) => signature.checked && signatureIsComplete(signature),
+                  );
+                const updateSignatures = (next: GateSignatureRequirement[]) =>
+                  saveRules(
+                    rules.map((item) =>
+                      item.id === rule.id
+                        ? {
+                            ...item,
+                            signatures: next,
+                            checked:
+                              item.checked &&
+                              (!next.filter(requirementApplies).length ||
+                                next
+                                  .filter(requirementApplies)
+                                  .every(
+                                    (signature) =>
+                                      signature.checked && signatureIsComplete(signature),
+                                  )),
+                          }
+                        : item,
+                    ),
+                  );
+                const requirementType = rule.requirementType || "Required";
+                return (
+                  <ConditionRow
+                    key={rule.id}
+                    rule={rule}
+                    index={index}
+                    signatures={signatures}
+                    requirementType={requirementType}
+                    signaturesReady={signaturesReady}
+                    interfaceText={interfaceText}
+                    nodeId={node.id}
+                    onToggleChecked={() =>
+                      saveRules(
+                        rules.map((item) =>
+                          item.id === rule.id ? { ...item, checked: !item.checked } : item,
+                        ),
+                      )
+                    }
+                    onChangeRequirementType={(value) =>
+                      saveRules(
+                        rules.map((item) =>
+                          item.id === rule.id
+                            ? {
+                                ...item,
+                                requirementType: value as RequirementType,
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                    onLabelBlur={(value) =>
+                      saveRules(
+                        rules.map((item) =>
+                          item.id === rule.id
+                            ? {
+                                ...item,
+                                label: value || item.label,
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                    onDelete={() => saveRules(rules.filter((item) => item.id !== rule.id))}
+                    locationBuildingCode={locationBuildingCode}
+                    locationModuleCode={locationModuleCode}
+                    onChangeBuildingCode={(value) => onChangeLocationCode("buildingCode", value)}
+                    onChangeModuleCode={(value) => onChangeLocationCode("moduleCode", value)}
+                    onAddDocument={() =>
+                      updateSignatures([
+                        ...signatures,
+                        {
+                          id: `signature-${crypto.randomUUID().slice(0, 6)}`,
+                          abbreviation: "DOC",
+                          fullName: "Required agreement",
+                          department: "",
+                          signedBy: "",
+                          checked: false,
+                          requirementType: "Required",
+                          status: "Draft",
+                          revisionControlled: true,
+                          revisions: [],
+                        },
+                      ])
+                    }
+                    onUpdateSignature={(signatureId, patch) =>
+                      updateSignature(rule.id, signatureId, patch)
+                    }
+                    onRemoveSignature={(signatureId) =>
+                      updateSignatures(signatures.filter((item) => item.id !== signatureId))
+                    }
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        {nodeUuid ? (
+          <div
+            className="nodrag pointer-events-none absolute right-0 z-10"
+            style={{ top: "100%", marginTop: 6 }}
+          >
+            <span
+              title={nodeUuid}
+              className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
+            >
+              UUID {nodeUuid.slice(0, 8)}
+            </span>
+          </div>
+        ) : null}
       </div>
-    </section>
-    {nodeUuid ? (
-      <div
-        className="nodrag pointer-events-none absolute right-0 z-10"
-        style={{ top: "100%", marginTop: 6 }}
-      >
-        <span
-          title={nodeUuid}
-          className="whitespace-nowrap rounded bg-muted/70 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-muted-foreground shadow-sm"
-        >
-          UUID {nodeUuid.slice(0, 8)}
-        </span>
-      </div>
-    ) : null}
-    </div>
     </Fragment>
   );
 }
@@ -337,10 +310,7 @@ interface ConditionRowProps {
   onChangeBuildingCode: (value: string) => void;
   onChangeModuleCode: (value: string) => void;
   onAddDocument: () => void;
-  onUpdateSignature: (
-    signatureId: string,
-    patch: Partial<GateSignatureRequirement>,
-  ) => void;
+  onUpdateSignature: (signatureId: string, patch: Partial<GateSignatureRequirement>) => void;
   onRemoveSignature: (signatureId: string) => void;
 }
 
@@ -392,9 +362,7 @@ function ConditionRow({
                 : "cursor-not-allowed bg-muted",
           )}
         >
-          <Check
-            className={cn("size-3.5", !rule.checked && "opacity-0")}
-          />
+          <Check className={cn("size-3.5", !rule.checked && "opacity-0")} />
         </button>
         <span
           data-inspector-target="config.conditionLabel"
@@ -461,9 +429,7 @@ function ConditionRow({
             <input
               aria-label={`Condition ${index + 1} building code`}
               value={locationBuildingCode}
-              onChange={(event) =>
-                onChangeBuildingCode(sanitizeBuildingCode(event.target.value))
-              }
+              onChange={(event) => onChangeBuildingCode(sanitizeBuildingCode(event.target.value))}
               placeholder="B-XX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"
             />
@@ -475,9 +441,7 @@ function ConditionRow({
             <input
               aria-label={`Condition ${index + 1} module code`}
               value={locationModuleCode}
-              onChange={(event) =>
-                onChangeModuleCode(sanitizeModuleCode(event.target.value))
-              }
+              onChange={(event) => onChangeModuleCode(sanitizeModuleCode(event.target.value))}
               placeholder="M-XXX"
               className="h-5 w-full border-0 bg-transparent p-0 font-mono text-[9px] font-bold outline-none placeholder:text-muted-foreground/60"
             />
@@ -488,9 +452,7 @@ function ConditionRow({
         <div
           data-signature-rail
           data-rail-type={requirementType}
-          data-rail-state={
-            signaturesReady ? "complete" : "pending"
-          }
+          data-rail-state={signaturesReady ? "complete" : "pending"}
           className={cn(
             "rail ml-2 mt-2 space-y-2 rounded-lg border-l-2 pl-3",
             signaturesReady

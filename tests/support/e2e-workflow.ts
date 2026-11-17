@@ -27,28 +27,26 @@ export function createE2EWorkflow(): WorkflowFile {
   const file = createDefaultDetailedLifecycle();
   const now = new Date().toISOString();
   const nodes = [
-    makeHighLevelNode("high-level-1", "start", "Start", "Project entry and qualification", ["project-start"]),
-    makeHighLevelNode(
-      "high-level-2",
-      "phase",
-      "Phase-01",
-      "Qualification and pre-construction",
-      ["gate-g1-qualified", "pre-construction", "gate-g2-technical-commitment"],
-    ),
-    makeHighLevelNode(
-      "high-level-3",
-      "phase",
-      "Phase-02",
-      "Production and delivery",
-      ["production-readiness", "gate-g3-production-authorization", "factory-production", "gate-g4-factory-release"],
-    ),
-    makeHighLevelNode(
-      "high-level-4",
-      "end",
-      "Final Close",
-      "Warranty and project closeout",
-      ["delivery-project-completion", "gate-g5-warranty-start", "commissioning-warranty", "close-out"],
-    ),
+    makeHighLevelNode("high-level-1", "start", "Start", "Project entry and qualification", [
+      "project-start",
+    ]),
+    makeHighLevelNode("high-level-2", "phase", "Phase-01", "Qualification and pre-construction", [
+      "gate-g1-qualified",
+      "pre-construction",
+      "gate-g2-technical-commitment",
+    ]),
+    makeHighLevelNode("high-level-3", "phase", "Phase-02", "Production and delivery", [
+      "production-readiness",
+      "gate-g3-production-authorization",
+      "factory-production",
+      "gate-g4-factory-release",
+    ]),
+    makeHighLevelNode("high-level-4", "end", "Final Close", "Warranty and project closeout", [
+      "delivery-project-completion",
+      "gate-g5-warranty-start",
+      "commissioning-warranty",
+      "close-out",
+    ]),
   ];
 
   file.graph.metadata = {

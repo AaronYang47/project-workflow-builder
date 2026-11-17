@@ -46,15 +46,9 @@ export const DEFAULT_HIGH_LEVEL_L2_LINKS: Record<string, string[]> = {
   "high-level-2": [],
   "high-level-3": ["gate-g1-qualified"],
   "high-level-4": ["pre-construction", "gate-g2-technical-commitment"],
-  "high-level-5": [
-    "production-readiness",
-    "gate-g3-production-authorization",
-  ],
+  "high-level-5": ["production-readiness", "gate-g3-production-authorization"],
   "high-level-6": ["factory-production", "gate-g4-factory-release"],
-  "high-level-7": [
-    "delivery-project-completion",
-    "gate-g5-warranty-start",
-  ],
+  "high-level-7": ["delivery-project-completion", "gate-g5-warranty-start"],
   "high-level-8": ["commissioning-warranty"],
   "high-level-9": ["close-out"],
 };
@@ -69,10 +63,7 @@ const LEGACY_DECISION_GATE_IDS = new Set([
 const REMOVED_DUPLICATE_NODE_IDS = new Set<string>();
 const REMOVED_EXPLANATORY_NODE_IDS = new Set(["control-backbone", "business-rules"]);
 
-const REMOVED_MATRIX_NODE_IDS = new Set([
-  "approval-matrix",
-  "responsibility-lane",
-]);
+const REMOVED_MATRIX_NODE_IDS = new Set(["approval-matrix", "responsibility-lane"]);
 
 function isRemovedMatrixNodeId(id: string) {
   return (
@@ -196,11 +187,12 @@ function edge(
     sourceHandle: options.sourceHandle || "out",
     targetHandle: options.targetHandle || "in",
     label: options.label,
-    lineStyle: options.type === "rework" || options.type === "hold"
-      ? "dashed"
-      : options.type === "supporting"
-        ? "dotted"
-        : "solid",
+    lineStyle:
+      options.type === "rework" || options.type === "hold"
+        ? "dashed"
+        : options.type === "supporting"
+          ? "dotted"
+          : "solid",
     arrowStyle: "closed",
     customFields: { workflowSection: "Lifecycle Scaffold" },
   };
@@ -345,55 +337,100 @@ function createScaffoldNodes() {
     projectStart,
     gate1,
     preConstruction,
-    gatePhaseNode("gate-g2-technical-commitment", "G2 — PROJECT / TECHNICAL COMMITMENT", "Authorize the project and technical basis for production readiness.", [
-      "Project scope and technical basis accepted",
-      "Site, transport, foundation, and interface responsibilities reviewed",
-      "Client commitment and commercial terms confirmed",
-    ]),
+    gatePhaseNode(
+      "gate-g2-technical-commitment",
+      "G2 — PROJECT / TECHNICAL COMMITMENT",
+      "Authorize the project and technical basis for production readiness.",
+      [
+        "Project scope and technical basis accepted",
+        "Site, transport, foundation, and interface responsibilities reviewed",
+        "Client commitment and commercial terms confirmed",
+      ],
+    ),
     productionReadiness,
-    gatePhaseNode("gate-g3-production-authorization", "G3 — PRODUCTION AUTHORIZATION", "Release the approved package to factory production.", [
-      "Production package approved",
-      "Material, capacity, and commercial release confirmed",
-      "Required technical approvals recorded",
-    ]),
+    gatePhaseNode(
+      "gate-g3-production-authorization",
+      "G3 — PRODUCTION AUTHORIZATION",
+      "Release the approved package to factory production.",
+      [
+        "Production package approved",
+        "Material, capacity, and commercial release confirmed",
+        "Required technical approvals recorded",
+      ],
+    ),
     factoryProduction,
-    gatePhaseNode("gate-g4-factory-release", "G4 — FACTORY COMPLETION / RELEASE", "Release completed factory work to delivery.", [
-      "Factory completion and QA records accepted",
-      "Punch list and non-conformances dispositioned",
-      "Delivery readiness and transport plan confirmed",
-    ]),
+    gatePhaseNode(
+      "gate-g4-factory-release",
+      "G4 — FACTORY COMPLETION / RELEASE",
+      "Release completed factory work to delivery.",
+      [
+        "Factory completion and QA records accepted",
+        "Punch list and non-conformances dispositioned",
+        "Delivery readiness and transport plan confirmed",
+      ],
+    ),
     delivery,
-    gatePhaseNode("gate-g5-warranty-start", "G5 — PROJECT COMPLETION / WARRANTY START", "Accept project completion and start the warranty period.", [
-      "Project completion accepted",
-      "Outstanding deficiencies have a controlled disposition",
-      "Warranty start date and responsibilities recorded",
-    ]),
+    gatePhaseNode(
+      "gate-g5-warranty-start",
+      "G5 — PROJECT COMPLETION / WARRANTY START",
+      "Accept project completion and start the warranty period.",
+      [
+        "Project completion accepted",
+        "Outstanding deficiencies have a controlled disposition",
+        "Warranty start date and responsibilities recorded",
+      ],
+    ),
     commissioning,
     closeOut,
   ];
   const linkedConditions: Record<string, string[]> = {
-    "pre-construction": ["exec-precon-pdaf", "exec-precon-sdr", "exec-precon-cec", "exec-precon-sow"],
+    "pre-construction": [
+      "exec-precon-pdaf",
+      "exec-precon-sdr",
+      "exec-precon-cec",
+      "exec-precon-sow",
+    ],
     "gate-g2-technical-commitment": ["exec-precon-cec", "exec-precon-sow", "exec-precon-rm"],
-    "production-readiness": ["exec-production-pso", "exec-production-mps", "exec-precon-ser", "exec-production-mps"],
-    "gate-g3-production-authorization": ["exec-production-pso", "exec-production-mps", "exec-g3-approval"],
+    "production-readiness": [
+      "exec-production-pso",
+      "exec-production-mps",
+      "exec-precon-ser",
+      "exec-production-mps",
+    ],
+    "gate-g3-production-authorization": [
+      "exec-production-pso",
+      "exec-production-mps",
+      "exec-g3-approval",
+    ],
     "factory-production": ["exec-production-mps", "exec-factory-mqc", "exec-factory-mir"],
     "gate-g4-factory-release": ["exec-factory-mso", "exec-factory-mqc", "exec-factory-trr"],
-    "delivery-project-completion": ["exec-delivery-ssp", "exec-delivery-mdr", "exec-delivery-msi", "exec-delivery-dplr"],
-    "gate-g5-warranty-start": ["exec-commissioning-fir", "exec-delivery-dplr", "exec-commissioning-wma"],
-    "commissioning-warranty": ["exec-commissioning-fir", "exec-commissioning-wma", "exec-commissioning-pcr"],
+    "delivery-project-completion": [
+      "exec-delivery-ssp",
+      "exec-delivery-mdr",
+      "exec-delivery-msi",
+      "exec-delivery-dplr",
+    ],
+    "gate-g5-warranty-start": [
+      "exec-commissioning-fir",
+      "exec-delivery-dplr",
+      "exec-commissioning-wma",
+    ],
+    "commissioning-warranty": [
+      "exec-commissioning-fir",
+      "exec-commissioning-wma",
+      "exec-commissioning-pcr",
+    ],
     "close-out": ["exec-commissioning-abdp", "exec-commissioning-pcr"],
   };
   for (const node of nodes) {
     const itemIds = linkedConditions[node.id] || [];
     node.conditions = node.conditions.map((condition, index) => ({
       ...condition,
-      linkedExecutionItemId:
-        itemIds[index] || condition.linkedExecutionItemId,
+      linkedExecutionItemId: itemIds[index] || condition.linkedExecutionItemId,
     }));
   }
   return nodes;
 }
-
 
 function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer {
   const linked = (id: string) => idMap?.get(id) || id;
@@ -406,8 +443,7 @@ function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer 
     const determination: ExecutionItem["applicabilityDetermination"] =
       form.defaultApplicability === "Required"
         ? "Applicable"
-        : form.defaultApplicability === "Conditional" ||
-            form.defaultApplicability === "Triggered"
+        : form.defaultApplicability === "Conditional" || form.defaultApplicability === "Triggered"
           ? "Pending"
           : form.defaultApplicability === "Not Applicable"
             ? "Not Applicable"
@@ -420,8 +456,7 @@ function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer 
       documentRevision: form.sourceVersion || "Register-derived controlled draft",
       documentLanguage: "Bilingual" as const,
       sourceReference:
-        form.sourceAvailability === "Included" ||
-        form.sourceAvailability === "Supplemental"
+        form.sourceAvailability === "Included" || form.sourceAvailability === "Supplemental"
           ? `Combined Forms.pdf · pages ${form.sourcePages}`
           : "Combined Forms.pdf · controlled index only",
       sourceAvailability: form.sourceAvailability,
@@ -431,9 +466,9 @@ function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer 
       applicability: form.defaultApplicability,
       applicabilityDetermination: determination,
       signatureRequired: Boolean(form.signatureRequired),
-      signatureStatus: form.signatureRequired ? "Pending" as const : "Not Required" as const,
+      signatureStatus: form.signatureRequired ? ("Pending" as const) : ("Not Required" as const),
       approvalRequired: Boolean(form.approvalRequired),
-      approvalStatus: form.approvalRequired ? "Pending" as const : created.approvalStatus,
+      approvalStatus: form.approvalRequired ? ("Pending" as const) : created.approvalStatus,
       responsibleRole: form.responsibleRole,
       formValues: {},
     };
@@ -454,7 +489,7 @@ function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer 
       description,
       responsibleRole,
       approvalRequired: type === "Approval",
-      approvalStatus: type === "Approval" ? "Pending" as const : created.approvalStatus,
+      approvalStatus: type === "Approval" ? ("Pending" as const) : created.approvalStatus,
       applicability: "Required" as const,
       applicabilityDetermination: "Applicable" as const,
     };
@@ -462,14 +497,70 @@ function createControlledExecution(idMap?: Map<string, string>): ExecutionLayer 
   return {
     items: [
       ...formItems,
-      control("exec-gate1-evidence", "gate-g1-qualified", "Gate 1 required evidence", "Evidence", "Confirm the required Gate 1 evidence is complete before release.", "Sales / Technical"),
-      control("exec-gate1-engagement", "gate-g1-qualified", "Gate 1 commercial engagement confirmation", "Evidence", "Confirm the selected bounded commercial instrument is executed and matches the eligible route.", "Sales / Management"),
-      control("exec-g1-approval", "gate-g1-qualified", "G1 qualified & commercially engaged approval", "Approval", "Authorized release of an objectively eligible and commercially engaged opportunity into pre-construction.", "Management"),
-      control("exec-g2-approval", "gate-g2-technical-commitment", "G2 project / technical commitment approval", "Approval", "Accept the Class C basis, scope, responsibilities, site interfaces, technical path, and commercial commitment.", "Technical / Management"),
-      control("exec-g3-approval", "gate-g3-production-authorization", "G3 production authorization", "Approval", "Release the approved production package, materials, capacity, and technical approvals.", "Management / Factory"),
-      control("exec-g4-approval", "gate-g4-factory-release", "G4 factory completion / release approval", "Approval", "Accept factory completion, QA evidence, punch/NCR disposition, and transport readiness. Factory completion alone is not shipment release.", "Factory / Technical"),
-      control("exec-g5-approval", "gate-g5-warranty-start", "G5 project completion / warranty start approval", "Approval", "Accept project completion, controlled deficiencies, warranty scope, start date, and responsibilities.", "Client / Project Management"),
-      control("exec-close-final", "close-out", "Final close commercial and obligation reconciliation", "Task", "Close claims, credits, changes, notices, unresolved obligations, warranty actions, and final acceptance evidence.", "Project Management / Finance"),
+      control(
+        "exec-gate1-evidence",
+        "gate-g1-qualified",
+        "Gate 1 required evidence",
+        "Evidence",
+        "Confirm the required Gate 1 evidence is complete before release.",
+        "Sales / Technical",
+      ),
+      control(
+        "exec-gate1-engagement",
+        "gate-g1-qualified",
+        "Gate 1 commercial engagement confirmation",
+        "Evidence",
+        "Confirm the selected bounded commercial instrument is executed and matches the eligible route.",
+        "Sales / Management",
+      ),
+      control(
+        "exec-g1-approval",
+        "gate-g1-qualified",
+        "G1 qualified & commercially engaged approval",
+        "Approval",
+        "Authorized release of an objectively eligible and commercially engaged opportunity into pre-construction.",
+        "Management",
+      ),
+      control(
+        "exec-g2-approval",
+        "gate-g2-technical-commitment",
+        "G2 project / technical commitment approval",
+        "Approval",
+        "Accept the Class C basis, scope, responsibilities, site interfaces, technical path, and commercial commitment.",
+        "Technical / Management",
+      ),
+      control(
+        "exec-g3-approval",
+        "gate-g3-production-authorization",
+        "G3 production authorization",
+        "Approval",
+        "Release the approved production package, materials, capacity, and technical approvals.",
+        "Management / Factory",
+      ),
+      control(
+        "exec-g4-approval",
+        "gate-g4-factory-release",
+        "G4 factory completion / release approval",
+        "Approval",
+        "Accept factory completion, QA evidence, punch/NCR disposition, and transport readiness. Factory completion alone is not shipment release.",
+        "Factory / Technical",
+      ),
+      control(
+        "exec-g5-approval",
+        "gate-g5-warranty-start",
+        "G5 project completion / warranty start approval",
+        "Approval",
+        "Accept project completion, controlled deficiencies, warranty scope, start date, and responsibilities.",
+        "Client / Project Management",
+      ),
+      control(
+        "exec-close-final",
+        "close-out",
+        "Final close commercial and obligation reconciliation",
+        "Task",
+        "Close claims, credits, changes, notices, unresolved obligations, warranty actions, and final acceptance evidence.",
+        "Project Management / Finance",
+      ),
     ],
   };
 }
@@ -542,16 +633,26 @@ export function createDefaultDetailedLifecycle(
       ...normalizedHighLevel.graph,
       nodes: normalizedHighLevel.graph.nodes.map((node) => ({
         ...node,
-        linkedLayer2NodeIds:
-          DEFAULT_HIGH_LEVEL_L2_LINKS[node.id] || node.linkedLayer2NodeIds,
-        linkedDetailedNodeIds:
-          DEFAULT_HIGH_LEVEL_L2_LINKS[node.id] || node.linkedDetailedNodeIds,
+        linkedLayer2NodeIds: DEFAULT_HIGH_LEVEL_L2_LINKS[node.id] || node.linkedLayer2NodeIds,
+        linkedDetailedNodeIds: DEFAULT_HIGH_LEVEL_L2_LINKS[node.id] || node.linkedDetailedNodeIds,
       })),
     },
   };
   return {
-    graph: { schemaVersion: 1, metadata: { name: "", version: "", status: "Draft", createdAt: "", updatedAt: "", notes: "" }, nodes, edges, rules: [] },
-    layout: { nodes: layout, edges: {}, viewport: { x: 0, y: 0, zoom: 0.55 }, snapToGrid: true, gridSize: 16 },
+    graph: {
+      schemaVersion: 1,
+      metadata: { name: "", version: "", status: "Draft", createdAt: "", updatedAt: "", notes: "" },
+      nodes,
+      edges,
+      rules: [],
+    },
+    layout: {
+      nodes: layout,
+      edges: {},
+      viewport: { x: 0, y: 0, zoom: 0.55 },
+      snapToGrid: true,
+      gridSize: 16,
+    },
     highLevel: linkedHighLevel,
     execution: createControlledExecution(),
   };
@@ -606,15 +707,14 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
     isRemovedMatrixNodeId(id) || removedMatrixNodeIds.has(id);
   // Filter out any legacy Opportunity/Commercial Pathway nodes, explanatory
   // reference cards, and the retired matrix nodes from the existing file.
-  const nodes = file.graph.nodes
-    .filter(
-      (node) =>
-        !isRemovedOpportunityNode(node) &&
-        !isCommercialPathwayNode(node) &&
-        !REMOVED_DUPLICATE_NODE_IDS.has(node.id) &&
-        !isRemovedExplanatoryNode(node) &&
-        !isRemovedMatrixNode(node),
-    );
+  const nodes = file.graph.nodes.filter(
+    (node) =>
+      !isRemovedOpportunityNode(node) &&
+      !isCommercialPathwayNode(node) &&
+      !REMOVED_DUPLICATE_NODE_IDS.has(node.id) &&
+      !isRemovedExplanatoryNode(node) &&
+      !isRemovedMatrixNode(node),
+  );
 
   for (const node of scaffold.graph.nodes) {
     if (idMap.has(node.id)) continue;
@@ -665,8 +765,10 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
     const sameTitle = nodes.find((item) => {
       const title = item.title.trim().toLowerCase();
       if (title === normalizedTitle) return true;
-      return node.id === "pre-construction" &&
-        (title === "pre-construction assessment" || title === "preconstruction");
+      return (
+        node.id === "pre-construction" &&
+        (title === "pre-construction assessment" || title === "preconstruction")
+      );
     });
     if (sameTitle) {
       const shouldRemoveDecisionModule =
@@ -690,7 +792,9 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
           metadata: { ...sameTitle.metadata, ...node.metadata },
           conditions: [
             ...sameTitle.conditions,
-            ...node.conditions.filter((condition) => !existingConditionLabels.has(condition.label?.trim())),
+            ...node.conditions.filter(
+              (condition) => !existingConditionLabels.has(condition.label?.trim()),
+            ),
           ],
           config: { ...sameTitle.config, ...node.config },
         };
@@ -711,34 +815,45 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
   }
   // Remove layouts for all retired Opportunity/Commercial Pathway nodes.
   for (const key of Object.keys(layouts)) {
-    if (
-      isRetiredNodeId(key) ||
-      isRemovedExplanatoryId(key) ||
-      isRemovedMatrixId(key)
-    ) delete layouts[key];
+    if (isRetiredNodeId(key) || isRemovedExplanatoryId(key) || isRemovedMatrixId(key))
+      delete layouts[key];
   }
 
-  const existingEdges = file.graph.edges.filter(
-    (edge) =>
-      !isRetiredNodeId(edge.source) &&
-      !isRetiredNodeId(edge.target) &&
-      !REMOVED_DUPLICATE_NODE_IDS.has(edge.source) &&
-      !REMOVED_DUPLICATE_NODE_IDS.has(edge.target) &&
-      !isRemovedExplanatoryId(edge.source) &&
-      !isRemovedExplanatoryId(edge.target) &&
-      !isRemovedMatrixId(edge.source) &&
-      !isRemovedMatrixId(edge.target),
-  ).map((existingEdge) =>
-    LEGACY_DECISION_GATE_IDS.has(existingEdge.source) && existingEdge.sourceHandle === "yes"
-      ? { ...existingEdge, sourceHandle: "out" }
-      : existingEdge,
-  );
+  const existingEdges = file.graph.edges
+    .filter(
+      (edge) =>
+        !isRetiredNodeId(edge.source) &&
+        !isRetiredNodeId(edge.target) &&
+        !REMOVED_DUPLICATE_NODE_IDS.has(edge.source) &&
+        !REMOVED_DUPLICATE_NODE_IDS.has(edge.target) &&
+        !isRemovedExplanatoryId(edge.source) &&
+        !isRemovedExplanatoryId(edge.target) &&
+        !isRemovedMatrixId(edge.source) &&
+        !isRemovedMatrixId(edge.target),
+    )
+    .map((existingEdge) =>
+      LEGACY_DECISION_GATE_IDS.has(existingEdge.source) && existingEdge.sourceHandle === "yes"
+        ? { ...existingEdge, sourceHandle: "out" }
+        : existingEdge,
+    );
   for (const scaffoldEdge of scaffold.graph.edges) {
     const source = idMap.get(scaffoldEdge.source) || scaffoldEdge.source;
     const target = idMap.get(scaffoldEdge.target) || scaffoldEdge.target;
-    if (!nodes.some((node) => node.id === source) || !nodes.some((node) => node.id === target)) continue;
-    const exists = existingEdges.some((edge) => edge.source === source && edge.target === target && edge.sourceHandle === scaffoldEdge.sourceHandle);
-    if (!exists) existingEdges.push({ ...scaffoldEdge, id: `${scaffoldEdge.id}-${source}-${target}`, source, target });
+    if (!nodes.some((node) => node.id === source) || !nodes.some((node) => node.id === target))
+      continue;
+    const exists = existingEdges.some(
+      (edge) =>
+        edge.source === source &&
+        edge.target === target &&
+        edge.sourceHandle === scaffoldEdge.sourceHandle,
+    );
+    if (!exists)
+      existingEdges.push({
+        ...scaffoldEdge,
+        id: `${scaffoldEdge.id}-${source}-${target}`,
+        source,
+        target,
+      });
   }
   const usesCanonicalHighLevelLinks =
     highLevel.graph.nodes.length === Object.keys(DEFAULT_HIGH_LEVEL_L2_LINKS).length &&
@@ -752,14 +867,11 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
         const resolvedExisting = existingLinks
           .map((id) => idMap.get(id) || id)
           .filter(
-            (id) =>
-              !isRetiredNodeId(id) &&
-              !isRemovedMatrixId(id) &&
-              !isRemovedExplanatoryId(id),
+            (id) => !isRetiredNodeId(id) && !isRemovedMatrixId(id) && !isRemovedExplanatoryId(id),
           );
         const scaffoldLinks = (
-          scaffold.highLevel.graph.nodes.find((item) => item.id === node.id)
-            ?.linkedLayer2NodeIds ?? []
+          scaffold.highLevel.graph.nodes.find((item) => item.id === node.id)?.linkedLayer2NodeIds ??
+          []
         )
           .map((id) => idMap.get(id) || id)
           .filter((id) => !isRetiredNodeId(id));
@@ -786,9 +898,7 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
     )
     .map((item) => {
       const mappedId = idMap.get(item.linkedLayer2NodeId);
-      return mappedId
-        ? { ...item, linkedLayer2NodeId: mappedId }
-        : item;
+      return mappedId ? { ...item, linkedLayer2NodeId: mappedId } : item;
     });
   const seeded = createControlledExecution(idMap);
   const executionItems = [...existingItems];
@@ -798,8 +908,7 @@ export function ensureDetailedLifecycleScaffold(file: WorkflowFile): WorkflowFil
         entry.id === item.id ||
         (item.catalogId && entry.catalogId === item.catalogId) ||
         (item.documentNumber && entry.documentNumber === item.documentNumber) ||
-        (entry.linkedLayer2NodeId === item.linkedLayer2NodeId &&
-          entry.title === item.title),
+        (entry.linkedLayer2NodeId === item.linkedLayer2NodeId && entry.title === item.title),
     );
     if (existingIndex < 0) {
       executionItems.push(item);

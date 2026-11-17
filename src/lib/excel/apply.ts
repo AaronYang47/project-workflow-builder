@@ -1,13 +1,6 @@
 import type { Worksheet } from "exceljs";
 import { getInspectorSchema } from "@/lib/inspector-schema";
-import {
-  asBoolean,
-  asString,
-  isBlank,
-  KEY,
-  parseKey,
-  rawCell,
-} from "@/lib/excel-format";
+import { asBoolean, asString, isBlank, KEY, parseKey, rawCell } from "@/lib/excel-format";
 import { COMPUTED_CONDITION_IDS } from "@/lib/workflow-progress";
 import { writePath } from "@/lib/object-path";
 import {
@@ -23,10 +16,7 @@ import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { withSyncedLegacyJobNumber } from "@/lib/project-id";
 import type { WorkflowFile } from "@/types/workflow";
 
-export function applyPhaseSheet(
-  sheet: Worksheet,
-  file: WorkflowFile,
-): WorkflowFile {
+export function applyPhaseSheet(sheet: Worksheet, file: WorkflowFile): WorkflowFile {
   let next = file;
   let phaseId = "";
   let gateId = "";
@@ -64,8 +54,7 @@ export function applyPhaseSheet(
     const value = rawCell(sheet.getCell(row, 3));
     if (kind === KEY.nodeParent) {
       const parentValue = asString(value).trim();
-      const parentId =
-        !parentValue || parentValue === "(none)" ? undefined : parentValue;
+      const parentId = !parentValue || parentValue === "(none)" ? undefined : parentValue;
       const layout = next.layout.nodes[node.id];
       if (layout) {
         const nextLayout = { ...layout };
@@ -91,9 +80,7 @@ export function applyPhaseSheet(
       if (!field?.readOnly) {
         next = updateGraphNode(next, node.id, (item) => {
           const written = writePath(item, key.id, nextValue);
-          return key.id === "customFields.projectId"
-            ? withSyncedLegacyJobNumber(written)
-            : written;
+          return key.id === "customFields.projectId" ? withSyncedLegacyJobNumber(written) : written;
         });
         const locationField =
           key.id === "config.buildingCode"
@@ -116,9 +103,7 @@ export function applyPhaseSheet(
                   config: {
                     ...item.config,
                     gateRules: rules.map((rule) =>
-                      ruleHasPaidService(rule)
-                        ? { ...rule, [locationField]: code }
-                        : rule,
+                      ruleHasPaidService(rule) ? { ...rule, [locationField]: code } : rule,
                     ),
                   },
                 };
@@ -190,9 +175,7 @@ export function applyPhaseSheet(
               (condition.id || condition.label) === key.id
                 ? {
                     ...condition,
-                    checked: computed
-                      ? condition.checked
-                      : (checked ?? condition.checked),
+                    checked: computed ? condition.checked : (checked ?? condition.checked),
                     label,
                     required:
                       requirement === "Optional"
@@ -236,9 +219,7 @@ export function applyPhaseSheet(
       const department = asString(rawCell(sheet.getCell(row, 7)));
       const signedBy = asString(rawCell(sheet.getCell(row, 8)));
       const owner = asString(rawCell(sheet.getCell(row, 9)));
-      const parsedDocumentService = parseServiceTypeId(
-        rawCell(sheet.getCell(row, 10)),
-      );
+      const parsedDocumentService = parseServiceTypeId(rawCell(sheet.getCell(row, 10)));
       next = updateGraphNode(next, node.id, (item) => {
         const extras = extraNodeDocuments(item);
         const gateRules = (item.config.gateRules || []).map((rule) => {
@@ -255,13 +236,10 @@ export function applyPhaseSheet(
                     fullName,
                     status: isBlank(status) ? signature.status : status,
                     revision,
-                    department: isBlank(department)
-                      ? signature.department
-                      : department,
+                    department: isBlank(department) ? signature.department : department,
                     signedBy,
                     owner,
-                    serviceType:
-                      parsedDocumentService || signature.serviceType,
+                    serviceType: parsedDocumentService || signature.serviceType,
                   },
             ),
           };
@@ -275,9 +253,7 @@ export function applyPhaseSheet(
         config: {
           ...item.config,
           outcomes: (item.config.outcomes || []).map((outcome) =>
-            outcome.id === key.id
-              ? { ...outcome, label: label || outcome.label }
-              : outcome,
+            outcome.id === key.id ? { ...outcome, label: label || outcome.label } : outcome,
           ),
         },
       }));
@@ -302,9 +278,7 @@ export function applyPhaseSheet(
           reference: {
             ...item.config.reference,
             items: (item.config.reference?.items || []).map((entry) =>
-              entry.id === key.id
-                ? { ...entry, label, color, description }
-                : entry,
+              entry.id === key.id ? { ...entry, label, color, description } : entry,
             ),
           },
         },

@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type UploadedFileRecord, getUploadedFiles, fetchUploadedFilesFromR2 } from "@/lib/file-storage";
+import {
+  type UploadedFileRecord,
+  getUploadedFiles,
+  fetchUploadedFilesFromR2,
+} from "@/lib/file-storage";
 import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import type { DocRecord } from "./doc-record";
 
@@ -18,7 +22,9 @@ export function AddDocumentModal({
   onClose: () => void;
   onAdd: (doc: DocRecord) => void;
 }) {
-  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>(() => getUploadedFiles(category));
+  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>(() =>
+    getUploadedFiles(category),
+  );
   const [selectedFileId, setSelectedFileId] = useState(() => availableFiles[0]?.id || "custom");
   const [customTitle, setCustomTitle] = useState(() => availableFiles[0]?.title || "");
   const [isRequired, setIsRequired] = useState(true);
@@ -31,10 +37,12 @@ export function AddDocumentModal({
       setAvailableFiles(remoteFiles);
       if (!userEdited.current && remoteFiles.length > 0) {
         setSelectedFileId(remoteFiles[0].id);
-        setCustomTitle((current) => current.trim() ? current : remoteFiles[0].title);
+        setCustomTitle((current) => (current.trim() ? current : remoteFiles[0].title));
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [category]);
 
   const categoryLabel =
@@ -82,9 +90,7 @@ export function AddDocumentModal({
               <Plus className="size-4" />
             </span>
             <div>
-              <h2 className="text-sm font-bold text-foreground">
-                Add {categoryLabel}
-              </h2>
+              <h2 className="text-sm font-bold text-foreground">Add {categoryLabel}</h2>
               <p className="text-[11px] text-muted-foreground">
                 Select from Cloudflare R2 uploaded files or create a custom form
               </p>
@@ -143,7 +149,8 @@ export function AddDocumentModal({
             </label>
             {availableFiles.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-center text-xs text-muted-foreground bg-muted/10">
-                No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload Forms&quot; in the title.
+                No R2 files uploaded in this category yet. You can enter a custom form name below or
+                upload files via &quot;Upload Forms&quot; in the title.
               </div>
             ) : (
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2 space-y-2 max-h-52 overflow-y-auto scroll-thin bg-muted/10">
@@ -185,7 +192,10 @@ export function AddDocumentModal({
                 ))}
 
                 <div
-                  onClick={() => { userEdited.current = true; setSelectedFileId("custom"); }}
+                  onClick={() => {
+                    userEdited.current = true;
+                    setSelectedFileId("custom");
+                  }}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
                     selectedFileId === "custom"
@@ -197,7 +207,10 @@ export function AddDocumentModal({
                     type="radio"
                     name="selectedFile"
                     checked={selectedFileId === "custom"}
-                    onChange={() => { userEdited.current = true; setSelectedFileId("custom"); }}
+                    onChange={() => {
+                      userEdited.current = true;
+                      setSelectedFileId("custom");
+                    }}
                     className="size-3.5 accent-primary"
                   />
                   <span className="font-medium text-muted-foreground">
@@ -216,7 +229,10 @@ export function AddDocumentModal({
             <input
               type="text"
               value={customTitle}
-              onChange={(e) => { userEdited.current = true; setCustomTitle(e.target.value); }}
+              onChange={(e) => {
+                userEdited.current = true;
+                setCustomTitle(e.target.value);
+              }}
               placeholder="e.g. Master Services Agreement 2026"
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background px-3.5 py-2.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
@@ -224,7 +240,12 @@ export function AddDocumentModal({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 px-5 py-3 bg-muted/20">
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 text-xs cursor-pointer"
+          >
             Cancel
           </Button>
           <Button

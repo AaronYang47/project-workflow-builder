@@ -9,10 +9,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
-  reporter: [
-    ["list"],
-    ["json", { outputFile: "./tmp/playwright-report.json" }],
-  ],
+  reporter: [["list"], ["json", { outputFile: "./tmp/playwright-report.json" }]],
   use: {
     baseURL: testBaseURL,
     screenshot: "only-on-failure",
@@ -31,8 +28,7 @@ export default defineConfig({
       use: {
         browserName: "chromium",
         launchOptions: {
-          executablePath:
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         },
       },
     },

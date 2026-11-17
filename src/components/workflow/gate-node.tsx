@@ -16,13 +16,8 @@ export function GateNode({
   selected: boolean;
   phaseColor?: string;
 }) {
-  const layoutHeight = useWorkflowStore(
-    (state) => state.file.layout.nodes[node.id]?.height,
-  );
-  const metrics = withMeasuredGateHeight(
-    getGateLayoutMetrics(node),
-    layoutHeight,
-  );
+  const layoutHeight = useWorkflowStore((state) => state.file.layout.nodes[node.id]?.height);
+  const metrics = withMeasuredGateHeight(getGateLayoutMetrics(node), layoutHeight);
   return (
     <div
       data-canvas-node
@@ -39,11 +34,7 @@ export function GateNode({
         onResizeEnd={(_, params) =>
           useWorkflowStore
             .getState()
-            .updateLayout(
-              node.id,
-              { width: params.width, height: params.height },
-              true,
-            )
+            .updateLayout(node.id, { width: params.width, height: params.height }, true)
         }
         lineClassName="!border-primary"
         handleClassName="!size-2.5 !rounded-sm !border-primary !bg-background"

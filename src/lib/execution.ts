@@ -63,9 +63,7 @@ function normalizeFormOverrides(raw: unknown) {
               typeof value.section === "string" && value.section.trim()
                 ? value.section.trim()
                 : "Custom fields",
-            ...(typeof value.placeholder === "string"
-              ? { placeholder: value.placeholder }
-              : {}),
+            ...(typeof value.placeholder === "string" ? { placeholder: value.placeholder } : {}),
             ...(typeof value.help === "string" ? { help: value.help } : {}),
             ...(Array.isArray(value.options)
               ? {
@@ -80,14 +78,10 @@ function normalizeFormOverrides(raw: unknown) {
     : [];
   return {
     ...(typeof source.title === "string" ? { title: source.title } : {}),
-    ...(typeof source.description === "string"
-      ? { description: source.description }
-      : {}),
+    ...(typeof source.description === "string" ? { description: source.description } : {}),
     fields,
     removedFieldIds: Array.isArray(source.removedFieldIds)
-      ? source.removedFieldIds.filter(
-          (fieldId): fieldId is string => typeof fieldId === "string",
-        )
+      ? source.removedFieldIds.filter((fieldId): fieldId is string => typeof fieldId === "string")
       : [],
   };
 }
@@ -135,18 +129,13 @@ export function executionItemFormMissingFields(
   const determination = executionItemApplicabilityDetermination(item);
   if (determination === "Pending") return ["Applicability determination"];
   if (determination === "Not Applicable") {
-    return item.applicabilityReason?.trim()
-      ? []
-      : ["Not-applicable reason"];
+    return item.applicabilityReason?.trim() ? [] : ["Not-applicable reason"];
   }
   const values = item.formValues || {};
   return profabFormMissingFields(form, values, operations);
 }
 
-export function executionItemCanComplete(
-  item: ExecutionItem,
-  operations?: ProjectOperations,
-) {
+export function executionItemCanComplete(item: ExecutionItem, operations?: ProjectOperations) {
   return executionItemFormMissingFields(item, operations).length === 0;
 }
 
@@ -156,10 +145,7 @@ export function executionItemProgress(
   options?: ExecutionProgressOptions,
 ): ExecutionItemProgress {
   if (options?.checklistOnly) {
-    if (
-      executionItemIsNotApplicable(item) &&
-      item.applicabilityReason?.trim()
-    ) {
+    if (executionItemIsNotApplicable(item) && item.applicabilityReason?.trim()) {
       return "complete";
     }
     return item.checklistComplete === true ? "complete" : "incomplete";
@@ -180,12 +166,9 @@ export function executionItemProgress(
 
   if (executionItemIsNotApplicable(item)) return "complete";
 
-  const signatureReady =
-    !item.signatureRequired || item.signatureStatus === "Signed";
-  const approvalReady =
-    !item.approvalRequired || item.approvalStatus === "Approved";
-  const approvalItemReady =
-    item.type !== "Approval" || item.approvalStatus === "Approved";
+  const signatureReady = !item.signatureRequired || item.signatureStatus === "Signed";
+  const approvalReady = !item.approvalRequired || item.approvalStatus === "Approved";
+  const approvalItemReady = item.type !== "Approval" || item.approvalStatus === "Approved";
   const taskReady =
     item.type !== "Task" ||
     item.taskStatus === "Complete" ||
@@ -210,10 +193,7 @@ export function executionItemProgressLabel(
   options?: ExecutionProgressOptions,
 ) {
   if (options?.checklistOnly) {
-    if (
-      executionItemIsNotApplicable(item) &&
-      item.applicabilityReason?.trim()
-    ) {
+    if (executionItemIsNotApplicable(item) && item.applicabilityReason?.trim()) {
       return "Not required";
     }
     return item.checklistComplete === true ? "Checked" : "Required";
@@ -257,9 +237,7 @@ export function getExecutionSummary(
   operations?: ProjectOperations,
   options?: ExecutionProgressOptions,
 ): ExecutionSummary {
-  const linked = (items || []).filter(
-    (item) => item.linkedLayer2NodeId === linkedLayer2NodeId,
-  );
+  const linked = (items || []).filter((item) => item.linkedLayer2NodeId === linkedLayer2NodeId);
   const required = linked.filter(executionItemIsGateRequired);
   const counted = options?.checklistOnly ? required : linked;
   const completedCount = counted.filter(
@@ -285,13 +263,7 @@ export function getExecutionSummary(
     completedCount,
     requiredCount: required.length,
     requiredCompletedCount,
-    status: blocked
-      ? "Blocked"
-      : requiredReady
-        ? passed
-          ? "Passed"
-          : "Ready"
-        : "Incomplete",
+    status: blocked ? "Blocked" : requiredReady ? (passed ? "Passed" : "Ready") : "Incomplete",
   };
 }
 
@@ -325,9 +297,7 @@ export function createExecutionItem(
   };
 }
 
-export function normalizeExecutionLayer(
-  execution: WorkflowFile["execution"],
-): ExecutionLayer {
+export function normalizeExecutionLayer(execution: WorkflowFile["execution"]): ExecutionLayer {
   if (!execution || !Array.isArray(execution.items)) {
     return { items: [] };
   }
@@ -364,20 +334,13 @@ export function normalizeExecutionLayer(
         return {
           ...createExecutionItem(
             typeof raw.id === "string" && raw.id ? raw.id : `execution-${index + 1}`,
-            typeof raw.linkedLayer2NodeId === "string"
-              ? raw.linkedLayer2NodeId
-              : "",
+            typeof raw.linkedLayer2NodeId === "string" ? raw.linkedLayer2NodeId : "",
             type,
           ),
           ...raw,
-          id:
-            typeof raw.id === "string" && raw.id
-              ? raw.id
-              : `execution-${index + 1}`,
+          id: typeof raw.id === "string" && raw.id ? raw.id : `execution-${index + 1}`,
           linkedLayer2NodeId:
-            typeof raw.linkedLayer2NodeId === "string"
-              ? raw.linkedLayer2NodeId
-              : "",
+            typeof raw.linkedLayer2NodeId === "string" ? raw.linkedLayer2NodeId : "",
           type,
           title: typeof raw.title === "string" ? raw.title : `New ${type}`,
           description: typeof raw.description === "string" ? raw.description : "",
@@ -385,11 +348,8 @@ export function normalizeExecutionLayer(
           applicability,
           applicabilityDetermination,
           applicabilityReason:
-            typeof raw.applicabilityReason === "string"
-              ? raw.applicabilityReason
-              : "",
-          responsibleRole:
-            typeof raw.responsibleRole === "string" ? raw.responsibleRole : "",
+            typeof raw.applicabilityReason === "string" ? raw.applicabilityReason : "",
+          responsibleRole: typeof raw.responsibleRole === "string" ? raw.responsibleRole : "",
           dueDate: typeof raw.dueDate === "string" ? raw.dueDate : "",
           notes: typeof raw.notes === "string" ? raw.notes : "",
           signers: Array.isArray(raw.signers)
@@ -399,8 +359,7 @@ export function normalizeExecutionLayer(
             raw.formValues && typeof raw.formValues === "object"
               ? Object.fromEntries(
                   Object.entries(raw.formValues).filter(
-                    ([, value]) =>
-                      typeof value === "string" || typeof value === "boolean",
+                    ([, value]) => typeof value === "string" || typeof value === "boolean",
                   ),
                 )
               : {},
@@ -427,8 +386,7 @@ export function normalizeExecutionLayer(
                       : "",
                   values: Object.fromEntries(
                     Object.entries(raw.formSnapshot.values).filter(
-                      ([, value]) =>
-                        typeof value === "string" || typeof value === "boolean",
+                      ([, value]) => typeof value === "string" || typeof value === "boolean",
                     ),
                   ),
                 }

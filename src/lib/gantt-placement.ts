@@ -14,13 +14,22 @@ export type GanttPlacement = {
 };
 
 /** Convert a visual bar position into the same dependency fields used by the form. */
-export function planGanttPlacement(schedule: Schedule, task: ScheduleTask, rawStartDay: number, snapToleranceDays: number): GanttPlacement | null {
+export function planGanttPlacement(
+  schedule: Schedule,
+  task: ScheduleTask,
+  rawStartDay: number,
+  snapToleranceDays: number,
+): GanttPlacement | null {
   if (task.phaseIndex < 0 || task.start === undefined || !Number.isFinite(rawStartDay)) return null;
   const phaseStart = schedule.phaseRanges[task.phaseIndex]?.start ?? 0;
-  const candidates = schedulePredecessorCandidates(schedule.tasks, task)
-    .filter((candidate) => candidate.start !== undefined && candidate.end !== undefined);
-  const existing = candidates.find((candidate) =>
-    candidate.nodeId === task.condition.predecessor?.nodeId && candidate.conditionId === task.condition.predecessor?.conditionId);
+  const candidates = schedulePredecessorCandidates(schedule.tasks, task).filter(
+    (candidate) => candidate.start !== undefined && candidate.end !== undefined,
+  );
+  const existing = candidates.find(
+    (candidate) =>
+      candidate.nodeId === task.condition.predecessor?.nodeId &&
+      candidate.conditionId === task.condition.predecessor?.conditionId,
+  );
   const raw = Math.max(phaseStart, rawStartDay);
   const anchors = [
     { day: phaseStart, kind: "phase" as const, task: undefined },
@@ -36,23 +45,62 @@ export function planGanttPlacement(schedule: Schedule, task: ScheduleTask, rawSt
   })[0];
   const snapped = nearest && Math.abs(nearest.day - raw) <= snapToleranceDays ? nearest : undefined;
   const startDay = Math.max(phaseStart, Math.round(snapped?.day ?? raw));
-  if (startDay === phaseStart) return { startDay, patch: { predecessor: undefined, startOffsetDays: 0 }, label: "At this phase start" };
-  const anchor = snapped?.task && snapped.day === startDay ? snapped
-    : anchors.find((candidate) => candidate.task && candidate.day === startDay && candidate.task.key === existing?.key)
-      ?? anchors.find((candidate) => candidate.task && candidate.day === startDay);
-  const overlapping = candidates.filter((candidate) => candidate.start! < startDay && startDay < candidate.end!)
-    .sort((left, right) => Number(right.key === existing?.key) - Number(left.key === existing?.key) || right.start! - left.start!);
-  const predecessor = anchor?.task ?? overlapping[0] ??
+  if (startDay === phaseStart)
+    return {
+      startDay,
+      patch: { predecessor: undefined, startOffsetDays: 0 },
+      label: "At this phase start",
+    };
+  const anchor =
+    snapped?.task && snapped.day === startDay
+      ? snapped
+      : (anchors.find(
+          (candidate) =>
+            candidate.task && candidate.day === startDay && candidate.task.key === existing?.key,
+        ) ?? anchors.find((candidate) => candidate.task && candidate.day === startDay));
+  const overlapping = candidates
+    .filter((candidate) => candidate.start! < startDay && startDay < candidate.end!)
+    .sort(
+      (left, right) =>
+        Number(right.key === existing?.key) - Number(left.key === existing?.key) ||
+        right.start! - left.start!,
+    );
+  const predecessor =
+    anchor?.task ??
+    overlapping[0] ??
     (existing && startDay >= existing.start! ? existing : undefined);
   if (predecessor) {
-    const relation = anchor?.task === predecessor ? anchor.kind === "start" ? "start" : "finish"
-      : startDay < predecessor.end! ? "start" : "finish";
+    const relation =
+      anchor?.task === predecessor
+        ? anchor.kind === "start"
+          ? "start"
+          : "finish"
+        : startDay < predecessor.end!
+          ? "start"
+          : "finish";
     const lagDays = startDay - (relation === "start" ? predecessor.start! : predecessor.end!);
-    if (lagDays >= 0) return { startDay, patch: {
-      predecessor: { nodeId: predecessor.nodeId, conditionId: predecessor.conditionId, relation, lagDays },
-      startOffsetDays: undefined,
-    }, label: `${predecessor.title}: ${lagDays ? `${lagDays} days after ` : "At "}${relation}`, snappedToTask: predecessor.key };
+    if (lagDays >= 0)
+      return {
+        startDay,
+        patch: {
+          predecessor: {
+            nodeId: predecessor.nodeId,
+            conditionId: predecessor.conditionId,
+            relation,
+            lagDays,
+          },
+          startOffsetDays: undefined,
+        },
+        label: `${predecessor.title}: ${lagDays ? `${lagDays} days after ` : "At "}${relation}`,
+        snappedToTask: predecessor.key,
+      };
   }
-  return { startDay, patch: { predecessor: undefined, startOffsetDays: startDay - phaseStart },
-    label: startDay === phaseStart ? "At this phase start" : `${startDay - phaseStart} days after this phase starts` };
+  return {
+    startDay,
+    patch: { predecessor: undefined, startOffsetDays: startDay - phaseStart },
+    label:
+      startDay === phaseStart
+        ? "At this phase start"
+        : `${startDay - phaseStart} days after this phase starts`,
+  };
 }

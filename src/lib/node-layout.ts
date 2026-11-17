@@ -1,15 +1,10 @@
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import {
-  isReferenceNodeType,
-  type DomainNode,
-  type NodeLayout,
-} from "@/types/workflow";
+import { isReferenceNodeType, type DomainNode, type NodeLayout } from "@/types/workflow";
 import { matrixKindForNode } from "@/lib/matrix-config";
 import { chapterLabel } from "@/lib/chapter-label";
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 // Phase header is about 96–112px tall. Keep a generous gutter below it so Gate
 // modules read as content inside the swimlane instead of touching its title.
 export const PHASE_HEADER_HEIGHT = 124;
@@ -38,12 +33,7 @@ export function getAdaptiveNodeSize(
     const fallback = getNodeDefinition(node.type).defaultSize;
     const headerWidth = estimateNodeHeaderWidth(node);
     return {
-      width: Math.max(
-        current?.width || 0,
-        fallback.width,
-        headerWidth,
-        L2_NODE_CARD_WIDTH,
-      ),
+      width: Math.max(current?.width || 0, fallback.width, headerWidth, L2_NODE_CARD_WIDTH),
       height: Math.max(
         current?.height || 0,
         fallback.height,
@@ -57,51 +47,44 @@ export function getAdaptiveNodeSize(
     const lineCount = (items: string[] | undefined) =>
       Math.max(
         1,
-        (items || []).reduce(
-          (total, item) => total + Math.max(1, Math.ceil(item.length / 26)),
-          0,
-        ),
+        (items || []).reduce((total, item) => total + Math.max(1, Math.ceil(item.length / 26)), 0),
       );
     let width = fallback.width;
     let height = fallback.height;
     if (node.type === "approvalMatrix")
       height = Math.max(height, 100 + (reference.rows?.length || 0) * 38);
     if (node.type === "controlBackbone" || node.type === "responsibilityLane") {
-      width = Math.max(
-        width,
-        Math.min(6, Math.max(1, reference.sections?.length || 1)) * 255 + 32,
-      );
+      width = Math.max(width, Math.min(6, Math.max(1, reference.sections?.length || 1)) * 255 + 32);
       height = Math.max(
         height,
         126 +
           Math.max(
             0,
-            ...(reference.sections || []).map(
-              (section) => lineCount(section.items) * 17,
-            ),
+            ...(reference.sections || []).map((section) => lineCount(section.items) * 17),
           ),
       );
     }
     if (node.type === "serviceLegend")
-      height = Math.max(
-        height,
-        90 + Math.ceil((reference.items?.length || 0) / 2) * 48,
-      );
+      height = Math.max(height, 90 + Math.ceil((reference.items?.length || 0) / 2) * 48);
     if (node.type === "jobNumbering")
       height = Math.max(
         height,
-        116 +
-          Math.max(
-            lineCount(reference.current),
-            lineCount(reference.proposed),
-          ) *
-            17,
+        116 + Math.max(lineCount(reference.current), lineCount(reference.proposed)) * 17,
       );
     if (node.type === "businessRules")
       height = Math.max(height, 90 + lineCount(reference.rules) * 24);
     if (node.type === "terminal") {
       const releaseConditionsHeight = node.conditions?.length
-        ? 112 + node.conditions.reduce((height, condition) => height + Math.max(48, Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24), 0)
+        ? 112 +
+          node.conditions.reduce(
+            (height, condition) =>
+              height +
+              Math.max(
+                48,
+                Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24,
+              ),
+            0,
+          )
         : 0;
       height = Math.max(
         height,
@@ -140,13 +123,22 @@ export function getAdaptiveNodeSize(
       ? 0
       : Math.max(
           1,
-          Math.ceil(
-            node.description.length /
-              Math.max(24, Math.floor((width - 24) / 5.5)),
-          ),
+          Math.ceil(node.description.length / Math.max(24, Math.floor((width - 24) / 5.5))),
         );
   const releaseConditionsHeight = generalCard
-    ? 72 + Math.max(48, (node.conditions || []).reduce((sum, condition) => sum + Math.max(48, Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24), 0))
+    ? 72 +
+      Math.max(
+        48,
+        (node.conditions || []).reduce(
+          (sum, condition) =>
+            sum +
+            Math.max(
+              48,
+              Math.ceil((condition.label || condition.description || "").length / 34) * 17 + 24,
+            ),
+          0,
+        ),
+      )
     : 0;
   const height = Math.max(
     generalCard ? 224 : terminal ? 104 : 112,

@@ -1,11 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BaseEdge, EdgeLabelRenderer, Position, getBezierPath, type EdgeProps } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  Position,
+  getBezierPath,
+  type EdgeProps,
+} from "@xyflow/react";
 import { Pencil } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { cardObstacles, corridorYAboveCards, aboveRouteCardTop, phaseHeaderObstacles } from "@/lib/edge-routing";
-import { type SemanticFlowEdge, getSemanticEdgeColor, pathLength, stub, MIN_END_STUB, withMinEndStub, compact, roundedPath, routedPoints, placeLabel } from "@/lib/semantic-edge-geometry";
+import {
+  cardObstacles,
+  corridorYAboveCards,
+  aboveRouteCardTop,
+  phaseHeaderObstacles,
+} from "@/lib/edge-routing";
+import {
+  type SemanticFlowEdge,
+  getSemanticEdgeColor,
+  pathLength,
+  stub,
+  MIN_END_STUB,
+  withMinEndStub,
+  compact,
+  roundedPath,
+  routedPoints,
+  placeLabel,
+} from "@/lib/semantic-edge-geometry";
 
 function EditableEdgeLabel({
   id,
@@ -56,9 +78,7 @@ function EditableEdgeLabel({
       handleSave();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      setDraft(
-        rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel,
-      );
+      setDraft(rawLabel !== undefined && rawLabel !== "" ? rawLabel : displayLabel);
       setIsEditing(false);
     }
   };
@@ -102,8 +122,7 @@ function EditableEdgeLabel({
           title="Click to edit label"
           className="group relative flex items-center justify-center gap-1 rounded-md border bg-background/95 px-2.5 py-1.5 text-center text-xs font-semibold leading-4 text-foreground shadow-sm transition hover:border-primary hover:shadow-md hover:bg-background cursor-pointer"
           style={{
-            borderColor:
-              active === false ? "#cbd5e1" : selected ? "#2563eb" : `${color}55`,
+            borderColor: active === false ? "#cbd5e1" : selected ? "#2563eb" : `${color}55`,
             opacity: active === false ? 0.8 : 1,
             maxWidth: approved ? approvedLabelMaxWidth : 360,
           }}
@@ -161,18 +180,17 @@ export function SemanticEdge({
     targetPosition,
   });
   const preGateSales =
-    data?.preGateSales ||
-    domain.customFields?.workflowSection === "Pre-Gate Sales";
+    data?.preGateSales || domain.customFields?.workflowSection === "Pre-Gate Sales";
   const preGateSalesRoute = undefined;
   const denied =
     !preGateSales &&
-    (domain.sourceHandle?.startsWith("no") || ["rework", "exception", "hold"].includes(domain.type));
+    (domain.sourceHandle?.startsWith("no") ||
+      ["rework", "exception", "hold"].includes(domain.type));
   const approved = !preGateSales && (domain.sourceHandle === "yes" || domain.type === "approval");
   const isAuxiliaryEdge =
-    domain.type === "supporting" ||
-    domain.type === "dependency" ||
-    domain.lineStyle === "dotted";
-  const displayLabel = domain.label !== undefined && domain.label !== ""
+    domain.type === "supporting" || domain.type === "dependency" || domain.lineStyle === "dotted";
+  const displayLabel =
+    domain.label !== undefined && domain.label !== ""
       ? domain.label
       : approved
         ? "APPROVED"
@@ -221,14 +239,18 @@ export function SemanticEdge({
         const obstacles = data?.obstacles ?? [];
         const sourceObstacle = obstacles.find((item) => item.id === domain.source);
         const targetObstacle = obstacles.find((item) => item.id === domain.target);
-        const sourceRight = sourceObstacle
-          ? sourceObstacle.x + sourceObstacle.width
-          : sourceX;
+        const sourceRight = sourceObstacle ? sourceObstacle.x + sourceObstacle.width : sourceX;
         const targetLeft = targetObstacle?.x ?? targetX;
         // Exclude obstacles that *contain* the source or target node — the
         // edge ends inside them, so they can't be in the way between the two
         // endpoints.
-        const containsEndpoint = (obstacle: { id: string; x: number; y: number; width: number; height: number }) => {
+        const containsEndpoint = (obstacle: {
+          id: string;
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        }) => {
           if (sourceObstacle && obstacle.id === sourceObstacle.id) return true;
           if (targetObstacle && obstacle.id === targetObstacle.id) return true;
           const sourceInside =
@@ -250,10 +272,7 @@ export function SemanticEdge({
           (item) => item.x <= right && item.x + item.width >= left,
         );
         const intermediateObstacles = crossedObstacles.filter(
-          (obs) =>
-            obs.id !== domain.source &&
-            obs.id !== domain.target &&
-            !containsEndpoint(obs),
+          (obs) => obs.id !== domain.source && obs.id !== domain.target && !containsEndpoint(obs),
         );
         if (intermediateObstacles.length === 0 && targetLeft >= sourceRight - 10) {
           return undefined;
@@ -263,8 +282,13 @@ export function SemanticEdge({
         let safeEscapeX = sourceRight + 24;
 
         const lastIntermediate = crossedObstacles
-          .filter((obs) => obs.id !== domain.source && obs.id !== domain.target && obs.x + obs.width <= targetLeft)
-          .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
+          .filter(
+            (obs) =>
+              obs.id !== domain.source &&
+              obs.id !== domain.target &&
+              obs.x + obs.width <= targetLeft,
+          )
+          .sort((a, b) => b.x + b.width - (a.x + a.width))[0];
 
         if (lastIntermediate) {
           const gapLeft = lastIntermediate.x + lastIntermediate.width;
@@ -277,7 +301,9 @@ export function SemanticEdge({
         }
 
         const firstIntermediate = crossedObstacles
-          .filter((obs) => obs.id !== domain.source && obs.id !== domain.target && obs.x >= sourceRight)
+          .filter(
+            (obs) => obs.id !== domain.source && obs.id !== domain.target && obs.x >= sourceRight,
+          )
           .sort((a, b) => a.x - b.x)[0];
 
         if (firstIntermediate) {
@@ -322,7 +348,11 @@ export function SemanticEdge({
           ]);
         }
         const lowestCardBottom = crossedObstacles.length
-          ? Math.max(...crossedObstacles.map((item) => item.y + item.height), sourceBottom, targetBottom)
+          ? Math.max(
+              ...crossedObstacles.map((item) => item.y + item.height),
+              sourceBottom,
+              targetBottom,
+            )
           : Math.max(sourceBottom, targetBottom);
         const corridorY = lowestCardBottom + 56 + lane * 28;
         return compact([
@@ -344,12 +374,8 @@ export function SemanticEdge({
       const targetObstacle = cards.find((item) => item.id === domain.target);
       const lane = Math.abs(data?.labelLane ?? 0) % 3;
       const sourceEscapeX =
-        (sourceObstacle?.x ?? sourceX) +
-        (sourceObstacle?.width ?? 0) +
-        24 +
-        lane * 64;
-      const targetApproachX =
-        (targetObstacle?.x ?? targetX) - 24 - lane * 64;
+        (sourceObstacle?.x ?? sourceX) + (sourceObstacle?.width ?? 0) + 24 + lane * 64;
+      const targetApproachX = (targetObstacle?.x ?? targetX) - 24 - lane * 64;
       const bottomY =
         Math.max(
           sourceObstacle?.y ?? sourceY,
@@ -375,10 +401,9 @@ export function SemanticEdge({
     const targetObstacle = obstacles.find((item) => item.id === domain.target);
     const sourceStub = stub({ x: sourceX, y: sourceY }, sourcePosition, 16);
     const targetStub = stub({ x: targetX, y: targetY }, targetPosition, MIN_END_STUB);
-    const horizontalHandles =
-      [sourcePosition, targetPosition].every(
-        (position) => position === Position.Left || position === Position.Right,
-      );
+    const horizontalHandles = [sourcePosition, targetPosition].every(
+      (position) => position === Position.Left || position === Position.Right,
+    );
     if (horizontalHandles) {
       const escapeX =
         sourcePosition === Position.Right
@@ -389,25 +414,23 @@ export function SemanticEdge({
           : sourceStub.x;
       const approachX =
         targetPosition === Position.Left
-          ? Math.min(
-              targetStub.x,
-              targetObstacle ? targetObstacle.x - 16 : targetStub.x,
-            )
+          ? Math.min(targetStub.x, targetObstacle ? targetObstacle.x - 16 : targetStub.x)
           : targetStub.x;
       const sourceTop = sourceObstacle?.y ?? sourceY;
-      const sourceBottom = sourceObstacle
-        ? sourceObstacle.y + sourceObstacle.height
-        : sourceY;
+      const sourceBottom = sourceObstacle ? sourceObstacle.y + sourceObstacle.height : sourceY;
       const targetTop = targetObstacle?.y ?? targetY;
-      const targetBottom = targetObstacle
-        ? targetObstacle.y + targetObstacle.height
-        : targetY;
-      const stacked =
-        sourceBottom + 12 < targetTop || targetBottom + 12 < sourceTop;
+      const targetBottom = targetObstacle ? targetObstacle.y + targetObstacle.height : targetY;
+      const stacked = sourceBottom + 12 < targetTop || targetBottom + 12 < sourceTop;
       const cards = cardObstacles(obstacles);
       const minSpanX = Math.min(sourceX, targetX);
       const maxSpanX = Math.max(sourceX, targetX);
-      const containsEndpoint = (obstacle: { id: string; x: number; y: number; width: number; height: number }) => {
+      const containsEndpoint = (obstacle: {
+        id: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }) => {
         if (sourceObstacle && obstacle.id === sourceObstacle.id) return true;
         if (targetObstacle && obstacle.id === targetObstacle.id) return true;
         const sourceInside =
@@ -439,8 +462,7 @@ export function SemanticEdge({
       );
 
       const needsDetour =
-        pathCollidesWithCards ||
-        (stacked && (escapeX < approachX || targetX < sourceX));
+        pathCollidesWithCards || (stacked && (escapeX < approachX || targetX < sourceX));
 
       if (needsDetour) {
         let safeApproachX = approachX;
@@ -448,7 +470,7 @@ export function SemanticEdge({
 
         const lastIntermediateBeforeTarget = intermediateCards
           .filter((c) => c.x + c.width <= targetX)
-          .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0];
+          .sort((a, b) => b.x + b.width - (a.x + a.width))[0];
 
         if (lastIntermediateBeforeTarget && targetPosition === Position.Left) {
           const gapLeft = lastIntermediateBeforeTarget.x + lastIntermediateBeforeTarget.width;
@@ -581,56 +603,53 @@ export function SemanticEdge({
     if (index === points.length - 2) return { x: point.x, y: targetY };
     return point;
   });
-  const visibleRoute = chapterRoute ?? withMinEndStub(
-    preGateSalesRoute ??
-      deniedRoute ??
-      approvedRoute ??
-      (isAuxiliaryEdge
-        ? automaticRoute ?? routed
-        : storedDetour || routedCollides
-          ? automaticRoute
-          : routed) ??
-      automaticRoute ??
-      [],
-    targetPosition,
-  );
+  const visibleRoute =
+    chapterRoute ??
+    withMinEndStub(
+      preGateSalesRoute ??
+        deniedRoute ??
+        approvedRoute ??
+        (isAuxiliaryEdge
+          ? (automaticRoute ?? routed)
+          : storedDetour || routedCollides
+            ? automaticRoute
+            : routed) ??
+        automaticRoute ??
+        [],
+      targetPosition,
+    );
   const path = visibleRoute.length >= 2 ? roundedPath(visibleRoute) : bezierPath;
-  const labelGuide = visibleRoute.length >= 2 ? visibleRoute : [
-    { x: sourceX, y: sourceY },
-    { x: bezierLabelX, y: bezierLabelY },
-    { x: targetX, y: targetY },
-  ];
-  const placement = chapterConnection?.label ? { point: chapterConnection.label, avoided: false } : placeLabel(
-    labelGuide,
-    displayLabel,
-    data?.obstacles ?? [],
-    id,
-    domain.source,
-    domain.target,
-    data?.labelLane,
-    data?.labelHugsPath,
-    visibleRoute.length >= 2 ? undefined : { x: bezierLabelX, y: bezierLabelY },
-    approved,
-    data?.siblingIndex ?? 0,
-    data?.siblingCount ?? 1,
-  );
-  const sourceObstacle = data?.obstacles?.find(
-    (obstacle) => obstacle.id === domain.source,
-  );
-  const targetObstacle = data?.obstacles?.find(
-    (obstacle) => obstacle.id === domain.target,
-  );
+  const labelGuide =
+    visibleRoute.length >= 2
+      ? visibleRoute
+      : [
+          { x: sourceX, y: sourceY },
+          { x: bezierLabelX, y: bezierLabelY },
+          { x: targetX, y: targetY },
+        ];
+  const placement = chapterConnection?.label
+    ? { point: chapterConnection.label, avoided: false }
+    : placeLabel(
+        labelGuide,
+        displayLabel,
+        data?.obstacles ?? [],
+        id,
+        domain.source,
+        domain.target,
+        data?.labelLane,
+        data?.labelHugsPath,
+        visibleRoute.length >= 2 ? undefined : { x: bezierLabelX, y: bezierLabelY },
+        approved,
+        data?.siblingIndex ?? 0,
+        data?.siblingCount ?? 1,
+      );
+  const sourceObstacle = data?.obstacles?.find((obstacle) => obstacle.id === domain.source);
+  const targetObstacle = data?.obstacles?.find((obstacle) => obstacle.id === domain.target);
   const connectorGap =
     sourceObstacle && targetObstacle
-      ? Math.abs(
-          targetObstacle.x -
-            (sourceObstacle.x + sourceObstacle.width),
-        )
+      ? Math.abs(targetObstacle.x - (sourceObstacle.x + sourceObstacle.width))
       : 360;
-  const approvedLabelMaxWidth = Math.max(
-    80,
-    Math.min(360, connectorGap - 28),
-  );
+  const approvedLabelMaxWidth = Math.max(80, Math.min(360, connectorGap - 28));
   const rawColor = getSemanticEdgeColor(domain);
   const active = data?.active;
   const color = rawColor;

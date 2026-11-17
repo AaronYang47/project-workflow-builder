@@ -15,7 +15,10 @@ import { validateHighLevelWorkflow } from "@/lib/high-level-workflow";
 
 export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boolean }) {
   const { file, togglePanel, selectNodes, selectEdge } = useWorkflowStore();
-  const issues = useMemo(() => highLevelMode ? validateHighLevelWorkflow(file.highLevel) : validateWorkflow(file), [file, highLevelMode]);
+  const issues = useMemo(
+    () => (highLevelMode ? validateHighLevelWorkflow(file.highLevel) : validateWorkflow(file)),
+    [file, highLevelMode],
+  );
   const selectHighLevelNodes = useWorkflowStore((state) => state.selectHighLevelNodes);
   const selectHighLevelEdge = useWorkflowStore((state) => state.selectHighLevelEdge);
   const errors = issues.filter((issue) => issue.severity === "error").length;
@@ -25,9 +28,7 @@ export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boo
       if (highLevelMode) selectHighLevelNodes([nodeId]);
       else {
         selectNodes([nodeId]);
-        window.dispatchEvent(
-          new CustomEvent("workflow:focus-node", { detail: nodeId }),
-        );
+        window.dispatchEvent(new CustomEvent("workflow:focus-node", { detail: nodeId }));
       }
     } else if (edgeId) {
       if (highLevelMode) selectHighLevelEdge(edgeId);
@@ -36,15 +37,10 @@ export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boo
   };
 
   return (
-    <section
-      aria-label="Validation results"
-      className="h-[190px] shrink-0 border-t bg-panel"
-    >
+    <section aria-label="Validation results" className="h-[190px] shrink-0 border-t bg-panel">
       <div className="flex h-10 min-w-0 items-center gap-2 border-b px-3">
         <ShieldCheck className="size-4 shrink-0 text-primary" />
-        <span className="shrink-0 text-xs font-semibold">
-          Validation results
-        </span>
+        <span className="shrink-0 text-xs font-semibold">Validation results</span>
         {issues.length ? (
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
             <span className="inline-flex shrink-0 items-center gap-1 text-xs text-destructive">
@@ -92,9 +88,7 @@ export function ValidationPanel({ highLevelMode = false }: { highLevelMode?: boo
                 )}
               </span>
               <span className="min-w-0">
-                <span className="block text-xs font-medium">
-                  {issue.message}
-                </span>
+                <span className="block text-xs font-medium">{issue.message}</span>
                 <span className="mt-0.5 block break-all font-mono text-[10px] uppercase text-muted-foreground">
                   {issue.code}
                 </span>

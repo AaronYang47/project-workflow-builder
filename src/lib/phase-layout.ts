@@ -6,9 +6,14 @@ export const PHASE_HEADER_GUTTER = 36;
 
 export function phaseHeaderRows(node: DomainNode, width: number) {
   const textWidth = Math.max(120, width - 230);
-  const lines = (text: string, pixelsPerCharacter: number) => text.split("\n").reduce(
-    (count, line) => count + Math.max(1, Math.ceil(line.length * pixelsPerCharacter / textWidth)), 0,
-  );
+  const lines = (text: string, pixelsPerCharacter: number) =>
+    text
+      .split("\n")
+      .reduce(
+        (count, line) =>
+          count + Math.max(1, Math.ceil((line.length * pixelsPerCharacter) / textWidth)),
+        0,
+      );
   return { title: lines(node.title, 14.4), description: lines(node.description, 8.4) };
 }
 
@@ -18,20 +23,24 @@ export function estimatePhaseHeaderHeight(node: DomainNode, width: number) {
 }
 
 /** Canvas coordinates are absolute; parentId records frame membership only. */
-export function spacePhaseFrames(file: WorkflowFile, measuredHeaders: Record<string, number> = {}): WorkflowFile {
+export function spacePhaseFrames(
+  file: WorkflowFile,
+  measuredHeaders: Record<string, number> = {},
+): WorkflowFile {
   const layouts = { ...file.layout.nodes };
   const moved = new Set<string>();
   const phases = file.graph.nodes.filter((node) => node.type === "phase" && layouts[node.id]);
-  const descendants = (id: string) => Object.values(layouts).filter((layout) => {
-    let parent = layout.parentId;
-    const seen = new Set<string>();
-    while (parent && !seen.has(parent)) {
-      if (parent === id) return true;
-      seen.add(parent);
-      parent = layouts[parent]?.parentId;
-    }
-    return false;
-  });
+  const descendants = (id: string) =>
+    Object.values(layouts).filter((layout) => {
+      let parent = layout.parentId;
+      const seen = new Set<string>();
+      while (parent && !seen.has(parent)) {
+        if (parent === id) return true;
+        seen.add(parent);
+        parent = layouts[parent]?.parentId;
+      }
+      return false;
+    });
   const shift = (items: NodeLayout[], dx: number, dy: number) => {
     for (const item of items) {
       layouts[item.nodeId] = { ...layouts[item.nodeId], x: item.x + dx, y: item.y + dy };
@@ -40,19 +49,38 @@ export function spacePhaseFrames(file: WorkflowFile, measuredHeaders: Record<str
   };
   // Long connector labels need actual canvas space, rather than a detour
   // around the entire chapter just to fit a label.
-  const cards = file.graph.nodes.filter((node) =>
-    ["general", "projectStart", "terminal"].includes(node.type) && layouts[node.id],
-  ).sort((a, b) => layouts[a.id].x - layouts[b.id].x);
-  const horizontal = !file.graph.nodes.some((node) => node.type === "gate") &&
-    cards.every((node, index) => !index || layouts[cards[index - 1].id].x + layouts[cards[index - 1].id].width + 32 <= layouts[node.id].x);
+  const cards = file.graph.nodes
+    .filter(
+      (node) => ["general", "projectStart", "terminal"].includes(node.type) && layouts[node.id],
+    )
+    .sort((a, b) => layouts[a.id].x - layouts[b.id].x);
+  const horizontal =
+    !file.graph.nodes.some((node) => node.type === "gate") &&
+    cards.every(
+      (node, index) =>
+        !index ||
+        layouts[cards[index - 1].id].x + layouts[cards[index - 1].id].width + 32 <=
+          layouts[node.id].x,
+    );
   if (horizontal) {
     for (let index = 1; index < cards.length; index++) {
       const previous = layouts[cards[index - 1].id];
       const current = layouts[cards[index].id];
-      const labels = file.graph.edges.filter((edge) => edge.source === previous.nodeId && edge.target === current.nodeId && edge.label?.trim());
-      const gap = Math.max(0, ...labels.map((edge) => requiredEdgeLabelGap(edge.label!, "horizontal") + 80));
+      const labels = file.graph.edges.filter(
+        (edge) =>
+          edge.source === previous.nodeId && edge.target === current.nodeId && edge.label?.trim(),
+      );
+      const gap = Math.max(
+        0,
+        ...labels.map((edge) => requiredEdgeLabelGap(edge.label!, "horizontal") + 80),
+      );
       const dx = Math.max(0, previous.x + previous.width + gap - current.x);
-      if (dx) shift(cards.slice(index).map((node) => layouts[node.id]), dx, 0);
+      if (dx)
+        shift(
+          cards.slice(index).map((node) => layouts[node.id]),
+          dx,
+          0,
+        );
     }
     for (const phase of phases) {
       const children = Object.values(layouts).filter((child) => child.parentId === phase.id);
@@ -79,7 +107,9 @@ export function spacePhaseFrames(file: WorkflowFile, measuredHeaders: Record<str
     }
   }
   let previousRight = -Infinity;
-  for (const phase of phases.filter((node) => !layouts[node.id].parentId).sort((a, b) => layouts[a.id].x - layouts[b.id].x)) {
+  for (const phase of phases
+    .filter((node) => !layouts[node.id].parentId)
+    .sort((a, b) => layouts[a.id].x - layouts[b.id].x)) {
     const layout = layouts[phase.id];
     const x = Math.max(layout.x, previousRight + PHASE_FRAME_GAP);
     if (x !== layout.x) shift([layout, ...descendants(phase.id)], x - layout.x, 0);

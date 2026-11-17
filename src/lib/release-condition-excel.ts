@@ -42,7 +42,11 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   const chapters = file.graph.nodes.filter(isReleaseConditionChapter);
   for (const chapter of chapters) {
     for (const condition of chapter.conditions) {
-      sheet.addRow([condition.label || condition.description || "", chapter.title, condition.id || ""]);
+      sheet.addRow([
+        condition.label || condition.description || "",
+        chapter.title,
+        condition.id || "",
+      ]);
     }
   }
   for (let index = 2; index <= sheet.rowCount; index++) {
@@ -53,13 +57,25 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   guide.getColumn(1).width = 70;
   guide.getColumn(2).width = 40;
   guide.getColumn(3).width = 52;
-  guide.addRow(["Fill one release condition per row on the Conditions sheet. Existing conditions are already included."]);
-  guide.addRow(["Column A: edit the condition text. Column B: enter an existing Department name, or leave blank for Unassigned."]);
-  guide.addRow(["Column C: keep the ID on existing rows. Leave it blank when adding a new condition. Reimporting existing rows updates them without duplicates."]);
-  guide.addRow(["Removing a row from Excel does not delete it from the project; use Delete in the workspace."]);
+  guide.addRow([
+    "Fill one release condition per row on the Conditions sheet. Existing conditions are already included.",
+  ]);
+  guide.addRow([
+    "Column A: edit the condition text. Column B: enter an existing Department name, or leave blank for Unassigned.",
+  ]);
+  guide.addRow([
+    "Column C: keep the ID on existing rows. Leave it blank when adding a new condition. Reimporting existing rows updates them without duplicates.",
+  ]);
+  guide.addRow([
+    "Removing a row from Excel does not delete it from the project; use Delete in the workspace.",
+  ]);
   guide.addRow([]);
   guide.addRow(["Sample new row — copy the values into a blank row on Conditions:"]);
-  guide.addRow(["Release Condition", "Department (optional)", "Condition ID (keep for existing rows)"]);
+  guide.addRow([
+    "Release Condition",
+    "Department (optional)",
+    "Condition ID (keep for existing rows)",
+  ]);
   guide.addRow(["Permit drawing approved", chapters[0]?.title ?? "", ""]);
   guide.addRow([]);
   guide.addRow(["Existing Departments"]);
@@ -74,25 +90,47 @@ function cellText(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") return String(value).trim();
   if (value && typeof value === "object") {
     if ("richText" in value && Array.isArray(value.richText)) {
-      return value.richText.map((part) => typeof part?.text === "string" ? part.text : "").join("").trim();
+      return value.richText
+        .map((part) => (typeof part?.text === "string" ? part.text : ""))
+        .join("")
+        .trim();
     }
     if ("text" in value && typeof value.text === "string") return value.text.trim();
   }
   return "";
 }
 
-export async function parseReleaseConditionExcel(data: ArrayBuffer): Promise<ReleaseConditionSpreadsheetRow[]> {
+export async function parseReleaseConditionExcel(
+  data: ArrayBuffer,
+): Promise<ReleaseConditionSpreadsheetRow[]> {
   const ExcelJS = await exceljs();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(data);
   const sheet = workbook.getWorksheet("Conditions") ?? workbook.worksheets[0];
   if (!sheet) throw new Error("The workbook has no worksheet.");
   const headers = sheet.getRow(1).values;
-  const headerValues = Array.isArray(headers) ? headers.map((value) => cellText(value).toLowerCase()) : [];
-  const conditionColumn = headerValues.findIndex((value) => value === "release condition" || value === "condition");
-  const chapterColumn = headerValues.findIndex((value) => value === "department" || value === "department (optional)" || value === "department name" || value === "chapter" || value === "chapter (optional)" || value === "chapter name");
-  const idColumn = headerValues.findIndex((value) => value === "condition id" || value === "condition id (keep for existing rows)");
-  if (conditionColumn < 1) throw new Error("The first row needs a ‘Release Condition’ column. Please use the downloaded template.");
+  const headerValues = Array.isArray(headers)
+    ? headers.map((value) => cellText(value).toLowerCase())
+    : [];
+  const conditionColumn = headerValues.findIndex(
+    (value) => value === "release condition" || value === "condition",
+  );
+  const chapterColumn = headerValues.findIndex(
+    (value) =>
+      value === "department" ||
+      value === "department (optional)" ||
+      value === "department name" ||
+      value === "chapter" ||
+      value === "chapter (optional)" ||
+      value === "chapter name",
+  );
+  const idColumn = headerValues.findIndex(
+    (value) => value === "condition id" || value === "condition id (keep for existing rows)",
+  );
+  if (conditionColumn < 1)
+    throw new Error(
+      "The first row needs a ‘Release Condition’ column. Please use the downloaded template.",
+    );
 
   const rows: ReleaseConditionSpreadsheetRow[] = [];
   for (let index = 2; index <= sheet.rowCount; index++) {

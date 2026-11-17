@@ -56,7 +56,9 @@ export function isCustomerSelectionForm(record: {
     record.id === CUSTOMER_SELECTION_FORM_ID ||
     fileName === CUSTOMER_SELECTION_FORM_FILE_NAME ||
     /^Customer_Selection_Form\./i.test(fileName) ||
-    String(record.code || "").toUpperCase().startsWith("CUST-38")
+    String(record.code || "")
+      .toUpperCase()
+      .startsWith("CUST-38")
   );
 }
 
@@ -85,7 +87,9 @@ function asContacts(value: unknown): FalconCustomerContact[] {
 function normalizeCatalogRecord(raw: Partial<FalconCustomerProfile>): FalconCustomerProfile {
   return {
     companyId: String(raw.companyId || "").trim(),
-    customerCode: String(raw.customerCode || "").trim().toUpperCase(),
+    customerCode: String(raw.customerCode || "")
+      .trim()
+      .toUpperCase(),
     organizationName: String(raw.organizationName || "").trim(),
     legalName: String(raw.legalName || raw.organizationName || "").trim(),
     tradeName: String(raw.tradeName || "").trim(),
@@ -137,7 +141,9 @@ export function mapApiCompany(raw: Record<string, unknown>): FalconCustomerProfi
       : asNumber(breakdown.confidence_score));
   return {
     companyId: String(raw.company_id || "").trim(),
-    customerCode: String(raw.customer_code || "").trim().toUpperCase(),
+    customerCode: String(raw.customer_code || "")
+      .trim()
+      .toUpperCase(),
     organizationName: String(raw.organization_name || "").trim(),
     legalName: String(raw.legal_name || raw.organization_name || "").trim(),
     tradeName: String(raw.trade_name || "").trim(),
@@ -152,18 +158,13 @@ export function mapApiCompany(raw: Record<string, unknown>): FalconCustomerProfi
     domain: String(raw.domain || "").trim(),
     procurementType: String(raw.procurement_type || "").trim(),
     intelligenceSummary: String(raw.intelligence_summary || "").trim(),
-    modularRelevance: String(
-      raw.profab_relevance || breakdown.modular_relevance || "",
-    ).trim(),
+    modularRelevance: String(raw.profab_relevance || breakdown.modular_relevance || "").trim(),
     customerQualityScore:
       asNumber(raw.customer_quality_score) ?? asNumber(breakdown.customer_quality_score),
-    opportunityScore:
-      asNumber(raw.opportunity_score) ?? asNumber(breakdown.opportunity_score),
+    opportunityScore: asNumber(raw.opportunity_score) ?? asNumber(breakdown.opportunity_score),
     confidenceScore: confidence,
     ratingTier: String(breakdown.rating_tier || "").trim(),
-    summaryVerdict: String(
-      breakdown.scoring_narrative || breakdown.summary_verdict || "",
-    ).trim(),
+    summaryVerdict: String(breakdown.scoring_narrative || breakdown.summary_verdict || "").trim(),
     keyStrengths: asStringArray(breakdown.key_strengths),
     keyRisks: asStringArray(breakdown.key_risks),
     keyContacts: asContacts(raw.key_contacts),
@@ -244,9 +245,10 @@ export async function fetchFalconCustomerProfile(
 ): Promise<FalconCustomerProfile> {
   const targets = [company.companyId, company.organizationName].filter(Boolean);
   for (const target of targets) {
-    const d1 = (await fetchJson(
-      `/api/falcon/customers/${encodeURIComponent(target)}`,
-    )) as Record<string, unknown> | null;
+    const d1 = (await fetchJson(`/api/falcon/customers/${encodeURIComponent(target)}`)) as Record<
+      string,
+      unknown
+    > | null;
     if (d1 && !d1.error) return mapApiCompany(d1);
 
     const cms = (await fetchJson(
@@ -257,8 +259,7 @@ export async function fetchFalconCustomerProfile(
   return (
     FALCON_CUSTOMER_CATALOG.find(
       (item) =>
-        item.companyId === company.companyId ||
-        item.organizationName === company.organizationName,
+        item.companyId === company.companyId || item.organizationName === company.organizationName,
     ) || normalizeCatalogRecord(company)
   );
 }

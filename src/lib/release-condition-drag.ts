@@ -24,17 +24,26 @@ type ConditionCard = {
 let activeCleanup: (() => void) | undefined;
 
 function cardsOnCanvas(): ConditionCard[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("[data-release-condition-drop-node-id]"))
-    .map((element) => ({
-      element,
-      nodeId: element.dataset.releaseConditionDropNodeId!,
-      count: Number(element.dataset.releaseConditionCount ?? element.querySelectorAll("[data-release-condition-index]").length),
-      rows: Array.from(element.querySelectorAll<ConditionRow>("[data-release-condition-index]"))
-        .map((row) => {
-          const rect = row.getBoundingClientRect();
-          return { element: row, index: Number(row.dataset.releaseConditionIndex), center: rect.top + rect.height / 2 };
-        }),
-    }));
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("[data-release-condition-drop-node-id]"),
+  ).map((element) => ({
+    element,
+    nodeId: element.dataset.releaseConditionDropNodeId!,
+    count: Number(
+      element.dataset.releaseConditionCount ??
+        element.querySelectorAll("[data-release-condition-index]").length,
+    ),
+    rows: Array.from(element.querySelectorAll<ConditionRow>("[data-release-condition-index]")).map(
+      (row) => {
+        const rect = row.getBoundingClientRect();
+        return {
+          element: row,
+          index: Number(row.dataset.releaseConditionIndex),
+          center: rect.top + rect.height / 2,
+        };
+      },
+    ),
+  }));
 }
 
 /** Give release conditions the same lifted row and live gap preview as the L1 node list. */
@@ -49,7 +58,9 @@ export function beginReleaseConditionDrag(
   event.preventDefault();
   event.stopPropagation();
 
-  const sourceRow = handle.closest<ConditionRow>("[data-release-condition-index], [data-release-condition-source-index]");
+  const sourceRow = handle.closest<ConditionRow>(
+    "[data-release-condition-index], [data-release-condition-source-index]",
+  );
   if (!sourceRow) return;
   const sourceRect = sourceRow.getBoundingClientRect();
   const canvasScale = sourceRect.width / sourceRow.offsetWidth;
@@ -90,9 +101,21 @@ export function beginReleaseConditionDrag(
     const view = useCollaborationStore.getState().editorViewState;
     collaborationManager.broadcastDragPreview({
       source,
-      ...(target && rect ? { target: { ...target, x: (latestPointer.x - rect.left) / Math.max(1, rect.width), y: (latestPointer.y - rect.top) / Math.max(1, rect.height) } } : {}),
-      x: latestPointer.x / window.innerWidth, y: latestPointer.y / window.innerHeight,
-      view: { layer: view?.layer || "L1", page: collaborativePageFromPath(window.location.pathname) || "workflow" },
+      ...(target && rect
+        ? {
+            target: {
+              ...target,
+              x: (latestPointer.x - rect.left) / Math.max(1, rect.width),
+              y: (latestPointer.y - rect.top) / Math.max(1, rect.height),
+            },
+          }
+        : {}),
+      x: latestPointer.x / window.innerWidth,
+      y: latestPointer.y / window.innerHeight,
+      view: {
+        layer: view?.layer || "L1",
+        page: collaborativePageFromPath(window.location.pathname) || "workflow",
+      },
     });
   };
   const cleanup = () => {
@@ -115,10 +138,11 @@ export function beginReleaseConditionDrag(
     const element = document.elementFromPoint(x, y);
     const cardElement = element?.closest<HTMLElement>("[data-release-condition-drop-node-id]");
     let card = cards.find((item) => item.element === cardElement);
-    if (!card) card = cards.find((item) => {
-      const rect = item.element.getBoundingClientRect();
-      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    });
+    if (!card)
+      card = cards.find((item) => {
+        const rect = item.element.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      });
     // The L2 canvas can mount after a drag starts in the persistent sidebar.
     if (cardElement && !card) {
       cards = cardsOnCanvas();
@@ -132,14 +156,15 @@ export function beginReleaseConditionDrag(
 
     // Count row centers captured before the preview moves anything. This keeps the
     // insertion point stable even when the rows visibly shift out of the way.
-    const destinationRows = card.rows.filter((row) =>
-      card.nodeId !== source.nodeId || row.index !== source.index);
+    const destinationRows = card.rows.filter(
+      (row) => card.nodeId !== source.nodeId || row.index !== source.index,
+    );
     const nextRow = destinationRows.find((row) => y <= row.center);
-    const rawIndex = nextRow?.index ?? (destinationRows.length
-      ? destinationRows[destinationRows.length - 1].index + 1
-      : card.count);
-    const index = card.nodeId === source.nodeId && rawIndex > source.index
-      ? rawIndex - 1 : rawIndex;
+    const rawIndex =
+      nextRow?.index ??
+      (destinationRows.length ? destinationRows[destinationRows.length - 1].index + 1 : card.count);
+    const index =
+      card.nodeId === source.nodeId && rawIndex > source.index ? rawIndex - 1 : rawIndex;
     if (target?.nodeId === card.nodeId && target.index === index) return;
     restorePreview();
     target = { nodeId: card.nodeId, index };
@@ -149,19 +174,25 @@ export function beginReleaseConditionDrag(
     }
     for (const row of card.rows) {
       if (row.element === sourceRow) continue;
-      const shift = card.nodeId === source.nodeId
-        ? source.index < index && row.index > source.index && row.index <= index
-          ? -rowStep
-          : source.index > index && row.index >= index && row.index < source.index
-            ? rowStep : 0
-        : row.index >= index ? rowStep : 0;
+      const shift =
+        card.nodeId === source.nodeId
+          ? source.index < index && row.index > source.index && row.index <= index
+            ? -rowStep
+            : source.index > index && row.index >= index && row.index < source.index
+              ? rowStep
+              : 0
+          : row.index >= index
+            ? rowStep
+            : 0;
       if (!shift) continue;
       rowStyles.set(row.element, row.element.style.cssText);
       row.element.style.transform = `translateY(${shift}px)`;
       row.element.style.transition = "transform 150ms ease";
     }
-    const indicator = destinationRows.find((row) => row.index >= rawIndex)?.element
-      ?? destinationRows.at(-1)?.element ?? card.element;
+    const indicator =
+      destinationRows.find((row) => row.index >= rawIndex)?.element ??
+      destinationRows.at(-1)?.element ??
+      card.element;
     highlighted = indicator;
     if (indicator !== sourceRow) {
       indicator.setAttribute("data-drop-target", "true");
@@ -172,13 +203,18 @@ export function beginReleaseConditionDrag(
   const edgeSpeed = (position: number, start: number, end: number) => {
     const edge = 64;
     if (position < start || position > end) return 0;
-    if (position < start + edge) return -Math.max(2, Math.round((start + edge - position) / edge * 15));
-    if (position > end - edge) return Math.max(2, Math.round((position - (end - edge)) / edge * 15));
+    if (position < start + edge)
+      return -Math.max(2, Math.round(((start + edge - position) / edge) * 15));
+    if (position > end - edge)
+      return Math.max(2, Math.round(((position - (end - edge)) / edge) * 15));
     return 0;
   };
   const autoScroll = () => {
     if (!dragging) return;
-    if (!sourceRow.isConnected) { cleanup(); return; }
+    if (!sourceRow.isConnected) {
+      cleanup();
+      return;
+    }
     sharePreview();
     const { x, y } = latestPointer;
     let scrolled = false;
@@ -191,8 +227,12 @@ export function beginReleaseConditionDrag(
         scrolled = board.scrollLeft !== before;
       }
     }
-    const card = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-release-condition-drop-node-id]");
-    const surface = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-release-condition-scroll]");
+    const card = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>("[data-release-condition-drop-node-id]");
+    const surface = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>("[data-release-condition-scroll]");
     if (surface) {
       const rect = surface.getBoundingClientRect();
       const before = surface.scrollTop;
@@ -218,7 +258,12 @@ export function beginReleaseConditionDrag(
   };
   const move = (pointer: PointerEvent) => {
     if (pointer.pointerId !== pointerId) return;
-    if (!dragging && Math.hypot(pointer.clientX - origin.x, pointer.clientY - origin.y) < (event.pointerType === "touch" ? 8 : 4)) return;
+    if (
+      !dragging &&
+      Math.hypot(pointer.clientX - origin.x, pointer.clientY - origin.y) <
+        (event.pointerType === "touch" ? 8 : 4)
+    )
+      return;
     if (!dragging) {
       dragging = true;
       sourceRow.setAttribute("data-dragging", "true");
@@ -231,11 +276,20 @@ export function beginReleaseConditionDrag(
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.cssText = "";
       Object.assign(ghost.style, {
-        position: "fixed", left: `${sourceRect.left}px`, top: `${sourceRect.top}px`,
-        width: `${sourceRow.offsetWidth}px`, minHeight: `${sourceRow.offsetHeight}px`, margin: "0",
-        zIndex: "99999", pointerEvents: "none", opacity: "0.98",
-        borderColor: "#38bdf8", boxShadow: "0 14px 32px rgba(0,0,0,.35)",
-        transition: "none", transformOrigin: "top left", willChange: "transform",
+        position: "fixed",
+        left: `${sourceRect.left}px`,
+        top: `${sourceRect.top}px`,
+        width: `${sourceRow.offsetWidth}px`,
+        minHeight: `${sourceRow.offsetHeight}px`,
+        margin: "0",
+        zIndex: "99999",
+        pointerEvents: "none",
+        opacity: "0.98",
+        borderColor: "#38bdf8",
+        boxShadow: "0 14px 32px rgba(0,0,0,.35)",
+        transition: "none",
+        transformOrigin: "top left",
+        willChange: "transform",
       });
       document.body.appendChild(ghost);
       scrollFrame = requestAnimationFrame(autoScroll);
@@ -247,7 +301,8 @@ export function beginReleaseConditionDrag(
     if (frame) cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
       frame = 0;
-      if (ghost) ghost.style.transform = `translate(${x - origin.x}px, ${y - origin.y}px) scale(${canvasScale * 1.015})`;
+      if (ghost)
+        ghost.style.transform = `translate(${x - origin.x}px, ${y - origin.y}px) scale(${canvasScale * 1.015})`;
       previewAt(x, y);
       sharePreview();
     });
@@ -268,7 +323,9 @@ export function beginReleaseConditionDrag(
   const cancel = (pointer: PointerEvent) => {
     if (pointer.pointerId === pointerId) cleanup();
   };
-  const escape = (key: KeyboardEvent) => { if (key.key === "Escape") cleanup(); };
+  const escape = (key: KeyboardEvent) => {
+    if (key.key === "Escape") cleanup();
+  };
   window.addEventListener("blur", cleanup);
   document.addEventListener("keydown", escape);
   handle.setPointerCapture(pointerId);

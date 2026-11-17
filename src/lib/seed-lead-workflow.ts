@@ -21,7 +21,9 @@ export type LeadCustomerSelection = {
 };
 
 export function normalizeLeadNumber(raw: string): string {
-  const trimmed = String(raw || "").trim().toUpperCase();
+  const trimmed = String(raw || "")
+    .trim()
+    .toUpperCase();
   const canonical = trimmed.match(/^[LP]-(\d{2})-(\d{3})$/);
   if (canonical) return `${canonical[1]}${canonical[2]}`;
   const digits = trimmed.replace(/\D/g, "");
@@ -36,14 +38,21 @@ export function projectIdFromLeadNumber(leadNumber: string): string {
   return buildProjectId(digits.slice(2), "L", digits.slice(0, 2));
 }
 
-function isQualificationDoc(doc: { id?: string; formKind?: string; fileName?: string; code?: string }) {
+function isQualificationDoc(doc: {
+  id?: string;
+  formKind?: string;
+  fileName?: string;
+  code?: string;
+}) {
   const fileName = String(doc.fileName || "");
   return (
     doc.formKind === "customer-selection" ||
     doc.id === CUSTOMER_SELECTION_FORM_ID ||
     fileName === CUSTOMER_SELECTION_FORM_FILE_NAME ||
     /^Customer_Selection_Form\./i.test(fileName) ||
-    String(doc.code || "").toUpperCase().startsWith("CUST-38")
+    String(doc.code || "")
+      .toUpperCase()
+      .startsWith("CUST-38")
   );
 }
 
@@ -77,8 +86,9 @@ function upsertCustomerDocs(node: DomainNode, selection: LeadCustomerSelection):
     try {
       const parsed = JSON.parse(value);
       if (!Array.isArray(parsed)) continue;
-      const index = parsed.findIndex((doc: { id?: string; formKind?: string; fileName?: string; code?: string }) =>
-        isQualificationDoc(doc),
+      const index = parsed.findIndex(
+        (doc: { id?: string; formKind?: string; fileName?: string; code?: string }) =>
+          isQualificationDoc(doc),
       );
       if (index >= 0) {
         parsed[index] = {
@@ -156,9 +166,7 @@ function ensureHighLevelStart(file: WorkflowFile, projectStartId: string): Workf
         graph: {
           ...highLevel.graph,
           nodes: highLevel.graph.nodes.map((node) =>
-            node.id === existingStart.id
-              ? { ...node, linkedLayer2NodeIds: [...linked] }
-              : node,
+            node.id === existingStart.id ? { ...node, linkedLayer2NodeIds: [...linked] } : node,
           ),
         },
       },
@@ -230,9 +238,7 @@ export function applyLeadSelectionToWorkflow(
       },
       conditions: start.conditions || [],
     };
-    next.graph.nodes = next.graph.nodes.map((node) =>
-      node.id === start!.id ? start! : node,
-    );
+    next.graph.nodes = next.graph.nodes.map((node) => (node.id === start!.id ? start! : node));
   }
 
   next.graph.nodes = next.graph.nodes.map((node) => upsertCustomerDocs(node, selection));
@@ -245,7 +251,8 @@ export function createLeadProjectWorkflow(
   selection: LeadCustomerSelection,
 ): WorkflowFile {
   const digits = normalizeLeadNumber(leadNumber);
-  const name = selection.customerName || selection.customerProfile.organizationName || "New Project";
+  const name =
+    selection.customerName || selection.customerProfile.organizationName || "New Project";
   const created = createProjectWorkflow(name, digits);
   return applyLeadSelectionToWorkflow(created, digits, selection);
 }
@@ -262,8 +269,14 @@ export function extractLeadSelectionFromWorkflow(file: WorkflowFile | null | und
       try {
         const parsed = JSON.parse(value);
         if (!Array.isArray(parsed)) continue;
-        const doc = parsed.find((item: { formKind?: string; id?: string; fileName?: string; code?: string; customerForm?: unknown }) =>
-          isQualificationDoc(item) && item.customerForm,
+        const doc = parsed.find(
+          (item: {
+            formKind?: string;
+            id?: string;
+            fileName?: string;
+            code?: string;
+            customerForm?: unknown;
+          }) => isQualificationDoc(item) && item.customerForm,
         );
         if (doc?.customerForm) {
           return {

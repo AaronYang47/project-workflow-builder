@@ -12,8 +12,11 @@ async function deleteFiles(bucket: R2Bucket, userId: string, includeLegacy: bool
     const keys: string[] = [];
     do {
       const page = await bucket.list({ prefix, limit: 1000, cursor });
-      keys.push(...page.objects.map((object) => object.key)
-        .filter((key) => prefix || !key.startsWith("users/")));
+      keys.push(
+        ...page.objects
+          .map((object) => object.key)
+          .filter((key) => prefix || !key.startsWith("users/")),
+      );
       cursor = page.truncated ? page.cursor : undefined;
     } while (cursor);
     for (let index = 0; index < keys.length; index += 1000) {
@@ -39,33 +42,44 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
 
   const credentials = await env.DB.prepare(
     "SELECT password_hash, password_salt FROM users WHERE id = ?",
-  ).bind(auth.user!.id).first<{ password_hash: string; password_salt: string }>();
+  )
+    .bind(auth.user!.id)
+    .first<{ password_hash: string; password_salt: string }>();
   if (!credentials) return json({ error: "Account not found." }, 404);
   const candidate = await hashPassword(body.password, credentials.password_salt);
   if (!secureEqual(candidate.hash, credentials.password_hash)) {
     return json({ error: "Incorrect password." }, 403);
   }
 
-  if (!env.R2_BUCKET) return json({ error: "File storage is unavailable. Please try again later." }, 503);
+  if (!env.R2_BUCKET)
+    return json({ error: "File storage is unavailable. Please try again later." }, 503);
 
   try {
     const leadDb = falconDb(env);
-    if (!leadDb) return json({ error: "Account data storage is unavailable. Please try again later." }, 503);
+    if (!leadDb)
+      return json({ error: "Account data storage is unavailable. Please try again later." }, 503);
     const projects = await env.DB.prepare("SELECT id FROM projects WHERE user_id = ?")
-      .bind(auth.user!.id).all<{ id: string }>();
+      .bind(auth.user!.id)
+      .all<{ id: string }>();
     const includeLegacy = await isLegacyFileOwner(env.DB, auth.user!.id);
     await ensureSalesLeadsSchema(leadDb);
     await deleteFiles(env.R2_BUCKET, auth.user!.id, includeLegacy);
     const projectIds = (projects.results || []).map((project) => project.id);
     for (let index = 0; index < projectIds.length; index += 100) {
       const ids = projectIds.slice(index, index + 100);
-      await leadDb.prepare(
-        `DELETE FROM sales_qualification_leads WHERE pwb_project_id IN (${ids.map(() => "?").join(",")})`,
-      ).bind(...ids).run();
+      await leadDb
+        .prepare(
+          `DELETE FROM sales_qualification_leads WHERE pwb_project_id IN (${ids.map(() => "?").join(",")})`,
+        )
+        .bind(...ids)
+        .run();
     }
     await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(auth.user!.id).run();
     return json({ ok: true }, 200, { "set-cookie": sessionCookie("", 0) });
   } catch {
-    return json({ error: "Account deletion could not be completed. Please try again or contact support." }, 500);
+    return json(
+      { error: "Account deletion could not be completed. Please try again or contact support." },
+      500,
+    );
   }
 };

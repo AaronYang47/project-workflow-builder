@@ -11,7 +11,7 @@
       "binding": "AUDIT_DB",
       "database_name": "project-workflow-builder-auditlog",
       "database_id": "7152b519-ca71-4b26-b229-1e040390399a",
-      "migrations_dir": "./migrations"
-    }
-  ]
+      "migrations_dir": "./migrations",
+    },
+  ],
 }

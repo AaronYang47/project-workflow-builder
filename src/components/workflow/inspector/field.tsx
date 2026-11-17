@@ -2,7 +2,13 @@
 
 import { useRef } from "react";
 import { type InspectorField } from "@/lib/inspector-schema";
-import { legacyJobNumberFromProjectId, promoteToPaidService, syncProjectNameIdentity, shouldAutoPromoteToPaid, syncPaidConditions } from "@/lib/project-id";
+import {
+  legacyJobNumberFromProjectId,
+  promoteToPaidService,
+  syncProjectNameIdentity,
+  shouldAutoPromoteToPaid,
+  syncPaidConditions,
+} from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { readPath, writePath } from "@/lib/object-path";
@@ -28,8 +34,7 @@ export function Field({
 }) {
   const raw = readPath(node, field.key);
   const initial = useRef<DomainNode | null>(null);
-  const setFocusedInspectorField =
-    useWorkflowStore.getState().setFocusedInspectorField;
+  const setFocusedInspectorField = useWorkflowStore.getState().setFocusedInspectorField;
   const onContainerFocus = () => setFocusedInspectorField(field.key);
   const onContainerBlur = (event: React.FocusEvent<HTMLDivElement>) => {
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
@@ -39,7 +44,13 @@ export function Field({
     const store = useWorkflowStore.getState();
     let next = writePath(node, field.key, value);
     if (field.key === "customFields.projectId") {
-      next = { ...next, customFields: { ...next.customFields, legacyJobNumber: legacyJobNumberFromProjectId(String(value || "")) } };
+      next = {
+        ...next,
+        customFields: {
+          ...next.customFields,
+          legacyJobNumber: legacyJobNumberFromProjectId(String(value || "")),
+        },
+      };
     }
     if (transient) {
       if (!initial.current) initial.current = structuredClone(node);
@@ -47,16 +58,20 @@ export function Field({
         ...file,
         graph: {
           ...file.graph,
-          metadata: field.key === "customFields.projectId" || field.key === "customFields.customerCode"
-            ? { ...file.graph.metadata, name: syncProjectNameIdentity(
-                file.graph.metadata.name,
-                field.key === "customFields.projectId" ? legacyJobNumberFromProjectId(String(value || "")) : undefined,
-                field.key === "customFields.customerCode" ? String(value || "") : undefined,
-              ) }
-            : file.graph.metadata,
-          nodes: file.graph.nodes.map((item) =>
-            item.id === node.id ? next : item,
-          ),
+          metadata:
+            field.key === "customFields.projectId" || field.key === "customFields.customerCode"
+              ? {
+                  ...file.graph.metadata,
+                  name: syncProjectNameIdentity(
+                    file.graph.metadata.name,
+                    field.key === "customFields.projectId"
+                      ? legacyJobNumberFromProjectId(String(value || ""))
+                      : undefined,
+                    field.key === "customFields.customerCode" ? String(value || "") : undefined,
+                  ),
+                }
+              : file.graph.metadata,
+          nodes: file.graph.nodes.map((item) => (item.id === node.id ? next : item)),
         },
       }));
     } else update(next);
@@ -69,9 +84,7 @@ export function Field({
         ...useWorkflowStore.getState().file.graph,
         nodes: useWorkflowStore
           .getState()
-          .file.graph.nodes.map((item) =>
-            item.id === node.id ? initial.current! : item,
-          ),
+          .file.graph.nodes.map((item) => (item.id === node.id ? initial.current! : item)),
       },
     });
     initial.current = null;
@@ -81,18 +94,17 @@ export function Field({
     field.type === "tags" && Array.isArray(raw)
       ? raw.join(", ")
       : field.key === "customFields.projectId"
-        ? legacyJobNumberFromProjectId(String(raw || "")) || String(raw || "").replace(/\D/g, "").slice(0, 5)
-      : field.key === "config.stage"
-        ? chapterLabel(String(raw || ""))
-      : field.type === "text" && field.mask === "digits"
-        ? String(raw || "").replace(/\D/g, "")
-        : String(raw || "");
+        ? legacyJobNumberFromProjectId(String(raw || "")) ||
+          String(raw || "")
+            .replace(/\D/g, "")
+            .slice(0, 5)
+        : field.key === "config.stage"
+          ? chapterLabel(String(raw || ""))
+          : field.type === "text" && field.mask === "digits"
+            ? String(raw || "").replace(/\D/g, "")
+            : String(raw || "");
   return (
-    <div
-      className="space-y-1.5"
-      onFocus={onContainerFocus}
-      onBlur={onContainerBlur}
-    >
+    <div className="space-y-1.5" onFocus={onContainerFocus} onBlur={onContainerBlur}>
       <Label>{field.label}</Label>
       {field.type === "textarea" ? (
         <Textarea
@@ -125,11 +137,13 @@ export function Field({
           value={String(raw || "")}
           onChange={(e) => {
             if (field.key === "config.serviceType") {
-              const currentProjectId = String(
-                readPath(node, "customFields.projectId") || "",
-              );
+              const currentProjectId = String(readPath(node, "customFields.projectId") || "");
               const desiredPrefix = e.target.value === "Paid Service" ? "P" : "L";
-              const next = writePath(node, "customFields.projectId", currentProjectId.replace(/^[LP]-/, `${desiredPrefix}-`));
+              const next = writePath(
+                node,
+                "customFields.projectId",
+                currentProjectId.replace(/^[LP]-/, `${desiredPrefix}-`),
+              );
               update({
                 ...next,
                 config: { ...next.config, serviceType: e.target.value },
@@ -168,7 +182,11 @@ export function Field({
           value={textValue}
           placeholder={field.placeholder}
           maxLength={field.key === "customFields.projectId" ? 5 : field.maxLength}
-          inputMode={field.mask === "digits" || field.key === "customFields.projectId" ? "numeric" : undefined}
+          inputMode={
+            field.mask === "digits" || field.key === "customFields.projectId"
+              ? "numeric"
+              : undefined
+          }
           readOnly={field.readOnly}
           onChange={(e) => {
             const raw = e.target.value;
@@ -185,12 +203,18 @@ export function Field({
                     : field.key === "customFields.projectId"
                       ? (() => {
                           const digits = raw.replace(/\D/g, "").slice(0, 5);
-                          const prefix = String(node.config?.serviceType || "") === "Paid Service" ? "P" : "L";
-                          return digits.length === 5 ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}` : digits;
+                          const prefix =
+                            String(node.config?.serviceType || "") === "Paid Service" ? "P" : "L";
+                          return digits.length === 5
+                            ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}`
+                            : digits;
                         })()
                       : field.key === "customFields.customerCode"
-                        ? raw.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4)
-                      : raw;
+                        ? raw
+                            .toUpperCase()
+                            .replace(/[^A-Z]/g, "")
+                            .slice(0, 4)
+                        : raw;
             set(value, true);
             // Typing a complete B-XX / M-XXX value implicitly means this is
             // a Paid Service project, so promote serviceType and rewrite
@@ -210,9 +234,7 @@ export function Field({
         />
       )}
       {field.helpText ? (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          {field.helpText}
-        </p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{field.helpText}</p>
       ) : null}
     </div>
   );

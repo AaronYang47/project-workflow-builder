@@ -21,21 +21,28 @@ export function routeChapterConnections(file: WorkflowFile): Record<string, Chap
     if (previous.x + previous.width + 32 > file.layout.nodes[cards[index].id].x) return {};
   }
   const indexes = new Map(cards.map((node, index) => [node.id, index]));
-  const bottom = Math.max(...cards.map((node) => {
-    const layout = file.layout.nodes[node.id];
-    return layout.y + layout.height;
-  }));
+  const bottom = Math.max(
+    ...cards.map((node) => {
+      const layout = file.layout.nodes[node.id];
+      return layout.y + layout.height;
+    }),
+  );
   const result: Record<string, ChapterConnection> = {};
   const lanes: { left: number; right: number; y: number }[] = [];
-  const candidates = file.graph.edges.filter((edge) =>
-    indexes.has(edge.source) && indexes.has(edge.target) &&
-    (!edge.sourceHandle || edge.sourceHandle === "out") &&
-    (!edge.targetHandle || edge.targetHandle === "in") &&
-    !["supporting", "dependency"].includes(edge.type),
-  ).sort((a, b) =>
-    Math.abs(indexes.get(a.target)! - indexes.get(a.source)!) -
-    Math.abs(indexes.get(b.target)! - indexes.get(b.source)!) || a.id.localeCompare(b.id),
-  );
+  const candidates = file.graph.edges
+    .filter(
+      (edge) =>
+        indexes.has(edge.source) &&
+        indexes.has(edge.target) &&
+        (!edge.sourceHandle || edge.sourceHandle === "out") &&
+        (!edge.targetHandle || edge.targetHandle === "in") &&
+        !["supporting", "dependency"].includes(edge.type),
+    )
+    .sort(
+      (a, b) =>
+        Math.abs(indexes.get(a.target)! - indexes.get(a.source)!) -
+          Math.abs(indexes.get(b.target)! - indexes.get(b.source)!) || a.id.localeCompare(b.id),
+    );
   for (const edge of candidates) {
     const sourceIndex = indexes.get(edge.source)!;
     const targetIndex = indexes.get(edge.target)!;
@@ -55,7 +62,9 @@ export function routeChapterConnections(file: WorkflowFile): Record<string, Chap
     const next = cards[sourceIndex + 1];
     const previous = cards[targetIndex - 1];
     const exitGap = next ? file.layout.nodes[next.id].x - start.x : 160;
-    const entryGap = previous ? end.x - (file.layout.nodes[previous.id].x + file.layout.nodes[previous.id].width) : 160;
+    const entryGap = previous
+      ? end.x - (file.layout.nodes[previous.id].x + file.layout.nodes[previous.id].width)
+      : 160;
     const exitX = start.x + Math.min(48, exitGap / 3);
     const entryX = end.x - Math.min(48, entryGap / 3);
     const labelX = (exitX + entryX) / 2;
@@ -63,10 +72,18 @@ export function routeChapterConnections(file: WorkflowFile): Record<string, Chap
     const right = Math.max(exitX, entryX, labelX + chip.width / 2 + 24);
     let y = bottom + 96;
     // Overlapping spans nest from the inside out; disjoint spans can share a lane.
-    while (lanes.some((lane) => lane.y === y && lane.left < right + 48 && lane.right > left - 48)) y += 112;
+    while (lanes.some((lane) => lane.y === y && lane.left < right + 48 && lane.right > left - 48))
+      y += 112;
     lanes.push({ left, right, y });
     result[edge.id] = {
-      points: [start, { x: exitX, y: start.y }, { x: exitX, y }, { x: entryX, y }, { x: entryX, y: end.y }, end],
+      points: [
+        start,
+        { x: exitX, y: start.y },
+        { x: exitX, y },
+        { x: entryX, y },
+        { x: entryX, y: end.y },
+        end,
+      ],
       label: chip.width ? { x: labelX, y } : undefined,
     };
   }

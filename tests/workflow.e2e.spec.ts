@@ -41,7 +41,9 @@ async function openExecution(page: Page, nodeId: string) {
   await expect(page.getByRole("button", { name: "Back to L2" })).toBeVisible();
 }
 
-test("app loads the exact L1 lifecycle without browser, request, or collaboration errors", async ({ page }) => {
+test("app loads the exact L1 lifecycle without browser, request, or collaboration errors", async ({
+  page,
+}) => {
   const consoleErrors: string[] = [];
   const failedResponses: string[] = [];
   page.on("console", (message) => {
@@ -63,11 +65,11 @@ test("app loads the exact L1 lifecycle without browser, request, or collaboratio
   expect(consoleErrors).toEqual([]);
 });
 
-test("dragging a linked node in L1 updates the saved L2 sequence, layout, and STAGE values", async ({ page }) => {
+test("dragging a linked node in L1 updates the saved L2 sequence, layout, and STAGE values", async ({
+  page,
+}) => {
   const file = createE2EWorkflow();
-  const orderedIds = file.highLevel!.graph.nodes.flatMap(
-    (node) => node.linkedLayer2NodeIds ?? [],
-  );
+  const orderedIds = file.highLevel!.graph.nodes.flatMap((node) => node.linkedLayer2NodeIds ?? []);
   orderedIds.forEach((id, index) => {
     const node = file.graph.nodes.find((candidate) => candidate.id === id);
     if (node) node.config.stage = String(index).padStart(2, "0");
@@ -76,7 +78,10 @@ test("dragging a linked node in L1 updates the saved L2 sequence, layout, and ST
     ({ key, persistedFile }) => {
       localStorage.setItem(
         key,
-        JSON.stringify({ state: { file: persistedFile, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }),
+        JSON.stringify({
+          state: { file: persistedFile, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
       );
     },
     { key: WORKFLOW_STORAGE_KEY, persistedFile: file },
@@ -84,7 +89,9 @@ test("dragging a linked node in L1 updates the saved L2 sequence, layout, and ST
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   const phaseCard = page.locator('[data-id="high-level-2"]');
-  const gateTwo = phaseCard.locator('[data-linked-workflow-node-id="gate-g2-technical-commitment"]');
+  const gateTwo = phaseCard.locator(
+    '[data-linked-workflow-node-id="gate-g2-technical-commitment"]',
+  );
   const gateOne = phaseCard.locator('[data-linked-workflow-node-id="gate-g1-qualified"]');
   const [handleBox, targetBox] = await Promise.all([
     gateTwo.locator("[data-reorder-handle]").boundingBox(),
@@ -94,34 +101,38 @@ test("dragging a linked node in L1 updates the saved L2 sequence, layout, and ST
   expect(targetBox).toBeTruthy();
   await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 8 });
-  await expect(phaseCard.locator('[data-linked-workflow-row="gate-g2-technical-commitment"]')).toHaveCSS("transform", /matrix\(/);
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, {
+    steps: 8,
+  });
+  await expect(
+    phaseCard.locator('[data-linked-workflow-row="gate-g2-technical-commitment"]'),
+  ).toHaveCSS("transform", /matrix\(/);
   await expect(gateOne).toHaveClass(/ring-primary/);
   await page.mouse.up();
 
-  await expect.poll(() =>
-    phaseCard.locator("[data-linked-workflow-node-id]").evaluateAll((items) =>
-      items.map((item) => item.getAttribute("data-linked-workflow-node-id")),
-    ),
-  ).toEqual([
-    "gate-g2-technical-commitment",
-    "gate-g1-qualified",
-    "pre-construction",
-  ]);
+  await expect
+    .poll(() =>
+      phaseCard
+        .locator("[data-linked-workflow-node-id]")
+        .evaluateAll((items) =>
+          items.map((item) => item.getAttribute("data-linked-workflow-node-id")),
+        ),
+    )
+    .toEqual(["gate-g2-technical-commitment", "gate-g1-qualified", "pre-construction"]);
 
   const saved = await page.evaluate((key) => {
     const value = localStorage.getItem(key);
     return value ? JSON.parse(value).state.file : null;
   }, WORKFLOW_STORAGE_KEY);
-  expect(saved.highLevel.graph.nodes.find((node: { id: string }) => node.id === "high-level-2").linkedLayer2NodeIds).toEqual([
-    "gate-g2-technical-commitment",
-    "gate-g1-qualified",
-    "pre-construction",
-  ]);
+  expect(
+    saved.highLevel.graph.nodes.find((node: { id: string }) => node.id === "high-level-2")
+      .linkedLayer2NodeIds,
+  ).toEqual(["gate-g2-technical-commitment", "gate-g1-qualified", "pre-construction"]);
   // The stage field is each step's Department label; reordering keeps it.
   for (const id of ["gate-g2-technical-commitment", "gate-g1-qualified", "pre-construction"]) {
-    expect(saved.graph.nodes.find((node: { id: string }) => node.id === id).config.stage)
-      .toBe(file.graph.nodes.find((node) => node.id === id)!.config.stage);
+    expect(saved.graph.nodes.find((node: { id: string }) => node.id === id).config.stage).toBe(
+      file.graph.nodes.find((node) => node.id === id)!.config.stage,
+    );
   }
   expect(saved.layout.nodes["gate-g2-technical-commitment"].x).toBeLessThan(
     saved.layout.nodes["gate-g1-qualified"].x,
@@ -139,12 +150,18 @@ test("dragging a linked node in L1 updates the saved L2 sequence, layout, and ST
   expect(gateOneBox!.x).toBeLessThan(preConstructionBox!.x);
 });
 
-test("L1, L2, and the execution view are connected and G1 cannot be bypassed visually", async ({ page }) => {
+test("L1, L2, and the execution view are connected and G1 cannot be bypassed visually", async ({
+  page,
+}) => {
   await openLayer2(page);
   await expect(page.locator('[data-id="pre-construction"]')).toBeVisible();
 
   await page.locator('[data-id="pre-construction"]').click();
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } })));
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } }),
+    ),
+  );
 
   await expect(page.getByText("PRE-CONSTRUCTION", { exact: true })).toBeVisible();
   await expect(page.getByTestId("required-file-checklist")).toBeVisible();
@@ -154,7 +171,9 @@ test("L1, L2, and the execution view are connected and G1 cannot be bypassed vis
   await expect(page.getByText("Execution Item", { exact: true })).toHaveCount(0);
 });
 
-test("L3 Detailed Workflow minimap keeps the lifecycle order and excludes retired matrix nodes", async ({ page }) => {
+test("L3 Detailed Workflow minimap keeps the lifecycle order and excludes retired matrix nodes", async ({
+  page,
+}) => {
   await seedE2EWorkflow(page);
   await page.goto("/");
   await openExecution(page, "pre-construction");
@@ -206,9 +225,7 @@ test("the pyramid opens expanded and its Department and L3 levels can be collaps
   expect(await dialog.locator('button[title^="Open L2 ·"]').count()).toBeGreaterThan(0);
 
   const firstL1Card = dialog.locator('button[title="Open L1 · Start"]');
-  const firstL2Toggle = dialog.locator(
-    '[data-process-locator-l2-toggle="high-level-1"]',
-  );
+  const firstL2Toggle = dialog.locator('[data-process-locator-l2-toggle="high-level-1"]');
   const [l1Box, toggleBox] = await Promise.all([
     firstL1Card.boundingBox(),
     firstL2Toggle.boundingBox(),
@@ -246,12 +263,10 @@ test("the pyramid opens expanded and its Department and L3 levels can be collaps
 
 test("L1 zooms with an ordinary mouse wheel", async ({ page }) => {
   await openLayer1(page);
-  const viewport = page.locator(
-    '[data-high-level-workflow-view] .react-flow__viewport',
-  );
+  const viewport = page.locator("[data-high-level-workflow-view] .react-flow__viewport");
   await expect(viewport).toBeVisible();
   const before = await viewport.getAttribute("style");
-  const canvas = page.locator('[data-high-level-workflow-view] .react-flow__pane');
+  const canvas = page.locator("[data-high-level-workflow-view] .react-flow__pane");
   const box = await canvas.boundingBox();
   expect(box).toBeTruthy();
   await page.mouse.move(
@@ -266,9 +281,7 @@ test("L1 zooms with an ordinary mouse wheel", async ({ page }) => {
 
 test("Opportunity Qualification is completely removed from the workflow", async ({ page }) => {
   await openLayer2(page);
-  await expect(
-    page.getByRole("button", { name: "Opportunity Qualification" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Opportunity Qualification" })).toHaveCount(0);
   await expect(page.locator('[data-id^="opportunity"]')).toHaveCount(0);
 });
 
@@ -292,7 +305,12 @@ test("the execution view releases when every required file is checked", async ({
     await files.nth(index).check();
   }
   // L3 shows one release condition at a time; the node releases once all of them are complete.
-  await expect(page.getByText("This release condition is complete. Complete the remaining department requirements to release this node.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "This release condition is complete. Complete the remaining department requirements to release this node.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test("the execution view does not expose execution-item editing", async ({ page }) => {
@@ -303,7 +321,6 @@ test("the execution view does not expose execution-item editing", async ({ page 
   await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);
   await expect(page.getByLabel("Applicability decision")).toHaveCount(0);
 });
-
 
 test("mobile L1 and L3 remain within the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -319,7 +336,9 @@ test("mobile L1 and L3 remain within the viewport", async ({ page }) => {
   ).toBe(true);
 });
 
-test("L2 release condition text click opens L3 with 3-box architecture: Legal, Customer, Supporting", async ({ page }) => {
+test("L2 release condition text click opens L3 with 3-box architecture: Legal, Customer, Supporting", async ({
+  page,
+}) => {
   await seedE2EWorkflow(page);
   await page.goto("/");
   // Open L2
@@ -327,7 +346,9 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
 
   // Find a release condition text button in L2 and click it
-  const conditionBtn = page.getByRole("button", { name: /Open L3 details for release condition/ }).first();
+  const conditionBtn = page
+    .getByRole("button", { name: /Open L3 details for release condition/ })
+    .first();
   await expect(conditionBtn).toBeVisible();
   await conditionBtn.click();
 
@@ -444,7 +465,9 @@ test("Export dropdown provides Image and PDF export options", async ({ page }) =
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
 
   // Find Export button
-  const exportBtn = page.getByRole("button", { name: "Export", exact: false }).filter({ hasText: "Export" });
+  const exportBtn = page
+    .getByRole("button", { name: "Export", exact: false })
+    .filter({ hasText: "Export" });
   await expect(exportBtn).toBeVisible();
 
   // Click Export to open dropdown
@@ -475,7 +498,10 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await expect(page.getByText("Form").first()).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
 
-  await page.getByRole("button", { name: /Open L3 details for release condition/ }).first().click();
+  await page
+    .getByRole("button", { name: /Open L3 details for release condition/ })
+    .first()
+    .click();
   await page.getByRole("button", { name: "Add Customer Information Form" }).click();
   await expect(page.getByRole("heading", { name: "Add Customer Information Form" })).toBeVisible();
   await expect(page.getByText("Form").first()).toBeVisible();
@@ -488,7 +514,9 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await page.getByRole("button", { name: "Open Form" }).click();
   await expect(page.getByRole("heading", { name: "Form", exact: true })).toBeVisible();
   await page.getByLabel("Company name").fill("CMHC");
-  await expect(page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ })).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ }),
+  ).toBeVisible();
   await page.getByRole("option", { name: /Canada Mortgage and Housing Corporation/ }).click();
   await page.getByLabel("Decision Authority").selectOption("Unknown");
   await page.getByLabel("Site Status").selectOption("No Site");

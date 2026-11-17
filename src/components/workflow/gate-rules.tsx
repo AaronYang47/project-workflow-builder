@@ -13,16 +13,9 @@ import {
   getGateLayoutMetrics,
 } from "@/lib/gate-layout";
 import type { GateCompletionState } from "@/lib/workflow-progress";
-import type {
-  DomainNode,
-  GateSignatureRequirement,
-} from "@/types/workflow";
+import type { DomainNode, GateSignatureRequirement } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
-import {
-  iconOptions,
-  saveText,
-  textareaRows,
-} from "./node-utils";
+import { iconOptions, saveText, textareaRows } from "./node-utils";
 import { useGateContext } from "./use-gate-context";
 import { DecisionCard } from "./decision-card";
 import { ApprovalConditionsPanel } from "./approval-conditions-panel";
@@ -37,13 +30,7 @@ import { workflowHasPaidService } from "@/lib/workflow-progress";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { getNodeColor } from "./high-level-node";
 
-export function GateRules({
-  node,
-  phaseColor,
-}: {
-  node: DomainNode;
-  phaseColor?: string;
-}) {
+export function GateRules({ node, phaseColor }: { node: DomainNode; phaseColor?: string }) {
   const {
     rules,
     outcomes,
@@ -73,16 +60,13 @@ export function GateRules({
       ? "partial"
       : conditionState;
   const GateHeaderIcon =
-    iconOptions[node.config.gateIconKey as keyof typeof iconOptions] ||
-    Landmark;
+    iconOptions[node.config.gateIconKey as keyof typeof iconOptions] || Landmark;
   const gateLabel = node.config.gateLabel?.trim() || "GATE";
-  const gateHeaderColor =
-    node.config.gateHeaderColor || node.color || phaseColor || "#0d233b";
+  const gateHeaderColor = node.config.gateHeaderColor || node.color || phaseColor || "#0d233b";
   const gateTitleColor = node.config.gateTitleColor || "#ffffff";
   const saveRules = (nextRules: typeof rules) => {
     const store = useWorkflowStore.getState();
-    const currentNode =
-      store.file.graph.nodes.find((item) => item.id === node.id) || node;
+    const currentNode = store.file.graph.nodes.find((item) => item.id === node.id) || node;
     const expression = nextRules
       .map((rule) => {
         const signatures = (rule.signatures || [])
@@ -118,13 +102,9 @@ export function GateRules({
     // is the user's way of undoing that. Mirror both transitions onto the
     // project-start node so the gate badge stays in lockstep.
     const hasPaidCondition = nextRules.some((rule) => ruleHasPaidService(rule));
-    const projectStartServiceType = String(
-      projectStartNode?.config?.serviceType || "",
-    );
+    const projectStartServiceType = String(projectStartNode?.config?.serviceType || "");
     const shouldPromoteProjectStart =
-      hasPaidCondition &&
-      Boolean(projectStartNode) &&
-      projectStartServiceType !== "Paid Service";
+      hasPaidCondition && Boolean(projectStartNode) && projectStartServiceType !== "Paid Service";
     const shouldDemoteProjectStart =
       !workflowHasPaidService(store.file.graph.nodes, node.id, nextRules) &&
       Boolean(projectStartNode) &&
@@ -136,22 +116,14 @@ export function GateRules({
         ...file.graph,
         nodes: file.graph.nodes.map((item) => {
           if (item.id === node.id) return nextNode;
-          if (
-            shouldPromoteProjectStart &&
-            projectStartNode &&
-            item.id === projectStartNode.id
-          ) {
+          if (shouldPromoteProjectStart && projectStartNode && item.id === projectStartNode.id) {
             const promoted = promoteToPaidService(item);
             return {
               ...promoted,
               conditions: syncPaidConditions(promoted, true),
             };
           }
-          if (
-            shouldDemoteProjectStart &&
-            projectStartNode &&
-            item.id === projectStartNode.id
-          ) {
+          if (shouldDemoteProjectStart && projectStartNode && item.id === projectStartNode.id) {
             const demoted = demoteToStandardService(item);
             return {
               ...demoted,
@@ -177,8 +149,7 @@ export function GateRules({
                     ...edge,
                     condition: {
                       expression: `NOT (${expression || "all approval conditions"})`,
-                      description:
-                        "The selected denied or exception route applies",
+                      description: "The selected denied or exception route applies",
                     },
                   }
                 : edge,
@@ -203,27 +174,20 @@ export function GateRules({
     patch: Partial<GateSignatureRequirement>,
   ) => {
     const latest =
-      useWorkflowStore
-        .getState()
-        .file.graph.nodes.find((item) => item.id === node.id) || node;
+      useWorkflowStore.getState().file.graph.nodes.find((item) => item.id === node.id) || node;
     const nextRules = (latest.config.gateRules || []).map((rule) =>
       rule.id !== ruleId
         ? rule
         : {
             ...rule,
             signatures: (rule.signatures || []).map((signature) =>
-              signature.id === signatureId
-                ? { ...signature, ...patch }
-                : signature,
+              signature.id === signatureId ? { ...signature, ...patch } : signature,
             ),
           },
     );
     saveRules(nextRules);
   };
-  const saveApprovalField = (
-    field: "approvedDepartment" | "approvedBy",
-    value: string,
-  ) => {
+  const saveApprovalField = (field: "approvedDepartment" | "approvedBy", value: string) => {
     const next = value.trim();
     if (next === node.config[field]) return;
     useWorkflowStore.getState().commit((file) => ({
@@ -231,17 +195,12 @@ export function GateRules({
       graph: {
         ...file.graph,
         nodes: file.graph.nodes.map((item) =>
-          item.id === node.id
-            ? { ...item, config: { ...item.config, [field]: next } }
-            : item,
+          item.id === node.id ? { ...item, config: { ...item.config, [field]: next } } : item,
         ),
       },
     }));
   };
-  const savePaidLocationCode = (
-    field: "buildingCode" | "moduleCode",
-    value: string,
-  ) => {
+  const savePaidLocationCode = (field: "buildingCode" | "moduleCode", value: string) => {
     useWorkflowStore.getState().commit((file) => ({
       ...file,
       graph: {
@@ -299,9 +258,7 @@ export function GateRules({
           width: GATE_CARD_WIDTH,
           height: metrics.gateCardHeight,
           borderColor: nodeColor ? nodeColor.border : undefined,
-          ...(nodeColor
-            ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties)
-            : {}),
+          ...(nodeColor ? ({ "--node-glass-tint": nodeColor.tint } as React.CSSProperties) : {}),
         }}
       >
         <div
@@ -371,9 +328,7 @@ export function GateRules({
               data-inspector-target="description"
               defaultValue={node.description}
               rows={textareaRows(node.description, 58, 3)}
-              onBlur={(event) =>
-                saveText(node, "description", event.target.value)
-              }
+              onBlur={(event) => saveText(node, "description", event.target.value)}
               placeholder="Commercial decision scope"
               className="min-h-[108px] w-full resize-none overflow-hidden rounded-lg border bg-muted/25 px-3 py-2.5 text-sm leading-5 text-muted-foreground outline-none focus:border-[#b78b3e] focus:bg-background"
             />
@@ -406,10 +361,7 @@ export function GateRules({
         }}
       >
         <span
-          className={cn(
-            "absolute inset-x-0 top-0 h-2/3 rounded-full",
-            conditionStyle.accent,
-          )}
+          className={cn("absolute inset-x-0 top-0 h-2/3 rounded-full", conditionStyle.accent)}
         />
         <span
           className={cn(
@@ -450,10 +402,7 @@ export function GateRules({
         }}
       >
         <span
-          className={cn(
-            "absolute inset-x-[-1px] top-0 h-2/3 rounded-full",
-            decisionStyle.accent,
-          )}
+          className={cn("absolute inset-x-[-1px] top-0 h-2/3 rounded-full", decisionStyle.accent)}
         />
       </div>
       <div

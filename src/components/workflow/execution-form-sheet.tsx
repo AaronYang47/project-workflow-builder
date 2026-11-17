@@ -53,11 +53,7 @@ function authorizationState(
 ): ExecutionFormSnapshot["authorizationState"] {
   const executed = item.signatureStatus === "Signed" || executionStateRecorded;
   const approved = item.approvalStatus === "Approved";
-  return executed && approved
-    ? "Executed & Approved"
-    : executed
-      ? "Executed"
-      : "Approved";
+  return executed && approved ? "Executed & Approved" : executed ? "Executed" : "Approved";
 }
 
 function fieldDisplayValue(value: ExecutionFormValue) {
@@ -65,9 +61,7 @@ function fieldDisplayValue(value: ExecutionFormValue) {
   return value || "—";
 }
 
-function editableFieldFromDefinition(
-  definition: ProfabFormFieldDefinition,
-): EditableFormField {
+function editableFieldFromDefinition(definition: ProfabFormFieldDefinition): EditableFormField {
   return {
     id: definition.id,
     label: definition.label,
@@ -95,23 +89,20 @@ export function ExecutionFormSheet({
   const determination = executionItemApplicabilityDetermination(item);
 
   const materializedValues = useMemo(
-    () => form ? materializeProfabFormValues(form, values, operations) : {},
+    () => (form ? materializeProfabFormValues(form, values, operations) : {}),
     [form, operations, values],
   );
   const materializedFingerprint = JSON.stringify(materializedValues);
   const changedSnapshotFields = useMemo(() => {
     if (!item.formSnapshot) return [];
-    const changed = changedProfabSnapshotFields(
-      item.formSnapshot.values,
-      materializedValues,
-    );
+    const changed = changedProfabSnapshotFields(item.formSnapshot.values, materializedValues);
     if (item.formSnapshot.documentRevision !== (item.documentRevision || "")) {
       changed.push("__documentRevision");
     }
     return changed;
   }, [item.documentRevision, item.formSnapshot, materializedValues]);
-  const executed = item.signatureStatus === "Signed" ||
-    materializedValues.executionState === "Executed";
+  const executed =
+    item.signatureStatus === "Signed" || materializedValues.executionState === "Executed";
   const approved = item.approvalStatus === "Approved";
   const locked = executed || approved;
 
@@ -138,9 +129,8 @@ export function ExecutionFormSheet({
         formStale: true,
         formStaleFieldIds: changedSnapshotFields,
         approvalStatus: approved ? "Pending" : item.approvalStatus,
-        status: item.status === "Complete" || item.status === "Passed"
-          ? "In Progress"
-          : item.status,
+        status:
+          item.status === "Complete" || item.status === "Passed" ? "In Progress" : item.status,
       });
     }
   }, [
@@ -163,9 +153,7 @@ export function ExecutionFormSheet({
     profabFieldIsVisible(definition, materializedValues, operations),
   );
   const completedFields = visibleFields.filter((definition) =>
-    profabValueIsComplete(
-      resolveProfabFieldValue(definition, values, operations),
-    ),
+    profabValueIsComplete(resolveProfabFieldValue(definition, values, operations)),
   ).length;
   const sections = Array.from(
     visibleFields.reduce((grouped, definition) => {
@@ -176,9 +164,7 @@ export function ExecutionFormSheet({
     }, new Map<string, ProfabFormFieldDefinition[]>()),
   );
   const formOverrides = item.formOverrides || {};
-  const catalogForm = item.catalogId
-    ? PROFAB_FORM_BY_ID.get(item.catalogId)
-    : undefined;
+  const catalogForm = item.catalogId ? PROFAB_FORM_BY_ID.get(item.catalogId) : undefined;
   const saveFormOverrides = (patch: Partial<ExecutionFormOverrides>) =>
     onChange({
       formOverrides: {
@@ -226,9 +212,7 @@ export function ExecutionFormSheet({
     });
   };
   const removeFormField = (definition: ProfabFormFieldDefinition) => {
-    const isCatalogField = Boolean(
-      catalogForm?.fields.some((field) => field.id === definition.id),
-    );
+    const isCatalogField = Boolean(catalogForm?.fields.some((field) => field.id === definition.id));
     const nextValues = { ...values };
     delete nextValues[definition.id];
     const nextStaleFields = (item.formStaleFieldIds || []).filter(
@@ -237,9 +221,7 @@ export function ExecutionFormSheet({
     onChange({
       formOverrides: {
         ...formOverrides,
-        fields: (formOverrides.fields || []).filter(
-          (field) => field.id !== definition.id,
-        ),
+        fields: (formOverrides.fields || []).filter((field) => field.id !== definition.id),
         removedFieldIds: isCatalogField
           ? Array.from(new Set([...(formOverrides.removedFieldIds || []), definition.id]))
           : formOverrides.removedFieldIds,
@@ -252,15 +234,10 @@ export function ExecutionFormSheet({
     });
   };
 
-  const updateValue = (
-    definition: ProfabFormFieldDefinition,
-    value: ExecutionFormValue,
-  ) => {
+  const updateValue = (definition: ProfabFormFieldDefinition, value: ExecutionFormValue) => {
     if (locked || definition.readOnly || definition.computed) return;
     if (definition.bindingPath && operations) {
-      updateOperations((current) =>
-        applyProfabFieldBinding(current, definition, value),
-      );
+      updateOperations((current) => applyProfabFieldBinding(current, definition, value));
     }
     const staleFields = item.formSnapshot
       ? Array.from(new Set([...(item.formStaleFieldIds || []), definition.id]))
@@ -270,9 +247,7 @@ export function ExecutionFormSheet({
       formStale: item.formSnapshot ? true : item.formStale,
       formStaleFieldIds: staleFields,
       approvalStatus:
-        item.formSnapshot && item.approvalStatus === "Approved"
-          ? "Pending"
-          : item.approvalStatus,
+        item.formSnapshot && item.approvalStatus === "Approved" ? "Pending" : item.approvalStatus,
     });
   };
 
@@ -323,7 +298,9 @@ export function ExecutionFormSheet({
           <div>
             <p className="font-bold text-foreground">Controlled form locked</p>
             <p className="mt-0.5 leading-relaxed text-muted-foreground">
-              {authorizationState(item, executed)} records are read-only. Return the signature/approval to Pending before revising; any canonical operational change marks this snapshot stale.
+              {authorizationState(item, executed)} records are read-only. Return the
+              signature/approval to Pending before revising; any canonical operational change marks
+              this snapshot stale.
             </p>
           </div>
         </div>
@@ -333,28 +310,34 @@ export function ExecutionFormSheet({
         <details
           className={cn(
             "rounded-lg border px-3 py-2.5 text-[11px]",
-            item.formStale
-              ? "border-rose-500/30 bg-rose-500/5"
-              : "border-slate-300/70 bg-muted/20",
+            item.formStale ? "border-rose-500/30 bg-rose-500/5" : "border-slate-300/70 bg-muted/20",
           )}
         >
           <summary className="cursor-pointer font-bold text-foreground">
-            {item.formSnapshot.authorizationState} snapshot · {item.formSnapshot.capturedAt || "time unavailable"}
+            {item.formSnapshot.authorizationState} snapshot ·{" "}
+            {item.formSnapshot.capturedAt || "time unavailable"}
           </summary>
           {item.formStale ? (
             <p className="mt-2 text-rose-700 dark:text-rose-300">
-              Changed after authorization: {(item.formStaleFieldIds || []).map((fieldId) =>
-                fieldId === "__documentRevision"
-                  ? "Controlled revision"
-                  : fieldId === "__formDefinition"
-                    ? "L3 form definition"
-                    : form.fields.find((definition) => definition.id === fieldId)?.label || fieldId,
-              ).join(" · ") || "Bound operational data"}
+              Changed after authorization:{" "}
+              {(item.formStaleFieldIds || [])
+                .map((fieldId) =>
+                  fieldId === "__documentRevision"
+                    ? "Controlled revision"
+                    : fieldId === "__formDefinition"
+                      ? "L3 form definition"
+                      : form.fields.find((definition) => definition.id === fieldId)?.label ||
+                        fieldId,
+                )
+                .join(" · ") || "Bound operational data"}
             </p>
           ) : null}
           <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
             {form.fields.map((definition) => (
-              <div key={definition.id} className="flex min-w-0 justify-between gap-2 border-b border-border/50 py-1">
+              <div
+                key={definition.id}
+                className="flex min-w-0 justify-between gap-2 border-b border-border/50 py-1"
+              >
                 <span className="truncate text-muted-foreground">{definition.label}</span>
                 <span className="max-w-[55%] truncate text-right font-medium text-foreground">
                   {fieldDisplayValue(item.formSnapshot!.values[definition.id] ?? "")}
@@ -378,7 +361,8 @@ export function ExecutionFormSheet({
         </summary>
         <div className="mt-3 space-y-3 border-t border-primary/15 pt-3">
           <p className="leading-relaxed text-muted-foreground">
-            Changes apply only to this L3 item. Controlled data bindings and computed controls remain protected.
+            Changes apply only to this L3 item. Controlled data bindings and computed controls
+            remain protected.
           </p>
           {locked ? (
             <p className="rounded-md border border-sky-500/25 bg-sky-500/5 px-2 py-1.5 text-[10px] text-muted-foreground">
@@ -435,10 +419,7 @@ export function ExecutionFormSheet({
           {form.fields.length ? (
             <div className="space-y-2">
               {form.fields.map((definition, fieldIndex) => (
-                <div
-                  key={definition.id}
-                  className="rounded-md border bg-background/70 p-2"
-                >
+                <div key={definition.id} className="rounded-md border bg-background/70 p-2">
                   <div className="grid grid-cols-[minmax(0,1fr)_92px_24px] items-center gap-1.5">
                     <Input
                       aria-label={`L3 form field ${fieldIndex + 1} label`}
@@ -650,9 +631,7 @@ export function ExecutionFormSheet({
           <Link2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
           <div>
             <p className="font-semibold text-foreground">Lifecycle connections</p>
-            <p className="mt-0.5 leading-relaxed">
-              {form.lifecycleTouchpoints.join(" → ")}
-            </p>
+            <p className="mt-0.5 leading-relaxed">{form.lifecycleTouchpoints.join(" → ")}</p>
             <p className="mt-1 leading-relaxed">{item.sourceReference}</p>
             {form.sourceNote ? (
               <p className="mt-1 font-medium text-amber-700 dark:text-amber-300">
@@ -663,101 +642,115 @@ export function ExecutionFormSheet({
         </div>
       </div>
 
-      {!disabled ? sections.map(([section, definitions]) => (
-        <fieldset key={section} className="space-y-3 rounded-lg border bg-background/45 p-3">
-          <legend className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-muted-foreground">
-            {section}
-          </legend>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {definitions.map((definition) => {
-              const id = `${item.id}-${definition.id}`;
-              const value = resolveProfabFieldValue(definition, values, operations);
-              const fullWidth = definition.type === "textarea";
-              const required = profabFieldIsRequired(definition, materializedValues, operations);
-              const fieldLocked = locked || Boolean(definition.readOnly || definition.computed);
-              return (
-                <div
-                  key={definition.id}
-                  className={cn("space-y-1.5", fullWidth && "sm:col-span-2")}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-1">
-                    <Label htmlFor={id}>
-                      {definition.label}
-                      {required ? <span className="ml-1 text-rose-500">*</span> : null}
-                    </Label>
-                    {definition.bindingPath || definition.computed ? (
-                      <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground">
-                        {definition.computed ? "Computed" : "Shared data"}
-                      </span>
-                    ) : null}
-                  </div>
-                  {definition.type === "textarea" ? (
-                    <Textarea
-                      id={id}
-                      value={typeof value === "string" ? value : ""}
-                      disabled={fieldLocked}
-                      onChange={(event) => updateValue(definition, event.target.value)}
-                      rows={3}
-                      placeholder={definition.placeholder}
-                    />
-                  ) : definition.type === "select" ? (
-                    <select
-                      id={id}
-                      value={typeof value === "string" ? value : ""}
-                      disabled={fieldLocked}
-                      onChange={(event) => updateValue(definition, event.target.value)}
-                      className={inputClass}
+      {!disabled
+        ? sections.map(([section, definitions]) => (
+            <fieldset key={section} className="space-y-3 rounded-lg border bg-background/45 p-3">
+              <legend className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-muted-foreground">
+                {section}
+              </legend>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {definitions.map((definition) => {
+                  const id = `${item.id}-${definition.id}`;
+                  const value = resolveProfabFieldValue(definition, values, operations);
+                  const fullWidth = definition.type === "textarea";
+                  const required = profabFieldIsRequired(
+                    definition,
+                    materializedValues,
+                    operations,
+                  );
+                  const fieldLocked = locked || Boolean(definition.readOnly || definition.computed);
+                  return (
+                    <div
+                      key={definition.id}
+                      className={cn("space-y-1.5", fullWidth && "sm:col-span-2")}
                     >
-                      <option value="">Select…</option>
-                      {Array.from(new Set([
-                        ...(definition.options || []),
-                        ...(typeof value === "string" && value && !definition.options?.includes(value)
-                          ? [value]
-                          : []),
-                      ])).map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  ) : definition.type === "checkbox" ? (
-                    <label className={cn(
-                      "flex min-h-9 items-center gap-2 rounded-md border bg-background px-2 text-xs",
-                      fieldLocked && "cursor-not-allowed bg-muted/45 text-muted-foreground",
-                    )}>
-                      <input
-                        id={id}
-                        type="checkbox"
-                        disabled={fieldLocked}
-                        checked={value === true}
-                        onChange={(event) => updateValue(definition, event.target.checked)}
-                      />
-                      Confirmed
-                    </label>
-                  ) : (
-                    <Input
-                      id={id}
-                      type={definition.type}
-                      value={typeof value === "string" ? value : ""}
-                      disabled={fieldLocked}
-                      onChange={(event) => updateValue(definition, event.target.value)}
-                      placeholder={definition.placeholder}
-                    />
-                  )}
-                  {definition.help ? (
-                    <p className="text-[10px] leading-relaxed text-muted-foreground">
-                      {definition.help}
-                    </p>
-                  ) : null}
-                  {definition.bindingPath ? (
-                    <p className="text-[9px] leading-relaxed text-muted-foreground/80">
-                      Canonical binding: operations.{definition.bindingPath}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </fieldset>
-      )) : null}
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <Label htmlFor={id}>
+                          {definition.label}
+                          {required ? <span className="ml-1 text-rose-500">*</span> : null}
+                        </Label>
+                        {definition.bindingPath || definition.computed ? (
+                          <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {definition.computed ? "Computed" : "Shared data"}
+                          </span>
+                        ) : null}
+                      </div>
+                      {definition.type === "textarea" ? (
+                        <Textarea
+                          id={id}
+                          value={typeof value === "string" ? value : ""}
+                          disabled={fieldLocked}
+                          onChange={(event) => updateValue(definition, event.target.value)}
+                          rows={3}
+                          placeholder={definition.placeholder}
+                        />
+                      ) : definition.type === "select" ? (
+                        <select
+                          id={id}
+                          value={typeof value === "string" ? value : ""}
+                          disabled={fieldLocked}
+                          onChange={(event) => updateValue(definition, event.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">Select…</option>
+                          {Array.from(
+                            new Set([
+                              ...(definition.options || []),
+                              ...(typeof value === "string" &&
+                              value &&
+                              !definition.options?.includes(value)
+                                ? [value]
+                                : []),
+                            ]),
+                          ).map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : definition.type === "checkbox" ? (
+                        <label
+                          className={cn(
+                            "flex min-h-9 items-center gap-2 rounded-md border bg-background px-2 text-xs",
+                            fieldLocked && "cursor-not-allowed bg-muted/45 text-muted-foreground",
+                          )}
+                        >
+                          <input
+                            id={id}
+                            type="checkbox"
+                            disabled={fieldLocked}
+                            checked={value === true}
+                            onChange={(event) => updateValue(definition, event.target.checked)}
+                          />
+                          Confirmed
+                        </label>
+                      ) : (
+                        <Input
+                          id={id}
+                          type={definition.type}
+                          value={typeof value === "string" ? value : ""}
+                          disabled={fieldLocked}
+                          onChange={(event) => updateValue(definition, event.target.value)}
+                          placeholder={definition.placeholder}
+                        />
+                      )}
+                      {definition.help ? (
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          {definition.help}
+                        </p>
+                      ) : null}
+                      {definition.bindingPath ? (
+                        <p className="text-[9px] leading-relaxed text-muted-foreground/80">
+                          Canonical binding: operations.{definition.bindingPath}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))
+        : null}
 
       {item.formStale || missing.length ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px]">
@@ -775,7 +768,8 @@ export function ExecutionFormSheet({
         <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-[11px]">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
           <p className="leading-relaxed text-muted-foreground">
-            Required form data is valid. Signature, approval, task, and overall status controls still apply.
+            Required form data is valid. Signature, approval, task, and overall status controls
+            still apply.
           </p>
         </div>
       )}

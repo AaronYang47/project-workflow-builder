@@ -9,10 +9,7 @@ import type { StoreGet, StoreSet, WorkflowState } from "@/store/workflow-store-t
 
 export type ExecutionSlice = Pick<
   WorkflowState,
-  | "clearExecutionItems"
-  | "addExecutionItem"
-  | "updateExecutionItem"
-  | "deleteExecutionItem"
+  "clearExecutionItems" | "addExecutionItem" | "updateExecutionItem" | "deleteExecutionItem"
 >;
 
 /** L3 execution items (forms, documents, approvals) linked to L2 nodes. */
@@ -23,8 +20,7 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
         const execution = state.file.execution || createEmptyExecutionLayer();
         const items = nodeId
           ? execution.items.filter(
-              (item) =>
-                item.linkedLayer2NodeId !== nodeId || Boolean(item.catalogId),
+              (item) => item.linkedLayer2NodeId !== nodeId || Boolean(item.catalogId),
             )
           : execution.items.filter((item) => Boolean(item.catalogId));
         return {
@@ -42,9 +38,7 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
       }),
     addExecutionItem: (linkedLayer2NodeId, type = "Document") => {
       const current = get().file;
-      if (
-        !current.graph.nodes.some((node) => node.id === linkedLayer2NodeId)
-      ) {
+      if (!current.graph.nodes.some((node) => node.id === linkedLayer2NodeId)) {
         return "";
       }
       const id = `execution-${crypto.randomUUID().slice(0, 8)}`;
@@ -71,14 +65,20 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
         const execution = state.file.execution;
         const current = execution?.items.find((item) => item.id === id);
         if (!execution || !current) return state;
-        const blocker = patch.checklistComplete === true && !current.checklistComplete &&
-          sequentialExecutionBlocker(state.file, patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId);
-        if (blocker) return { deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] } };
+        const blocker =
+          patch.checklistComplete === true &&
+          !current.checklistComplete &&
+          sequentialExecutionBlocker(
+            state.file,
+            patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId,
+          );
+        if (blocker)
+          return {
+            deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] },
+          };
         if (
           patch.linkedLayer2NodeId !== undefined &&
-          !state.file.graph.nodes.some(
-            (node) => node.id === patch.linkedLayer2NodeId,
-          )
+          !state.file.graph.nodes.some((node) => node.id === patch.linkedLayer2NodeId)
         ) {
           return state;
         }
@@ -86,8 +86,7 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
           ...current,
           ...patch,
           id: current.id,
-          linkedLayer2NodeId:
-            patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId,
+          linkedLayer2NodeId: patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId,
         };
         return {
           past: appendHistory(state.past, state.file),
@@ -95,9 +94,7 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
             ...state.file,
             execution: {
               ...execution,
-              items: execution.items.map((item) =>
-                item.id === id ? nextItem : item,
-              ),
+              items: execution.items.map((item) => (item.id === id ? nextItem : item)),
             },
           },
           future: [],

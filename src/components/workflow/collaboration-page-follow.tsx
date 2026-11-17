@@ -2,9 +2,15 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
-import { collaborativePageFromPath, COLLABORATIVE_PATHS } from "@/lib/collaboration/collaboration-route";
+import {
+  collaborativePageFromPath,
+  COLLABORATIVE_PATHS,
+} from "@/lib/collaboration/collaboration-route";
 
 /** Lives in the root layout so follow mode survives switching workspaces. */
 export function CollaborationPageFollow() {
@@ -25,7 +31,14 @@ export function CollaborationPageFollow() {
   }, [pathname, roomId, editControlReady, canEdit, isConnected]);
 
   useEffect(() => {
-    if (roomId === "local-only" || !editControlReady || canEdit || !editorViewState || !collaborativePageFromPath(pathname)) return;
+    if (
+      roomId === "local-only" ||
+      !editControlReady ||
+      canEdit ||
+      !editorViewState ||
+      !collaborativePageFromPath(pathname)
+    )
+      return;
     // Missing page means the canvas for older clients. Never navigate to a
     // peer-supplied URL: only the three known workspace routes are accepted.
     const page = editorViewState.page || "workflow";

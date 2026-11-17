@@ -11,7 +11,14 @@ import type { WorkflowFile } from "@/types/workflow";
 /** Drop a node from the node library onto the L2 canvas: wraps the selection in a
  * new phase, places a gate under the dropped-on node, or adds the node inside the
  * phase under the pointer. */
-export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrappingNodes, addGateUnderNode }: {
+export function useCanvasDrop({
+  flow,
+  file,
+  selection,
+  addNode,
+  addPhaseWrappingNodes,
+  addGateUnderNode,
+}: {
   flow: ReactFlowInstance;
   file: WorkflowFile;
   selection: WorkflowState["selection"];
@@ -22,9 +29,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
   return useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const type = event.dataTransfer.getData(
-        "application/workflow-node",
-      ) as WorkflowNodeType;
+      const type = event.dataTransfer.getData("application/workflow-node") as WorkflowNodeType;
       if (!type) return;
       const position = flow.screenToFlowPosition({
         x: event.clientX,
@@ -91,19 +96,14 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
 
       if (type === "phase") {
         // Step nodes (non-phase, non-gate)
-        const stepNodes = file.graph.nodes.filter(
-          (n) => n.type !== "phase" && n.type !== "gate",
-        );
+        const stepNodes = file.graph.nodes.filter((n) => n.type !== "phase" && n.type !== "gate");
 
         // Find which step node is targeted (cursor is dropped above it or over it)
         const targetNode = stepNodes.find((n) => {
           const bounds = resolveAbs(n.id);
-          const xMatch =
-            position.x >= bounds.x - 60 &&
-            position.x <= bounds.x + bounds.width + 60;
+          const xMatch = position.x >= bounds.x - 60 && position.x <= bounds.x + bounds.width + 60;
           const yMatch =
-            position.y >= bounds.y - 240 &&
-            position.y <= bounds.y + bounds.height + 60;
+            position.y >= bounds.y - 240 && position.y <= bounds.y + bounds.height + 60;
           return xMatch && yMatch;
         });
 
@@ -116,26 +116,18 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
 
           let coveredNodes = [targetNode];
           if (directL1) {
-            const linkedIds =
-              directL1.linkedLayer2NodeIds ?? directL1.linkedDetailedNodeIds ?? [];
+            const linkedIds = directL1.linkedLayer2NodeIds ?? directL1.linkedDetailedNodeIds ?? [];
             const l1Steps = stepNodes.filter((n) => linkedIds.includes(n.id));
             if (l1Steps.length > 0) {
               coveredNodes = l1Steps;
             }
-          } else if (
-            selection.nodeIds.length > 1 &&
-            selection.nodeIds.includes(targetNode.id)
-          ) {
-            coveredNodes = stepNodes.filter((n) =>
-              selection.nodeIds.includes(n.id),
-            );
+          } else if (selection.nodeIds.length > 1 && selection.nodeIds.includes(targetNode.id)) {
+            coveredNodes = stepNodes.filter((n) => selection.nodeIds.includes(n.id));
           } else {
             const targetStage = targetNode.config?.stage;
             if (targetStage) {
               const sameStageNodes = stepNodes.filter(
-                (n) =>
-                  n.config?.stage === targetStage &&
-                  !file.layout.nodes[n.id]?.parentId,
+                (n) => n.config?.stage === targetStage && !file.layout.nodes[n.id]?.parentId,
               );
               if (sameStageNodes.length > 0) {
                 coveredNodes = sameStageNodes;
@@ -156,10 +148,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
           });
 
           const allCoveredIds = Array.from(
-            new Set([
-              ...coveredNodes.map((n) => n.id),
-              ...gatesToInclude.map((g) => g.id),
-            ]),
+            new Set([...coveredNodes.map((n) => n.id), ...gatesToInclude.map((g) => g.id)]),
           );
 
           // Compute enclosing bounding box
@@ -178,10 +167,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
           const phaseColor = directL1
             ? directL1.backgroundColor && directL1.backgroundColor !== "transparent"
               ? directL1.backgroundColor
-              : getL1FallbackColor(
-                  directL1.title,
-                  highLevelNodes.indexOf(directL1),
-                )
+              : getL1FallbackColor(directL1.title, highLevelNodes.indexOf(directL1))
             : phaseInfo.color;
 
           const phaseProps = {
@@ -193,10 +179,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
             color: phaseColor,
           };
 
-          addPhaseWrappingNodes(
-            phaseProps,
-            allCoveredIds,
-          );
+          addPhaseWrappingNodes(phaseProps, allCoveredIds);
           return;
         }
 
@@ -238,9 +221,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
         }
 
         // 2. Check if dropped near or below a Step node
-        const stepNodes = file.graph.nodes.filter(
-          (n) => n.type !== "phase" && n.type !== "gate",
-        );
+        const stepNodes = file.graph.nodes.filter((n) => n.type !== "phase" && n.type !== "gate");
         const targetStep = stepNodes.find((n) => {
           const bounds = resolveAbs(n.id);
           return (
@@ -255,9 +236,7 @@ export function useCanvasDrop({ flow, file, selection, addNode, addPhaseWrapping
           const stepLayout = file.layout.nodes[targetStep.id];
           if (stepLayout?.parentId && file.layout.nodes[stepLayout.parentId]) {
             const pl = file.layout.nodes[stepLayout.parentId]!;
-            const parentPhase = file.graph.nodes.find(
-              (n) => n.id === stepLayout.parentId,
-            );
+            const parentPhase = file.graph.nodes.find((n) => n.id === stepLayout.parentId);
             const gateWidth = 620;
             const gateX = pl.x + Math.max(0, (pl.width - gateWidth) / 2);
             const gateY = pl.y + pl.height + 40;

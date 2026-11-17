@@ -8,11 +8,7 @@ import type {
   WorkflowFile,
 } from "@/types/workflow";
 import { REFERENCE_NODE_TYPES } from "@/types/workflow";
-import {
-  BUILDING_PATTERN,
-  MODULE_PATTERN,
-  PROJECT_ID_PATTERN,
-} from "@/lib/project-id";
+import { BUILDING_PATTERN, MODULE_PATTERN, PROJECT_ID_PATTERN } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
 import type { ExecutionItem } from "@/types/workflow";
@@ -43,24 +39,23 @@ const OPERATIONAL_GATE_NODE_IDS = new Set([
 export const requirementApplies = (item: { requirementType?: string }) =>
   item.requirementType !== "Optional";
 
-const L3_DOCUMENT_FIELDS = [
-  "legalDocuments",
-  "customerDocuments",
-  "supportingDocuments",
-] as const;
+const L3_DOCUMENT_FIELDS = ["legalDocuments", "customerDocuments", "supportingDocuments"] as const;
 
 function conditionL3FormState(condition: Condition, node: DomainNode) {
   const suffix = `::release-condition::${condition.id || "default"}`;
-  const documents = [...releaseConditionForms(node, condition), ...L3_DOCUMENT_FIELDS.filter((field) => field !== "legalDocuments").flatMap((field) => {
-    const raw = node.customFields[`${field}${suffix}`];
-    if (typeof raw !== "string") return [];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  })];
+  const documents = [
+    ...releaseConditionForms(node, condition),
+    ...L3_DOCUMENT_FIELDS.filter((field) => field !== "legalDocuments").flatMap((field) => {
+      const raw = node.customFields[`${field}${suffix}`];
+      if (typeof raw !== "string") return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }),
+  ];
   return {
     hasForms: documents.length > 0,
     requiredComplete: documents
@@ -78,24 +73,22 @@ export function conditionHasL3Forms(condition: Condition, node: DomainNode) {
 
 export const currentRevisionComplete = (item: GateSignatureRequirement) => {
   if (!item.revisionControlled) return true;
-  const current = item.revisions?.find(
-    (revision) => revision.status === "Current",
-  );
+  const current = item.revisions?.find((revision) => revision.status === "Current");
   return Boolean(
     current?.revision.trim() &&
-      current.receivedDate &&
-      current.department.trim() &&
-      current.modifiedBy.trim(),
+    current.receivedDate &&
+    current.department.trim() &&
+    current.modifiedBy.trim(),
   );
 };
 
 export const signatureFieldsComplete = (item: GateSignatureRequirement) =>
   Boolean(
     item.abbreviation.trim() &&
-      item.fullName.trim() &&
-      item.department.trim() &&
-      item.signedBy.trim() &&
-      currentRevisionComplete(item),
+    item.fullName.trim() &&
+    item.department.trim() &&
+    item.signedBy.trim() &&
+    currentRevisionComplete(item),
   );
 
 export const signatureComplete = (item: GateSignatureRequirement) =>
@@ -103,23 +96,16 @@ export const signatureComplete = (item: GateSignatureRequirement) =>
 
 export const ruleComplete = (rule: GateRule) => {
   const documents = (rule.signatures || []).filter(requirementApplies);
-  return (
-    Boolean(rule.checked) &&
-    (!documents.length || documents.every(signatureComplete))
-  );
+  return Boolean(rule.checked) && (!documents.length || documents.every(signatureComplete));
 };
 
 export function getGateConditionProgress(node: DomainNode) {
   const rules = (node.config.gateRules || []).filter(requirementApplies);
-  const signatures = rules.flatMap((rule) =>
-    (rule.signatures || []).filter(requirementApplies),
-  );
+  const signatures = rules.flatMap((rule) => (rule.signatures || []).filter(requirementApplies));
   const total = rules.length + signatures.length;
-  const completed =
-    rules.filter(ruleComplete).length + signatures.filter(signatureComplete).length;
+  const completed = rules.filter(ruleComplete).length + signatures.filter(signatureComplete).length;
   const started =
-    rules.filter((item) => item.checked).length +
-    signatures.filter((item) => item.checked).length;
+    rules.filter((item) => item.checked).length + signatures.filter((item) => item.checked).length;
   const state: GateCompletionState =
     total === 0
       ? "complete"
@@ -132,9 +118,7 @@ export function getGateConditionProgress(node: DomainNode) {
 }
 
 export function gateChecklistSatisfied(node: DomainNode) {
-  return (node.config.gateRules || [])
-    .filter(requirementApplies)
-    .every(ruleComplete);
+  return (node.config.gateRules || []).filter(requirementApplies).every(ruleComplete);
 }
 
 export function gateApprovalReady(node: DomainNode) {
@@ -163,18 +147,16 @@ export function conditionIsSatisfied(
     return PROJECT_ID_PATTERN.test(String(source.customFields.projectId || ""));
   }
   if (condition.linkedExecutionItemId) {
-    const linkedItem = executionItems?.find(
-      (item) => item.id === condition.linkedExecutionItemId,
-    );
+    const linkedItem = executionItems?.find((item) => item.id === condition.linkedExecutionItemId);
     return Boolean(
-        // L3-backed conditions are completed by the L3 form flow. Keeping the
-        // condition flag in the check prevents an L2 checkbox from bypassing
-        // required fields in that form.
-        condition.checked === true &&
-        linkedItem &&
-        executionItemProgress(linkedItem, operations, {
-          checklistOnly: true,
-        }) === "complete",
+      // L3-backed conditions are completed by the L3 form flow. Keeping the
+      // condition flag in the check prevents an L2 checkbox from bypassing
+      // required fields in that form.
+      condition.checked === true &&
+      linkedItem &&
+      executionItemProgress(linkedItem, operations, {
+        checklistOnly: true,
+      }) === "complete",
     );
   }
   const l3Forms = conditionL3FormState(condition, node);
@@ -227,12 +209,9 @@ export function nodeReleaseReady(
   );
   if (!conditionsReady || !executionItems) return conditionsReady;
 
-  const executionSummary = getExecutionSummary(
-    node.id,
-    executionItems,
-    operations,
-    { checklistOnly: true },
-  );
+  const executionSummary = getExecutionSummary(node.id, executionItems, operations, {
+    checklistOnly: true,
+  });
   const executionReady =
     !executionSummary.hasItems ||
     executionSummary.requiredCompletedCount === executionSummary.requiredCount;
@@ -267,7 +246,11 @@ export function nodeStatusLabel(
     conditionIsSatisfied(item, node, projectStart, executionItems, operations),
   );
   if (ready.length === required.length) {
-    if (operations && OPERATIONAL_GATE_NODE_IDS.has(node.id) && !operationsGateStatus(node.id, operations).ready) {
+    if (
+      operations &&
+      OPERATIONAL_GATE_NODE_IDS.has(node.id) &&
+      !operationsGateStatus(node.id, operations).ready
+    ) {
       return "In Progress";
     }
     return "Ready";
@@ -276,10 +259,7 @@ export function nodeStatusLabel(
   return "Blocked";
 }
 
-export function nodeHasPaidService(
-  node: DomainNode,
-  rules = node.config.gateRules,
-) {
+export function nodeHasPaidService(node: DomainNode, rules = node.config.gateRules) {
   return (rules || []).some((rule) => ruleHasPaidService(rule));
 }
 
@@ -289,9 +269,7 @@ export function workflowHasPaidService(
   exceptRules?: GateRule[],
 ) {
   return nodes.some((node) =>
-    node.id === exceptId
-      ? nodeHasPaidService(node, exceptRules)
-      : nodeHasPaidService(node),
+    node.id === exceptId ? nodeHasPaidService(node, exceptRules) : nodeHasPaidService(node),
   );
 }
 
@@ -310,9 +288,7 @@ export function getWorkflowProgress(
   const projectStart = nodes.find((node) => node.type === "projectStart");
   const projectStarts = nodes.filter((node) => node.type === "projectStart");
   const explicitStarts = nodes.filter(
-    (node) =>
-      node.config.stage?.trim().toLowerCase() === "start" &&
-      !incoming.has(node.id),
+    (node) => node.config.stage?.trim().toLowerCase() === "start" && !incoming.has(node.id),
   );
   const starts = projectStarts.length
     ? projectStarts
@@ -323,17 +299,14 @@ export function getWorkflowProgress(
             (node) =>
               !incoming.has(node.id) &&
               node.type !== "phase" &&
-              !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(
-                node.type,
-              ),
+              !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(node.type),
           )
           .slice(0, 1);
   const reachedNodeIds = new Set(starts.map((node) => node.id));
   const activeEdgeIds = new Set<string>();
   const queue = starts.map((node) => node.id);
   const outgoing = new Map<string, DomainEdge[]>();
-  for (const edge of edges)
-    outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge]);
+  for (const edge of edges) outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge]);
 
   while (queue.length) {
     const sourceId = queue.shift()!;
@@ -367,7 +340,12 @@ export function getWorkflowProgress(
 export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
   const node = file.graph.nodes.find((item) => item.id === nodeId);
   if (node?.metadata.executionOrder !== "strict-sequential") return undefined;
-  const progress = getWorkflowProgress(file.graph.nodes, file.graph.edges, file.execution?.items, file.operations);
+  const progress = getWorkflowProgress(
+    file.graph.nodes,
+    file.graph.edges,
+    file.execution?.items,
+    file.operations,
+  );
   if (progress.reachedNodeIds.has(nodeId)) return undefined;
   return "Complete the preceding department and its required release conditions before completing this department.";
 }

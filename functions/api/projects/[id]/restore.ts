@@ -44,7 +44,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       AND versions.project_id = ?
       AND versions.owner_user_id = ?
       AND projects.user_id = ?`,
-  ).bind(sourceVersionId, projectId, auth.user!.id, auth.user!.id).first<StoredVersion>();
+  )
+    .bind(sourceVersionId, projectId, auth.user!.id, auth.user!.id)
+    .first<StoredVersion>();
   if (!source) return json({ error: "Project version not found." }, 404);
 
   const verifiedHash = await projectSnapshotHash(
@@ -52,24 +54,27 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     source.project_number,
     source.workflow_json,
   );
-  if (
-    source.hash_algorithm !== "SHA-256" ||
-    !secureEqual(verifiedHash, source.content_hash)
-  ) {
-    return json({
-      error: "This backup failed its integrity check and cannot be restored.",
-      code: "VERSION_INTEGRITY_FAILURE",
-    }, 409);
+  if (source.hash_algorithm !== "SHA-256" || !secureEqual(verifiedHash, source.content_hash)) {
+    return json(
+      {
+        error: "This backup failed its integrity check and cannot be restored.",
+        code: "VERSION_INTEGRITY_FAILURE",
+      },
+      409,
+    );
   }
 
   let workflow: unknown;
   try {
     workflow = JSON.parse(source.workflow_json) as unknown;
   } catch {
-    return json({
-      error: "This backup contains damaged workflow data and cannot be restored.",
-      code: "VERSION_WORKFLOW_DAMAGED",
-    }, 409);
+    return json(
+      {
+        error: "This backup contains damaged workflow data and cannot be restored.",
+        code: "VERSION_WORKFLOW_DAMAGED",
+      },
+      409,
+    );
   }
 
   const restoredAt = new Date().toISOString();
@@ -80,14 +85,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       `UPDATE projects
        SET name = ?, project_number = ?, workflow_json = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
-    ).bind(
-      source.name,
-      source.project_number,
-      source.workflow_json,
-      restoredAt,
-      projectId,
-      userId,
-    ),
+    ).bind(source.name, source.project_number, source.workflow_json, restoredAt, projectId, userId),
     appendProjectVersionStatement(env.DB, {
       id: restoredVersionId,
       projectId,
@@ -126,7 +124,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       restored_from_version_id, created_at
      FROM project_versions
      WHERE id = ? AND project_id = ? AND owner_user_id = ?`,
-  ).bind(restoredVersionId, projectId, userId).first();
+  )
+    .bind(restoredVersionId, projectId, userId)
+    .first();
 
   return json({
     project: {

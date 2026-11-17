@@ -16,8 +16,12 @@ test("capture a public demo of the Falcon workflow editor", async ({ page }) => 
     const data = JSON.parse(stored);
     data.state.file.graph.metadata.name = "Falcon Demo Workflow";
     data.state.file.graph.metadata.version = "v1.0";
-    const qualification = data.state.file.highLevel.graph.nodes.find((node: { id: string }) => node.id === "high-level-2");
-    const production = data.state.file.highLevel.graph.nodes.find((node: { id: string }) => node.id === "high-level-3");
+    const qualification = data.state.file.highLevel.graph.nodes.find(
+      (node: { id: string }) => node.id === "high-level-2",
+    );
+    const production = data.state.file.highLevel.graph.nodes.find(
+      (node: { id: string }) => node.id === "high-level-3",
+    );
     if (qualification) qualification.title = "Qualification";
     if (production) production.title = "Production";
     window.localStorage.setItem(key, JSON.stringify(data));
@@ -26,7 +30,9 @@ test("capture a public demo of the Falcon workflow editor", async ({ page }) => 
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(page.getByText("4 lifecycle steps · 0 primary gates")).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Workflow name" })).toHaveValue("Falcon Demo Workflow");
+  await expect(page.getByRole("textbox", { name: "Workflow name" })).toHaveValue(
+    "Falcon Demo Workflow",
+  );
   await page.locator('[data-id="high-level-2"]').click();
   await page.screenshot({
     path: join(screenshotDir, "falcon-workflow-overview.png"),

@@ -115,7 +115,10 @@ function isNodeGate(
 
   const title = (node.title || "").trim();
   const id = (node.id || "").trim();
-  if (/\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(title) || /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(id)) {
+  if (
+    /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(title) ||
+    /\b(gate\s*\d*|g[1-9][a-z0-9-]*)\b/i.test(id)
+  ) {
     return true;
   }
 
@@ -137,7 +140,9 @@ function getNodeGateLabel(
   if (parentId) {
     const parentNode = allNodes.find((n) => n.id === parentId);
     if (parentNode && parentNode.title?.trim()) {
-      const pMatch = parentNode.title.match(/g(?:ate)?\s*0?([1-9])/i) || parentNode.id.match(/g(?:ate)?\s*0?([1-9])/i);
+      const pMatch =
+        parentNode.title.match(/g(?:ate)?\s*0?([1-9])/i) ||
+        parentNode.id.match(/g(?:ate)?\s*0?([1-9])/i);
       if (pMatch) {
         return `Gate ${pMatch[1]}`;
       }
@@ -147,9 +152,7 @@ function getNodeGateLabel(
 
   const title = (node.title || "").trim();
   const id = (node.id || "").trim();
-  const match =
-    title.match(/g(?:ate)?\s*0?([1-9])/i) ||
-    id.match(/g(?:ate)?\s*0?([1-9])/i);
+  const match = title.match(/g(?:ate)?\s*0?([1-9])/i) || id.match(/g(?:ate)?\s*0?([1-9])/i);
 
   if (match) {
     return `Gate ${match[1]}`;
@@ -181,9 +184,13 @@ function clusterStepsByGate(
     const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : null;
     const parentId = layout[node.id]?.parentId;
     const parentNode = parentId ? allNodes.find((n) => n.id === parentId) : null;
-    const isParentGate = parentNode && (parentNode.type === "gate" || parentNode.color === "#7c3aed" || /gate/i.test(parentNode.title || ""));
+    const isParentGate =
+      parentNode &&
+      (parentNode.type === "gate" ||
+        parentNode.color === "#7c3aed" ||
+        /gate/i.test(parentNode.title || ""));
 
-    const gateKey = isParentGate ? parentId : (isGate ? gateLabel : null);
+    const gateKey = isParentGate ? parentId : isGate ? gateLabel : null;
 
     if (gateKey) {
       const label = parentNode?.title?.replace(/^(gate\s*\d*).*/i, "$1") || gateLabel || "Gate";
@@ -284,7 +291,12 @@ export async function exportExecutivePresentationPdf(
   const getLinkedL2Nodes = (l1Node: HighLevelNode): DomainNode[] => {
     const explicitIds = l1Node.linkedLayer2NodeIds ?? l1Node.linkedDetailedNodeIds ?? [];
     if (explicitIds.length > 0) {
-      const orderedIds = orderLinkedWorkflowNodeIds(explicitIds, allNodes, file.graph.edges, layout);
+      const orderedIds = orderLinkedWorkflowNodeIds(
+        explicitIds,
+        allNodes,
+        file.graph.edges,
+        layout,
+      );
       return orderedIds
         .map((id) => allNodes.find((n) => n.id === id))
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
@@ -298,16 +310,28 @@ export async function exportExecutivePresentationPdf(
         const grandParentId = layout[pId]?.parentId;
         if (grandParentId === l1Node.id) return true;
       }
-      return n.config?.phaseId === l1Node.id || (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title);
+      return (
+        n.config?.phaseId === l1Node.id ||
+        (n.metadata?.phaseTitle && n.metadata.phaseTitle === l1Node.title)
+      );
     });
     if (byParent.length > 0) {
-      const orderedIds = orderLinkedWorkflowNodeIds(byParent.map((n) => n.id), allNodes, file.graph.edges, layout);
+      const orderedIds = orderLinkedWorkflowNodeIds(
+        byParent.map((n) => n.id),
+        allNodes,
+        file.graph.edges,
+        layout,
+      );
       return orderedIds
         .map((id) => allNodes.find((n) => n.id === id))
         .filter((n): n is DomainNode => Boolean(n && n.type !== "phase" && n.type !== "gate"));
     }
 
-    if (l1Node.type === "end" || l1Node.title.toLowerCase().includes("close") || l1Node.title.toLowerCase().includes("commission")) {
+    if (
+      l1Node.type === "end" ||
+      l1Node.title.toLowerCase().includes("close") ||
+      l1Node.title.toLowerCase().includes("commission")
+    ) {
       const closeNodes = allNodes.filter(
         (n) =>
           n.type !== "phase" &&
@@ -326,7 +350,9 @@ export async function exportExecutivePresentationPdf(
         (n) =>
           n.type !== "phase" &&
           n.type !== "gate" &&
-          (n.type === "projectStart" || n.id === "project-start" || n.title.toLowerCase().includes("start")),
+          (n.type === "projectStart" ||
+            n.id === "project-start" ||
+            n.title.toLowerCase().includes("start")),
       );
       if (startNodes.length > 0) return startNodes;
     }
@@ -425,15 +451,23 @@ export async function exportExecutivePresentationPdf(
               const isGate = isNodeGate(node, allNodes, layout);
               const gateLabel = isGate ? getNodeGateLabel(node, allNodes, layout) : "";
               const isStart = node.type === "projectStart" || node.id === "project-start";
-              const isTerminal = node.type === "terminal" || node.type === "end" || node.id === "project-complete" || node.id === "close-out";
+              const isTerminal =
+                node.type === "terminal" ||
+                node.type === "end" ||
+                node.id === "project-complete" ||
+                node.id === "close-out";
               const departmentGradient =
                 (node.type === "general" || node.type === "projectStart") &&
                 node.config.blendAdjacentPhaseColors === true
                   ? chapterPhaseGradientColors(node, allNodes, layout, highLevelNodes)
                   : undefined;
               const stageName =
-                (node.type === "general" || node.type === "projectStart") && typeof node.config.stage === "string"
-                  ? node.config.stage.trim().replace(/^(?:department|chapter)\s*/i, "").replace(/\s+department$/i, "")
+                (node.type === "general" || node.type === "projectStart") &&
+                typeof node.config.stage === "string"
+                  ? node.config.stage
+                      .trim()
+                      .replace(/^(?:department|chapter)\s*/i, "")
+                      .replace(/\s+department$/i, "")
                   : "";
               const departmentLabel = stageName ? `${stageName} Department` : "";
               const departmentBorder = departmentGradient
@@ -445,8 +479,16 @@ export async function exportExecutivePresentationPdf(
 
               const subtitle =
                 node.description?.trim() ||
-                (typeof node.config?.stage === "string" && node.config.stage.trim() && chapterLabel(node.config.stage)) ||
-                (isGate ? "Quality Gate Verification & Decision Sign-off" : isStart ? "Project Record Initiation & Entry" : isTerminal ? "Formal Handover & Closeout" : "Standard Process Execution");
+                (typeof node.config?.stage === "string" &&
+                  node.config.stage.trim() &&
+                  chapterLabel(node.config.stage)) ||
+                (isGate
+                  ? "Quality Gate Verification & Decision Sign-off"
+                  : isStart
+                    ? "Project Record Initiation & Entry"
+                    : isTerminal
+                      ? "Formal Handover & Closeout"
+                      : "Standard Process Execution");
 
               const badgeStyle = isGate
                 ? `background: ${GATE_TAG_VISUAL.tagBg}; color: ${GATE_TAG_VISUAL.tagText}; border: 1.5px solid ${GATE_TAG_VISUAL.border}; font-weight: 900;`
@@ -456,41 +498,72 @@ export async function exportExecutivePresentationPdf(
                     ? `background: #dcfce7; color: #15803d; font-weight: 800; border: 1px solid #86efac;`
                     : `background: #f1f5f9; color: #475569; font-weight: 700; border: 1px solid #e2e8f0;`;
 
-              const conditions = includeReleaseConditions ? [
-                ...(node.conditions || []).flatMap((condition) => {
-                  const label = (condition.label || condition.description || "").trim();
-                  if (!label) return [];
-                  const satisfied = conditionIsSatisfied(condition, node, startNode, file.execution?.items, file.operations);
-                  return [{
-                    label: `${conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}${label}`,
-                    checked: condition.required === false && condition.id !== "project-id-required"
-                      ? Boolean(condition.checked) && satisfied : satisfied,
-                  }];
-                }),
-                ...(node.config?.gateRules || []).filter((rule) => rule.label?.trim()).map((rule) => ({
-                  label: rule.label.trim(), checked: ruleComplete(rule),
-                })),
-                ...(node.config?.signatureRequirements || []).filter((signature) => signature.fullName?.trim() || signature.abbreviation?.trim()).map((signature) => ({
-                  label: `Signoff: ${signature.fullName || signature.abbreviation}${signature.department ? ` (${signature.department})` : ""}`,
-                  checked: signatureComplete(signature),
-                })),
-              ] : [];
-              const conditionsHtml = conditions.length ? `
+              const conditions = includeReleaseConditions
+                ? [
+                    ...(node.conditions || []).flatMap((condition) => {
+                      const label = (condition.label || condition.description || "").trim();
+                      if (!label) return [];
+                      const satisfied = conditionIsSatisfied(
+                        condition,
+                        node,
+                        startNode,
+                        file.execution?.items,
+                        file.operations,
+                      );
+                      return [
+                        {
+                          label: `${conditionDurationLabel(condition) ? `${conditionDurationLabel(condition)} · ` : ""}${label}`,
+                          checked:
+                            condition.required === false && condition.id !== "project-id-required"
+                              ? Boolean(condition.checked) && satisfied
+                              : satisfied,
+                        },
+                      ];
+                    }),
+                    ...(node.config?.gateRules || [])
+                      .filter((rule) => rule.label?.trim())
+                      .map((rule) => ({
+                        label: rule.label.trim(),
+                        checked: ruleComplete(rule),
+                      })),
+                    ...(node.config?.signatureRequirements || [])
+                      .filter(
+                        (signature) => signature.fullName?.trim() || signature.abbreviation?.trim(),
+                      )
+                      .map((signature) => ({
+                        label: `Signoff: ${signature.fullName || signature.abbreviation}${signature.department ? ` (${signature.department})` : ""}`,
+                        checked: signatureComplete(signature),
+                      })),
+                  ]
+                : [];
+              const conditionsHtml = conditions.length
+                ? `
                 <div data-presentation-conditions style="margin-top: 9px; padding-top: 7px; border-top: 1px solid ${theme.border};">
                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 5px; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: ${theme.subtext};">
                     <span>Release Conditions</span><span>${conditions.length}</span>
                   </div>
                   <div style="display: flex; flex-direction: column; gap: 4px;">
-                    ${conditions.map((condition) => `
+                    ${conditions
+                      .map(
+                        (condition) => `
                       <div data-presentation-condition style="display: flex; align-items: flex-start; gap: 4px; font-size: 9px; font-weight: 600; line-height: 1.35; color: #334155;">
                         <span aria-hidden="true" style="display: inline-flex; flex: 0 0 9px; width: 9px; height: 9px; margin-top: 1px; border-radius: 2px; box-sizing: border-box; border: 1px solid ${condition.checked ? "#059669" : "#94a3b8"}; background: ${condition.checked ? "#059669" : "#ffffff"}; color: #ffffff; align-items: center; justify-content: center; font-size: 7px; line-height: 1;">${condition.checked ? "✓" : ""}</span>
                         <span style="min-width: 0; overflow-wrap: anywhere;">${escapeHtml(condition.label)}</span>
                       </div>
-                    `).join("")}
+                    `,
+                      )
+                      .join("")}
                   </div>
                 </div>
-              ` : "";
-              const badgeText = isGate ? gateLabel : isStart ? "Start" : isTerminal ? "Complete" : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
+              `
+                : "";
+              const badgeText = isGate
+                ? gateLabel
+                : isStart
+                  ? "Start"
+                  : isTerminal
+                    ? "Complete"
+                    : `STEP ${phaseIdx + 1}.${nodeIdx + 1}`;
               const isOverallLast = globalStepCounter === totalL2Nodes;
 
               const noReleaseConditions = conditions.length === 0;
@@ -690,7 +763,9 @@ export async function exportExecutivePresentationPdf(
         const childPoints: Array<{ x: number; y: number; isGate: boolean }> = [];
         linkedL2.forEach((node, nodeIdx) => {
           const isGate = isNodeGate(node, allNodes, layout);
-          const l2CardEl = container.querySelector(`#exec-l2-card-${phaseIdx}-${nodeIdx}`) as HTMLElement | null;
+          const l2CardEl = container.querySelector(
+            `#exec-l2-card-${phaseIdx}-${nodeIdx}`,
+          ) as HTMLElement | null;
           if (l2CardEl) {
             const l2Rect = l2CardEl.getBoundingClientRect();
             childPoints.push({
@@ -777,12 +852,23 @@ export async function exportExecutivePresentationPdf(
     });
 
     // 297mm x 210mm A4 exact fit
-    pdf.addImage(dataUrl, "PNG", 0, 0, canvasWidth / 5, container.offsetHeight / 5, undefined, "FAST");
+    pdf.addImage(
+      dataUrl,
+      "PNG",
+      0,
+      0,
+      canvasWidth / 5,
+      container.offsetHeight / 5,
+      undefined,
+      "FAST",
+    );
     const safeProjectName = (projectName || "Falcon Process Building System")
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
-    pdf.save(`${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Release-Conditions"}.pdf`);
+    pdf.save(
+      `${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Release-Conditions"}.pdf`,
+    );
   } finally {
     document.body.removeChild(container);
   }

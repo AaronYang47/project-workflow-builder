@@ -1,7 +1,4 @@
-import type {
-  ApprovalRole,
-  EstimateClass,
-} from "@/types/project-operations";
+import type { ApprovalRole, EstimateClass } from "@/types/project-operations";
 
 /** Small value, date and ranking helpers shared by the project-operations modules. */
 export type GateCheck = { id: string; label: string; passed: boolean; reason: string };

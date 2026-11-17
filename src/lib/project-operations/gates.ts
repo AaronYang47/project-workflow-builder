@@ -5,7 +5,18 @@ import type {
   ProjectOperations,
   SecondaryGate,
 } from "@/types/project-operations";
-import { APPROVAL_RANK, ESTIMATE_METADATA, ESTIMATE_ORDER, clone, newId, number, round2, text, type GateCheck, type GateStatus } from "./shared";
+import {
+  APPROVAL_RANK,
+  ESTIMATE_METADATA,
+  ESTIMATE_ORDER,
+  clone,
+  newId,
+  number,
+  round2,
+  text,
+  type GateCheck,
+  type GateStatus,
+} from "./shared";
 import { canonicalProjectNumber, yearSuffix } from "./defaults";
 import { appendOperationsAudit, evaluatePaymentRelease } from "./finance";
 
@@ -31,7 +42,8 @@ export function evaluateGateOne(operations: ProjectOperations) {
   const qualificationPassed =
     qualification.length === 10 &&
     qualification.every(
-      (question) => question.gateRequired === false ||
+      (question) =>
+        question.gateRequired === false ||
         (question.answer === "Yes" && Boolean(text(question.evidence))),
     );
   const classification = operations.clientPath || ({} as ProjectOperations["clientPath"]);
@@ -46,7 +58,8 @@ export function evaluateGateOne(operations: ProjectOperations) {
     Boolean(text(commercial.agreementReference)) &&
     Boolean(text(commercial.executedDate));
   const payment = evaluatePaymentRelease(operations);
-  const paymentPassed = payment.ready && text(commercial.paymentRelease.status).toLowerCase() === "released";
+  const paymentPassed =
+    payment.ready && text(commercial.paymentRelease.status).toLowerCase() === "released";
   const checks: GateCheck[] = [
     {
       id: "qualification",
@@ -112,7 +125,9 @@ export function convertClientToProject(
     throw new Error("Client already has an active project number.");
   }
   if (!evaluateGateOne(operations).passed) {
-    throw new Error("Gate 1 is not released; complete qualification, commercial, payment, and approval evidence first.");
+    throw new Error(
+      "Gate 1 is not released; complete qualification, commercial, payment, and approval evidence first.",
+    );
   }
   const yy = yearSuffix(now);
   const normalizedSequence = Math.max(1, Math.min(999, Math.floor(number(sequence) || 0)));
@@ -136,7 +151,12 @@ export function convertClientToProject(
     ? clone(operations.identity.numberHistory)
     : [];
   history.push(
-    { level: "Development", number: developmentNumber, assignedAt: now.toISOString(), assignedBy: actor },
+    {
+      level: "Development",
+      number: developmentNumber,
+      assignedAt: now.toISOString(),
+      assignedBy: actor,
+    },
     { level: "Project", number: projectNumber, assignedAt: now.toISOString(), assignedBy: actor },
     ...buildings.map((building) => ({
       level: "Building",
@@ -214,12 +234,12 @@ export function estimateMaturityReady(operations: ProjectOperations, estimateCla
   const target = text(estimateClass).toUpperCase() as EstimateClass;
   const targetIndex = ESTIMATE_ORDER.indexOf(target);
   const missing: string[] = [];
-  if (targetIndex < 0) return { ready: false, missing: [`Unknown estimate class ${estimateClass}.`] };
+  if (targetIndex < 0)
+    return { ready: false, missing: [`Unknown estimate class ${estimateClass}.`] };
   for (const [index, currentClass] of ESTIMATE_ORDER.slice(0, targetIndex + 1).entries()) {
     const approved = (operations.estimating.versions || []).some(
       (version) =>
-        text(version.estimateClass).toUpperCase() === currentClass &&
-        version.status === "Approved",
+        text(version.estimateClass).toUpperCase() === currentClass && version.status === "Approved",
     );
     if (!approved) missing.push(`Approved Class ${currentClass} version`);
     if (index > 0) {
@@ -239,15 +259,15 @@ export function designBoundaryReady(operations: ProjectOperations) {
   const boundary = operations.designBoundary;
   return Boolean(
     boundary &&
-      boundary.boundaryAccepted &&
-      text(boundary.deliveryModel) !== "Unselected" &&
-      text(boundary.architectOfRecord) &&
-      text(boundary.profabScope) &&
-      text(boundary.clientConsultantScope) &&
-      text(boundary.exclusions) &&
-      text(boundary.acceptedByClient) &&
-      text(boundary.acceptedAt) &&
-      text(boundary.agreementReference),
+    boundary.boundaryAccepted &&
+    text(boundary.deliveryModel) !== "Unselected" &&
+    text(boundary.architectOfRecord) &&
+    text(boundary.profabScope) &&
+    text(boundary.clientConsultantScope) &&
+    text(boundary.exclusions) &&
+    text(boundary.acceptedByClient) &&
+    text(boundary.acceptedAt) &&
+    text(boundary.agreementReference),
   );
 }
 
@@ -264,23 +284,32 @@ export function secondaryGateReady(gate: SecondaryGate) {
 
 export function procurementUnlockReady(operations: ProjectOperations): GateStatus {
   const blockers: string[] = [];
-  if (!estimateMaturityReady(operations, "C").ready) blockers.push("Approved Class C estimate and convergence evidence");
-  if (!designBoundaryReady(operations)) blockers.push("Accepted design and responsibility boundary");
-  if (text(operations.commercial.paymentRelease.status).toLowerCase() !== "released") blockers.push("Payment release");
+  if (!estimateMaturityReady(operations, "C").ready)
+    blockers.push("Approved Class C estimate and convergence evidence");
+  if (!designBoundaryReady(operations))
+    blockers.push("Accepted design and responsibility boundary");
+  if (text(operations.commercial.paymentRelease.status).toLowerCase() !== "released")
+    blockers.push("Payment release");
   return { ready: blockers.length === 0, blockers };
 }
 
 export function productionReadiness(operations: ProjectOperations): GateStatus {
   const blockers: string[] = [];
-  if (!estimateMaturityReady(operations, "B").ready) blockers.push("Approved Class B estimate and convergence evidence");
-  if (!designBoundaryReady(operations)) blockers.push("Accepted design and responsibility boundary");
+  if (!estimateMaturityReady(operations, "B").ready)
+    blockers.push("Approved Class B estimate and convergence evidence");
+  if (!designBoundaryReady(operations))
+    blockers.push("Accepted design and responsibility boundary");
   const capacity = number(operations.production.factoryWeeklyCapacityHours);
   const committed = number(operations.production.committedWeeklyCapacityHours);
-  if (capacity > 0 && committed > capacity) blockers.push("Committed factory hours exceed weekly capacity.");
+  if (capacity > 0 && committed > capacity)
+    blockers.push("Committed factory hours exceed weekly capacity.");
   const activities = operations.production.activities || [];
   const activityIds = new Set(activities.map((activity) => activity.id));
   for (const activity of activities) {
-    if (number(activity.capacityHours) > 0 && number(activity.requiredHours) > number(activity.capacityHours)) {
+    if (
+      number(activity.capacityHours) > 0 &&
+      number(activity.requiredHours) > number(activity.capacityHours)
+    ) {
       blockers.push(`${activity.name} exceeds assigned capacity.`);
     }
     if ((activity.predecessorIds || []).some((predecessorId) => !activityIds.has(predecessorId))) {
@@ -310,18 +339,23 @@ export function operationsGateStatus(gateId: string, operations: ProjectOperatio
   const id = text(gateId).toLowerCase();
   if (["gate-1", "gate-g1-qualified", "gate1", "qualification"].includes(id)) {
     const evaluation = evaluateGateOne(operations);
-    return { ready: evaluation.passed, blockers: evaluation.checks.filter((check) => !check.passed).map((check) => check.reason) };
+    return {
+      ready: evaluation.passed,
+      blockers: evaluation.checks.filter((check) => !check.passed).map((check) => check.reason),
+    };
   }
   if (["payment-release", "commercial"].includes(id)) {
     const evaluation = evaluatePaymentRelease(operations);
     const blockers = evaluation.reasons.slice();
-    if (text(operations.commercial.paymentRelease.status).toLowerCase() !== "released") blockers.push("Payment release decision is not released.");
+    if (text(operations.commercial.paymentRelease.status).toLowerCase() !== "released")
+      blockers.push("Payment release decision is not released.");
     return { ready: blockers.length === 0, blockers };
   }
   if (["gate-g2-technical-commitment", "gate-g2", "technical-commitment"].includes(id)) {
     const blockers: string[] = [];
     if (!estimateMaturityReady(operations, "C").ready) blockers.push("Class C technical basis");
-    if (!designBoundaryReady(operations)) blockers.push("Accepted design and responsibility boundary");
+    if (!designBoundaryReady(operations))
+      blockers.push("Accepted design and responsibility boundary");
     return { ready: blockers.length === 0, blockers };
   }
   if (["procurement", "procurement-unlock"].includes(id)) return procurementUnlockReady(operations);
@@ -329,16 +363,22 @@ export function operationsGateStatus(gateId: string, operations: ProjectOperatio
   if (["gate-g3-production-authorization", "gate-g3", "production-authorization"].includes(id)) {
     const blockers = productionReadiness(operations).blockers.slice();
     if (!operations.production.procurementUnlocked) blockers.push("Procurement is not unlocked.");
-    if (!operations.production.productionStartAuthorized) blockers.push("Production start authorization is missing.");
+    if (!operations.production.productionStartAuthorized)
+      blockers.push("Production start authorization is missing.");
     return { ready: blockers.length === 0, blockers };
   }
   if (["gate-g4-factory-release", "gate-g4", "factory-release"].includes(id)) {
     const blockers: string[] = [];
     const activityBlockers = (operations.production.activities || [])
-      .filter((activity) => number(activity.percentComplete) < 100 || !["Complete", "Released"].includes(text(activity.status)))
+      .filter(
+        (activity) =>
+          number(activity.percentComplete) < 100 ||
+          !["Complete", "Released"].includes(text(activity.status)),
+      )
       .map((activity) => `${activity.name} factory completion`);
     blockers.push(...activityBlockers);
-    if (!text(operations.production.factoryReleaseEvidence)) blockers.push("Factory completion and release evidence");
+    if (!text(operations.production.factoryReleaseEvidence))
+      blockers.push("Factory completion and release evidence");
     return { ready: blockers.length === 0, blockers };
   }
   if (["delivery-project-completion", "delivery-completion", "site-readiness"].includes(id)) {
@@ -353,16 +393,25 @@ export function operationsGateStatus(gateId: string, operations: ProjectOperatio
   }
   if (["commissioning-warranty", "commissioning"].includes(id)) {
     const blockers: string[] = [];
-    if (!text(operations.warranty.dayZeroDate) || !text(operations.warranty.triggerEvidence)) blockers.push("Warranty Day 0 trigger evidence");
-    const incomplete = (operations.warranty.followUps || []).filter((followUp) => followUp.status !== "Complete");
+    if (!text(operations.warranty.dayZeroDate) || !text(operations.warranty.triggerEvidence))
+      blockers.push("Warranty Day 0 trigger evidence");
+    const incomplete = (operations.warranty.followUps || []).filter(
+      (followUp) => followUp.status !== "Complete",
+    );
     if (incomplete.length) blockers.push("Warranty 30/60/90 follow-ups");
     return { ready: blockers.length === 0, blockers };
   }
   if (["close-out", "closeout", "final-close"].includes(id)) {
     const blockers: string[] = [];
-    if ((operations.warranty.followUps || []).some((followUp) => followUp.status !== "Complete")) blockers.push("Warranty follow-ups");
+    if ((operations.warranty.followUps || []).some((followUp) => followUp.status !== "Complete"))
+      blockers.push("Warranty follow-ups");
     if (operations.identity.lifecycleState !== "Closed") blockers.push("Project closeout status");
-    if (operations.spec && Array.isArray(operations.spec.openObligations) && operations.spec.openObligations.length) blockers.push("Outstanding project obligations");
+    if (
+      operations.spec &&
+      Array.isArray(operations.spec.openObligations) &&
+      operations.spec.openObligations.length
+    )
+      blockers.push("Outstanding project obligations");
     return { ready: blockers.length === 0, blockers };
   }
   return { ready: false, blockers: [`Unknown operations gate: ${gateId}.`] };

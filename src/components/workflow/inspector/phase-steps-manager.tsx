@@ -43,8 +43,7 @@ export function PhaseStepsManager({
           (n) =>
             n.type === "phase" &&
             (n.id === `phase-${matchedL1.id}` ||
-              n.title.trim().toLowerCase() ===
-                matchedL1.title.trim().toLowerCase()),
+              n.title.trim().toLowerCase() === matchedL1.title.trim().toLowerCase()),
         );
         if (phase) return phase.id;
       }
@@ -62,9 +61,7 @@ export function PhaseStepsManager({
       if (parentNode?.type === "phase") return parentNode.id;
     }
     // 2. From any currently included step in this Gate
-    const firstIncluded = allNodes.find(
-      (n) => nodeLayouts[n.id]?.parentId === phaseNode.id,
-    );
+    const firstIncluded = allNodes.find((n) => nodeLayouts[n.id]?.parentId === phaseNode.id);
     if (firstIncluded) {
       return getStepPhaseId(firstIncluded.id);
     }
@@ -92,10 +89,7 @@ export function PhaseStepsManager({
 
         // GATE CANNOT CROSS PHASES!
         if (boundPhaseId) {
-          const stepPhaseId =
-            currentParent === phaseNode.id
-              ? boundPhaseId
-              : getStepPhaseId(n.id);
+          const stepPhaseId = currentParent === phaseNode.id ? boundPhaseId : getStepPhaseId(n.id);
           if (stepPhaseId && stepPhaseId !== boundPhaseId) {
             return false;
           }
@@ -131,14 +125,10 @@ export function PhaseStepsManager({
     return indices;
   }, [candidates, nodeLayouts, phaseNode.id]);
 
-  const minIncludedIdx =
-    includedIndices.length > 0 ? Math.min(...includedIndices) : -1;
-  const maxIncludedIdx =
-    includedIndices.length > 0 ? Math.max(...includedIndices) : -1;
+  const minIncludedIdx = includedIndices.length > 0 ? Math.min(...includedIndices) : -1;
+  const maxIncludedIdx = includedIndices.length > 0 ? Math.max(...includedIndices) : -1;
 
-  const includedCount = allNodes.filter(
-    (n) => nodeLayouts[n.id]?.parentId === phaseNode.id,
-  ).length;
+  const includedCount = allNodes.filter((n) => nodeLayouts[n.id]?.parentId === phaseNode.id).length;
 
   return (
     <section className="mb-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-3 shadow-xs">
@@ -147,8 +137,7 @@ export function PhaseStepsManager({
           <span
             className="flex size-6 items-center justify-center rounded-md text-white text-[10px] font-bold"
             style={{
-              backgroundColor:
-                phaseNode.color || (isGate ? "#7c3aed" : "#0d9488"),
+              backgroundColor: phaseNode.color || (isGate ? "#7c3aed" : "#0d9488"),
             }}
           >
             {includedCount}
@@ -175,9 +164,7 @@ export function PhaseStepsManager({
               {boundPhaseNode.title}
             </span>
           </div>
-          <span className="shrink-0 text-[10px] text-muted-foreground ml-2">
-            Same Phase only
-          </span>
+          <span className="shrink-0 text-[10px] text-muted-foreground ml-2">Same Phase only</span>
         </div>
       ) : null}
 
@@ -220,15 +207,11 @@ export function PhaseStepsManager({
             } else {
               if (includedIndices.length === 0) {
                 canToggle = true;
-              } else if (
-                index === maxIncludedIdx + 1 ||
-                index === minIncludedIdx - 1
-              ) {
+              } else if (index === maxIncludedIdx + 1 || index === minIncludedIdx - 1) {
                 canToggle = true;
               } else {
                 canToggle = false;
-                disabledTooltip =
-                  "必须从左到右按顺序选择，请先勾选前一个相邻的步骤/门禁";
+                disabledTooltip = "必须从左到右按顺序选择，请先勾选前一个相邻的步骤/门禁";
               }
             }
 
@@ -279,9 +262,7 @@ export function PhaseStepsManager({
                     </p>
                   ) : null}
                 </div>
-                {!canToggle ? (
-                  <Lock className="size-3 text-muted-foreground/70 shrink-0" />
-                ) : null}
+                {!canToggle ? <Lock className="size-3 text-muted-foreground/70 shrink-0" /> : null}
               </div>
             );
           })

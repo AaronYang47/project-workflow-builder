@@ -40,9 +40,7 @@ function setPathValue(current: unknown, tokens: string[], value: unknown): unkno
     next[index] = setPathValue(next[index], rest, value);
     return next;
   }
-  const record = current && typeof current === "object"
-    ? current as Record<string, unknown>
-    : {};
+  const record = current && typeof current === "object" ? (current as Record<string, unknown>) : {};
   return {
     ...record,
     [token]: setPathValue(record[token], rest, value),
@@ -74,7 +72,9 @@ export function applyProfabFieldBinding(
   const isNumber = definition.bindingValueType === "number" || definition.type === "number";
   const isBlank = typeof value === "string" && value.trim() === "";
   const coerced = isNumber
-    ? isBlank ? "" : toNumber(value)
+    ? isBlank
+      ? ""
+      : toNumber(value)
     : definition.bindingValueType === "boolean" || definition.type === "checkbox"
       ? value === true
       : String(value);
@@ -119,13 +119,20 @@ function computedValue(
   if (!definition.computed || !operations) return undefined;
   switch (definition.computed) {
     case "canonical-file-number":
-      return operations.identity.projectNumber || operations.identity.clientId || operations.identity.leadId;
+      return (
+        operations.identity.projectNumber ||
+        operations.identity.clientId ||
+        operations.identity.leadId
+      );
     case "class-d-total":
       return calculateClassD(operations);
     case "warranty-expiry":
-      return operations.warranty.expiryDate || warrantyExpiry(
-        operations.warranty.dayZeroDate,
-        Number(operations.warranty.durationMonths) || 0,
+      return (
+        operations.warranty.expiryDate ||
+        warrantyExpiry(
+          operations.warranty.dayZeroDate,
+          Number(operations.warranty.durationMonths) || 0,
+        )
       );
     case "change-approval-role": {
       const kind = values.coKind === "Credit" ? "Credit" : "Change";
@@ -139,7 +146,9 @@ function computedValue(
     case "capacity-utilization": {
       const capacity = Number(operations.production.factoryWeeklyCapacityHours) || 0;
       const committed = Number(operations.production.committedWeeklyCapacityHours) || 0;
-      return capacity > 0 ? `${Math.round(committed / capacity * 1000) / 10}%` : "Capacity not entered";
+      return capacity > 0
+        ? `${Math.round((committed / capacity) * 1000) / 10}%`
+        : "Capacity not entered";
     }
     case "project-lifecycle-state":
       return operations.identity.lifecycleState;
@@ -191,9 +200,8 @@ function conditionMatches(
   values: FormValues,
   operations?: ProjectOperations,
 ) {
-  const actual = test.source === "operations"
-    ? getOperationsValue(operations, test.key)
-    : values[test.key];
+  const actual =
+    test.source === "operations" ? getOperationsValue(operations, test.key) : values[test.key];
   switch (test.operator) {
     case "equals":
       return actual === test.value;
@@ -254,9 +262,10 @@ export function profabFormMissingFields(
   // later field uses it as a form-level visibility or requiredness condition.
   const effectiveValues = materializeProfabFormValues(form, values, operations);
   return form.fields
-    .filter((definition) =>
-      profabFieldIsRequired(definition, effectiveValues, operations) &&
-      !profabValueIsComplete(resolveProfabFieldValue(definition, effectiveValues, operations)),
+    .filter(
+      (definition) =>
+        profabFieldIsRequired(definition, effectiveValues, operations) &&
+        !profabValueIsComplete(resolveProfabFieldValue(definition, effectiveValues, operations)),
     )
     .map((definition) => definition.label);
 }
@@ -274,10 +283,7 @@ export function materializeProfabFormValues(
   );
 }
 
-export function changedProfabSnapshotFields(
-  snapshot: FormValues | undefined,
-  current: FormValues,
-) {
+export function changedProfabSnapshotFields(snapshot: FormValues | undefined, current: FormValues) {
   if (!snapshot) return Object.keys(current);
   return Object.keys(current).filter((key) => snapshot[key] !== current[key]);
 }

@@ -11,21 +11,25 @@ import type { DocRecord } from "./doc-record";
 export const DOCUMENT_BOX_THEMES = {
   indigo: {
     iconChip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-    countPill: "rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-500/20",
+    countPill:
+      "rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-500/20",
     rowIdle: "border-border/80 bg-background hover:border-indigo-500/40",
     checkbox: "mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer",
     fileIcon: "size-2.5 text-primary shrink-0",
     download: "size-6 text-muted-foreground hover:text-primary hover:bg-primary/10",
-    addButton: "flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:text-indigo-600 cursor-pointer",
+    addButton:
+      "flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:text-indigo-600 cursor-pointer",
   },
   emerald: {
     iconChip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    countPill: "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20",
+    countPill:
+      "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20",
     rowIdle: "border-border/80 bg-background hover:border-emerald-500/40",
     checkbox: "mt-1 size-4 shrink-0 accent-emerald-600 rounded cursor-pointer",
     fileIcon: "size-2.5 text-emerald-600 shrink-0",
     download: "size-6 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10",
-    addButton: "flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-600 cursor-pointer",
+    addButton:
+      "flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-600 cursor-pointer",
   },
 } as const;
 
@@ -33,7 +37,20 @@ export const DOCUMENT_BOX_THEMES = {
  * One L3 document column (Required or Supporting): header with a done count,
  * a checklist of documents with download/remove, and an Add button.
  */
-export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, codeFallback, lockedReason, emptyTitle, addLabel, onSave, onAdd }: {
+export function DocumentBox({
+  title,
+  subtitle,
+  icon,
+  theme,
+  docs,
+  checkedLabel,
+  codeFallback,
+  lockedReason,
+  emptyTitle,
+  addLabel,
+  onSave,
+  onAdd,
+}: {
   title: string;
   subtitle: string;
   icon: ReactNode;
@@ -55,16 +72,14 @@ export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, 
     <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
       <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
         <div className="flex items-center gap-2.5">
-          <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${theme.iconChip}`}>
+          <span
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${theme.iconChip}`}
+          >
             {icon}
           </span>
           <div>
-            <h2 className="text-sm font-bold text-foreground">
-              {title}
-            </h2>
-            <p className="text-[10px] text-muted-foreground">
-              {subtitle}
-            </p>
+            <h2 className="text-sm font-bold text-foreground">{title}</h2>
+            <p className="text-[10px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <span className={theme.countPill}>
@@ -77,7 +92,9 @@ export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, 
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
             <FileText className="size-8 opacity-30 mb-2" />
             <p className="text-xs font-medium">{emptyTitle}</p>
-            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ {addLabel}&quot; below to add from uploaded forms.</p>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+              Click &quot;+ {addLabel}&quot; below to add from uploaded forms.
+            </p>
           </div>
         ) : null}
         {docs.map((doc, index) => (
@@ -85,9 +102,7 @@ export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, 
             key={doc.id}
             className={cn(
               "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
-              doc.checked
-                ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                : theme.rowIdle,
+              doc.checked ? "border-emerald-500/30 bg-emerald-500/[0.04]" : theme.rowIdle,
             )}
           >
             <input
@@ -132,9 +147,7 @@ export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, 
                   {doc.checked ? checkedLabel : doc.required ? "Required" : "Optional"}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                {doc.title}
-              </p>
+              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">{doc.title}</p>
               {doc.notes ? (
                 <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                   {doc.notes}
@@ -176,11 +189,7 @@ export function DocumentBox({ title, subtitle, icon, theme, docs, checkedLabel, 
           </div>
         ))}
 
-        <button
-          type="button"
-          onClick={onAdd}
-          className={theme.addButton}
-        >
+        <button type="button" onClick={onAdd} className={theme.addButton}>
           <Plus className="size-3.5" />
           {addLabel}
         </button>

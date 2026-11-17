@@ -25,9 +25,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   const auth = await requireUser(request, env.DB, env.SESSION_SECRET);
   if (auth.response) return auth.response;
   const projectId = String(params.id);
-  const ownedProject = await env.DB.prepare(
-    "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-  ).bind(projectId, auth.user!.id).first();
+  const ownedProject = await env.DB.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?")
+    .bind(projectId, auth.user!.id)
+    .first();
   if (!ownedProject) return json({ error: "Project not found." }, 404);
 
   const requestedLimit = Number(new URL(request.url).searchParams.get("limit") || 100);
@@ -51,7 +51,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     WHERE audit.project_id = ? AND audit.owner_user_id = ?
     ORDER BY audit.created_at DESC, audit.id DESC
     LIMIT ?`,
-  ).bind(projectId, auth.user!.id, limit).all<AuditRow>();
+  )
+    .bind(projectId, auth.user!.id, limit)
+    .all<AuditRow>();
 
   return json({
     audit: result.results.map(({ details_json, ...entry }) => ({

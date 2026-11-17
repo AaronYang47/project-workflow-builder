@@ -46,9 +46,7 @@ export function createUiSlice(set: StoreSet, get: StoreGet): UiSlice {
         if (nodeIds.length > 0) {
           if (selectionUnchanged && state.rightOpen) return state;
           return {
-            ...(selectionUnchanged
-              ? {}
-              : { selection: { nodeIds, edgeId: undefined } }),
+            ...(selectionUnchanged ? {} : { selection: { nodeIds, edgeId: undefined } }),
             rightOpen: true,
           };
         }
@@ -62,8 +60,7 @@ export function createUiSlice(set: StoreSet, get: StoreGet): UiSlice {
         }
         return { selection: { nodeIds: [], edgeId } };
       }),
-    setFocusedInspectorField: (focusedInspectorField) =>
-      set({ focusedInspectorField }),
+    setFocusedInspectorField: (focusedInspectorField) => set({ focusedInspectorField }),
     showActionBlocked: (deleteBlocked) => set({ deleteBlocked }),
     dismissDeleteBlocked: () => set({ deleteBlocked: undefined }),
     showConfirmClear: (confirmClear) => set({ confirmClear }),

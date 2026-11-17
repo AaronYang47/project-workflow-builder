@@ -35,7 +35,12 @@ export interface ReleaseConditionDragPreview {
 }
 
 export type SyncMessage =
-  | { type: "RC_DRAG_PREVIEW"; senderId: string; preview: ReleaseConditionDragPreview | null; timestamp: number }
+  | {
+      type: "RC_DRAG_PREVIEW";
+      senderId: string;
+      preview: ReleaseConditionDragPreview | null;
+      timestamp: number;
+    }
   | {
       type: "PATCH_RELEASE_CONDITION_INBOX";
       senderId: string;

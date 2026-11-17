@@ -7,13 +7,7 @@ import { AVAILABLE_NODE_CATALOG } from "@/lib/node-catalog";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
 
-export function CommandPalette({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
   const hasProjectStart = useWorkflowStore((state) =>
     state.file.graph.nodes.some((node) => node.type === "projectStart"),
@@ -71,9 +65,7 @@ export function CommandPalette({
                     key={item.type}
                     disabled={disabled}
                     onClick={() => {
-                      useWorkflowStore
-                        .getState()
-                        .addNode(item.type, { x: 460, y: 240 });
+                      useWorkflowStore.getState().addNode(item.type, { x: 460, y: 240 });
                       close();
                     }}
                     className={cn(
@@ -88,9 +80,7 @@ export function CommandPalette({
                       <Icon className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">
-                        {item.label}
-                      </span>
+                      <span className="block text-sm font-medium">{item.label}</span>
                       <span className="block text-xs leading-5 text-muted-foreground">
                         {item.description}
                       </span>

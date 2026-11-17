@@ -2,10 +2,7 @@ import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import type { DomainNode, WorkflowFile } from "@/types/workflow";
 
 /** Keep the Release Conditions board in the same order as its linked L1 workflow. */
-export function orderReleaseConditionChapters(
-  chapters: DomainNode[],
-  file: WorkflowFile,
-) {
+export function orderReleaseConditionChapters(chapters: DomainNode[], file: WorkflowFile) {
   const highLevel = file.highLevel?.graph;
   if (!highLevel) return chapters;
 

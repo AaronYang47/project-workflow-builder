@@ -11,31 +11,103 @@ async function openL3(page: Page) {
   chapter.config.stage = "Technical";
   chapter.conditions = [{ id: "design", label: "Design review", duration: 3 }];
   chapter.customFields["legalDocuments::release-condition::design"] = JSON.stringify([
-    { id: "leg-1", title: "Permit set", code: "LEG-11", category: "legal", status: "Required", checked: false, required: true },
-    { id: "leg-2", title: "Shop drawings", category: "legal", status: "Optional", checked: false, required: false },
+    {
+      id: "leg-1",
+      title: "Permit set",
+      code: "LEG-11",
+      category: "legal",
+      status: "Required",
+      checked: false,
+      required: true,
+    },
+    {
+      id: "leg-2",
+      title: "Shop drawings",
+      category: "legal",
+      status: "Optional",
+      checked: false,
+      required: false,
+    },
   ]);
   chapter.customFields["customerDocuments::release-condition::design"] = JSON.stringify([
-    { id: "contact-1", title: "Client contact sheet", code: "CUST-21", category: "customer", status: "Required", checked: false, required: true },
-    { id: "selection-form", title: "Customer Selection Form", fileName: "Customer_Selection_Form.json", category: "customer", status: "Required", checked: false, required: true, formKind: "customer-selection" },
+    {
+      id: "contact-1",
+      title: "Client contact sheet",
+      code: "CUST-21",
+      category: "customer",
+      status: "Required",
+      checked: false,
+      required: true,
+    },
+    {
+      id: "selection-form",
+      title: "Customer Selection Form",
+      fileName: "Customer_Selection_Form.json",
+      category: "customer",
+      status: "Required",
+      checked: false,
+      required: true,
+      formKind: "customer-selection",
+    },
   ]);
   chapter.customFields["supportingDocuments::release-condition::design"] = JSON.stringify([
-    { id: "sup-1", title: "Load calculation", category: "supporting", status: "Required", checked: false, required: true },
-    { id: "sup-2", title: "Site photos", code: "SUP-77", category: "supporting", status: "Optional", checked: false, required: false },
+    {
+      id: "sup-1",
+      title: "Load calculation",
+      category: "supporting",
+      status: "Required",
+      checked: false,
+      required: true,
+    },
+    {
+      id: "sup-2",
+      title: "Site photos",
+      code: "SUP-77",
+      category: "supporting",
+      status: "Optional",
+      checked: false,
+      required: false,
+    },
   ]);
   file.graph.nodes = [chapter];
-  file.highLevel!.graph.nodes = [{ id: "phase-1", type: "phase", title: "PHASE 1", description: "Technical", linkedLayer2NodeIds: [chapter.id] }];
+  file.highLevel!.graph.nodes = [
+    {
+      id: "phase-1",
+      type: "phase",
+      title: "PHASE 1",
+      description: "Technical",
+      linkedLayer2NodeIds: [chapter.id],
+    },
+  ];
   file.highLevel!.graph.edges = [];
-  await page.addInitScript(({ key, file }) => {
-    if (sessionStorage.getItem("l3-boxes-seeded")) return;
-    sessionStorage.setItem("l3-boxes-seeded", "yes");
-    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
-  }, { key: WORKFLOW_STORAGE_KEY, file });
+  await page.addInitScript(
+    ({ key, file }) => {
+      if (sessionStorage.getItem("l3-boxes-seeded")) return;
+      sessionStorage.setItem("l3-boxes-seeded", "yes");
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
   await page.goto("/?executionNode=technical&condition=design");
-  await expect(page.getByRole("region", { name: "L3 Execution Layer" }).or(page.locator('[aria-label="L3 Execution Layer"]')).first()).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "L3 Execution Layer" })
+      .or(page.locator('[aria-label="L3 Execution Layer"]'))
+      .first(),
+  ).toBeVisible();
 }
 
 const box = (page: Page, title: string) =>
-  page.locator("div.flex.flex-col.rounded-xl").filter({ has: page.getByText(title, { exact: true }) }).first();
+  page
+    .locator("div.flex.flex-col.rounded-xl")
+    .filter({ has: page.getByText(title, { exact: true }) })
+    .first();
 
 test("Required and Supporting boxes count, tick, label and remove documents", async ({ page }) => {
   await openL3(page);
@@ -71,12 +143,16 @@ test("Required and Supporting boxes count, tick, label and remove documents", as
   await expect(page.getByRole("heading", { name: "Add Supporting Document" })).toBeVisible();
 });
 
-test("Customer Information box ticks documents but keeps an incomplete selection form locked", async ({ page }) => {
+test("Customer Information box ticks documents but keeps an incomplete selection form locked", async ({
+  page,
+}) => {
   await openL3(page);
   const customer = box(page, "Customer Information");
   await expect(customer).toContainText("0/2 Verified");
   await expect(customer).toContainText("CUST-21");
-  await expect(customer.getByRole("checkbox", { name: "Required file: Customer Selection Form" })).toBeDisabled();
+  await expect(
+    customer.getByRole("checkbox", { name: "Required file: Customer Selection Form" }),
+  ).toBeDisabled();
   await expect(customer.getByRole("button", { name: "Open Form" })).toBeVisible();
 
   await customer.getByRole("checkbox", { name: "Required file: Client contact sheet" }).check();

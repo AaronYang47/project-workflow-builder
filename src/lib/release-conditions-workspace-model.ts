@@ -11,9 +11,20 @@ import { type Condition, type DomainNode, type WorkflowFile } from "@/types/work
 
 export const conditionText = (condition: Condition, index: number) =>
   condition.label || condition.description || `Release condition ${index + 1}`;
-export const chapterConditions = (node: DomainNode) => [...node.conditions, ...(node.optionalConditions ?? [])];
-export const findChapterCondition = (node: DomainNode | undefined, id: string | undefined, index: number) =>
-  node ? id ? chapterConditions(node).find((condition) => condition.id === id) : chapterConditions(node)[index] : undefined;
+export const chapterConditions = (node: DomainNode) => [
+  ...node.conditions,
+  ...(node.optionalConditions ?? []),
+];
+export const findChapterCondition = (
+  node: DomainNode | undefined,
+  id: string | undefined,
+  index: number,
+) =>
+  node
+    ? id
+      ? chapterConditions(node).find((condition) => condition.id === id)
+      : chapterConditions(node)[index]
+    : undefined;
 export type WorkspaceDocument = {
   id: string;
   title: string;
@@ -32,17 +43,29 @@ export type WorkspaceDocument = {
 export type DocumentCategory = "legal" | "customer" | "supporting";
 export type DocumentField = "legalDocuments" | "customerDocuments" | "supportingDocuments";
 export function documentField(category: DocumentCategory): DocumentField {
-  return category === "legal" ? "legalDocuments" : category === "customer" ? "customerDocuments" : "supportingDocuments";
+  return category === "legal"
+    ? "legalDocuments"
+    : category === "customer"
+      ? "customerDocuments"
+      : "supportingDocuments";
 }
 export function categoryForField(field: DocumentField): DocumentCategory {
-  return field === "legalDocuments" ? "legal" : field === "customerDocuments" ? "customer" : "supporting";
+  return field === "legalDocuments"
+    ? "legal"
+    : field === "customerDocuments"
+      ? "customer"
+      : "supporting";
 }
 export const DOCUMENT_GROUPS = [
   { field: "legalDocuments", title: "Required Documents", tint: "indigo" },
   { field: "customerDocuments", title: "Customer Information", tint: "sky" },
   { field: "supportingDocuments", title: "Supporting Documents", tint: "emerald" },
 ] as const;
-export function conditionDocuments(node: DomainNode, condition: Condition, field: typeof DOCUMENT_GROUPS[number]["field"]): WorkspaceDocument[] {
+export function conditionDocuments(
+  node: DomainNode,
+  condition: Condition,
+  field: (typeof DOCUMENT_GROUPS)[number]["field"],
+): WorkspaceDocument[] {
   if (field === "legalDocuments") {
     return releaseConditionForms(node, condition).map((document) => ({
       ...document,
@@ -56,32 +79,59 @@ export function conditionDocuments(node: DomainNode, condition: Condition, field
 
   const conditionId = condition.id?.trim() || "default";
   const key = `${field}::release-condition::${conditionId}`;
-  const raw = node.customFields?.[key] ?? (node.conditions[0]?.id === condition.id ? node.customFields?.[field] : undefined);
-  if (typeof raw !== "string") return formReferencesForCondition(node, condition)
-    .filter((form) => form.category === categoryForField(field))
-    .map((form) => ({ id: `catalog-${form.category}-${form.code}-${condition.id || "default"}`, title: form.title, code: form.code, category: form.category, checked: false, required: form.category !== "supporting", status: form.category === "supporting" ? "Optional" : "Required" }));
+  const raw =
+    node.customFields?.[key] ??
+    (node.conditions[0]?.id === condition.id ? node.customFields?.[field] : undefined);
+  if (typeof raw !== "string")
+    return formReferencesForCondition(node, condition)
+      .filter((form) => form.category === categoryForField(field))
+      .map((form) => ({
+        id: `catalog-${form.category}-${form.code}-${condition.id || "default"}`,
+        title: form.title,
+        code: form.code,
+        category: form.category,
+        checked: false,
+        required: form.category !== "supporting",
+        status: form.category === "supporting" ? "Optional" : "Required",
+      }));
 
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((document): document is WorkspaceDocument =>
-      Boolean(document && typeof document === "object" && "id" in document && typeof document.id === "string" && "title" in document && typeof document.title === "string"),
-    ).filter((document) => {
-      if (field === "customerDocuments") {
-        return !document.id?.startsWith("cust-") &&
-          document.fileName !== "Customer_Project_Spec_2026.pdf" &&
-          document.fileName !== "Client_Signatory_Authorization.pdf";
-      }
-      return !document.id?.startsWith("supp-") &&
-        document.fileName !== "Site_Foundation_Survey_Plan.pdf" &&
-        document.fileName !== "Class_CD_Cost_Estimate_Model.xlsx";
-    });
+    return parsed
+      .filter((document): document is WorkspaceDocument =>
+        Boolean(
+          document &&
+          typeof document === "object" &&
+          "id" in document &&
+          typeof document.id === "string" &&
+          "title" in document &&
+          typeof document.title === "string",
+        ),
+      )
+      .filter((document) => {
+        if (field === "customerDocuments") {
+          return (
+            !document.id?.startsWith("cust-") &&
+            document.fileName !== "Customer_Project_Spec_2026.pdf" &&
+            document.fileName !== "Client_Signatory_Authorization.pdf"
+          );
+        }
+        return (
+          !document.id?.startsWith("supp-") &&
+          document.fileName !== "Site_Foundation_Survey_Plan.pdf" &&
+          document.fileName !== "Class_CD_Cost_Estimate_Model.xlsx"
+        );
+      });
   } catch {
     return [];
   }
 }
 export function conditionFormCount(node: DomainNode, condition: Condition) {
-  return DOCUMENT_GROUPS.reduce((count, group) => count + conditionDocuments(node, condition, group.field).length, 0);
+  return DOCUMENT_GROUPS.reduce(
+    (count, group) => count + conditionDocuments(node, condition, group.field).length,
+    0,
+  );
 }
 export function departmentBoardHeading(node: DomainNode) {
   const stage = String(node.config.stage ?? "").trim();
@@ -91,14 +141,22 @@ export function departmentBoardHeading(node: DomainNode) {
   const chapterNumber = titleChapter || stageChapter;
   const rawDepartment = stageChapter
     ? ""
-    : stage.replace(/^(?:department|chapter)\s*/i, "").replace(/\s+department$/i, "").trim();
+    : stage
+        .replace(/^(?:department|chapter)\s*/i, "")
+        .replace(/\s+department$/i, "")
+        .trim();
   const rawName = rawDepartment || (!titleChapter ? title : "");
   const partiallyInvolved = /\s+partially\s+involved$/i.test(rawName);
-  const departmentName = rawName.replace(/\s+partially\s+involved$/i, "").replace(/^department\s*/i, "").replace(/\s+department$/i, "").trim();
+  const departmentName = rawName
+    .replace(/\s+partially\s+involved$/i, "")
+    .replace(/^department\s*/i, "")
+    .replace(/\s+department$/i, "")
+    .trim();
   return {
-    department: departmentName && !/^department$/i.test(departmentName)
-      ? `${departmentName} Department${partiallyInvolved ? " Partially Involved" : ""}`
-      : "Department",
+    department:
+      departmentName && !/^department$/i.test(departmentName)
+        ? `${departmentName} Department${partiallyInvolved ? " Partially Involved" : ""}`
+        : "Department",
     chapter: chapterNumber ? `CHAPTER ${chapterNumber.padStart(2, "0")}` : title,
   };
 }
@@ -128,7 +186,8 @@ export function processStepName(group: ProcessMapGroup) {
 }
 export function chapterPhaseId(chapter: DomainNode, file: WorkflowFile) {
   const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));
-  const configPhaseId = typeof chapter.config.phaseId === "string" ? chapter.config.phaseId : undefined;
+  const configPhaseId =
+    typeof chapter.config.phaseId === "string" ? chapter.config.phaseId : undefined;
   if (configPhaseId && nodeById.get(configPhaseId)?.type === "phase") return configPhaseId;
   let parentId = file.layout.nodes[chapter.id]?.parentId;
   const visited = new Set<string>();
@@ -153,9 +212,7 @@ export function fitConditionText(element: HTMLTextAreaElement | null) {
  */
 export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
   const highLevel = file.highLevel?.graph;
-  const orderedHighLevel = highLevel
-    ? orderHighLevelNodes(highLevel.nodes, highLevel.edges)
-    : [];
+  const orderedHighLevel = highLevel ? orderHighLevelNodes(highLevel.nodes, highLevel.edges) : [];
   const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
   const highLevelGroups = orderedHighLevel.map((step, index) => {
     const linkedIds = step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? [];
@@ -168,9 +225,10 @@ export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
       kind: step.type,
       title: step.title,
       description: step.description,
-      color: step.backgroundColor && step.backgroundColor !== "transparent"
-        ? step.backgroundColor
-        : getL1FallbackColor(step.title, index),
+      color:
+        step.backgroundColor && step.backgroundColor !== "transparent"
+          ? step.backgroundColor
+          : getL1FallbackColor(step.title, index),
       chapters: linkedChapters,
     } satisfies ProcessMapGroup;
   });
@@ -180,8 +238,12 @@ export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
   if (hasHighLevelDepartmentLinks) {
     groups = highLevelGroups;
   } else {
-    const phaseNodes = file.graph.nodes.filter((node) => node.type === "phase")
-      .sort((left, right) => (file.layout.nodes[left.id]?.x ?? 0) - (file.layout.nodes[right.id]?.x ?? 0));
+    const phaseNodes = file.graph.nodes
+      .filter((node) => node.type === "phase")
+      .sort(
+        (left, right) =>
+          (file.layout.nodes[left.id]?.x ?? 0) - (file.layout.nodes[right.id]?.x ?? 0),
+      );
     groups = phaseNodes.map((phase, index) => ({
       id: phase.id,
       kind: "phase",
@@ -192,23 +254,31 @@ export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
     }));
   }
 
-  const linkedChapterIds = new Set(groups.flatMap((group) => group.chapters.map((chapter) => chapter.id)));
+  const linkedChapterIds = new Set(
+    groups.flatMap((group) => group.chapters.map((chapter) => chapter.id)),
+  );
   const unlinkedChapters = chapters.filter((chapter) => !linkedChapterIds.has(chapter.id));
   if (unlinkedChapters.length) {
-    groups = [...groups, {
-      id: "__unlinked-process-step__",
-      kind: "unlinked",
-      title: "No process link",
-      description: "Assign this Department to an L1 step to place it in the process map.",
-      color: "#64748b",
-      chapters: unlinkedChapters,
-    }];
+    groups = [
+      ...groups,
+      {
+        id: "__unlinked-process-step__",
+        kind: "unlinked",
+        title: "No process link",
+        description: "Assign this Department to an L1 step to place it in the process map.",
+        color: "#64748b",
+        chapters: unlinkedChapters,
+      },
+    ];
   }
 
   const locationsByChapter = new Map<string, Array<{ group: ProcessMapGroup; position: number }>>();
   for (const group of groups) {
     group.chapters.forEach((chapter, position) => {
-      locationsByChapter.set(chapter.id, [...(locationsByChapter.get(chapter.id) ?? []), { group, position }]);
+      locationsByChapter.set(chapter.id, [
+        ...(locationsByChapter.get(chapter.id) ?? []),
+        { group, position },
+      ]);
     });
   }
   return { groups, locationsByChapter };

@@ -17,24 +17,15 @@ export function isDeniedSourceHandle(sourceHandle?: string | null) {
   return Boolean(sourceHandle?.startsWith("no"));
 }
 
-export function isDeniedEdge(edge: {
-  sourceHandle?: string | null;
-  type?: string;
-}) {
+export function isDeniedEdge(edge: { sourceHandle?: string | null; type?: string }) {
   return (
     isDeniedSourceHandle(edge.sourceHandle) ||
     ["failure", "rework", "exception", "hold"].includes(String(edge.type || ""))
   );
 }
 
-export function isApprovedEdge(edge: {
-  sourceHandle?: string | null;
-  type?: string;
-}) {
-  return (
-    edge.sourceHandle === "yes" ||
-    ["success", "approval"].includes(String(edge.type || ""))
-  );
+export function isApprovedEdge(edge: { sourceHandle?: string | null; type?: string }) {
+  return edge.sourceHandle === "yes" || ["success", "approval"].includes(String(edge.type || ""));
 }
 
 export function canReceiveDeniedReturn(type?: WorkflowNodeType) {
@@ -140,9 +131,7 @@ export function occupiedPhaseNotices(file: WorkflowFile, ids: string[]) {
     .map((phase) => ({
       phase,
       children: file.graph.nodes.filter(
-        (node) =>
-          file.layout.nodes[node.id]?.parentId === phase.id &&
-          !nodeSet.has(node.id),
+        (node) => file.layout.nodes[node.id]?.parentId === phase.id && !nodeSet.has(node.id),
       ),
     }))
     .filter((entry) => entry.children.length);
@@ -150,9 +139,7 @@ export function occupiedPhaseNotices(file: WorkflowFile, ids: string[]) {
 
 export function wouldRemoveLastProjectStart(file: WorkflowFile, ids: string[]) {
   const nodeSet = new Set(ids);
-  const allProjectStarts = file.graph.nodes.filter(
-    (node) => node.type === "projectStart",
-  );
+  const allProjectStarts = file.graph.nodes.filter((node) => node.type === "projectStart");
   const projectStarts = allProjectStarts.filter((node) => nodeSet.has(node.id));
   if (!projectStarts.length) return [];
   if (allProjectStarts.length - projectStarts.length < 1) return projectStarts;
@@ -162,15 +149,10 @@ export function wouldRemoveLastProjectStart(file: WorkflowFile, ids: string[]) {
 export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): WorkflowFile {
   const nodeSet = new Set(ids);
   const remainingLayer2NodeIds = new Set(
-    file.graph.nodes
-      .filter((node) => !nodeSet.has(node.id))
-      .map((node) => node.id),
+    file.graph.nodes.filter((node) => !nodeSet.has(node.id)).map((node) => node.id),
   );
   const layouts = Object.fromEntries(
-    Object.entries(file.layout.nodes).map(([id, layout]) => [
-      id,
-      { ...layout },
-    ]),
+    Object.entries(file.layout.nodes).map(([id, layout]) => [id, { ...layout }]),
   );
   ids.forEach((id) => {
     const deletedLayout = layouts[id];
@@ -205,9 +187,7 @@ export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): Workflow
     }
     return [item];
   });
-  const remainingExecutionItemIds = new Set(
-    executionItems.map((item) => item.id),
-  );
+  const remainingExecutionItemIds = new Set(executionItems.map((item) => item.id));
   const clearDanglingExecutionLink = (condition: Condition): Condition => {
     if (
       !condition.linkedExecutionItemId ||
@@ -228,16 +208,12 @@ export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): Workflow
   const edges = file.graph.edges
     .filter((edge) => !nodeSet.has(edge.source) && !nodeSet.has(edge.target))
     .map((edge) =>
-      edge.condition
-        ? { ...edge, condition: clearDanglingExecutionLink(edge.condition) }
-        : edge,
+      edge.condition ? { ...edge, condition: clearDanglingExecutionLink(edge.condition) } : edge,
     );
   const remainingEdgeIds = new Set(edges.map((edge) => edge.id));
   const edgeLayouts = file.layout.edges
     ? Object.fromEntries(
-        Object.entries(file.layout.edges).filter(([edgeId]) =>
-          remainingEdgeIds.has(edgeId),
-        ),
+        Object.entries(file.layout.edges).filter(([edgeId]) => remainingEdgeIds.has(edgeId)),
       )
     : undefined;
   const highLevel = file.highLevel
@@ -247,12 +223,8 @@ export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): Workflow
           ...file.highLevel.graph,
           nodes: file.highLevel.graph.nodes.map((node) => ({
             ...node,
-            linkedLayer2NodeIds: node.linkedLayer2NodeIds?.filter(
-              (id) => !nodeSet.has(id),
-            ),
-            linkedDetailedNodeIds: node.linkedDetailedNodeIds?.filter(
-              (id) => !nodeSet.has(id),
-            ),
+            linkedLayer2NodeIds: node.linkedLayer2NodeIds?.filter((id) => !nodeSet.has(id)),
+            linkedDetailedNodeIds: node.linkedDetailedNodeIds?.filter((id) => !nodeSet.has(id)),
           })),
         },
       }
@@ -266,9 +238,7 @@ export function deleteNodesFromFile(file: WorkflowFile, ids: string[]): Workflow
     },
     layout: { ...file.layout, nodes: layouts, edges: edgeLayouts },
     highLevel,
-    execution: file.execution
-      ? { ...file.execution, items: executionItems }
-      : undefined,
+    execution: file.execution ? { ...file.execution, items: executionItems } : undefined,
   };
 }
 
@@ -280,8 +250,7 @@ export function addOrReplaceEdge(file: WorkflowFile, edge: DomainEdge): Workflow
       edges: [
         ...file.graph.edges.filter(
           (existing) =>
-            existing.source !== edge.source ||
-            existing.sourceHandle !== edge.sourceHandle,
+            existing.source !== edge.source || existing.sourceHandle !== edge.sourceHandle,
         ),
         edge,
       ],
@@ -382,8 +351,7 @@ export function applyLayoutDrag(
     ? Object.fromEntries(
         Object.entries(file.layout.edges).map(([edgeId, route]) => {
           const edge = file.graph.edges.find((item) => item.id === edgeId);
-          if (!edge || (!moved.has(edge.source) && !moved.has(edge.target)))
-            return [edgeId, route];
+          if (!edge || (!moved.has(edge.source) && !moved.has(edge.target))) return [edgeId, route];
           const sourceBefore = before[edge.source];
           const targetBefore = before[edge.target];
           const sourceAfter = nodes[edge.source];

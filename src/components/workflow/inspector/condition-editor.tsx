@@ -17,7 +17,8 @@ export function ConditionEditor({
   update: (node: DomainNode) => void;
   onDelete: () => void;
 }) {
-  const condition = node.conditions[conditionIndex] && wholeDayCondition(node.conditions[conditionIndex]);
+  const condition =
+    node.conditions[conditionIndex] && wholeDayCondition(node.conditions[conditionIndex]);
   if (!condition) return null;
 
   const updateCondition = (patch: Partial<Condition>) => {
@@ -64,17 +65,31 @@ export function ConditionEditor({
         <div className="space-y-1.5">
           <Label>Duration to complete</Label>
           <div className="flex gap-2">
-            <input type="number" min="1" step="1" aria-label={`Release condition ${conditionIndex + 1} duration`}
-              value={condition.duration ?? ""} disabled={condition.locked} placeholder="e.g. 3"
+            <input
+              type="number"
+              min="1"
+              step="1"
+              aria-label={`Release condition ${conditionIndex + 1} duration`}
+              value={condition.duration ?? ""}
+              disabled={condition.locked}
+              placeholder="e.g. 3"
               onChange={(event) => {
                 const value = event.target.valueAsNumber;
-                updateCondition({ duration: Number.isFinite(value) && value > 0 ? value : undefined });
+                updateCondition({
+                  duration: Number.isFinite(value) && value > 0 ? value : undefined,
+                });
               }}
-              className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs" />
-            <select aria-label={`Release condition ${conditionIndex + 1} duration unit`}
-              value={condition.durationUnit || "days"} disabled={condition.locked}
-              onChange={(event) => updateCondition({ durationUnit: event.target.value as "days" | "weeks" })}
-              className="h-9 rounded-md border bg-background px-2 text-xs">
+              className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
+            />
+            <select
+              aria-label={`Release condition ${conditionIndex + 1} duration unit`}
+              value={condition.durationUnit || "days"}
+              disabled={condition.locked}
+              onChange={(event) =>
+                updateCondition({ durationUnit: event.target.value as "days" | "weeks" })
+              }
+              className="h-9 rounded-md border bg-background px-2 text-xs"
+            >
               <option value="days">Days</option>
               <option value="weeks">Weeks</option>
             </select>
@@ -103,26 +118,28 @@ export function ConditionEditor({
           />
         </div>
         {condition.id === "project-id-required" ? (
-          <p className="rounded-md border bg-muted/50 px-2 py-2 text-xs text-muted-foreground">Checked automatically when the five-digit Job Number is entered.</p>
+          <p className="rounded-md border bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
+            Checked automatically when the five-digit Job Number is entered.
+          </p>
         ) : (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={condition.required !== false}
-          aria-label={`Release condition ${conditionIndex + 1} required`}
-          disabled={condition.locked}
-          onClick={() => updateCondition({ required: condition.required === false })}
-          className={`flex h-9 w-full items-center rounded-md border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${condition.required !== false ? "border-primary/40 bg-primary/10 text-primary" : "bg-background/75 text-muted-foreground"}`}
-        >
-          <span
-            className={`mr-2 h-4 w-7 rounded-full p-0.5 ${condition.required !== false ? "bg-primary" : "bg-muted-foreground/35"}`}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={condition.required !== false}
+            aria-label={`Release condition ${conditionIndex + 1} required`}
+            disabled={condition.locked}
+            onClick={() => updateCondition({ required: condition.required === false })}
+            className={`flex h-9 w-full items-center rounded-md border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${condition.required !== false ? "border-primary/40 bg-primary/10 text-primary" : "bg-background/75 text-muted-foreground"}`}
           >
             <span
-              className={`block size-3 rounded-full bg-white transition ${condition.required !== false ? "translate-x-3" : ""}`}
-            />
-          </span>
-          {condition.required !== false ? "Required" : "Optional"}
-        </button>
+              className={`mr-2 h-4 w-7 rounded-full p-0.5 ${condition.required !== false ? "bg-primary" : "bg-muted-foreground/35"}`}
+            >
+              <span
+                className={`block size-3 rounded-full bg-white transition ${condition.required !== false ? "translate-x-3" : ""}`}
+              />
+            </span>
+            {condition.required !== false ? "Required" : "Optional"}
+          </button>
         )}
       </div>
     </section>

@@ -2,23 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import {
-  LoaderCircle,
-  Layers,
-  ShieldCheck,
-  Cpu,
-  Database,
-} from "lucide-react";
+import { LoaderCircle, Layers, ShieldCheck, Cpu, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkflowStore } from "@/store/workflow-store";
 
 const isLocalhost = () =>
   typeof window !== "undefined" &&
-  (window.location.hostname === "localhost" ||
-   window.location.hostname === "127.0.0.1");
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
-const isAuthBypass = () =>
-  isLocalhost() && process.env.NEXT_PUBLIC_AUTH_BYPASS === "1";
+const isAuthBypass = () => isLocalhost() && process.env.NEXT_PUBLIC_AUTH_BYPASS === "1";
 
 const DEV_USER = {
   id: "dev-bypass",
@@ -60,9 +52,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isAuthBypass()) {
       const isTest = typeof navigator !== "undefined" && Boolean(navigator.webdriver);
-      const isBypassParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("bypass");
-      const isAuthedInSession = typeof window !== "undefined" && sessionStorage.getItem("falcon_dev_authed") === "1";
-      const isWelcomeForced = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("welcome");
+      const isBypassParam =
+        typeof window !== "undefined" && new URLSearchParams(window.location.search).has("bypass");
+      const isAuthedInSession =
+        typeof window !== "undefined" && sessionStorage.getItem("falcon_dev_authed") === "1";
+      const isWelcomeForced =
+        typeof window !== "undefined" && new URLSearchParams(window.location.search).has("welcome");
 
       if (isWelcomeForced && typeof window !== "undefined") {
         sessionStorage.removeItem("falcon_dev_authed");
@@ -110,7 +105,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const account = useWorkflowStore.getState().authUser;
       try {
         const result = await request<{ user: User | null }>("/api/auth/me");
-        if (!active || currentRevision !== revision || useWorkflowStore.getState().authUser !== account) return;
+        if (
+          !active ||
+          currentRevision !== revision ||
+          useWorkflowStore.getState().authUser !== account
+        )
+          return;
         if (result.user?.id !== account?.id) {
           useWorkflowStore.getState().setAuthUser(result.user);
           // Remount every workspace/dialog so no previous account's local
@@ -124,7 +124,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     const onStorage = (event: StorageEvent) => {
       if (event.key === "workflow:account-changed") void checkAccount();
     };
-    const onFocus = () => { void checkAccount(); };
+    const onFocus = () => {
+      void checkAccount();
+    };
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onStorage);
     return () => {
@@ -219,9 +221,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 <span>SYS.ONLINE // FALCON WORKFLOW OS v2.6</span>
               </div>
               <div className="hidden sm:flex items-center gap-2 text-slate-400 text-[10px]">
-                <span className="rounded bg-cyan-950/60 px-1.5 py-0.5 text-cyan-300 border border-cyan-500/30">ELK ENGINE</span>
-                <span className="rounded bg-blue-950/60 px-1.5 py-0.5 text-blue-300 border border-blue-500/30">L1-L3 SPEC</span>
-                <span className="rounded bg-emerald-950/60 px-1.5 py-0.5 text-emerald-300 border border-emerald-500/30">D1 CLOUD</span>
+                <span className="rounded bg-cyan-950/60 px-1.5 py-0.5 text-cyan-300 border border-cyan-500/30">
+                  ELK ENGINE
+                </span>
+                <span className="rounded bg-blue-950/60 px-1.5 py-0.5 text-blue-300 border border-blue-500/30">
+                  L1-L3 SPEC
+                </span>
+                <span className="rounded bg-emerald-950/60 px-1.5 py-0.5 text-emerald-300 border border-emerald-500/30">
+                  D1 CLOUD
+                </span>
               </div>
             </div>
 
@@ -257,11 +265,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-white tracking-wide">3-Layer Architecture</h3>
-                      <span className="text-[9px] font-mono text-cyan-400/80 bg-cyan-950/80 px-1 py-0.5 rounded border border-cyan-500/20">L1-L3</span>
+                      <h3 className="text-xs font-bold text-white tracking-wide">
+                        3-Layer Architecture
+                      </h3>
+                      <span className="text-[9px] font-mono text-cyan-400/80 bg-cyan-950/80 px-1 py-0.5 rounded border border-cyan-500/20">
+                        L1-L3
+                      </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                      Seamless progression from L1 lifecycle overview to L2 gate workflows and L3 execution forms.
+                      Seamless progression from L1 lifecycle overview to L2 gate workflows and L3
+                      execution forms.
                     </p>
                   </div>
                 </div>
@@ -275,11 +288,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-white tracking-wide">Gate Governance</h3>
-                      <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/80 px-1 py-0.5 rounded border border-emerald-500/20">G1~G5</span>
+                      <h3 className="text-xs font-bold text-white tracking-wide">
+                        Gate Governance
+                      </h3>
+                      <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/80 px-1 py-0.5 rounded border border-emerald-500/20">
+                        G1~G5
+                      </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                      Rigorous gate decision criteria, multi-party signature rules, and closed-loop rework routing.
+                      Rigorous gate decision criteria, multi-party signature rules, and closed-loop
+                      rework routing.
                     </p>
                   </div>
                 </div>
@@ -293,11 +311,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-white tracking-wide">Orthogonal Topology</h3>
-                      <span className="text-[9px] font-mono text-blue-400/80 bg-blue-950/80 px-1 py-0.5 rounded border border-blue-500/20">AUTO-ELK</span>
+                      <h3 className="text-xs font-bold text-white tracking-wide">
+                        Orthogonal Topology
+                      </h3>
+                      <span className="text-[9px] font-mono text-blue-400/80 bg-blue-950/80 px-1 py-0.5 rounded border border-blue-500/20">
+                        AUTO-ELK
+                      </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                      Algorithmic ELK auto-routing separating primary trunk lines, support swimlanes, and return loops.
+                      Algorithmic ELK auto-routing separating primary trunk lines, support
+                      swimlanes, and return loops.
                     </p>
                   </div>
                 </div>
@@ -311,11 +334,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-white tracking-wide">Cloud Persistence</h3>
-                      <span className="text-[9px] font-mono text-amber-400/80 bg-amber-950/80 px-1 py-0.5 rounded border border-amber-500/20">D1 & EXCEL</span>
+                      <h3 className="text-xs font-bold text-white tracking-wide">
+                        Cloud Persistence
+                      </h3>
+                      <span className="text-[9px] font-mono text-amber-400/80 bg-amber-950/80 px-1 py-0.5 rounded border border-amber-500/20">
+                        D1 & EXCEL
+                      </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                      Distributed Cloudflare D1 real-time sync with lossless bidirectional Excel export & audit trail.
+                      Distributed Cloudflare D1 real-time sync with lossless bidirectional Excel
+                      export & audit trail.
                     </p>
                   </div>
                 </div>
@@ -420,13 +448,28 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 {registering ? "Already registered? Sign in" : "Need an account? Register"}
               </button>
               <p className="text-center text-xs text-muted-foreground">
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy policy</a>
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Privacy policy
+                </a>
                 <span className="px-2">·</span>
-                <a href="mailto:aaronyang470128@hotmail.com?subject=Falcon%20Process%20Building%20System%20support" className="text-primary hover:underline">Account support</a>
+                <a
+                  href="mailto:aaronyang470128@hotmail.com?subject=Falcon%20Process%20Building%20System%20support"
+                  className="text-primary hover:underline"
+                >
+                  Account support
+                </a>
               </p>
             </form>
             {error ? (
-              <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p
+                role="alert"
+                className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
                 {error}
               </p>
             ) : null}

@@ -1,7 +1,17 @@
 "use client";
 
 import { clone } from "@/lib/clone";
-import { appendOperationsAudit, calculateClassD, classifyClientPath, convertClientToProject, createEstimateVersion, evaluatePaymentRelease, normalizeProjectOperations, roleCanApprove, scheduleWarranty } from "@/lib/project-operations";
+import {
+  appendOperationsAudit,
+  calculateClassD,
+  classifyClientPath,
+  convertClientToProject,
+  createEstimateVersion,
+  evaluatePaymentRelease,
+  normalizeProjectOperations,
+  roleCanApprove,
+  scheduleWarranty,
+} from "@/lib/project-operations";
 import { withOperationalIdentity } from "@/store/workflow-store-helpers";
 import type { StoreGet, StoreSet, WorkflowState } from "@/store/workflow-store-types";
 
@@ -25,8 +35,8 @@ export function createOperationsSlice(set: StoreSet, get: StoreGet): OperationsS
           file.operations,
           file.graph.metadata.name,
           String(
-            file.graph.nodes.find((node) => node.type === "projectStart")
-              ?.customFields.legacyJobNumber || "",
+            file.graph.nodes.find((node) => node.type === "projectStart")?.customFields
+              .legacyJobNumber || "",
           ),
         );
         let operations = updater(clone(current));
@@ -40,7 +50,8 @@ export function createOperationsSlice(set: StoreSet, get: StoreGet): OperationsS
             actorRole: audit.actorRole || "System",
             action: audit.action,
             entityType: audit.entityType || "ProjectOperations",
-            entityId: audit.entityId || operations.identity.projectNumber || operations.identity.clientId,
+            entityId:
+              audit.entityId || operations.identity.projectNumber || operations.identity.clientId,
             summary: audit.summary,
           });
         }
@@ -108,10 +119,19 @@ export function createOperationsSlice(set: StoreSet, get: StoreGet): OperationsS
                 id: `approval-payment-${crypto.randomUUID()}`,
                 kind: "Payment Release",
                 reference: current.commercial.paymentRelease.id,
-                amount: current.commercial.receipts.reduce((sum, receipt) => sum + receipt.amount, 0),
-                contractPercent: current.commercial.contractValue > 0
-                  ? current.commercial.receipts.reduce((sum, receipt) => sum + receipt.amount, 0) / current.commercial.contractValue * 100
-                  : 0,
+                amount: current.commercial.receipts.reduce(
+                  (sum, receipt) => sum + receipt.amount,
+                  0,
+                ),
+                contractPercent:
+                  current.commercial.contractValue > 0
+                    ? (current.commercial.receipts.reduce(
+                        (sum, receipt) => sum + receipt.amount,
+                        0,
+                      ) /
+                        current.commercial.contractValue) *
+                      100
+                    : 0,
                 cumulativeCreditAmount: 0,
                 requiredRole: "Finance",
                 requestedBy: actor,
@@ -210,13 +230,7 @@ export function createOperationsSlice(set: StoreSet, get: StoreGet): OperationsS
         get().file.graph.metadata.name,
       );
       const amount = calculateClassD(current);
-      const version = createEstimateVersion(
-        current,
-        "D",
-        amount,
-        actor,
-        sourceRevision,
-      );
+      const version = createEstimateVersion(current, "D", amount, actor, sourceRevision);
       get().updateOperations(
         (operations) => ({
           ...operations,
@@ -257,17 +271,14 @@ export function createOperationsSlice(set: StoreSet, get: StoreGet): OperationsS
           owner,
           triggerEvidence,
         );
-        get().updateOperations(
-          () => scheduled,
-          {
-            actor,
-            actorRole: "Project Manager",
-            action: "START_WARRANTY_DAY_ZERO",
-            entityType: "Warranty",
-            entityId: scheduled.identity.projectNumber || scheduled.identity.clientId,
-            summary: `Warranty started ${dayZeroDate}; ${durationMonths} months with 30/60/90-day follow-ups.`,
-          },
-        );
+        get().updateOperations(() => scheduled, {
+          actor,
+          actorRole: "Project Manager",
+          action: "START_WARRANTY_DAY_ZERO",
+          entityType: "Warranty",
+          entityId: scheduled.identity.projectNumber || scheduled.identity.clientId,
+          summary: `Warranty started ${dayZeroDate}; ${durationMonths} months with 30/60/90-day follow-ups.`,
+        });
         return undefined;
       } catch (error) {
         return error instanceof Error ? error.message : "Warranty could not be started.";

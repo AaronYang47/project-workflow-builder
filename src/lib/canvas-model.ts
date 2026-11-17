@@ -18,7 +18,12 @@ import type { getWorkflowProgress } from "@/lib/workflow-progress";
 
 export type CanvasProgress = ReturnType<typeof getWorkflowProgress>;
 
-export function buildCanvasNodes(file: WorkflowFile, search: string, selection: { nodeIds: string[] }, progress: CanvasProgress): Node[] {
+export function buildCanvasNodes(
+  file: WorkflowFile,
+  search: string,
+  selection: { nodeIds: string[] },
+  progress: CanvasProgress,
+): Node[] {
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const l1PhaseColorByL2NodeId = new Map<string, string>();
   highLevelNodes.forEach((hlNode, index) => {
@@ -26,8 +31,7 @@ export function buildCanvasNodes(file: WorkflowFile, search: string, selection: 
       hlNode.backgroundColor && hlNode.backgroundColor !== "transparent"
         ? hlNode.backgroundColor
         : getL1FallbackColor(hlNode.title, index);
-    const linkedIds =
-      hlNode.linkedLayer2NodeIds ?? hlNode.linkedDetailedNodeIds ?? [];
+    const linkedIds = hlNode.linkedLayer2NodeIds ?? hlNode.linkedDetailedNodeIds ?? [];
     for (const linkedId of linkedIds) {
       if (!l1PhaseColorByL2NodeId.has(linkedId)) {
         l1PhaseColorByL2NodeId.set(linkedId, color);
@@ -39,15 +43,12 @@ export function buildCanvasNodes(file: WorkflowFile, search: string, selection: 
     .map((domain): Node => {
       const layout = file.layout.nodes[domain.id];
       const q = search.trim().toLowerCase();
-      const searchMatch =
-        q &&
-        `${domain.title} ${domain.description}`.toLowerCase().includes(q);
+      const searchMatch = q && `${domain.title} ${domain.description}`.toLowerCase().includes(q);
       const isContainer = domain.type === "phase" || domain.type === "gate";
-      const rendererType =
-        isContainer
-          ? "phase"
-          : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
-            ? "reference"
+      const rendererType = isContainer
+        ? "phase"
+        : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
+          ? "reference"
           : "workflow";
       const stageKey = chapterLabel(domain.config?.stage, "").toLowerCase();
       const stageFallback = DEFAULT_STAGE_COLORS[stageKey];
@@ -57,18 +58,31 @@ export function buildCanvasNodes(file: WorkflowFile, search: string, selection: 
 
       // 2. Or via parent container (e.g. Gate or Phase)
       const parentLayout = layout?.parentId ? file.layout.nodes[layout.parentId] : undefined;
-      const parentL1Color = layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined;
-      const grandparentL1Color = parentLayout?.parentId ? l1PhaseColorByL2NodeId.get(parentLayout.parentId) : undefined;
+      const parentL1Color = layout?.parentId
+        ? l1PhaseColorByL2NodeId.get(layout.parentId)
+        : undefined;
+      const grandparentL1Color = parentLayout?.parentId
+        ? l1PhaseColorByL2NodeId.get(parentLayout.parentId)
+        : undefined;
 
       // 3. Or via Phase container color if this step is inside a Phase
-      const parentDomain = layout?.parentId ? file.graph.nodes.find((n) => n.id === layout.parentId) : undefined;
-      const grandParentDomain = parentLayout?.parentId ? file.graph.nodes.find((n) => n.id === parentLayout.parentId) : undefined;
+      const parentDomain = layout?.parentId
+        ? file.graph.nodes.find((n) => n.id === layout.parentId)
+        : undefined;
+      const grandParentDomain = parentLayout?.parentId
+        ? file.graph.nodes.find((n) => n.id === parentLayout.parentId)
+        : undefined;
       const containerColor =
-        (parentDomain?.type === "phase" ? (parentDomain.color || l1PhaseColorByL2NodeId.get(parentDomain.id)) : undefined) ??
-        (grandParentDomain?.type === "phase" ? (grandParentDomain.color || l1PhaseColorByL2NodeId.get(grandParentDomain.id)) : undefined);
+        (parentDomain?.type === "phase"
+          ? parentDomain.color || l1PhaseColorByL2NodeId.get(parentDomain.id)
+          : undefined) ??
+        (grandParentDomain?.type === "phase"
+          ? grandParentDomain.color || l1PhaseColorByL2NodeId.get(grandParentDomain.id)
+          : undefined);
 
       // 4. L1 color has highest priority for steps, so steps strictly follow L1 Phase card color!
-      const l1ResolvedColor = l1DirectColor ?? parentL1Color ?? grandparentL1Color ?? containerColor;
+      const l1ResolvedColor =
+        l1DirectColor ?? parentL1Color ?? grandparentL1Color ?? containerColor;
 
       let resolvedContainerColor = domain.color;
       if (domain.type === "phase") {
@@ -96,12 +110,7 @@ export function buildCanvasNodes(file: WorkflowFile, search: string, selection: 
       const phaseGradientColors =
         (domain.type === "general" || domain.type === "projectStart") &&
         domain.config.blendAdjacentPhaseColors === true
-          ? chapterPhaseGradientColors(
-              domain,
-              file.graph.nodes,
-              file.layout.nodes,
-              highLevelNodes,
-            )
+          ? chapterPhaseGradientColors(domain, file.graph.nodes, file.layout.nodes, highLevelNodes)
           : undefined;
       return {
         id: domain.id,
@@ -122,12 +131,9 @@ export function buildCanvasNodes(file: WorkflowFile, search: string, selection: 
           dimmed: Boolean(q && !searchMatch),
           phaseColor,
           phaseGradientColors,
-          executionSummary: getExecutionSummary(
-            domain.id,
-            file.execution?.items,
-            file.operations,
-            { checklistOnly: true },
-          ),
+          executionSummary: getExecutionSummary(domain.id, file.execution?.items, file.operations, {
+            checklistOnly: true,
+          }),
         },
       };
     })
@@ -161,7 +167,10 @@ export function buildLabelObstacles(file: WorkflowFile): LabelObstacle[] {
         x: layout?.x || 0,
         y: layout?.y || 0,
         width: layout?.width || 720,
-        height: Math.max(PHASE_HEADER_HEIGHT, estimatePhaseHeaderHeight(node, layout?.width || 720)),
+        height: Math.max(
+          PHASE_HEADER_HEIGHT,
+          estimatePhaseHeaderHeight(node, layout?.width || 720),
+        ),
         kind: "phase-header" as const,
       };
     });
@@ -184,40 +193,38 @@ export function indexCanvasEdges(file: WorkflowFile) {
   return { siblings, returnIndex };
 }
 
-export function buildCanvasEdges(file: WorkflowFile, edgeIndexes: ReturnType<typeof indexCanvasEdges>, labelObstacles: LabelObstacle[], progress: CanvasProgress, selection: { edgeId?: string }): Edge[] {
+export function buildCanvasEdges(
+  file: WorkflowFile,
+  edgeIndexes: ReturnType<typeof indexCanvasEdges>,
+  labelObstacles: LabelObstacle[],
+  progress: CanvasProgress,
+  selection: { edgeId?: string },
+): Edge[] {
   const chapterConnections = routeChapterConnections(file);
   const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
   const supportingEdgeLanes = new Map(
     file.graph.edges
       .map((edge, index) => ({ edge, index }))
-      .filter(
-        ({ edge }) =>
-          edge.type === "supporting" || edge.type === "dependency",
-      )
+      .filter(({ edge }) => edge.type === "supporting" || edge.type === "dependency")
       // Lower targets get the inner lane. Upper targets nest outside them,
       // which keeps vertical target approaches from crossing lower edges.
       .sort(
         (left, right) =>
           (file.layout.nodes[right.edge.target]?.y ?? 0) -
-            (file.layout.nodes[left.edge.target]?.y ?? 0) ||
-          left.index - right.index,
+            (file.layout.nodes[left.edge.target]?.y ?? 0) || left.index - right.index,
       )
       .map(({ edge }, index) => [edge.id, index]),
   );
   return file.graph.edges.map((domain) => {
     const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
-    const siblingIndex = siblingEdges.findIndex(
-      (edge) => edge.id === domain.id,
-    );
+    const siblingIndex = siblingEdges.findIndex((edge) => edge.id === domain.id);
     const returnIndex = edgeIndexes.returnIndex.get(domain.id) ?? -1;
     const labelHugsPath =
       returnIndex >= 0 ||
       domain.sourceHandle === "yes" ||
       ["success", "approval"].includes(domain.type);
     const labelLane =
-      returnIndex >= 0
-        ? returnIndex
-        : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
+      returnIndex >= 0 ? returnIndex : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
     const sourceNode = nodesById.get(domain.source);
     const targetNode = nodesById.get(domain.target);
     const preGateSales =

@@ -22,7 +22,7 @@ export const appendHistory = <T>(past: T[], snapshot: T) => [
   snapshot,
 ];
 
-export const debouncedJSONStorage = <T,>(): PersistStorage<T> => {
+export const debouncedJSONStorage = <T>(): PersistStorage<T> => {
   if (typeof window !== "undefined" && !pageHideListenerAdded) {
     window.addEventListener("pagehide", flushLocalWrites);
     pageHideListenerAdded = true;

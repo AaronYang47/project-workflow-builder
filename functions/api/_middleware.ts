@@ -18,8 +18,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const user = await currentUser(request, env.DB, env.SESSION_SECRET).catch(() => null);
   let attemptedEmail: string | null = null;
   if (request.method === "POST" && /^\/api\/auth\/(login|register)\/?$/.test(url.pathname)) {
-    const body = await request.clone().json().catch(() => null) as { email?: unknown } | null;
-    attemptedEmail = typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 254) : null;
+    const body = (await request
+      .clone()
+      .json()
+      .catch(() => null)) as { email?: unknown } | null;
+    attemptedEmail =
+      typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 254) : null;
   }
 
   let response: Response | null = null;
@@ -35,27 +39,40 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const classified = classifyApiRequest(request.method, url.pathname, status);
     let signedIn = user;
     if (!signedIn && response && classified.outcome === "success" && attemptedEmail) {
-      const body = await response.clone().json().catch(() => null) as { user?: { id?: string; email?: string } } | null;
-      if (body?.user?.id) signedIn = { id: body.user.id, email: body.user.email ?? attemptedEmail, name: "", role: "Coordinator" };
+      const body = (await response
+        .clone()
+        .json()
+        .catch(() => null)) as { user?: { id?: string; email?: string } } | null;
+      if (body?.user?.id)
+        signedIn = {
+          id: body.user.id,
+          email: body.user.email ?? attemptedEmail,
+          name: "",
+          role: "Coordinator",
+        };
     }
-    context.waitUntil(writeAuditEvents(env.AUDIT_DB, request, [{
-      source: "server",
-      category: classified.category,
-      action: classified.action,
-      outcome: classified.outcome,
-      userId: signedIn?.id ?? null,
-      userEmail: signedIn?.email ?? attemptedEmail,
-      method: request.method,
-      path: url.pathname,
-      status,
-      durationMs: Date.now() - started,
-      details: {
-        query: url.search || undefined,
-        referer: request.headers.get("referer") || undefined,
-        requestBytes: Number(request.headers.get("content-length")) || undefined,
-        role: signedIn?.role || undefined,
-        error: failure instanceof Error ? failure.message.slice(0, 300) : undefined,
-      },
-    }]).catch(() => undefined));
+    context.waitUntil(
+      writeAuditEvents(env.AUDIT_DB, request, [
+        {
+          source: "server",
+          category: classified.category,
+          action: classified.action,
+          outcome: classified.outcome,
+          userId: signedIn?.id ?? null,
+          userEmail: signedIn?.email ?? attemptedEmail,
+          method: request.method,
+          path: url.pathname,
+          status,
+          durationMs: Date.now() - started,
+          details: {
+            query: url.search || undefined,
+            referer: request.headers.get("referer") || undefined,
+            requestBytes: Number(request.headers.get("content-length")) || undefined,
+            role: signedIn?.role || undefined,
+            error: failure instanceof Error ? failure.message.slice(0, 300) : undefined,
+          },
+        },
+      ]).catch(() => undefined),
+    );
   }
 };

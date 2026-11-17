@@ -22,7 +22,13 @@ import {
   assignEdgePaths,
 } from "@/lib/process-locator/pyramid-layout";
 import type { ViewLayer } from "@/lib/process-locator/pyramid-layout";
-import type { DomainEdge, DomainNode, ExecutionItem, HighLevelEdge, HighLevelNode } from "@/types/workflow";
+import type {
+  DomainEdge,
+  DomainNode,
+  ExecutionItem,
+  HighLevelEdge,
+  HighLevelNode,
+} from "@/types/workflow";
 import type { ProjectOperations } from "@/types/project-operations";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 
@@ -48,13 +54,21 @@ export type PyramidDiagramInput = {
  * items as positioned cards, the routed connectors between them, layer bands
  * and the first blocked or stopped card. Pure; the widget memoises it.
  */
-export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edges, nodes, executionItems, focusL1Id, focusLayer2Id, viewLayer, collapsedL1Ids, collapsedL2Ids, executionNodeId, operations }: PyramidDiagramInput) {
-  const groups = buildGlobalPyramidGroups(
-    highLevelNodes,
-    nodes,
-    executionItems,
-    layer2Edges,
-  );
+export function buildPyramidDiagram({
+  highLevelNodes,
+  highLevelEdges,
+  layer2Edges,
+  nodes,
+  executionItems,
+  focusL1Id,
+  focusLayer2Id,
+  viewLayer,
+  collapsedL1Ids,
+  collapsedL2Ids,
+  executionNodeId,
+  operations,
+}: PyramidDiagramInput) {
+  const groups = buildGlobalPyramidGroups(highLevelNodes, nodes, executionItems, layer2Edges);
 
   const progress = getWorkflowProgress(nodes, layer2Edges, executionItems, operations);
   const l2Statuses = new Map<string, FlowStatus>();
@@ -62,13 +76,7 @@ export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edge
     for (const branch of group.l2) {
       l2Statuses.set(
         branch.l2.id,
-        l2FlowStatus(
-          branch.l2.id,
-          nodes,
-          progress.reachedNodeIds,
-          executionItems,
-          operations,
-        ),
+        l2FlowStatus(branch.l2.id, nodes, progress.reachedNodeIds, executionItems, operations),
       );
     }
   }
@@ -93,12 +101,8 @@ export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edge
   const l1Y = PAD;
   const l2Y = PAD + l1Height + V_GAP;
 
-  const rowWidth = (
-    widths: number[],
-    gap: number,
-  ) =>
-    widths.reduce((sum, width) => sum + width, 0) +
-    Math.max(0, widths.length - 1) * gap;
+  const rowWidth = (widths: number[], gap: number) =>
+    widths.reduce((sum, width) => sum + width, 0) + Math.max(0, widths.length - 1) * gap;
 
   const l2Items = sized.flatMap((group, groupIndex) =>
     collapsedL1Ids.has(group.l1.id)
@@ -123,10 +127,7 @@ export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edge
 
   let layerX = l1Start;
   const l1Cards = sized.map((group) => {
-    const l1Status =
-      group.l1.id === UNLINKED_L1_ID
-        ? "locked"
-        : l1FlowStatus(group.l2, l2Statuses);
+    const l1Status = group.l1.id === UNLINKED_L1_ID ? "locked" : l1FlowStatus(group.l2, l2Statuses);
     const l1Card: PositionedCard = {
       ...group.l1,
       x: layerX,
@@ -226,7 +227,10 @@ export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edge
 
           const isCurrentL3 = Boolean(
             (viewLayer === "L3" && executionNodeId === branch.l2.id && l3Idx === 0) ||
-            (viewLayer === "L3" && l3Item.conditionId && condition?.id === l3Item.conditionId && executionNodeId === branch.l2.id)
+            (viewLayer === "L3" &&
+              l3Item.conditionId &&
+              condition?.id === l3Item.conditionId &&
+              executionNodeId === branch.l2.id),
           );
 
           const l3Card: PositionedCard = {
@@ -321,8 +325,7 @@ export function buildPyramidDiagram({ highLevelNodes, highLevelEdges, layer2Edge
   assignEdgePaths(cards, edges);
 
   const hereL1 =
-    cards.find((card) => card.layer === "L1" && card.status === "current")?.id ||
-    focusL1Id;
+    cards.find((card) => card.layer === "L1" && card.status === "current")?.id || focusL1Id;
   const hereL2Children = edges
     .filter((edge) => edge.from.id === hereL1 && edge.to.layer === "L2")
     .map((edge) => edge.to.id);

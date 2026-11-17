@@ -10,8 +10,12 @@ for (const layer of ["L1", "L2"]) {
     const downloads: string[] = [];
     page.on("download", (download) => downloads.push(download.suggestedFilename()));
     await page.getByRole("button", { name: "Export", exact: true }).click();
-    const pending = page.waitForEvent("download", { predicate: (download) => download.suggestedFilename().endsWith("with-gantt-chart.pdf") });
-    await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
+    const pending = page.waitForEvent("download", {
+      predicate: (download) => download.suggestedFilename().endsWith("with-gantt-chart.pdf"),
+    });
+    await page
+      .getByText("High Level Process System Flowchart with Gantt Chart", { exact: true })
+      .click();
     const download = await pending;
     await download.saveAs(testInfo.outputPath("gantt.pdf"));
     expect(await download.failure()).toBeNull();

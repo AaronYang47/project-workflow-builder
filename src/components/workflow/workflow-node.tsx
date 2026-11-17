@@ -43,10 +43,7 @@ function ExecutionSummaryBadge({ summary }: { summary?: ExecutionSummary }) {
   );
 }
 
-function WorkflowNodeComponent({
-  data,
-  selected,
-}: NodeProps<WorkflowFlowNode>) {
+function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const node = data.domain;
   const rootRef = useRef<HTMLDivElement>(null);
   useNodeScrollContainment(rootRef);
@@ -54,8 +51,7 @@ function WorkflowNodeComponent({
   const remotePeers = useCollaborationStore((state) => state.remotePeers);
   const now = useCurrentTime();
   const activeCollaborator = Object.values(remotePeers).find(
-    (peer) =>
-      peer.focusedNodeId === node.id && now - peer.lastActiveAt < 30000,
+    (peer) => peer.focusedNodeId === node.id && now - peer.lastActiveAt < 30000,
   );
 
   const inner =

@@ -40,7 +40,8 @@ export async function exportDocument(format: DocumentExportFormat, file: Workflo
   switch (format) {
     case "l1-swimlane-pdf":
     case "l1-gantt-pdf": {
-      const { exportL1DepartmentSwimlanePdf } = await import("@/lib/l1-department-swimlane-pdf-export");
+      const { exportL1DepartmentSwimlanePdf } =
+        await import("@/lib/l1-department-swimlane-pdf-export");
       return exportL1DepartmentSwimlanePdf(file, { gantt: format === "l1-gantt-pdf" });
     }
     case "l3-pdf": {
@@ -53,8 +54,11 @@ export async function exportDocument(format: DocumentExportFormat, file: Workflo
     }
     case "presentation-pdf":
     case "presentation-no-conditions-pdf": {
-      const { exportExecutivePresentationPdf } = await import("@/lib/executive-presentation-pdf-export");
-      return exportExecutivePresentationPdf(file, { includeReleaseConditions: format === "presentation-pdf" });
+      const { exportExecutivePresentationPdf } =
+        await import("@/lib/executive-presentation-pdf-export");
+      return exportExecutivePresentationPdf(file, {
+        includeReleaseConditions: format === "presentation-pdf",
+      });
     }
   }
 }

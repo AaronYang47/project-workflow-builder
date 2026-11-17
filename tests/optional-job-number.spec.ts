@@ -7,14 +7,24 @@ import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
 test("missing Job Number and unchecked legacy condition do not block the chapter", () => {
   const node = createDomainNode("projectStart", "start");
-  node.conditions = [{ id: "project-id-required", label: "Job Number is entered", required: true, checked: false, locked: true }];
+  node.conditions = [
+    {
+      id: "project-id-required",
+      label: "Job Number is entered",
+      required: true,
+      checked: false,
+      locked: true,
+    },
+  ];
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(false);
   expect(nodeReleaseReady(node, node, [], undefined)).toBe(true);
   node.conditions[0].checked = true;
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(false);
   node.customFields.projectId = "L-27-001";
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(true);
-  expect(syncProjectNameIdentity("PROF Address 1 St 1 Su", "27001")).toBe("27001 PROF Address 1 St 1 Su");
+  expect(syncProjectNameIdentity("PROF Address 1 St 1 Su", "27001")).toBe(
+    "27001 PROF Address 1 St 1 Su",
+  );
 });
 
 test("Job Number condition is automatic and missing number does not block", async ({ page }) => {
@@ -23,7 +33,17 @@ test("Job Number condition is automatic and missing number does not block", asyn
   start.conditions[0].required = true; // A previously saved project.
   file.graph.nodes = [start];
   file.layout.nodes[start.id] = { nodeId: start.id, x: 0, y: 0, width: 420, height: 550 };
-  await page.addInitScript(({ key, file }) => localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 })), { key: WORKFLOW_STORAGE_KEY, file });
+  await page.addInitScript(
+    ({ key, file }) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      ),
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const card = page.locator('[data-id="start"]');
@@ -46,11 +66,31 @@ test("a cloud project can be created without a Job Number", async ({ page }) => 
   await page.route("**/api/projects", (route) => {
     if (route.request().method() === "POST") {
       saved = route.request().postDataJSON();
-      return route.fulfill({ json: { project: { id: "new", name: saved!.name, project_number: "", created_at: "", updated_at: "" } } });
+      return route.fulfill({
+        json: {
+          project: {
+            id: "new",
+            name: saved!.name,
+            project_number: "",
+            created_at: "",
+            updated_at: "",
+          },
+        },
+      });
     }
     return route.fulfill({ json: { projects: [] } });
   });
-  await page.addInitScript(({ key, user }) => localStorage.setItem(key, JSON.stringify({ state: { authUser: user, workspaceOwnerId: user.id, dirty: false }, version: 0 })), { key: WORKFLOW_STORAGE_KEY, user });
+  await page.addInitScript(
+    ({ key, user }) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { authUser: user, workspaceOwnerId: user.id, dirty: false },
+          version: 0,
+        }),
+      ),
+    { key: WORKFLOW_STORAGE_KEY, user },
+  );
   await page.goto("/");
   await page.getByRole("button", { name: "New project", exact: true }).click();
   const dialog = page.getByRole("dialog");

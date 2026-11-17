@@ -12,12 +12,20 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     const file = createDefaultDetailedLifecycle();
     const chapter = createDomainNode("general", "custom-sales-chapter");
     chapter.title = "CH 01 — Opportunity & Sales Qualification";
-    chapter.conditions = [{ id: "custom-sales-step", label: "01.01 Identify Customer Opportunity", linkedExecutionItemId: "custom-sales-task" }];
+    chapter.conditions = [
+      {
+        id: "custom-sales-step",
+        label: "01.01 Identify Customer Opportunity",
+        linkedExecutionItemId: "custom-sales-task",
+      },
+    ];
     file.graph.nodes.push(chapter);
     file.layout.nodes[chapter.id] = { nodeId: chapter.id, x: 0, y: 3000, width: 460, height: 600 };
     file.execution!.items.push(createExecutionItem("custom-sales-task", chapter.id, "Task"));
     const result = migrateWorkflowFile(file);
-    expect(result.graph.nodes.find((node) => node.id === chapter.id)?.conditions).toEqual(chapter.conditions);
+    expect(result.graph.nodes.find((node) => node.id === chapter.id)?.conditions).toEqual(
+      chapter.conditions,
+    );
     expect(result.execution!.items.some((item) => item.id === "custom-sales-task")).toBe(true);
   });
 
@@ -35,44 +43,27 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
       height: 180,
     };
 
-    const highLevelNode = file.highLevel!.graph.nodes.find(
-      (node) => node.id === "high-level-4",
-    )!;
-    highLevelNode.linkedLayer2NodeIds = [
-      "pre-construction",
-      customNode.id,
-    ];
-    highLevelNode.linkedDetailedNodeIds = [
-      customNode.id,
-    ];
+    const highLevelNode = file.highLevel!.graph.nodes.find((node) => node.id === "high-level-4")!;
+    highLevelNode.linkedLayer2NodeIds = ["pre-construction", customNode.id];
+    highLevelNode.linkedDetailedNodeIds = [customNode.id];
 
-    const customItem = createExecutionItem(
-      "custom-stage-evidence",
-      customNode.id,
-      "Evidence",
-    );
+    const customItem = createExecutionItem("custom-stage-evidence", customNode.id, "Evidence");
     customItem.title = "Custom stage evidence";
     file.execution!.items.push(customItem);
 
-    const controlledCec = file.execution!.items.find(
-      (item) => item.id === "exec-precon-cec",
-    )!;
+    const controlledCec = file.execution!.items.find((item) => item.id === "exec-precon-cec")!;
     controlledCec.linkedLayer2NodeId = customNode.id;
     controlledCec.formValues = {
       projectName: "Preserve this completed form data",
     };
 
-    const survivingNode = file.graph.nodes.find(
-      (node) => node.id === "gate-g1-qualified",
-    )!;
+    const survivingNode = file.graph.nodes.find((node) => node.id === "gate-g1-qualified")!;
     survivingNode.conditions.push({
       id: "custom-evidence-link",
       label: "Custom evidence is ready",
       linkedExecutionItemId: customItem.id,
     });
-    const survivingEdge = file.graph.edges.find(
-      (edge) => edge.id === "lifecycle-start-to-g1",
-    )!;
+    const survivingEdge = file.graph.edges.find((edge) => edge.id === "lifecycle-start-to-g1")!;
     survivingEdge.condition = {
       id: "custom-edge-evidence-link",
       linkedExecutionItemId: customItem.id,
@@ -83,17 +74,11 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     const nextHighLevelNode = result.highLevel!.graph.nodes.find(
       (node) => node.id === highLevelNode.id,
     )!;
-    expect(nextHighLevelNode.linkedLayer2NodeIds).toEqual([
-      "pre-construction",
-    ]);
+    expect(nextHighLevelNode.linkedLayer2NodeIds).toEqual(["pre-construction"]);
     expect(nextHighLevelNode.linkedDetailedNodeIds).toEqual([]);
-    expect(
-      result.execution!.items.some((item) => item.id === customItem.id),
-    ).toBe(false);
+    expect(result.execution!.items.some((item) => item.id === customItem.id)).toBe(false);
 
-    const nextCec = result.execution!.items.find(
-      (item) => item.id === controlledCec.id,
-    )!;
+    const nextCec = result.execution!.items.find((item) => item.id === controlledCec.id)!;
     expect(nextCec.linkedLayer2NodeId).toBe("pre-construction");
     expect(nextCec.formValues).toEqual(controlledCec.formValues);
     expect(
@@ -161,14 +146,8 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
         customFields: {},
       },
     );
-    const highLevelNode = file.highLevel!.graph.nodes.find(
-      (node) => node.id === "high-level-3",
-    )!;
-    highLevelNode.linkedLayer2NodeIds = [
-      "gate-g1-qualified",
-      legacyPathway.id,
-      "approval-matrix",
-    ];
+    const highLevelNode = file.highLevel!.graph.nodes.find((node) => node.id === "high-level-3")!;
+    highLevelNode.linkedLayer2NodeIds = ["gate-g1-qualified", legacyPathway.id, "approval-matrix"];
     highLevelNode.linkedDetailedNodeIds = [...highLevelNode.linkedLayer2NodeIds];
     const legacyForm = file.execution!.items.find((item) => item.id === "exec-csa")!;
     legacyForm.linkedLayer2NodeId = legacyPathway.id;
@@ -178,9 +157,7 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
 
     expect(result.graph.nodes.some((node) => node.id === legacyPathway.id)).toBe(false);
     expect(
-      result.graph.nodes.some(
-        (node) => node.title.trim().toLowerCase() === "commercial pathway",
-      ),
+      result.graph.nodes.some((node) => node.title.trim().toLowerCase() === "commercial pathway"),
     ).toBe(false);
     expect(
       result.graph.edges.some(
@@ -189,11 +166,11 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     ).toBe(false);
     expect(result.layout.nodes[legacyPathway.id]).toBeUndefined();
     expect(
-      result.highLevel!.graph.nodes.flatMap(
-        (node) => node.linkedLayer2NodeIds || [],
-      ),
+      result.highLevel!.graph.nodes.flatMap((node) => node.linkedLayer2NodeIds || []),
     ).not.toContain(legacyPathway.id);
-    expect(result.execution!.items.some((item) => item.linkedLayer2NodeId === legacyPathway.id)).toBe(false);
+    expect(
+      result.execution!.items.some((item) => item.linkedLayer2NodeId === legacyPathway.id),
+    ).toBe(false);
     expect(result.graph.nodes.some((node) => node.id === "opportunity-intake")).toBe(false);
     expect(result.execution!.items.find((item) => item.id === legacyForm.id)).toMatchObject({
       linkedLayer2NodeId: "pre-construction",
@@ -297,56 +274,36 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
       source: approvalMatrix.id,
       target: responsibilityMatrix.id,
     });
-    const highLevelNode = file.highLevel!.graph.nodes.find(
-      (node) => node.id === "high-level-4",
-    )!;
+    const highLevelNode = file.highLevel!.graph.nodes.find((node) => node.id === "high-level-4")!;
     highLevelNode.linkedLayer2NodeIds = [
       "pre-construction",
       approvalMatrix.id,
       responsibilityMatrix.id,
     ];
     highLevelNode.linkedDetailedNodeIds = [...highLevelNode.linkedLayer2NodeIds];
-    const matrixItem = createExecutionItem(
-      "legacy-matrix-item",
-      approvalMatrix.id,
-      "Evidence",
-    );
+    const matrixItem = createExecutionItem("legacy-matrix-item", approvalMatrix.id, "Evidence");
     file.execution!.items.push(matrixItem);
 
     const result = migrateWorkflowFile(file);
     const retiredIds = new Set([approvalMatrix.id, responsibilityMatrix.id]);
 
+    expect(result.graph.nodes.some((node) => retiredIds.has(node.id))).toBe(false);
     expect(
-      result.graph.nodes.some((node) => retiredIds.has(node.id)),
-    ).toBe(false);
-    expect(
-      result.graph.edges.some(
-        (edge) => retiredIds.has(edge.source) || retiredIds.has(edge.target),
-      ),
+      result.graph.edges.some((edge) => retiredIds.has(edge.source) || retiredIds.has(edge.target)),
     ).toBe(false);
     expect(result.layout.nodes[approvalMatrix.id]).toBeUndefined();
     expect(result.layout.nodes[responsibilityMatrix.id]).toBeUndefined();
     expect(
-      result.highLevel!.graph.nodes.flatMap(
-        (node) => node.linkedLayer2NodeIds || [],
-      ),
+      result.highLevel!.graph.nodes.flatMap((node) => node.linkedLayer2NodeIds || []),
     ).not.toEqual(expect.arrayContaining([...retiredIds]));
-    expect(
-      result.execution!.items.some((item) => item.id === matrixItem.id),
-    ).toBe(false);
+    expect(result.execution!.items.some((item) => item.id === matrixItem.id)).toBe(false);
   });
 
   test("deleting a canonical L2 node preserves controlled forms and reports their broken link", () => {
     const file = createDefaultDetailedLifecycle();
-    const highLevelNode = file.highLevel!.graph.nodes.find(
-      (node) => node.id === "high-level-4",
-    )!;
-    highLevelNode.linkedLayer2NodeIds = [
-      "pre-construction",
-    ];
-    highLevelNode.linkedDetailedNodeIds = [
-      "pre-construction",
-    ];
+    const highLevelNode = file.highLevel!.graph.nodes.find((node) => node.id === "high-level-4")!;
+    highLevelNode.linkedLayer2NodeIds = ["pre-construction"];
+    highLevelNode.linkedDetailedNodeIds = ["pre-construction"];
 
     const customItem = createExecutionItem(
       "custom-preconstruction-note",
@@ -354,9 +311,7 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
       "Task",
     );
     file.execution!.items.push(customItem);
-    const controlledCec = file.execution!.items.find(
-      (item) => item.id === "exec-precon-cec",
-    )!;
+    const controlledCec = file.execution!.items.find((item) => item.id === "exec-precon-cec")!;
     controlledCec.formValues = { projectName: "Filled CEC survives deletion" };
 
     const result = deleteNodesFromFile(file, ["pre-construction"]);
@@ -366,13 +321,9 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     )!;
     expect(nextHighLevelNode.linkedLayer2NodeIds).toEqual([]);
     expect(nextHighLevelNode.linkedDetailedNodeIds).toEqual([]);
-    expect(
-      result.execution!.items.some((item) => item.id === customItem.id),
-    ).toBe(false);
+    expect(result.execution!.items.some((item) => item.id === customItem.id)).toBe(false);
 
-    const nextCec = result.execution!.items.find(
-      (item) => item.id === controlledCec.id,
-    )!;
+    const nextCec = result.execution!.items.find((item) => item.id === controlledCec.id)!;
     expect(nextCec.linkedLayer2NodeId).toBe("pre-construction");
     expect(nextCec.formValues).toEqual(controlledCec.formValues);
 
@@ -393,11 +344,7 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     highLevelNode.linkedLayer2NodeIds = ["missing-l2-from-current-link"];
     highLevelNode.linkedDetailedNodeIds = ["missing-l2-from-legacy-link"];
 
-    const brokenL3Item = createExecutionItem(
-      "orphan-l3-item",
-      "missing-l2-from-execution",
-      "Task",
-    );
+    const brokenL3Item = createExecutionItem("orphan-l3-item", "missing-l2-from-execution", "Task");
     brokenL3Item.title = "Orphan L3 item";
     file.execution!.items.push(brokenL3Item);
 
@@ -410,9 +357,7 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
       linkedExecutionItemId: "missing-l3-from-edge-condition",
     };
 
-    const controlledCec = file.execution!.items.find(
-      (item) => item.id === "exec-precon-cec",
-    )!;
+    const controlledCec = file.execution!.items.find((item) => item.id === "exec-precon-cec")!;
     controlledCec.linkedLayer2NodeId = "missing-l2-from-controlled-form";
 
     const issues = validateWorkflow(file);
@@ -449,20 +394,17 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
 
 test("current lifecycle migration remains idempotent and free of retired modules", () => {
   const file = createDefaultDetailedLifecycle();
-  const first = migrateWorkflowFile(
-    JSON.parse(JSON.stringify(file)) as typeof file,
-  );
-  const second = migrateWorkflowFile(
-    JSON.parse(JSON.stringify(first)) as typeof first,
-  );
+  const first = migrateWorkflowFile(JSON.parse(JSON.stringify(file)) as typeof file);
+  const second = migrateWorkflowFile(JSON.parse(JSON.stringify(first)) as typeof first);
 
   expect(second).toEqual(first);
   expect(first.graph.nodes.some((node) => node.id.startsWith("opportunity"))).toBe(false);
   expect(first.graph.nodes.some((node) => node.id.startsWith("commercial-pathway"))).toBe(false);
   expect(
-    first.execution!.items.some((item) =>
-      item.linkedLayer2NodeId.startsWith("opportunity") ||
-      item.linkedLayer2NodeId.startsWith("commercial-pathway"),
+    first.execution!.items.some(
+      (item) =>
+        item.linkedLayer2NodeId.startsWith("opportunity") ||
+        item.linkedLayer2NodeId.startsWith("commercial-pathway"),
     ),
   ).toBe(false);
 });

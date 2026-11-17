@@ -9,7 +9,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { debouncedJSONStorage } from "@/store/workflow-persist";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { isViewOnlyFileChange } from "@/store/workflow-store-helpers";
 import type { StoreSet, WorkflowState } from "@/store/workflow-store-types";
 import { createSessionSlice } from "@/store/slices/session-slice";
@@ -25,7 +28,10 @@ export type { AuthUser, ConfirmClearNotice, WorkflowState } from "@/store/workfl
 export const useWorkflowStore = create<WorkflowState>()(
   persist(
     (write, get) => {
-      const set = ((partial: Parameters<typeof write>[0], replace?: Parameters<typeof write>[1]) => {
+      const set = ((
+        partial: Parameters<typeof write>[0],
+        replace?: Parameters<typeof write>[1],
+      ) => {
         const next = typeof partial === "function" ? partial(get()) : partial;
         const collaboration = useCollaborationStore.getState();
         if (

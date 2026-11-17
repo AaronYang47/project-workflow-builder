@@ -9,6 +9,8 @@ export function pdfInfo(path: string) {
   const text = readFileSync(path).toString("latin1");
   const pages = (text.match(/\/Type\s*\/Page\b(?!s)/g) ?? []).length;
   const box = text.match(/\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/);
-  const size = box ? `${Number(box[3]) - Number(box[1])} x ${Number(box[4]) - Number(box[2])} pts` : "unknown";
+  const size = box
+    ? `${Number(box[3]) - Number(box[1])} x ${Number(box[4]) - Number(box[2])} pts`
+    : "unknown";
   return `Pages: ${pages}\nPage size: ${size}\n`;
 }

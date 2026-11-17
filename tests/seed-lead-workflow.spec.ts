@@ -52,7 +52,9 @@ test("New lead workflow seeds L1 Start, L2 Project Start, and the sales form", (
   expect(start?.customFields.legacyJobNumber).toBe("26001");
   expect(file.highLevel?.graph.nodes.some((node) => node.type === "start")).toBe(true);
   const docs = JSON.parse(
-    String(start?.customFields["customerDocuments::release-condition::project-id-required"] || "[]"),
+    String(
+      start?.customFields["customerDocuments::release-condition::project-id-required"] || "[]",
+    ),
   );
   expect(docs[0].formKind).toBe("customer-selection");
   expect(docs[0].customerName).toBe("720 Modular");

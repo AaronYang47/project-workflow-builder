@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import {
-  useReactFlow,
-  type OnNodeDrag,
-} from "@xyflow/react";
+import { useReactFlow, type OnNodeDrag } from "@xyflow/react";
 import { resolveAbsolutePosition } from "@/lib/flow-helpers";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { NodeLayout } from "@/types/workflow";
@@ -27,15 +24,10 @@ export function useNodeDragHandlers(
     const current = useWorkflowStore.getState();
     const domain = current.file.graph.nodes.find((n) => n.id === node.id);
     const isContainer =
-      domain?.type === "phase" ||
-      domain?.type === "gate" ||
-      node.type === "phase";
+      domain?.type === "phase" || domain?.type === "gate" || node.type === "phase";
 
     if (isContainer) {
-      if (
-        current.selection.nodeIds.length !== 1 ||
-        current.selection.nodeIds[0] !== node.id
-      ) {
+      if (current.selection.nodeIds.length !== 1 || current.selection.nodeIds[0] !== node.id) {
         current.selectNodes([node.id]);
       }
     }
@@ -59,8 +51,7 @@ export function useNodeDragHandlers(
       const flowNodes = flow.getNodes();
       const patches: Record<string, Partial<NodeLayout>> = {};
       flowNodes.forEach((node) => {
-        if (ids.has(node.id))
-          patches[node.id] = { x: node.position.x, y: node.position.y };
+        if (ids.has(node.id)) patches[node.id] = { x: node.position.x, y: node.position.y };
       });
       const domain = useWorkflowStore
         .getState()
@@ -72,9 +63,9 @@ export function useNodeDragHandlers(
           const dx = draggedNode.position.x - start.x;
           const dy = draggedNode.position.y - start.y;
           if (dx !== 0 || dy !== 0) {
-            const children = Object.values(
-              useWorkflowStore.getState().file.layout.nodes,
-            ).filter((l) => l.parentId === draggedNode.id);
+            const children = Object.values(useWorkflowStore.getState().file.layout.nodes).filter(
+              (l) => l.parentId === draggedNode.id,
+            );
             for (const child of children) {
               patches[child.nodeId] = {
                 x: child.x + dx,
@@ -84,16 +75,11 @@ export function useNodeDragHandlers(
           }
         }
       } else if (domain) {
-        const lookup = (id: string) =>
-          flowNodes.find((item) => item.id === id);
+        const lookup = (id: string) => flowNodes.find((item) => item.id === id);
         const absolute = resolveAbsolutePosition(draggedNode, lookup);
         const center = {
-          x:
-            absolute.x +
-            (draggedNode.measured?.width ?? draggedNode.width ?? 0) / 2,
-          y:
-            absolute.y +
-            (draggedNode.measured?.height ?? draggedNode.height ?? 0) / 2,
+          x: absolute.x + (draggedNode.measured?.width ?? draggedNode.width ?? 0) / 2,
+          y: absolute.y + (draggedNode.measured?.height ?? draggedNode.height ?? 0) / 2,
         };
         const targetContainer = flowNodes.find((n) => {
           const dType = (n.data as { domain?: { type?: string } })?.domain?.type ?? n.type;
@@ -108,7 +94,8 @@ export function useNodeDragHandlers(
           );
         });
 
-        const currentParentId = useWorkflowStore.getState().file.layout.nodes[draggedNode.id]?.parentId;
+        const currentParentId =
+          useWorkflowStore.getState().file.layout.nodes[draggedNode.id]?.parentId;
         if (targetContainer && currentParentId !== targetContainer.id) {
           patches[draggedNode.id] = {
             ...patches[draggedNode.id],

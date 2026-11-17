@@ -21,11 +21,7 @@ import { CanvasToolbar } from "./canvas-toolbar";
 import { SemanticEdge } from "./semantic-edge";
 import { type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import {
-  CANVAS_MIN_ZOOM,
-  CANVAS_MAX_ZOOM,
-  FIT_VIEW_PADDING,
-} from "@/lib/flow-helpers";
+import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
@@ -35,13 +31,21 @@ import { type WorkflowNodeType } from "@/types/workflow";
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
-import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { HIGH_LEVEL_NODE_CATALOG } from "@/lib/high-level-workflow";
 import { LayerContextMinimap } from "./layer-context-minimap";
 import type { ContextMapNode } from "@/lib/layer-context-minimap-layout";
 import { useCanvasDrop } from "./use-canvas-drop";
-import { buildCanvasEdges, buildCanvasNodes, buildLabelObstacles, indexCanvasEdges } from "@/lib/canvas-model";
+import {
+  buildCanvasEdges,
+  buildCanvasNodes,
+  buildLabelObstacles,
+  indexCanvasEdges,
+} from "@/lib/canvas-model";
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -174,13 +178,9 @@ function CanvasInner({
       });
       if (selectedIndexes.length && highLevel.graph.nodes.length) {
         const averageIndex =
-          selectedIndexes.reduce((sum, index) => sum + index, 0) /
-          selectedIndexes.length;
-        const progress =
-          orderedLayer2.length > 1 ? averageIndex / (orderedLayer2.length - 1) : 0;
-        const fallbackIndex = Math.round(
-          progress * (highLevel.graph.nodes.length - 1),
-        );
+          selectedIndexes.reduce((sum, index) => sum + index, 0) / selectedIndexes.length;
+        const progress = orderedLayer2.length > 1 ? averageIndex / (orderedLayer2.length - 1) : 0;
+        const fallbackIndex = Math.round(progress * (highLevel.graph.nodes.length - 1));
         activeLayer1Ids.add(highLevel.graph.nodes[fallbackIndex].id);
       }
     }
@@ -201,56 +201,62 @@ function CanvasInner({
     return {
       nodes,
       edges: highLevel.graph.edges,
-      activeLabel: highLevel.graph.nodes
-        .filter((node) => activeLayer1Ids.has(node.id))
-        .map((node) => node.title)
-        .join(", ") || undefined,
+      activeLabel:
+        highLevel.graph.nodes
+          .filter((node) => activeLayer1Ids.has(node.id))
+          .map((node) => node.title)
+          .join(", ") || undefined,
     };
   }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
-  const modelNodes = useMemo<Node[]>(() => buildCanvasNodes(file, search, selection, progress), [
-    file.graph.nodes,
-    file.layout.nodes,
-    file.highLevel,
-    search,
-    selection.nodeIds,
-    progress.reachedNodeIds,
-    file.execution?.items,
-    file.operations,
-  ]);
+  const modelNodes = useMemo<Node[]>(
+    () => buildCanvasNodes(file, search, selection, progress),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+    [
+      file.graph.nodes,
+      file.layout.nodes,
+      file.highLevel,
+      search,
+      selection.nodeIds,
+      progress.reachedNodeIds,
+      file.execution?.items,
+      file.operations,
+    ],
+  );
 
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
-  const labelObstacles = useMemo<LabelObstacle[]>(() => buildLabelObstacles(file), [file.graph.nodes, file.layout.nodes]);
+  const labelObstacles = useMemo<LabelObstacle[]>(
+    () => buildLabelObstacles(file),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+    [file.graph.nodes, file.layout.nodes],
+  );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
   const edgeIndexes = useMemo(() => indexCanvasEdges(file), [file.graph.edges]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
-  const edges = useMemo<Edge[]>(() => buildCanvasEdges(file, edgeIndexes, labelObstacles, progress, selection), [
-    edgeIndexes,
-    file,
-    labelObstacles,
-    progress.activeEdgeIds,
-    selection.edgeId,
-  ]);
+  const edges = useMemo<Edge[]>(
+    () => buildCanvasEdges(file, edgeIndexes, labelObstacles, progress, selection),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+    [edgeIndexes, file, labelObstacles, progress.activeEdgeIds, selection.edgeId],
+  );
 
   // Hook 1: Connection & reconnection handlers
-  const {
-    onConnect,
-    isValidConnection,
-    onConnectEnd,
-    onReconnect,
-    onReconnectEnd,
-  } = useCanvasConnections({
-    nodes: file.graph.nodes,
-    addEdge,
-    updateEdge,
-  });
+  const { onConnect, isValidConnection, onConnectEnd, onReconnect, onReconnectEnd } =
+    useCanvasConnections({
+      nodes: file.graph.nodes,
+      addEdge,
+      updateEdge,
+    });
 
-  const onDrop = useCanvasDrop({ flow, file, selection, addNode, addPhaseWrappingNodes, addGateUnderNode });
+  const onDrop = useCanvasDrop({
+    flow,
+    file,
+    selection,
+    addNode,
+    addPhaseWrappingNodes,
+    addGateUnderNode,
+  });
 
   const quickAdd = useCallback(
     (event: React.MouseEvent) => {
@@ -264,16 +270,12 @@ function CanvasInner({
       ) {
         return;
       }
-      addNode(
-        "general",
-        flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      );
+      addNode("general", flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
     },
     [addNode, flow],
   );
 
-  const { onNodeDragStart, onNodeDragStop } =
-    useNodeDragHandlers(commitLayoutDrag);
+  const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(commitLayoutDrag);
 
   // Hook 2: Dynamic DOM Auto-measure for expanding cards & phase boundaries
   useCanvasAutoMeasure(wrapper);
@@ -286,7 +288,8 @@ function CanvasInner({
       activationCentered.current = false;
       return;
     }
-    if (activationCentered.current || focusNodeIdsRef.current?.length || focusNodeIds?.length) return;
+    if (activationCentered.current || focusNodeIdsRef.current?.length || focusNodeIds?.length)
+      return;
 
     let attempts = 0;
     let retryTimer: number | undefined;
@@ -363,11 +366,10 @@ function CanvasInner({
 
       const fitRequest = (() => {
         if (targetNode && width && height && position) {
-          return flow.setCenter(
-            position.x + width / 2,
-            position.y + height / 2,
-            { duration: 500, zoom: 0.85 },
-          );
+          return flow.setCenter(position.x + width / 2, position.y + height / 2, {
+            duration: 500,
+            zoom: 0.85,
+          });
         }
 
         return flow.fitView({
@@ -411,12 +413,7 @@ function CanvasInner({
     };
 
     document.addEventListener("pointerdown", onNodePointerDownCapture, true);
-    return () =>
-      document.removeEventListener(
-        "pointerdown",
-        onNodePointerDownCapture,
-        true,
-      );
+    return () => document.removeEventListener("pointerdown", onNodePointerDownCapture, true);
   }, [selectNodes]);
 
   return (
@@ -447,10 +444,11 @@ function CanvasInner({
         nodesConnectable={canEditWorkflow}
         onNodeDragStart={canEditWorkflow ? onNodeDragStart : undefined}
         onNodeDragStop={canEditWorkflow ? onNodeDragStop : undefined}
-        onNodesDelete={canEditWorkflow ? (deleted) =>
-          useWorkflowStore
-            .getState()
-            .deleteNodes(deleted.map((node) => node.id)) : undefined}
+        onNodesDelete={
+          canEditWorkflow
+            ? (deleted) => useWorkflowStore.getState().deleteNodes(deleted.map((node) => node.id))
+            : undefined
+        }
         onNodeClick={(_, node) => {
           selectNodes([node.id]);
           updateFocusedNode(node.id, true);
@@ -490,9 +488,7 @@ function CanvasInner({
           className="workflow-minimap !m-0 !rounded-xl !border !bg-background/95"
           nodeStrokeWidth={3}
           nodeColor={(node) =>
-            getNodeDefinition(
-              (node.data.domain as { type: WorkflowNodeType }).type,
-            ).color
+            getNodeDefinition((node.data.domain as { type: WorkflowNodeType }).type).color
           }
           maskColor="rgba(71,85,105,.12)"
         />

@@ -31,8 +31,7 @@ export function ComponentNoteButton({
 }) {
   const stored = useWorkflowStore(
     (state) =>
-      state.file.graph.nodes.find((node) => node.id === nodeId)?.config
-        .componentNotes?.[noteKey],
+      state.file.graph.nodes.find((node) => node.id === nodeId)?.config.componentNotes?.[noteKey],
   );
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const [open, setOpen] = useState(false);
@@ -196,9 +195,7 @@ export function ComponentNoteButton({
                 <MessageSquareText className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <Dialog.Title className="text-sm font-bold text-foreground">
-                  Notes
-                </Dialog.Title>
+                <Dialog.Title className="text-sm font-bold text-foreground">Notes</Dialog.Title>
                 <Dialog.Description className="mt-0.5 truncate text-xs text-muted-foreground">
                   {label}
                   {postCount > 0
@@ -277,9 +274,7 @@ export function ComponentNoteButton({
                     {thread.replies.length > 0 ? (
                       <div className="mt-3.5 space-y-2.5 border-l-2 border-purple-300 pl-3.5 ml-2 dark:border-purple-600/70">
                         {thread.replies.map((reply) => {
-                          const directParent = note?.posts.find(
-                            (p) => p.id === reply.parentId,
-                          );
+                          const directParent = note?.posts.find((p) => p.id === reply.parentId);
                           const isDirectToRoot = directParent?.id === thread.root.id;
 
                           return (
@@ -342,10 +337,7 @@ export function ComponentNoteButton({
             </div>
 
             {/* Input Form at Bottom */}
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-2 border-t bg-muted/20 px-5 py-4"
-            >
+            <form onSubmit={handleSubmit} className="space-y-2 border-t bg-muted/20 px-5 py-4">
               {/* Replying Banner */}
               {replyTo ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-purple-300 bg-purple-50 px-3 py-2 text-xs dark:border-purple-800 dark:bg-purple-950/60">
@@ -384,10 +376,7 @@ export function ComponentNoteButton({
                   value={draftBody}
                   onChange={(event) => setDraftBody(event.target.value)}
                   onKeyDown={(event) => {
-                    if (
-                      (event.metaKey || event.ctrlKey) &&
-                      event.key === "Enter"
-                    ) {
+                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                       event.preventDefault();
                       addPost();
                     }
@@ -441,9 +430,7 @@ function EmptyState() {
     <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-10 text-center text-xs text-muted-foreground">
       <MessageSquareText className="mx-auto mb-2 size-5 text-muted-foreground/70" />
       <p className="font-semibold text-foreground/80">No notes yet</p>
-      <p className="mt-1">
-        Start the conversation by creating a new topic below.
-      </p>
+      <p className="mt-1">Start the conversation by creating a new topic below.</p>
     </div>
   );
 }

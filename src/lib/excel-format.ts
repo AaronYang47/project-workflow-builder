@@ -5,8 +5,7 @@ export const EXCEL_FORMAT_LEGACY = [
   "project-workflow-builder.excel.v1",
   "project-workflow-builder.excel.v2",
 ] as const;
-export const EXCEL_MIME =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const EXCEL_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export const PAYLOAD_CHUNK = 30000;
 export const PAYLOAD_SHEET = "_Payload";
 
@@ -40,8 +39,7 @@ export const LISTS = {
   gateStatus: '"Blocked,In Progress,Ready,Open,Approved"',
 } as const;
 
-export const isBlank = (value: unknown) =>
-  value === null || value === undefined || value === "";
+export const isBlank = (value: unknown) => value === null || value === undefined || value === "";
 
 export function rawCell(cell: Cell): unknown {
   const value = cell.value;
@@ -50,11 +48,8 @@ export function rawCell(cell: Cell): unknown {
     if ("text" in value && typeof (value as { text: string }).text === "string")
       return (value as { text: string }).text;
     if ("richText" in value)
-      return (value as { richText: { text: string }[] }).richText
-        .map((part) => part.text)
-        .join("");
-    if ("formula" in value)
-      return (value as { result?: unknown }).result ?? "";
+      return (value as { richText: { text: string }[] }).richText.map((part) => part.text).join("");
+    if ("formula" in value) return (value as { result?: unknown }).result ?? "";
     if (value instanceof Date) return value.toISOString();
   }
   return value ?? "";
@@ -63,8 +58,7 @@ export function rawCell(cell: Cell): unknown {
 export function asString(value: unknown): string {
   if (isBlank(value)) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (value instanceof Date) return value.toISOString();
   return JSON.stringify(value);
 }
@@ -126,8 +120,7 @@ export function mixWhite(hex: string, amount = 0.88): string {
   const r = Number.parseInt(argb.slice(2, 4), 16);
   const g = Number.parseInt(argb.slice(4, 6), 16);
   const b = Number.parseInt(argb.slice(6, 8), 16);
-  const mix = (channel: number) =>
-    Math.round(channel + (255 - channel) * amount);
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount);
   return `FF${[mix(r), mix(g), mix(b)]
     .map((channel) => channel.toString(16).padStart(2, "0"))
     .join("")
@@ -198,9 +191,7 @@ export function readPayloadJson(workbook: Workbook): string | undefined {
   if (
     format &&
     format !== EXCEL_FORMAT &&
-    !EXCEL_FORMAT_LEGACY.includes(
-      format as (typeof EXCEL_FORMAT_LEGACY)[number],
-    )
+    !EXCEL_FORMAT_LEGACY.includes(format as (typeof EXCEL_FORMAT_LEGACY)[number])
   )
     return undefined;
   const count = Number(rawCell(sheet.getCell(2, 2))) || 0;

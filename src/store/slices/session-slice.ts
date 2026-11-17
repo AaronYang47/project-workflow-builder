@@ -53,16 +53,24 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
         }
         if (previous && typeof window !== "undefined" && window.location && window.history) {
           const url = new URL(window.location.href);
-          for (const key of ["room", "editor", "executionNode", "condition"]) url.searchParams.delete(key);
+          for (const key of ["room", "editor", "executionNode", "condition"])
+            url.searchParams.delete(key);
           window.history.replaceState(null, "", url);
         }
         get().resetWorkspace(authUser?.id);
       }
       // Retain the same object for an unchanged session so in-flight file
       // requests can distinguish a real logout/account switch from a refresh.
-      set({ authUser: previous && authUser && previous.id === authUser.id &&
-        previous.email === authUser.email && previous.name === authUser.name
-        ? previous : authUser });
+      set({
+        authUser:
+          previous &&
+          authUser &&
+          previous.id === authUser.id &&
+          previous.email === authUser.email &&
+          previous.name === authUser.name
+            ? previous
+            : authUser,
+      });
       if (accountChanged && typeof window !== "undefined") {
         try {
           localStorage.setItem("workflow:account-changed", crypto.randomUUID());
@@ -122,12 +130,12 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
       set(() => {
         const normalized = normalizeLoadedWorkflow(file);
         return {
-        file: normalized.file,
-        activeProjectId: undefined,
-        past: [],
-        future: [],
-        dirty: true,
-        selection: { nodeIds: [] },
+          file: normalized.file,
+          activeProjectId: undefined,
+          past: [],
+          future: [],
+          dirty: true,
+          selection: { nodeIds: [] },
         };
       }),
     applyCollaborativeFile: (file) =>
@@ -146,13 +154,13 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
       set(() => {
         const normalized = normalizeLoadedWorkflow(file);
         return {
-        file: normalized.file,
-        workspaceOwnerId,
-        activeProjectId,
-        past: [],
-        future: [],
-        dirty: normalized.clearedDefault,
-        selection: { nodeIds: [] },
+          file: normalized.file,
+          workspaceOwnerId,
+          activeProjectId,
+          past: [],
+          future: [],
+          dirty: normalized.clearedDefault,
+          selection: { nodeIds: [] },
         };
       }),
     resetWorkspace: (workspaceOwnerId) =>
