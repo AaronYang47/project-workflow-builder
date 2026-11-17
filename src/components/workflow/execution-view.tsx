@@ -12,7 +12,6 @@ import {
   Plus,
   Scale,
   Trash2,
-  X,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,272 +26,18 @@ import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady, sequential
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import {
-  type UploadedFileRecord,
-  getUploadedFiles,
-  fetchUploadedFilesFromR2,
   downloadFile,
 } from "@/lib/file-storage";
 import {
   isCustomerSelectionForm,
-  type FalconCustomerProfile,
 } from "@/lib/falcon-customer-intelligence";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
-import { CustomerSelectionForm, customerFormIsComplete, type CustomerFormAnswers } from "@/components/workflow/customer-selection-form";
+import { CustomerSelectionForm, customerFormIsComplete } from "@/components/workflow/customer-selection-form";
+import { AddDocumentModal } from "./execution/add-document-modal";
+import type { DocRecord } from "./execution/doc-record";
+import { DOCUMENT_BOX_THEMES, DocumentBox } from "./execution/document-box";
 
-export interface DocRecord {
-  id: string;
-  title: string;
-  code?: string;
-  fileName?: string;
-  dataUrl?: string;
-  url?: string;
-  category: "legal" | "customer" | "supporting";
-  status: "Required" | "Optional" | "Signed" | "Verified" | "Under Review";
-  checked: boolean;
-  required: boolean;
-  notes?: string;
-  sourceItemId?: string;
-  formKind?: "customer-selection";
-  customerCategory?: string;
-  customerName?: string;
-  customerProfile?: FalconCustomerProfile;
-  customerForm?: CustomerFormAnswers;
-}
-
-// Modal for adding a new form/document to L3 from R2 file library or custom
-function AddDocumentModal({
-  category,
-  onClose,
-  onAdd,
-}: {
-  category: "legal" | "customer" | "supporting";
-  onClose: () => void;
-  onAdd: (doc: DocRecord) => void;
-}) {
-  const [availableFiles, setAvailableFiles] = useState<UploadedFileRecord[]>(() => getUploadedFiles(category));
-  const [selectedFileId, setSelectedFileId] = useState(() => availableFiles[0]?.id || "custom");
-  const [customTitle, setCustomTitle] = useState(() => availableFiles[0]?.title || "");
-  const [isRequired, setIsRequired] = useState(true);
-  const userEdited = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchUploadedFilesFromR2(category).then((remoteFiles) => {
-      if (cancelled) return;
-      setAvailableFiles(remoteFiles);
-      if (!userEdited.current && remoteFiles.length > 0) {
-        setSelectedFileId(remoteFiles[0].id);
-        setCustomTitle((current) => current.trim() ? current : remoteFiles[0].title);
-      }
-    });
-    return () => { cancelled = true; };
-  }, [category]);
-
-  const categoryLabel =
-    category === "legal"
-      ? "Required Document"
-      : category === "customer"
-        ? "Customer Information Form"
-        : "Supporting Document";
-
-  const handleSelectFile = (file: UploadedFileRecord) => {
-    userEdited.current = true;
-    setSelectedFileId(file.id);
-    setCustomTitle(file.title);
-  };
-
-  const handleSubmit = () => {
-    const selectedFile = availableFiles.find((f) => f.id === selectedFileId);
-    const title = customTitle.trim() || selectedFile?.title || "New Document Form";
-    const prefix = category === "legal" ? "LEG" : category === "customer" ? "CUST" : "SUP";
-    const customerSelection = isCustomerSelectionForm(selectedFile || {});
-    const newDoc: DocRecord = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      title,
-      code: `${prefix}-${Math.floor(10 + Math.random() * 90)}`,
-      fileName: selectedFile ? selectedFile.fileName : undefined,
-      dataUrl: selectedFile?.dataUrl,
-      url: selectedFile?.url,
-      category,
-      status: isRequired ? "Required" : "Optional",
-      checked: false,
-      required: isRequired,
-      notes: selectedFile?.description,
-      ...(customerSelection ? { formKind: "customer-selection" as const } : {}),
-    };
-    onAdd(newDoc);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="relative flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-slate-300/90 dark:border-slate-700 bg-card shadow-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Plus className="size-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold text-foreground">
-                Add {categoryLabel}
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Select from Cloudflare R2 uploaded files or create a custom form
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
-          {/* Requirement Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">
-              Requirement Level <span className="text-destructive">*</span>
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setIsRequired(true)}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
-                  isRequired
-                    ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/40 shadow-xs"
-                    : "border-slate-200 dark:border-slate-800 bg-background text-muted-foreground hover:bg-muted",
-                )}
-              >
-                <span className="size-2 rounded-full bg-amber-500" />
-                Required
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsRequired(false)}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-colors cursor-pointer",
-                  !isRequired
-                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 shadow-xs"
-                    : "border-slate-200 dark:border-slate-800 bg-background text-muted-foreground hover:bg-muted",
-                )}
-              >
-                <span className="size-2 rounded-full bg-slate-400" />
-                Optional
-              </button>
-            </div>
-          </div>
-
-          {/* R2 Library Files */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">
-              Select Attached File from R2 Library
-            </label>
-            {availableFiles.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-center text-xs text-muted-foreground bg-muted/10">
-                No R2 files uploaded in this category yet. You can enter a custom form name below or upload files via &quot;Upload Forms&quot; in the title.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2 space-y-2 max-h-52 overflow-y-auto scroll-thin bg-muted/10">
-                {availableFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    onClick={() => handleSelectFile(file)}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
-                      selectedFileId === file.id
-                        ? "border-primary bg-primary/[0.08] ring-1 ring-primary/50 shadow-xs"
-                        : "border-slate-200 dark:border-slate-800 bg-background hover:border-primary/40",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="selectedFile"
-                      checked={selectedFileId === file.id}
-                      onChange={() => handleSelectFile(file)}
-                      className="mt-0.5 size-3.5 accent-primary"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-xs font-bold text-foreground truncate">
-                          {file.fileName}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {(file.fileSize / 1024).toFixed(1)} KB
-                        </span>
-                      </div>
-                      <p className="font-semibold text-foreground mt-0.5">{file.title}</p>
-                      {file.description ? (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
-                          {file.description}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-
-                <div
-                  onClick={() => { userEdited.current = true; setSelectedFileId("custom"); }}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer",
-                    selectedFileId === "custom"
-                      ? "border-primary bg-primary/[0.08] ring-1 ring-primary/50 shadow-xs"
-                      : "border-slate-200 dark:border-slate-800 bg-background hover:border-primary/40",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="selectedFile"
-                    checked={selectedFileId === "custom"}
-                    onChange={() => { userEdited.current = true; setSelectedFileId("custom"); }}
-                    className="size-3.5 accent-primary"
-                  />
-                  <span className="font-medium text-muted-foreground">
-                    Custom entry without attached file
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Form Title */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">
-              Display Title in L3 <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              value={customTitle}
-              onChange={(e) => { userEdited.current = true; setCustomTitle(e.target.value); }}
-              placeholder="e.g. Master Services Agreement 2026"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background px-3.5 py-2.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 px-5 py-3 bg-muted/20">
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!customTitle.trim()}
-            className="h-8 text-xs font-bold gap-1 cursor-pointer"
-          >
-            <Plus className="size-3.5" />
-            Add to L3 List
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function ExecutionView({
   nodeId,
@@ -668,7 +413,6 @@ export function ExecutionView({
     }
   };
 
-
   if (!node) {
     return (
       <section
@@ -693,9 +437,7 @@ export function ExecutionView({
     );
   }
 
-  const legalCheckedCount = customLegalDocs.filter((d) => d.checked).length;
   const customerCheckedCount = customCustomerDocs.filter((d) => d.checked).length;
-  const supportingCheckedCount = customSupportingDocs.filter((d) => d.checked).length;
   const sequenceBlocker = sequentialExecutionBlocker(file, node.id);
 
   return (
@@ -957,142 +699,20 @@ export function ExecutionView({
           {/* ============================================================ */}
           {/* Box 1 (Left): Required Documents                                */}
           {/* ============================================================ */}
-          <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
-            <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                  <Scale className="size-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-bold text-foreground">
-                    Required Documents
-                  </h2>
-                  <p className="text-[10px] text-muted-foreground">
-                    Forms / Documents for this release condition
-                  </p>
-                </div>
-              </div>
-              <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
-                {legalCheckedCount}/{customLegalDocs.length} Executed
-              </span>
-            </header>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
-              {customLegalDocs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
-                  <FileText className="size-8 opacity-30 mb-2" />
-                  <p className="text-xs font-medium">No required documents added yet.</p>
-                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Required Document&quot; below to add from uploaded forms.</p>
-                </div>
-              ) : null}
-              {customLegalDocs.map((doc, index) => (
-                <div
-                  key={doc.id}
-                  className={cn(
-                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
-                    doc.checked
-                      ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                      : "border-border/80 bg-background hover:border-indigo-500/40",
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Required file: ${doc.title}`}
-                    checked={doc.checked}
-                    disabled={Boolean(sequenceBlocker && !doc.checked)}
-                    title={sequenceBlocker}
-                    onChange={() => {
-                      const updated = [...customLegalDocs];
-                      updated[index] = { ...doc, checked: !doc.checked };
-                      saveLegalDocs(updated);
-                    }}
-                    className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {doc.code || "FORM"}
-                        </span>
-                        {doc.fileName ? (
-                          <span
-                            title={doc.fileName}
-                            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.2 font-mono text-[9px] text-foreground font-medium max-w-[130px] truncate"
-                          >
-                            <FileText className="size-2.5 text-primary shrink-0" />
-                            <span className="truncate">{doc.fileName}</span>
-                          </span>
-                        ) : null}
-                      </div>
-                      <span
-                        className={cn(
-                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0",
-                          doc.checked
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : doc.required
-                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                              : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
-                        )}
-                      >
-                        {doc.checked ? "Executed" : doc.required ? "Required" : "Optional"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                      {doc.title}
-                    </p>
-                    {doc.notes ? (
-                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-                        {doc.notes}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Actions: Download and Delete */}
-                  <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                    {doc.fileName ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          downloadFile(doc);
-                        }}
-                        title={`Download ${doc.fileName}`}
-                        aria-label={`Download ${doc.fileName}`}
-                        className="size-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                      >
-                        <Download className="size-3.5" />
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        saveLegalDocs(customLegalDocs.filter((_, i) => i !== index));
-                      }}
-                      title="Remove document"
-                      aria-label="Remove document"
-                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
-
-              <button
-                type="button"
-                onClick={() => setAddModalCategory("legal")}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:text-indigo-600 cursor-pointer"
-              >
-                <Plus className="size-3.5" />
-                Add Required Document
-              </button>
-            </div>
-          </div>
-
+          <DocumentBox
+            title="Required Documents"
+            subtitle="Forms / Documents for this release condition"
+            icon={<Scale className="size-4" />}
+            theme={DOCUMENT_BOX_THEMES.indigo}
+            docs={customLegalDocs}
+            checkedLabel="Executed"
+            codeFallback={() => "FORM"}
+            lockedReason={sequenceBlocker}
+            emptyTitle="No required documents added yet."
+            addLabel="Add Required Document"
+            onSave={saveLegalDocs}
+            onAdd={() => setAddModalCategory("legal")}
+          />
           {/* ============================================================ */}
           {/* Box 2 (Center): Customer Information (Form/Doc List)         */}
           {/* ============================================================ */}
@@ -1278,139 +898,19 @@ export function ExecutionView({
           {/* ============================================================ */}
           {/* Box 3 (Right): Supporting Documents                          */}
           {/* ============================================================ */}
-          <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-card/85 backdrop-blur-xs shadow-xs ring-1 ring-black/[0.03] dark:ring-white/[0.05] overflow-hidden">
-            <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3 bg-muted/30">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <FolderArchive className="size-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-bold text-foreground">
-                    Supporting Documents
-                  </h2>
-                  <p className="text-[10px] text-muted-foreground">
-                    Engineering drawings, calculations & evidence
-                  </p>
-                </div>
-              </div>
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                {supportingCheckedCount}/{customSupportingDocs.length} Verified
-              </span>
-            </header>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scroll-thin">
-              {customSupportingDocs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed rounded-lg">
-                  <FileText className="size-8 opacity-30 mb-2" />
-                  <p className="text-xs font-medium">No supporting documents added yet.</p>
-                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click &quot;+ Add Supporting Document&quot; below to add from uploaded forms.</p>
-                </div>
-              ) : null}
-              {customSupportingDocs.map((doc, index) => (
-                <div
-                  key={doc.id}
-                  className={cn(
-                    "group flex items-start gap-3 rounded-lg border p-3 transition-colors",
-                    doc.checked
-                      ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                      : "border-border/80 bg-background hover:border-emerald-500/40",
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Required file: ${doc.title}`}
-                    checked={doc.checked}
-                    onChange={() => {
-                      const updated = [...customSupportingDocs];
-                      updated[index] = { ...doc, checked: !doc.checked };
-                      saveSupportingDocs(updated);
-                    }}
-                    className="mt-1 size-4 shrink-0 accent-emerald-600 rounded cursor-pointer"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {doc.code || `SUP-0${index + 1}`}
-                        </span>
-                        {doc.fileName ? (
-                          <span
-                            title={doc.fileName}
-                            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.2 font-mono text-[9px] text-foreground font-medium max-w-[130px] truncate"
-                          >
-                            <FileText className="size-2.5 text-emerald-600 shrink-0" />
-                            <span className="truncate">{doc.fileName}</span>
-                          </span>
-                        ) : null}
-                      </div>
-                      <span
-                        className={cn(
-                          "rounded px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0",
-                          doc.checked
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : doc.required
-                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                              : "bg-slate-400/15 text-slate-600 dark:text-slate-400",
-                        )}
-                      >
-                        {doc.checked ? "Verified" : doc.required ? "Required" : "Optional"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold leading-snug text-foreground">
-                      {doc.title}
-                    </p>
-                    {doc.notes ? (
-                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-                        {doc.notes}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Actions: Download and Delete */}
-                  <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                    {doc.fileName ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          downloadFile(doc);
-                        }}
-                        title={`Download ${doc.fileName}`}
-                        aria-label={`Download ${doc.fileName}`}
-                        className="size-6 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
-                      >
-                        <Download className="size-3.5" />
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        saveSupportingDocs(customSupportingDocs.filter((_, i) => i !== index));
-                      }}
-                      title="Remove document"
-                      aria-label="Remove document"
-                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => setAddModalCategory("supporting")}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-600 cursor-pointer"
-              >
-                <Plus className="size-3.5" />
-                Add Supporting Document
-              </button>
-            </div>
-          </div>
-
+          <DocumentBox
+            title="Supporting Documents"
+            subtitle="Engineering drawings, calculations & evidence"
+            icon={<FolderArchive className="size-4" />}
+            theme={DOCUMENT_BOX_THEMES.emerald}
+            docs={customSupportingDocs}
+            checkedLabel="Verified"
+            codeFallback={(index) => `SUP-0${index + 1}`}
+            emptyTitle="No supporting documents added yet."
+            addLabel="Add Supporting Document"
+            onSave={saveSupportingDocs}
+            onAdd={() => setAddModalCategory("supporting")}
+          />
         </div>
       </div>
 
