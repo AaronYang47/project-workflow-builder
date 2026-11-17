@@ -139,7 +139,8 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 | Turn DOM into a PNG for a PDF | `captureToPng` in `src/lib/export/capture.ts` (never call html-to-image directly) |
 | Gantt time axis and labels | `buildGanttAxis` in `src/lib/gantt-axis.ts` |
 | L2 canvas nodes/edges for React Flow | `buildCanvasNodes` / `buildCanvasEdges` in `src/lib/canvas-model.ts` |
-| A checklist column of L3 documents | `DocumentBox` in `components/workflow/execution/document-box.tsx` |
+| A checklist column of L3 documents | `DocumentBox` / `CustomerInfoBox` in `components/workflow/execution/` |
+| Process Locator layout | `buildPyramidDiagram` in `src/lib/process-locator/pyramid-diagram.ts` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
 
 ## 6. Commands
@@ -164,10 +165,15 @@ Tracked here so it is fixed deliberately, not by accident:
   URL or sessionStorage after the static page hydrates, which cannot happen
   during the first render without a hydration mismatch. Leave them unless the
   component is restructured.
-- **Large components still to split**: `pyramid-location-widget.tsx`
-  (~1,400 lines, its maths is already in `lib/process-locator/`) and
-  `execution-view.tsx` (~1,000 lines; the Customer Information column could
-  become a component like `DocumentBox`). Split them when they are next changed.
+- **Largest components** are now under ~1,000 lines: `pyramid-location-widget.tsx`
+  (~970; camera pan/zoom could become a hook), `execution-view.tsx` (~850),
+  `execution-form-sheet.tsx` and `layer-context-minimap.tsx` (~780). Split
+  further only when they are next changed.
+- **Browser tests and the Next.js dev badge**: in dev mode Next shows a draggable
+  "N" badge bottom-left and saves its position in
+  `.next/dev/cache/next-devtools-config.json`. A test that drags near that corner
+  can move it on top of other controls and break later tests; delete that file to
+  reset it.
 - **Two gate detectors**: `isNodeGate` in `presentation-pdf-export.ts` and
   `executive-presentation-pdf-export.ts` differ slightly (the first also reads
   metadata). Decide which rule is correct before merging them.
