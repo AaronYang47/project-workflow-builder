@@ -40,6 +40,9 @@ src/
     workflow/       Screens, panels, canvases, nodes, dialogs.
       process-overview/    Pieces of the Process & Gantt page (task row, dialogs, scroll).
       release-conditions/  Dialogs of the L3 Release Conditions page.
+      execution/           L3 execution view pieces (DocumentBox, add-document modal).
+      inspector/           Inspector panels (fields, condition editor, phase steps).
+      high-level/          L1 view pieces.
   app/              Next.js routes: /, /process-overview, /release-conditions, /privacy.
 functions/api/      Cloudflare Pages Functions (auth, projects, files, CMS, audit).
 migrations/         D1 schema for the main database.
@@ -135,6 +138,8 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 | Trigger an export | `requestExport` / `exportDocument` in `src/lib/export/export-formats.ts` |
 | Turn DOM into a PNG for a PDF | `captureToPng` in `src/lib/export/capture.ts` (never call html-to-image directly) |
 | Gantt time axis and labels | `buildGanttAxis` in `src/lib/gantt-axis.ts` |
+| L2 canvas nodes/edges for React Flow | `buildCanvasNodes` / `buildCanvasEdges` in `src/lib/canvas-model.ts` |
+| A checklist column of L3 documents | `DocumentBox` in `components/workflow/execution/document-box.tsx` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
 
 ## 6. Commands
@@ -159,9 +164,10 @@ Tracked here so it is fixed deliberately, not by accident:
   URL or sessionStorage after the static page hydrates, which cannot happen
   during the first render without a hydration mismatch. Leave them unless the
   component is restructured.
-- **Large components still to split**: `execution-view.tsx` (~1,500 lines),
-  `workflow-canvas.tsx`, `inspector.tsx`, `pyramid-location-widget.tsx`
-  (~1,400 each). Split them the same way when they are next changed.
+- **Large components still to split**: `pyramid-location-widget.tsx`
+  (~1,400 lines, its maths is already in `lib/process-locator/`) and
+  `execution-view.tsx` (~1,000 lines; the Customer Information column could
+  become a component like `DocumentBox`). Split them when they are next changed.
 - **Two gate detectors**: `isNodeGate` in `presentation-pdf-export.ts` and
   `executive-presentation-pdf-export.ts` differ slightly (the first also reads
   metadata). Decide which rule is correct before merging them.
