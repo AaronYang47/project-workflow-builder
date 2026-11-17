@@ -152,7 +152,7 @@ export function useCanvasExport(
             .trim() || "#ffffff";
 
         if (detail.format === "pdf") {
-          const { toPng } = await import("html-to-image");
+          const { captureToPng: toPng } = await import("@/lib/export/capture");
           const { jsPDF } = await import("jspdf");
           const data = await toPng(flowElement, {
             backgroundColor,
@@ -183,7 +183,8 @@ export function useCanvasExport(
           return;
         }
 
-        const { toPng, toSvg } = await import("html-to-image");
+        const { toSvg } = await import("html-to-image");
+        const { captureToPng: toPng } = await import("@/lib/export/capture");
         const data =
           detail.format === "png"
             ? await toPng(flowElement, {

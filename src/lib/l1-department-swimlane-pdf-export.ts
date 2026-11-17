@@ -359,7 +359,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
   // Tasks whose window is mostly days off are flagged in the chart; ask the
   // user before printing a schedule that is unlikely to hold.
   if (options.gantt && !confirmDayOffWarnings(file)) return;
-  const { toPng } = await import("html-to-image");
+  const { captureToPng: toPng } = await import("@/lib/export/capture");
   const { jsPDF } = await import("jspdf");
   const highLevelNodes = file.highLevel?.graph.nodes || [];
   const highLevelEdges = file.highLevel?.graph.edges || [];

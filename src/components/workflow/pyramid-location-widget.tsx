@@ -865,7 +865,7 @@ export function PyramidLocationWidget({
         return;
       }
 
-      const { toPng } = await import("html-to-image");
+      const { captureToPng: toPng } = await import("@/lib/export/capture");
       const { jsPDF } = await import("jspdf");
 
       // Read the expanded DOM, not the collapsed dimensions from this callback's render.

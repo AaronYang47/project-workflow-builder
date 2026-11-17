@@ -219,7 +219,7 @@ export async function exportExecutivePresentationPdf(
   file: WorkflowFile,
   { includeReleaseConditions = true }: { includeReleaseConditions?: boolean } = {},
 ): Promise<void> {
-  const { toPng } = await import("html-to-image");
+  const { captureToPng: toPng } = await import("@/lib/export/capture");
   const { jsPDF } = await import("jspdf");
 
   const allNodes = file.graph.nodes || [];

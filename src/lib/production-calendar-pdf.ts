@@ -74,7 +74,7 @@ export function productionCalendarPageHtml(file: WorkflowFile): string[] {
 }
 
 export async function appendProductionCalendarPages(pdf: jsPDF, file: WorkflowFile) {
-  const { toPng } = await import("html-to-image");
+  const { captureToPng: toPng } = await import("@/lib/export/capture");
   for (const [index, html] of productionCalendarPageHtml(file).entries()) {
     const container = document.createElement("div");
     Object.assign(container.style, { position: "fixed", left: "-100000px", top: "0", width: "2400px", height: "1553px", pointerEvents: "none" });

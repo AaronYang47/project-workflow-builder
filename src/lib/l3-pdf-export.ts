@@ -35,7 +35,7 @@ function parseDocs(raw?: unknown): DocItem[] {
 }
 
 export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
-  const { toPng } = await import("html-to-image");
+  const { captureToPng: toPng } = await import("@/lib/export/capture");
   const { jsPDF } = await import("jspdf");
 
   const nodes = file.graph.nodes;

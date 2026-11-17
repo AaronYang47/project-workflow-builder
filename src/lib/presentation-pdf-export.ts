@@ -190,7 +190,7 @@ export function getNodeGateLabel(
 }
 
 export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
-  const { toPng } = await import("html-to-image");
+  const { captureToPng: toPng } = await import("@/lib/export/capture");
   const { jsPDF } = await import("jspdf");
 
   const allNodes = file.graph.nodes || [];
