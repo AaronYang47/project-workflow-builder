@@ -27,7 +27,8 @@ Domain data and canvas layout are kept separate on purpose: meaning lives in
 src/
   types/            Data shapes only (no logic). Start here for any new field.
   lib/              Pure logic. No React. Safe to unit test in isolation.
-    export/         Export formats + the single PDF export dispatcher.
+    export/         Export formats, the PDF dispatcher, and capture.ts (the only
+                    DOM -> PNG path; keeps page images small enough for iPhone).
     excel/          Excel import/export of the workflow.
     collaboration/  Peer-to-peer live collaboration (trystero + BroadcastChannel).
     process-locator/  Pyramid (Process Locator) layout model.
@@ -37,6 +38,8 @@ src/
   components/
     ui/             Small shadcn-style primitives.
     workflow/       Screens, panels, canvases, nodes, dialogs.
+      process-overview/    Pieces of the Process & Gantt page (task row, dialogs, scroll).
+      release-conditions/  Dialogs of the L3 Release Conditions page.
   app/              Next.js routes: /, /process-overview, /release-conditions, /privacy.
 functions/api/      Cloudflare Pages Functions (auth, projects, files, CMS, audit).
 migrations/         D1 schema for the main database.
@@ -47,6 +50,11 @@ tests/              Playwright tests (unit-style and browser).
 **Rule of thumb:** if a function does not render anything, it belongs in
 `src/lib`, not in a component file. Components should read state, call
 actions and render.
+
+**Pages and their pieces.** A page component keeps its state and the actions
+that change the workflow; each dialog, panel or repeated row is its own
+component in a folder named after the page, with explicit props. Do not write
+dialogs as inline `(() => { ... })()` blocks.
 
 ## 3. The store
 
@@ -104,6 +112,15 @@ Editing conventions:
 7. **Tests**: put pure-logic tests next to related specs in `tests/` (they run
    without a browser page) and one browser test for the main user path.
 
+**Before refactoring a screen**, check that passing tests cover it. If they do
+not, first write a characterization test of today's behaviour, confirm it passes
+on the current code, then refactor (see `tests/release-conditions-dialogs.spec.ts`).
+
+**Guardrails**: `tsconfig.json` sets `noUnusedLocals`, so unused imports,
+variables and functions fail the type check instead of piling up. Subscribe to
+the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
+`useWorkflowStore()` with no selector re-renders on every edit.
+
 ## 5. Shared building blocks (reuse, do not copy)
 
 | Need | Use |
@@ -116,6 +133,8 @@ Editing conventions:
 | Actual-work summary and labels | `calendarWorkSummary` (`gantt-bar-label.ts`), `calendar-badges.ts` |
 | Completion / release rules | `src/lib/workflow-progress.ts` |
 | Trigger an export | `requestExport` / `exportDocument` in `src/lib/export/export-formats.ts` |
+| Turn DOM into a PNG for a PDF | `captureToPng` in `src/lib/export/capture.ts` (never call html-to-image directly) |
+| Gantt time axis and labels | `buildGanttAxis` in `src/lib/gantt-axis.ts` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
 
 ## 6. Commands
@@ -136,11 +155,13 @@ Tracked here so it is fixed deliberately, not by accident:
   or removed (for example the old "Export Gantt PDF" button). They fail before
   and after the refactor; update them when touching those screens.
 - **Lint**: 7 `react-hooks/set-state-in-effect` errors (`workflow-builder.tsx`,
-  `customer-selection-form.tsx`, `pyramid-location-widget.tsx`). They work today;
-  fixing them means restructuring how those components initialise state.
-- **Long JSX lines**: `process-overview.tsx` and
-  `release-conditions-workspace.tsx` have many 300+ character lines; split them
-  into sub-components when next changed.
+  `customer-selection-form.tsx`, `pyramid-location-widget.tsx`). Most read the
+  URL or sessionStorage after the static page hydrates, which cannot happen
+  during the first render without a hydration mismatch. Leave them unless the
+  component is restructured.
+- **Large components still to split**: `execution-view.tsx` (~1,500 lines),
+  `workflow-canvas.tsx`, `inspector.tsx`, `pyramid-location-widget.tsx`
+  (~1,400 each). Split them the same way when they are next changed.
 - **Two gate detectors**: `isNodeGate` in `presentation-pdf-export.ts` and
   `executive-presentation-pdf-export.ts` differ slightly (the first also reads
   metadata). Decide which rule is correct before merging them.
