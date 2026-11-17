@@ -50,7 +50,12 @@ export function FactoryPlayback({
   factory: SimFactory;
 }) {
   const last = Math.max(0, result.days.length - 1);
-  const [requestedIndex, setDayIndex] = useState(0);
+  // Open on the day the first module goes on the line: earlier days are an idle factory.
+  const firstProductionIndex = Math.max(
+    0,
+    result.days.findIndex((item) => item.line.length > 0),
+  );
+  const [requestedIndex, setDayIndex] = useState(firstProductionIndex);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(3);
   const index = Math.min(requestedIndex, last);
@@ -140,6 +145,26 @@ export function FactoryPlayback({
       </div>
 
       <div className="relative px-2 pt-2">
+        {index < firstProductionIndex ? (
+          <div
+            data-line-idle
+            className="absolute inset-x-0 top-1/3 z-10 mx-auto flex w-fit flex-wrap items-center gap-2 rounded-lg border bg-background/95 px-4 py-2 text-xs shadow-lg"
+          >
+            <span>
+              Line idle · production starts{" "}
+              <strong>
+                {longDate.format(new Date(`${result.days[firstProductionIndex].date}T00:00:00Z`))}
+              </strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setDayIndex(firstProductionIndex)}
+              className="rounded-md bg-primary px-2.5 py-1 font-bold text-primary-foreground"
+            >
+              Jump to first module
+            </button>
+          </div>
+        ) : null}
         <FactoryScene
           day={day}
           projects={projects}

@@ -70,3 +70,29 @@ test("the factory plays day by day: modules move along the line into the yard", 
     path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5-anim-2.png",
   });
 });
+
+test("playback opens on the first production day and explains an idle line before it", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1600, height: 1100 });
+  await page.goto("/construction-simulation");
+  const card = page.locator("[data-sim-project]").first();
+  const start = await page.getByLabel("Simulation start").inputValue();
+  const later = new Date(Date.parse(`${start}T00:00:00Z`) + 60 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await card.getByLabel("Earliest line start").fill(later);
+  await page.reload();
+  await card.getByLabel("Earliest line start").fill(later);
+
+  // Opens with modules already on the line.
+  await expect(page.locator("[data-line-module]").first()).toBeVisible();
+  await expect(page.locator("[data-line-idle]")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Back to start" }).click();
+  await expect(page.locator("[data-line-idle]")).toContainText("production starts");
+  await page.getByRole("button", { name: "Jump to first module" }).click();
+  await expect(page.locator("[data-line-idle]")).toHaveCount(0);
+  await expect(page.locator("[data-line-module]").first()).toBeVisible();
+});

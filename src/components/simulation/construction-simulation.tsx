@@ -411,7 +411,7 @@ function SimulationWorkspace() {
         ) : null}
         {result.days.length ? (
           <FactoryPlayback
-            key={draft.id}
+            key={`${draft.id}:${result.days.find((day) => day.line.length)?.date ?? ""}`}
             result={result}
             projects={draft.projects}
             factory={draft.factory}
