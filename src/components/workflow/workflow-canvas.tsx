@@ -5,7 +5,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -16,42 +15,33 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { WorkflowNode } from "./workflow-node";
-import { chapterLabel } from "@/lib/chapter-label";
-import { routeChapterConnections } from "@/lib/chapter-edge-routing";
-import { estimatePhaseHeaderHeight } from "@/lib/phase-layout";
 import { PhaseNode } from "./phase-node";
 import { ReferenceNode } from "./reference-node";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { SemanticEdge } from "./semantic-edge";
-import { getSemanticEdgeColor, type LabelObstacle } from "@/lib/semantic-edge-geometry";
+import { type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
   CANVAS_MIN_ZOOM,
   CANVAS_MAX_ZOOM,
   FIT_VIEW_PADDING,
 } from "@/lib/flow-helpers";
-import {
-  PHASE_HEADER_HEIGHT,
-  getAdaptiveNodeSize,
-  getL1FallbackColor,
-} from "@/lib/node-layout";
 import { getWorkflowProgress } from "@/lib/workflow-progress";
-import { chapterPhaseGradientColors, DEFAULT_STAGE_COLORS } from "@/lib/chapter-phase-gradient";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useNodeDragHandlers } from "./use-node-drag-handlers";
-import { isReferenceNodeType, type DomainEdge, type DomainNode, type WorkflowNodeType } from "@/types/workflow";
+import { type WorkflowNodeType } from "@/types/workflow";
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";
 import { useCanvasConnections } from "./use-canvas-connections";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
-import { getExecutionSummary } from "@/lib/execution";
-import { matrixKindForNode } from "@/lib/matrix-config";
 import { HIGH_LEVEL_NODE_CATALOG } from "@/lib/high-level-workflow";
 import { LayerContextMinimap } from "./layer-context-minimap";
 import type { ContextMapNode } from "@/lib/layer-context-minimap-layout";
+import { useCanvasDrop } from "./use-canvas-drop";
+import { buildCanvasEdges, buildCanvasNodes, buildLabelObstacles, indexCanvasEdges } from "@/lib/canvas-model";
 
 const nodeTypes = {
   workflow: WorkflowNode,
@@ -218,125 +208,8 @@ function CanvasInner({
     };
   }, [file.graph.nodes, file.highLevel, file.layout.nodes, selection.nodeIds]);
 
-  const modelNodes = useMemo<Node[]>(() => {
-    const highLevelNodes = file.highLevel?.graph.nodes || [];
-    const l1PhaseColorByL2NodeId = new Map<string, string>();
-    highLevelNodes.forEach((hlNode, index) => {
-      const color =
-        hlNode.backgroundColor && hlNode.backgroundColor !== "transparent"
-          ? hlNode.backgroundColor
-          : getL1FallbackColor(hlNode.title, index);
-      const linkedIds =
-        hlNode.linkedLayer2NodeIds ?? hlNode.linkedDetailedNodeIds ?? [];
-      for (const linkedId of linkedIds) {
-        if (!l1PhaseColorByL2NodeId.has(linkedId)) {
-          l1PhaseColorByL2NodeId.set(linkedId, color);
-        }
-      }
-    });
-
-    return file.graph.nodes
-      .map((domain): Node => {
-        const layout = file.layout.nodes[domain.id];
-        const q = search.trim().toLowerCase();
-        const searchMatch =
-          q &&
-          `${domain.title} ${domain.description}`.toLowerCase().includes(q);
-        const isContainer = domain.type === "phase" || domain.type === "gate";
-        const rendererType =
-          isContainer
-            ? "phase"
-            : isReferenceNodeType(domain.type) && !matrixKindForNode(domain)
-              ? "reference"
-            : "workflow";
-        const stageKey = chapterLabel(domain.config?.stage, "").toLowerCase();
-        const stageFallback = DEFAULT_STAGE_COLORS[stageKey];
-
-        // 1. Direct L1 link for the step
-        const l1DirectColor = l1PhaseColorByL2NodeId.get(domain.id);
-
-        // 2. Or via parent container (e.g. Gate or Phase)
-        const parentLayout = layout?.parentId ? file.layout.nodes[layout.parentId] : undefined;
-        const parentL1Color = layout?.parentId ? l1PhaseColorByL2NodeId.get(layout.parentId) : undefined;
-        const grandparentL1Color = parentLayout?.parentId ? l1PhaseColorByL2NodeId.get(parentLayout.parentId) : undefined;
-
-        // 3. Or via Phase container color if this step is inside a Phase
-        const parentDomain = layout?.parentId ? file.graph.nodes.find((n) => n.id === layout.parentId) : undefined;
-        const grandParentDomain = parentLayout?.parentId ? file.graph.nodes.find((n) => n.id === parentLayout.parentId) : undefined;
-        const containerColor =
-          (parentDomain?.type === "phase" ? (parentDomain.color || l1PhaseColorByL2NodeId.get(parentDomain.id)) : undefined) ??
-          (grandParentDomain?.type === "phase" ? (grandParentDomain.color || l1PhaseColorByL2NodeId.get(grandParentDomain.id)) : undefined);
-
-        // 4. L1 color has highest priority for steps, so steps strictly follow L1 Phase card color!
-        const l1ResolvedColor = l1DirectColor ?? parentL1Color ?? grandparentL1Color ?? containerColor;
-
-        let resolvedContainerColor = domain.color;
-        if (domain.type === "phase") {
-          const matchedL1 = highLevelNodes.find(
-            (hl) =>
-              hl.title.trim().toLowerCase() === domain.title.trim().toLowerCase() ||
-              (hl.linkedLayer2NodeIds ?? []).some(
-                (id) => file.layout.nodes[id]?.parentId === domain.id,
-              ),
-          );
-          if (matchedL1) {
-            resolvedContainerColor =
-              matchedL1.backgroundColor && matchedL1.backgroundColor !== "transparent"
-                ? matchedL1.backgroundColor
-                : getL1FallbackColor(matchedL1.title, highLevelNodes.indexOf(matchedL1));
-          }
-        }
-
-        const phaseColor =
-          domain.type === "gate"
-            ? domain.color || "#7c3aed"
-            : isContainer
-              ? resolvedContainerColor || l1ResolvedColor || stageFallback || "#0d9488"
-              : l1ResolvedColor || domain.color || stageFallback || "#0d9488";
-        const phaseGradientColors =
-          (domain.type === "general" || domain.type === "projectStart") &&
-          domain.config.blendAdjacentPhaseColors === true
-            ? chapterPhaseGradientColors(
-                domain,
-                file.graph.nodes,
-                file.layout.nodes,
-                highLevelNodes,
-              )
-            : undefined;
-        return {
-          id: domain.id,
-          type: rendererType,
-          position: { x: layout?.x || 0, y: layout?.y || 0 },
-          width: layout?.width,
-          height: layout?.height,
-          parentId: undefined,
-          zIndex: isContainer ? 0 : 10,
-          selected: selection.nodeIds.includes(domain.id),
-          draggable: true,
-          dragHandle: isContainer ? ".phase-drag-handle" : undefined,
-          style: isContainer ? { pointerEvents: "none" } : undefined,
-          data: {
-            domain,
-            reached: progress.reachedNodeIds.has(domain.id),
-            emphasized: Boolean(searchMatch),
-            dimmed: Boolean(q && !searchMatch),
-            phaseColor,
-            phaseGradientColors,
-            executionSummary: getExecutionSummary(
-              domain.id,
-              file.execution?.items,
-              file.operations,
-              { checklistOnly: true },
-            ),
-          },
-        };
-      })
-      .sort((a, b) => {
-        const aIsContainer = a.type === "phase";
-        const bIsContainer = b.type === "phase";
-        return aIsContainer ? -1 : bIsContainer ? 1 : 0;
-      });
-  }, [
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+  const modelNodes = useMemo<Node[]>(() => buildCanvasNodes(file, search, selection, progress), [
     file.graph.nodes,
     file.layout.nodes,
     file.highLevel,
@@ -349,136 +222,14 @@ function CanvasInner({
 
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);
 
-  const labelObstacles = useMemo<LabelObstacle[]>(() => {
-    const cards = file.graph.nodes
-      .filter((node) => node.type !== "phase" && node.type !== "gate")
-      .map((node) => {
-        const layout = file.layout.nodes[node.id];
-        return {
-          id: node.id,
-          x: layout?.x || 0,
-          y: layout?.y || 0,
-          width: Math.max(layout?.width || 270, 270),
-          height: Math.max(layout?.height || 240, 240),
-        };
-      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+  const labelObstacles = useMemo<LabelObstacle[]>(() => buildLabelObstacles(file), [file.graph.nodes, file.layout.nodes]);
 
-    const headers = file.graph.nodes
-      .filter((node) => node.type === "phase")
-      .map((node) => {
-        const layout = file.layout.nodes[node.id];
-        return {
-          id: `${node.id}__header`,
-          x: layout?.x || 0,
-          y: layout?.y || 0,
-          width: layout?.width || 720,
-          height: Math.max(PHASE_HEADER_HEIGHT, estimatePhaseHeaderHeight(node, layout?.width || 720)),
-          kind: "phase-header" as const,
-        };
-      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+  const edgeIndexes = useMemo(() => indexCanvasEdges(file), [file.graph.edges]);
 
-    return [...cards, ...headers];
-  }, [file.graph.nodes, file.layout.nodes]);
-
-  const edgeIndexes = useMemo(() => {
-    const siblings = new Map<string, DomainEdge[]>();
-    const returnIndex = new Map<string, number>();
-    for (const edge of file.graph.edges) {
-      siblings.set(edge.source, [...(siblings.get(edge.source) || []), edge]);
-      if (
-        edge.sourceHandle?.startsWith("no") ||
-        ["failure", "rework", "exception", "hold"].includes(edge.type)
-      ) {
-        returnIndex.set(edge.id, returnIndex.size);
-      }
-    }
-    return { siblings, returnIndex };
-  }, [file.graph.edges]);
-
-  const edges = useMemo<Edge[]>(() => {
-    const chapterConnections = routeChapterConnections(file);
-    const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
-    const supportingEdgeLanes = new Map(
-      file.graph.edges
-        .map((edge, index) => ({ edge, index }))
-        .filter(
-          ({ edge }) =>
-            edge.type === "supporting" || edge.type === "dependency",
-        )
-        // Lower targets get the inner lane. Upper targets nest outside them,
-        // which keeps vertical target approaches from crossing lower edges.
-        .sort(
-          (left, right) =>
-            (file.layout.nodes[right.edge.target]?.y ?? 0) -
-              (file.layout.nodes[left.edge.target]?.y ?? 0) ||
-            left.index - right.index,
-        )
-        .map(({ edge }, index) => [edge.id, index]),
-    );
-    return file.graph.edges.map((domain) => {
-      const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
-      const siblingIndex = siblingEdges.findIndex(
-        (edge) => edge.id === domain.id,
-      );
-      const returnIndex = edgeIndexes.returnIndex.get(domain.id) ?? -1;
-      const labelHugsPath =
-        returnIndex >= 0 ||
-        domain.sourceHandle === "yes" ||
-        ["success", "approval"].includes(domain.type);
-      const labelLane =
-        returnIndex >= 0
-          ? returnIndex
-          : (siblingIndex - (siblingEdges.length - 1) / 2) * 52;
-      const sourceNode = nodesById.get(domain.source);
-      const targetNode = nodesById.get(domain.target);
-      const preGateSales =
-        domain.customFields.workflowSection === "Pre-Gate Sales" ||
-        sourceNode?.metadata.workflowSection === "Pre-Gate Sales" ||
-        targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
-        sourceNode?.type === "projectStart";
-      const active = progress.activeEdgeIds.has(domain.id);
-      const activeColor = getSemanticEdgeColor(domain);
-      const supportingLane = supportingEdgeLanes.get(domain.id);
-
-      return {
-        id: domain.id,
-        type: "semantic",
-        zIndex: 10,
-        source: domain.source,
-        target: domain.target,
-        sourceHandle: domain.sourceHandle,
-        targetHandle: domain.targetHandle,
-        reconnectable: true,
-        selected: selection.edgeId === domain.id,
-        markerEnd:
-          domain.arrowStyle === "none"
-            ? undefined
-            : {
-                type: MarkerType.ArrowClosed,
-                color: activeColor,
-              },
-        data: {
-          domain,
-          chapterConnection: chapterConnections[domain.id],
-          route: file.layout.edges?.[domain.id]?.points,
-          active,
-          obstacles: labelObstacles,
-          labelLane:
-            supportingLane !== undefined
-              ? supportingLane
-              : returnIndex >= 0
-                ? labelLane
-                : labelHugsPath
-                  ? 2
-                  : 0,
-          labelHugsPath,
-          preGateSales,
-          siblingIndex: Math.max(0, siblingIndex),
-          siblingCount: siblingEdges.length,
-        },
-      };
-    });
-  }, [
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the builder reads only the fields listed, so recompute exactly when they change
+  const edges = useMemo<Edge[]>(() => buildCanvasEdges(file, edgeIndexes, labelObstacles, progress, selection), [
     edgeIndexes,
     file,
     labelObstacles,
@@ -499,324 +250,7 @@ function CanvasInner({
     updateEdge,
   });
 
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-      const type = event.dataTransfer.getData(
-        "application/workflow-node",
-      ) as WorkflowNodeType;
-      if (!type) return;
-      const position = flow.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      const highLevelNodes = file.highLevel?.graph.nodes || [];
-      const getPhaseInfo = (targetNode: DomainNode) => {
-        // 1. Direct L1 link
-        const directL1 = highLevelNodes.find((hl) => {
-          const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
-          return ids.includes(targetNode.id);
-        });
-        if (directL1) {
-          return {
-            title: directL1.title,
-            color: directL1.backgroundColor || "#0d9488",
-          };
-        }
-        // 2. Stage match
-        if (targetNode.config?.stage) {
-          const stageStr = String(targetNode.config.stage).trim().toLowerCase();
-          const stageMatch = highLevelNodes.find(
-            (hl) => hl.title.trim().toLowerCase() === stageStr,
-          );
-          if (stageMatch) {
-            return {
-              title: stageMatch.title,
-              color: stageMatch.backgroundColor || "#0d9488",
-            };
-          }
-          return {
-            title: chapterLabel(String(targetNode.config.stage)),
-            color: targetNode.color || "#0d9488",
-          };
-        }
-        return {
-          title: targetNode.title || "Phase",
-          color: targetNode.color || "#0d9488",
-        };
-      };
-
-      const resolveAbs = (id: string) => {
-        const l = file.layout.nodes[id];
-        if (!l) return { x: 0, y: 0, width: 270, height: 220 };
-        let x = l.x;
-        let y = l.y;
-        let currParentId = l.parentId;
-        while (currParentId && file.layout.nodes[currParentId]) {
-          const pl = file.layout.nodes[currParentId];
-          x += pl.x;
-          y += pl.y;
-          currParentId = pl.parentId;
-        }
-        const domain = file.graph.nodes.find((n) => n.id === id);
-        const adaptive = domain ? getAdaptiveNodeSize(domain, l) : { width: 280, height: 360 };
-        return {
-          x,
-          y,
-          width: l.width || adaptive.width,
-          height: l.height || adaptive.height,
-        };
-      };
-
-      if (type === "phase") {
-        // Step nodes (non-phase, non-gate)
-        const stepNodes = file.graph.nodes.filter(
-          (n) => n.type !== "phase" && n.type !== "gate",
-        );
-
-        // Find which step node is targeted (cursor is dropped above it or over it)
-        const targetNode = stepNodes.find((n) => {
-          const bounds = resolveAbs(n.id);
-          const xMatch =
-            position.x >= bounds.x - 60 &&
-            position.x <= bounds.x + bounds.width + 60;
-          const yMatch =
-            position.y >= bounds.y - 240 &&
-            position.y <= bounds.y + bounds.height + 60;
-          return xMatch && yMatch;
-        });
-
-        if (targetNode) {
-          // Determine covered nodes based on L1 link
-          const directL1 = highLevelNodes.find((hl) => {
-            const ids = hl.linkedLayer2NodeIds ?? hl.linkedDetailedNodeIds ?? [];
-            return ids.includes(targetNode.id);
-          });
-
-          let coveredNodes = [targetNode];
-          if (directL1) {
-            const linkedIds =
-              directL1.linkedLayer2NodeIds ?? directL1.linkedDetailedNodeIds ?? [];
-            const l1Steps = stepNodes.filter((n) => linkedIds.includes(n.id));
-            if (l1Steps.length > 0) {
-              coveredNodes = l1Steps;
-            }
-          } else if (
-            selection.nodeIds.length > 1 &&
-            selection.nodeIds.includes(targetNode.id)
-          ) {
-            coveredNodes = stepNodes.filter((n) =>
-              selection.nodeIds.includes(n.id),
-            );
-          } else {
-            const targetStage = targetNode.config?.stage;
-            if (targetStage) {
-              const sameStageNodes = stepNodes.filter(
-                (n) =>
-                  n.config?.stage === targetStage &&
-                  !file.layout.nodes[n.id]?.parentId,
-              );
-              if (sameStageNodes.length > 0) {
-                coveredNodes = sameStageNodes;
-              }
-            }
-          }
-
-          // Also check if any Gate exists whose children are part of coveredNodes:
-          const gateNodes = file.graph.nodes.filter((n) => n.type === "gate");
-          const gatesToInclude = gateNodes.filter((g) => {
-            const gateChildren = stepNodes.filter(
-              (n) => file.layout.nodes[n.id]?.parentId === g.id,
-            );
-            return (
-              gateChildren.length > 0 &&
-              gateChildren.some((c) => coveredNodes.some((cn) => cn.id === c.id))
-            );
-          });
-
-          const allCoveredIds = Array.from(
-            new Set([
-              ...coveredNodes.map((n) => n.id),
-              ...gatesToInclude.map((g) => g.id),
-            ]),
-          );
-
-          // Compute enclosing bounding box
-          const boundsList = allCoveredIds.map((id) => resolveAbs(id));
-          const minX = Math.min(...boundsList.map((b) => b.x));
-          const maxX = Math.max(...boundsList.map((b) => b.x + b.width));
-          const minY = Math.min(...boundsList.map((b) => b.y));
-          const maxY = Math.max(...boundsList.map((b) => b.y + b.height));
-
-          const containsGate = gatesToInclude.length > 0;
-          const PAD_X = 36;
-          const PAD_TOP = containsGate ? 360 : 180;
-          const PAD_BOTTOM = containsGate ? 40 : 48;
-
-          const phaseInfo = getPhaseInfo(targetNode);
-          const phaseColor = directL1
-            ? directL1.backgroundColor && directL1.backgroundColor !== "transparent"
-              ? directL1.backgroundColor
-              : getL1FallbackColor(
-                  directL1.title,
-                  highLevelNodes.indexOf(directL1),
-                )
-            : phaseInfo.color;
-
-          const phaseProps = {
-            x: minX - PAD_X,
-            y: minY - PAD_TOP,
-            width: Math.max(380, maxX - minX + PAD_X * 2),
-            height: Math.max(280, maxY - (minY - PAD_TOP) + PAD_BOTTOM),
-            title: directL1 ? directL1.title : phaseInfo.title,
-            color: phaseColor,
-          };
-
-          addPhaseWrappingNodes(
-            phaseProps,
-            allCoveredIds,
-          );
-          return;
-        }
-
-        // Standalone phase if not dropped over a node
-        addNode("phase", position);
-        return;
-      }
-
-      if (type === "gate") {
-        // 1. Check if dropped near or below an existing Phase
-        const phaseNodes = file.graph.nodes.filter((n) => n.type === "phase");
-        const targetPhase = phaseNodes.find((p) => {
-          const l = file.layout.nodes[p.id];
-          if (!l) return false;
-          return (
-            position.x >= l.x - 80 &&
-            position.x <= l.x + l.width + 80 &&
-            position.y >= l.y - 60 &&
-            position.y <= l.y + l.height + 350
-          );
-        });
-
-        if (targetPhase) {
-          const pl = file.layout.nodes[targetPhase.id]!;
-          const gateWidth = pl.width || 620;
-          const gateX = pl.x;
-          const gateY = pl.y + pl.height + 28;
-
-          addGateUnderNode({
-            x: gateX,
-            y: gateY,
-            width: gateWidth,
-            height: 220,
-            title: `${targetPhase.title} · Gate`,
-            color: targetPhase.color || "#7c3aed",
-            stage: targetPhase.title,
-          });
-          return;
-        }
-
-        // 2. Check if dropped near or below a Step node
-        const stepNodes = file.graph.nodes.filter(
-          (n) => n.type !== "phase" && n.type !== "gate",
-        );
-        const targetStep = stepNodes.find((n) => {
-          const bounds = resolveAbs(n.id);
-          return (
-            position.x >= bounds.x - 60 &&
-            position.x <= bounds.x + bounds.width + 60 &&
-            position.y >= bounds.y - 60 &&
-            position.y <= bounds.y + bounds.height + 350
-          );
-        });
-
-        if (targetStep) {
-          const stepLayout = file.layout.nodes[targetStep.id];
-          if (stepLayout?.parentId && file.layout.nodes[stepLayout.parentId]) {
-            const pl = file.layout.nodes[stepLayout.parentId]!;
-            const parentPhase = file.graph.nodes.find(
-              (n) => n.id === stepLayout.parentId,
-            );
-            const gateWidth = 620;
-            const gateX = pl.x + Math.max(0, (pl.width - gateWidth) / 2);
-            const gateY = pl.y + pl.height + 40;
-
-            addGateUnderNode({
-              x: gateX,
-              y: gateY,
-              width: gateWidth,
-              height: 268,
-              title: parentPhase ? `${parentPhase.title} · Gate` : "Gate",
-              color: parentPhase?.color || "#7c3aed",
-              stage: parentPhase?.title,
-            });
-            return;
-          }
-
-          const bounds = resolveAbs(targetStep.id);
-          const gateWidth = 620;
-          const gateX = bounds.x + Math.max(0, (bounds.width - gateWidth) / 2);
-          const gateY = bounds.y + bounds.height + 40;
-          const phaseInfo = getPhaseInfo(targetStep);
-
-          addGateUnderNode({
-            x: gateX,
-            y: gateY,
-            width: gateWidth,
-            height: 268,
-            title: `${phaseInfo.title} · Gate`,
-            color: phaseInfo.color,
-            stage: phaseInfo.title,
-          });
-          return;
-        }
-
-        // Standalone gate
-        addGateUnderNode({
-          x: position.x,
-          y: position.y,
-          width: 620,
-          height: 268,
-        });
-        return;
-      }
-
-      // Default for other node types
-      const phase = file.graph.nodes
-        .filter((node) => node.type === "phase")
-        .map((node) => file.layout.nodes[node.id])
-        .find(
-          (layout) =>
-            layout &&
-            position.x >= layout.x &&
-            position.x <= layout.x + layout.width &&
-            position.y >= layout.y &&
-            position.y <= layout.y + layout.height,
-        );
-
-      addNode(
-        type,
-        phase
-          ? {
-              x: Math.max(24, position.x - phase.x),
-              y: Math.max(112, position.y - phase.y),
-            }
-          : position,
-        phase?.nodeId,
-      );
-    },
-    [
-      addGateUnderNode,
-      addNode,
-      addPhaseWrappingNodes,
-      file.graph.nodes,
-      file.highLevel?.graph.nodes,
-      file.layout.nodes,
-      flow,
-      selection.nodeIds,
-    ],
-  );
+  const onDrop = useCanvasDrop({ flow, file, selection, addNode, addPhaseWrappingNodes, addGateUnderNode });
 
   const quickAdd = useCallback(
     (event: React.MouseEvent) => {
