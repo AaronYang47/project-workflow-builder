@@ -20,6 +20,7 @@ test("late library results do not replace a document title being entered", async
   await expect(title).toHaveValue("Custom agreement");
   await page.getByRole("button", { name: "Add to L3 List" }).click();
   await expect(page.getByText("Custom agreement", { exact: true })).toBeVisible();
+  // Reopening pre-fills the first library entry; built-in form references (NDA first) precede uploads.
   await page.getByRole("button", { name: "Add Required Document" }).click();
-  await expect(title).toHaveValue("Remote Contract");
+  await expect(title).toHaveValue("NDA");
 });

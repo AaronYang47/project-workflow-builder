@@ -33,7 +33,10 @@ for (const route of ["process-overview", "release-conditions"]) {
     await page.bringToFront();
     const source = page.locator('[data-release-condition-drop-node-id="source"]');
     const target = page.locator('[data-release-condition-drop-node-id="target"]');
-    const handle = source.getByRole("button", { name: route === "process-overview" ? "Drag Drag this condition" : "Drag release condition 1", exact: true });
+    // On the Gantt page a condition is dragged by its label cell.
+    const handle = route === "process-overview"
+      ? source.locator("[data-gantt-label]").filter({ hasText: "Drag this condition" })
+      : source.getByRole("button", { name: "Drag release condition 1", exact: true });
     const remoteGhost = viewer.locator("[data-remote-drag-preview]");
     const drag = async () => {
       await handle.hover();

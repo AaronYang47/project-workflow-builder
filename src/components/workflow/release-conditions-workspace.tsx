@@ -429,7 +429,7 @@ export function ReleaseConditionsWorkspace() {
                             <h4 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Release Conditions</h4>
                             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[9px] font-semibold text-primary">{visible.length}{needle ? ` / ${chapter.conditions.length}` : ""}</span>
                           </header>
-                          <div className="scroll-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+                          <div data-release-condition-list className="scroll-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
                             {visible.map(({ condition, index }) => {
                               const formsCount = conditionFormCount(chapter, condition);
                               const selected = selectedProcessNodeId === chapter.id && (selectedProcessConditionRef?.id ? selectedProcessConditionRef.id === condition.id : selectedProcessConditionRef?.index === index);

@@ -168,9 +168,9 @@ test("L1 Gate member editor adds and removes steps in L2", async ({ page }) => {
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   const phase = page.locator('[data-id="l1-phase"]');
   await phase.getByRole("button", { name: "Edit Gate One Gate members" }).click();
-  await phase.getByRole("checkbox", { name: "Add class-a to Gate One" }).click();
+  await phase.getByRole("checkbox", { name: "Add Department class-a to Gate One" }).click();
   await expect(phase.locator('[data-linked-gate-id="gate-one"] [data-linked-workflow-node-id]')).toHaveCount(3);
-  await phase.getByRole("checkbox", { name: "Remove class-b from Gate One" }).uncheck();
+  await phase.getByRole("checkbox", { name: "Remove Department class-b from Gate One" }).uncheck();
   await expect(phase.locator('[data-linked-gate-id="gate-one"] [data-linked-workflow-node-id]')).toHaveCount(2);
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator('[data-id="gate-one"]')).toContainText("2 steps");
@@ -196,7 +196,7 @@ test("an emptied Gate stays editable in L1 and no longer surrounds L2 steps", as
   const phase = page.locator('[data-id="l1-phase"]');
   await expect(phase.locator('[data-linked-gate-id="gate-one"]')).toHaveCount(1);
   await phase.getByRole("button", { name: "Edit Gate One Gate members" }).click();
-  await phase.getByRole("checkbox", { name: "Add class-a to Gate One" }).click();
+  await phase.getByRole("checkbox", { name: "Add Department class-a to Gate One" }).click();
   await expect(phase.locator('[data-linked-gate-id="gate-one"] [data-linked-workflow-node-id]')).toHaveCount(1);
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator('[data-id="gate-one"]')).toContainText("1 step");
