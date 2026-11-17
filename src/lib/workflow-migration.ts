@@ -16,6 +16,7 @@ import {
   type WorkflowNodeType,
 } from "@/types/workflow";
 import { normalizeExecutionLayer } from "@/lib/execution";
+import { getProfabForm } from "@/lib/profab-forms";
 import {
   createDefaultDetailedLifecycle,
   isCommercialPathwayNode,
@@ -673,6 +674,29 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
             : edge.label,
       };
     });
+  // L1 steps must not keep links to L2 nodes the migration removed (retired
+  // Opportunity, Commercial Pathway or matrix nodes); a dangling link points
+  // at nothing and breaks cross-layer integrity.
+  const finalNodeIds = new Set(nodes.map((node) => node.id));
+  const keepExisting = (ids: string[] | undefined) => ids?.filter((id) => finalNodeIds.has(id));
+  file.highLevel.graph.nodes = file.highLevel.graph.nodes.map((node) => ({
+    ...node,
+    linkedLayer2NodeIds: keepExisting(node.linkedLayer2NodeIds),
+    ...(node.linkedDetailedNodeIds ? { linkedDetailedNodeIds: keepExisting(node.linkedDetailedNodeIds) } : {}),
+  }));
+  // Ad-hoc L3 items of retired Opportunity / Commercial Pathway nodes go with
+  // their node. Controlled register forms (catalogId) are kept and relinked,
+  // and items of user-deleted nodes stay so Validation can report them.
+  if (file.execution) {
+    const onRetiredNode = (id: string) => !finalNodeIds.has(id) && (legacyPreGateIds.has(id) || isRetiredNodeId(id));
+    file.execution.items = file.execution.items
+      .filter((item) => Boolean(item.catalogId) || !onRetiredNode(item.linkedLayer2NodeId))
+      .map((item) => {
+        if (!onRetiredNode(item.linkedLayer2NodeId)) return item;
+        const home = getProfabForm(item)?.linkedLayer2NodeId;
+        return home && finalNodeIds.has(home) ? { ...item, linkedLayer2NodeId: home } : item;
+      });
+  }
   const migratedFile = {
     ...file,
     releaseConditionInbox: file.releaseConditionInbox?.map((condition) => wholeDayCondition(condition)),

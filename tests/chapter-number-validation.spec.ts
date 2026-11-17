@@ -16,20 +16,22 @@ function setup(numbers: string[]) {
 }
 const orderIssues = (file: ReturnType<typeof setup>) => validateWorkflow(file).filter((issue) => issue.code === "CHAPTER_NUMBER_ORDER");
 
-test("Validation warns for out-of-order and duplicate Chapter numbers without editing them", () => {
+// Rule: each Chapter number repeats the preceding one or increases by exactly 1.
+test("Validation warns when a Chapter number goes back, allows repeats, and never edits them", () => {
   const file = setup(["10", "09", "09"]);
   const issues = orderIssues(file);
-  expect(issues.map((issue) => issue.nodeId)).toEqual(["step-1", "step-2"]);
+  expect(issues.map((issue) => issue.nodeId)).toEqual(["step-1"]);
   expect(issues[0].message).toContain("09");
   expect(file.graph.nodes.map((node) => node.config.stage)).toEqual(["10", "09", "09"]);
 });
 
-test("Validation accepts increasing numbers with gaps and ignores nonnumeric labels", () => {
-  expect(orderIssues(setup(["12", "Chapter", "20", "35"]))).toEqual([]);
+test("Validation accepts repeats and +1 steps, ignores nonnumeric labels, and flags gaps", () => {
+  expect(orderIssues(setup(["12", "Chapter", "13", "13", "14"]))).toEqual([]);
+  expect(orderIssues(setup(["12", "20"])).map((issue) => issue.nodeId)).toEqual(["step-1"]);
 });
 
 test("Without L1 links Validation follows forward L2 connections, not array position or return routes", () => {
-  const file = setup(["20", "10"]);
+  const file = setup(["11", "10"]);
   file.highLevel!.graph.nodes = [];
   const edge = { id: "forward", source: "step-1", target: "step-0", type: "normal" as const, lineStyle: "solid" as const, arrowStyle: "closed" as const, customFields: {} };
   file.graph.edges = [edge, { ...edge, id: "back", source: "step-0", target: "step-1", type: "rework" }];
@@ -56,7 +58,7 @@ test("Validation panel runs current checks on open and updates after chapter edi
   await page.getByRole("button", { name: /^Validation/ }).click();
   const panel = page.getByRole("region", { name: "Validation results" });
   await expect(panel).toContainText("INVALID_CHAPTER_NUMBER");
-  const first = page.locator('[data-id="step-0"]').getByRole("textbox", { name: "Chapter" });
+  const first = page.locator('[data-id="step-0"]').getByRole("textbox", { name: "Department" });
   await first.fill("03");
   await first.blur();
   await expect(panel).toContainText("CHAPTER_NUMBER_ORDER");

@@ -1,12 +1,16 @@
 import { expect, test } from "playwright/test";
 import { execFileSync } from "node:child_process";
 import { useWorkflowStore } from "../src/store/workflow-store";
-import { deleteUploadedFile, fetchUploadedFilesFromR2, getUploadedFiles, saveUploadedFile, uploadFileToR2, type UploadedFileRecord } from "../src/lib/file-storage";
+import { deleteUploadedFile, fetchUploadedFilesFromR2, getUploadedFiles, isFormReferenceRecord, saveUploadedFile, uploadFileToR2, type UploadedFileRecord } from "../src/lib/file-storage";
+import { CUSTOMER_SELECTION_FORM_ID } from "../src/lib/falcon-customer-intelligence";
 
 const alice = { id: "alice", name: "Alice", email: "alice@example.com" };
 const bob = { id: "bob", name: "Bob", email: "bob@example.com" };
 const record: UploadedFileRecord = { id: "private", key: "users/alice/legal/private.pdf", fileName: "private.pdf", title: "Alice private", fileType: "application/pdf", fileSize: 10, category: "legal", description: "", uploadedAt: "2026-10-30", url: "/api/files/download?key=users%2Falice%2Flegal%2Fprivate.pdf" };
 const originalFetch = globalThis.fetch;
+/** The library always lists the shared built-in form references; these tests are about each account's own uploads. */
+const uploads = (category: "legal" | "customer" | "supporting") =>
+  getUploadedFiles(category).filter((file) => file.id !== CUSTOMER_SELECTION_FORM_ID && !isFormReferenceRecord(file));
 
 test.beforeEach(() => {
   const storage = new Map<string, string>();
@@ -26,13 +30,13 @@ test("account switching hides cached uploads and clears workspace, undo history 
   localStorage.setItem("falcon_uploaded_files", JSON.stringify([record]));
   useWorkflowStore.setState({ activeProjectId: "alice-project", past: [useWorkflowStore.getState().file], future: [useWorkflowStore.getState().file] });
   useWorkflowStore.getState().setAuthUser(bob);
-  expect(getUploadedFiles("legal")).toEqual([]);
+  expect(uploads("legal")).toEqual([]);
   expect(useWorkflowStore.getState()).toMatchObject({ activeProjectId: undefined, past: [], future: [], workspaceOwnerId: "bob" });
   expect(useWorkflowStore.getState().file.graph.nodes).toEqual([]);
   expect(localStorage.getItem("falcon_uploaded_files_alice")).toBeNull();
   expect(localStorage.getItem("falcon_uploaded_files")).toBeNull();
   useWorkflowStore.getState().setAuthUser(alice);
-  expect(getUploadedFiles("legal")).toEqual([]);
+  expect(uploads("legal")).toEqual([]);
 });
 
 test("a delayed library response cannot be returned or cached under the next account", async () => {
@@ -52,7 +56,7 @@ test("mismatched session responses and expired sessions never reveal cached file
   saveUploadedFile(record);
   globalThis.fetch = async () => Response.json({ ok: true, ownerUserId: "bob", files: [{ ...record, title: "Bob private" }] });
   expect(await fetchUploadedFilesFromR2("legal")).toEqual([]);
-  expect(getUploadedFiles("legal")).toEqual([record]);
+  expect(uploads("legal")).toEqual([record]);
   globalThis.fetch = async () => Response.json({ error: "Please sign in" }, { status: 401 });
   expect(await fetchUploadedFilesFromR2("legal")).toEqual([]);
 });
@@ -71,7 +75,7 @@ test("denied deletion leaves local file metadata intact", async () => {
   saveUploadedFile(record);
   globalThis.fetch = async () => Response.json({ error: "File not found" }, { status: 404 });
   await expect(deleteUploadedFile(record.id, record.key)).rejects.toThrow("Could not delete");
-  expect(getUploadedFiles("legal")).toEqual([record]);
+  expect(uploads("legal")).toEqual([record]);
 });
 
 test("legacy ownership never moves to the next user after its original owner is deleted", () => {

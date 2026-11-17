@@ -34,13 +34,12 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
 
   await page.locator('[data-workflow-toolbar] a[aria-label="Open Release Conditions Workspace"]').click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/release-conditions");
-  await page.getByRole("link", { name: "Back to workflow" }).click();
+  await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/");
   await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toBeEnabled();
 
   await expect(viewer.getByRole("button", { name: "L1 · High Level" })).toBeDisabled();
   await expect(viewer.getByRole("button", { name: "L2 · Detailed Workflow" })).toBeDisabled();
-  await expect(viewer.getByRole("button", { name: "RC · Forms & execution" })).toBeDisabled();
   await expect(viewer.getByRole("link", { name: "Open Release Conditions Workspace" })).toHaveCount(0);
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(viewer.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute("aria-pressed", "true");
@@ -62,8 +61,6 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
     }).toBeLessThan(2);
   }
   await expect(viewer.getByRole("button", { name: "L1 · High Level" })).toBeDisabled();
-  await page.getByRole("button", { name: "RC · Forms & execution" }).click();
-  await expect(viewer.getByRole("button", { name: "RC · Forms & execution" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(viewer.getByRole("button", { name: "L1 · High Level" })).toHaveAttribute("aria-pressed", "true");
 
@@ -91,11 +88,11 @@ test("viewer follows Conditions and Process & Gantt routes, including late joins
   await expect(viewer.getByText("Read only", { exact: true })).toBeVisible();
   expect(new URL(viewer.url()).searchParams.get("room")).toBe(room);
   expect(new URL(viewer.url()).searchParams.get("editor")).toBe(editorId);
-  await page.getByRole("link", { name: "Back to workflow" }).click();
+  await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/");
   await page.getByRole("link", { name: "Open Process Overview" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/process-overview");
-  await expect(viewer.getByRole("heading", { name: "L4 · Process & Gantt", exact: true })).toBeVisible();
+  await expect(viewer.getByRole("heading", { name: "Process system & schedule", exact: true })).toBeVisible();
   await viewer.getByRole("button", { name: "Open Create Release Condition" }).click();
   await expect(viewer.getByRole("textbox", { name: "New release condition", exact: true })).toBeDisabled();
   // A new viewer opening an old canvas link must reach the editor's current page.
@@ -115,7 +112,7 @@ test("viewer follows Conditions and Process & Gantt routes, including late joins
   // Follow direction reverses with editing control, even across page boundaries.
   await viewer.getByRole("link", { name: "Open Release Conditions Workspace", exact: true }).click();
   await expect.poll(() => new URL(page.url()).pathname).toBe("/release-conditions");
-  await viewer.getByRole("link", { name: "Back to workflow" }).click();
+  await viewer.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(page.url()).pathname).toBe("/");
   await viewer.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute("aria-pressed", "true");
@@ -155,9 +152,9 @@ test("separate browser sessions can exchange a control request", async ({ browse
   await expect(viewer.getByRole("button", { name: "Take Control" })).toBeEnabled({ timeout: 20000 });
   await page.locator('[data-workflow-toolbar] a[aria-label="Open Release Conditions Workspace"]').click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/release-conditions");
-  await page.getByRole("link", { name: "Back to workflow" }).click();
+  await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/");
-  for (const layer of ["L2 · Detailed Workflow", "RC · Forms & execution", "L1 · High Level"]) {
+  for (const layer of ["L2 · Detailed Workflow", "L1 · High Level"]) {
     await page.getByRole("button", { name: layer }).click();
     await expect(viewer.getByRole("button", { name: layer })).toHaveAttribute("aria-pressed", "true", { timeout: 10000 });
     await expect(viewer.getByRole("button", { name: layer })).toBeDisabled();
@@ -179,6 +176,8 @@ test("mobile refresh stays read-only while the editor is temporarily unreachable
   await page.reload();
   await expect(page.getByText("Read only", { exact: true })).toBeVisible();
   await page.waitForTimeout(11000);
+  // Phones start with the toolbar collapsed.
+  await page.getByRole("button", { name: "Show toolbar" }).click();
   await expect(page.getByText("Read only", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Take Control" })).toBeVisible();
   await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toBeDisabled();

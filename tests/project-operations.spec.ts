@@ -27,6 +27,7 @@ import {
   warrantyFollowUpStatus,
 } from "../src/lib/project-operations";
 import { createProjectWorkflow } from "../src/lib/project-template";
+import { createDomainNode } from "../src/lib/create-domain-node";
 import {
   conditionHasL3Forms,
   conditionIsSatisfied,
@@ -1084,19 +1085,23 @@ test.describe("L1/L2 operational gate and store wiring", () => {
       checked: true,
     };
     node.customFields[`legalDocuments::release-condition::${condition.id}`] = JSON.stringify([
-      { id: "form-1", required: true, checked: false },
+      { id: "form-1", title: "Form 1", required: true, checked: false },
     ]);
 
     expect(conditionHasL3Forms(condition, node)).toBe(true);
     expect(conditionIsSatisfied(condition, node)).toBe(false);
     node.customFields[`legalDocuments::release-condition::${condition.id}`] = JSON.stringify([
-      { id: "form-1", required: true, checked: true },
+      { id: "form-1", title: "Form 1", required: true, checked: true },
     ]);
     expect(conditionIsSatisfied(condition, node)).toBe(true);
   });
 
   test("lets a Client/Lead ID satisfy Project Start before a project number exists", () => {
+    // New projects start with an empty graph; use the lifecycle so G1 follows Project Start.
     const file = createProjectWorkflow("Pre-G1 lead");
+    const lifecycle = createDefaultDetailedLifecycle();
+    file.graph.nodes = lifecycle.graph.nodes;
+    file.graph.edges = lifecycle.graph.edges;
     const projectStart = file.graph.nodes.find((node) => node.id === "project-start")!;
     expect(file.operations?.identity.clientId).toBeTruthy();
     expect(file.operations?.identity.projectNumber).toBe("");
@@ -1156,6 +1161,7 @@ test.describe("L1/L2 operational gate and store wiring", () => {
 
   test("store enforces payment authority, records release approval, and mirrors conversion identity into Project Start", () => {
     const file = createProjectWorkflow("Store integration fixture");
+    file.graph.nodes.push(createDomainNode("projectStart", "project-start"));
     const operations = gateOneReadyOperations();
     operations.commercial.paymentRelease = {
       ...operations.commercial.paymentRelease,
