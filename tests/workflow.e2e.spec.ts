@@ -12,9 +12,10 @@ async function openLayer1(page: Page) {
 /** Phones start with the toolbar collapsed. */
 async function showToolbarOnPhone(page: Page) {
   if ((page.viewportSize()?.width ?? 1280) >= 640) return;
-  const toggle = page.getByRole("button", { name: "Show toolbar" });
-  // Once open the button reads "Hide toolbar".
-  if (await toggle.isVisible()) await toggle.click();
+  // Wait for the toggle to render; once open it reads "Hide toolbar".
+  const toggle = page.getByRole("button", { name: /^(Show|Hide) toolbar$/ });
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-label")) === "Show toolbar") await toggle.click();
 }
 
 async function openLayer2(page: Page) {

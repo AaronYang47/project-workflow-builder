@@ -157,9 +157,12 @@ npm run build        # static export to out/
 
 Tracked here so it is fixed deliberately, not by accident:
 
-- **Stale tests**: about 60 Playwright tests still target UI that was renamed
-  or removed (for example the old "Export Gantt PDF" button). They fail before
-  and after the refactor; update them when touching those screens.
+- **Tests**: the full suite passes (249). Three tests are skipped on purpose:
+  `cloud-save-refresh` and `account-session-browser` need a dev server without
+  `NEXT_PUBLIC_AUTH_BYPASS=1` (real sign-in and cloud API), and the retired
+  matrix-node migration test waits for a product decision.
+- **Formatting**: no formatter is configured yet (Prettier needs npm, which
+  was not available when this was written); long JSX lines remain in a few files.
 - **Lint**: 7 `react-hooks/set-state-in-effect` errors (`workflow-builder.tsx`,
   `customer-selection-form.tsx`, `pyramid-location-widget.tsx`). Most read the
   URL or sessionStorage after the static page hydrates, which cannot happen

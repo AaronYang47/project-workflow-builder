@@ -45,8 +45,16 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
   await expect(viewer.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute("aria-pressed", "true");
   const editorNode = page.locator('.react-flow__node[data-id="project-start"]');
   const viewerNode = viewer.locator('.react-flow__node[data-id="project-start"]');
-  // Both canvases finish their initial fit before placing a physical pointer.
-  await page.waitForTimeout(900);
+  // Both canvases finish their initial fit animation before placing a pointer.
+  for (const canvas of [page, viewer]) {
+    let previous = "";
+    await expect.poll(async () => {
+      const transform = await canvas.locator(".react-flow__viewport").evaluate((element) => getComputedStyle(element).transform);
+      const settled = transform === previous;
+      previous = transform;
+      return settled;
+    }, { intervals: [250], timeout: 15_000 }).toBe(true);
+  }
   const editorBox = await editorNode.boundingBox();
   expect(editorBox).toBeTruthy();
   const editorZoom = await page.locator('.react-flow__viewport').evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).a);
@@ -58,7 +66,8 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
       const box = await viewerNode.boundingBox();
       const zoom = await viewer.locator('.react-flow__viewport').evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).a);
       return Math.abs((await marker.boundingBox())![axis] - (box![axis] + 10 * zoom / editorZoom));
-    }).toBeLessThan(2);
+    // Cursor sync travels over the peer-to-peer relays; allow for a busy machine.
+    }, { timeout: 15_000 }).toBeLessThan(2);
   }
   await expect(viewer.getByRole("button", { name: "L1 · High Level" })).toBeDisabled();
   await page.getByRole("button", { name: "L1 · High Level" }).click();

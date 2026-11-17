@@ -102,7 +102,10 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
   test.setTimeout(60_000);
   const browserErrors: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text());
+    // Public collaboration relays are third-party servers; an outage of one is not an app error.
+    if (message.type() === "error" && !/^WebSocket connection to 'wss:\/\/[^']+' failed/.test(message.text())) {
+      browserErrors.push(message.text());
+    }
   });
   page.on("pageerror", (error) => browserErrors.push(error.message));
   mkdirSync(outputDir, { recursive: true });

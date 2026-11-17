@@ -413,13 +413,13 @@ export function TopToolbar({
         </ToolButton></span>
       </div>
       <div className="mx-2 hidden h-6 w-px shrink-0 bg-border/60 sm:block" />
-      <div data-toolbar-search-group className="order-2 mr-0 flex min-w-0 flex-1 flex-nowrap items-center gap-1 sm:order-none sm:ml-auto sm:mr-2 sm:min-w-fit sm:gap-2.5">
+      <div data-toolbar-search-group className="order-2 mr-0 flex min-w-0 flex-1 flex-nowrap items-center gap-1 sm:order-none sm:ml-auto sm:mr-2 sm:gap-2.5">
         <Button
           variant="ghost"
           size="sm"
           onClick={pageLayer ? onPageSearch : openPalette}
           disabled={!canEditWorkflow}
-          className="flex h-8 min-w-0 flex-1 justify-start gap-2 overflow-hidden border border-border/80 text-muted-foreground sm:min-w-24"
+          className="flex h-8 min-w-0 flex-1 justify-start gap-2 overflow-hidden border border-border/80 text-muted-foreground sm:min-w-24 xl:min-w-9 2xl:min-w-24"
           aria-label="Search nodes and commands"
         >
           <Search className="size-3.5 shrink-0" />
