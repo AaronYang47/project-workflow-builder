@@ -1,8 +1,8 @@
 import { expect, test } from "playwright/test";
-import { execFileSync } from "node:child_process";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
+import { pdfInfo } from "./support/pdf-info";
 
 test("PDF phase frames align with shared department color boundaries", async ({ page }, testInfo) => {
   const file = createProjectWorkflow("Aligned department coverage");
@@ -137,14 +137,17 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
   await page.goto("/process-overview");
   await expect(page.locator("[data-tech-day-one-marker]")).toHaveCount(0);
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   const download = await pending;
   expect(download.suggestedFilename()).toContain("with-gantt-chart.pdf");
   const pdfPath = testInfo.outputPath("flowchart-with-gantt.pdf");
   await download.saveAs(pdfPath);
-  const pdfInfo = execFileSync("pdfinfo", [pdfPath], { encoding: "utf8" });
-  expect(pdfInfo).toMatch(/Pages:\s+1\b/);
-  expect(pdfInfo).toMatch(/Page size:\s+1224(?:\.\d+)? x 792(?:\.\d+)? pts/);
+  const info = pdfInfo(pdfPath);
+  // Page 1 holds the whole Gantt report; page 2 is the production calendar.
+  expect(info).toMatch(/Pages:\s+2\b/);
+  expect(info).toMatch(/Page size:\s+1224(?:\.\d+)? x 792(?:\.\d+)? pts/);
   const result = await page.evaluate(() => (window as unknown as { ganttPdfCheck: { phaseUnits: string[]; phaseDays: string[]; prominentDays: boolean; bottomRightDays: boolean; partialPhase: string; phaseTags: string[]; phaseTagColorsMatch: boolean; phaseInvolvement: string[]; phaseInvolvementPositions: { top: number; right: number }[]; barLabels: string[]; salesGanttRows: number; salesBars: number; shortBarLabels: string[]; barLabelOverflow: boolean; rowCaptions: string[]; departmentGradients: string[]; phaseErrors: number[]; rightEdgeErrors: number[]; axisStartError: number; departmentWidths: number[]; differences: number[]; departmentTops: number[]; departmentLabels: string[]; productionNotes: string[]; productionNoteOverflow: boolean; sheetFillRatio: number; phaseTitles: string[]; hasTimingLanes: boolean; widths: number[]; parallelStart: string; techStart: string; techEnd: string; sevenDayWeek: boolean; titlesOnly: boolean; unknown: boolean; hasEvidence: boolean; overflow: boolean } }).ganttPdfCheck);
   expect(result.phaseDays).toEqual(["2", "2", "0.9", "1+"]);
   expect(result.phaseUnits).toEqual(["WEEKS", "WEEKS", "WEEKS", "WEEK"]);
@@ -158,7 +161,7 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
     expect(Math.abs(position.top - result.phaseInvolvementPositions[3].top)).toBeLessThan(1);
     expect(Math.abs(position.right - result.phaseInvolvementPositions[3].right)).toBeLessThan(1);
   });
-  expect(result.barLabels).toEqual(["TECH 2w", "TECH 0.43w", "TECH 2w", "PURC 0.14w", "PURC 0.86w", "PROD 0.86w", "SITE 0.86w", "SITE 1w"]);
+  expect(result.barLabels).toEqual(["TECH 2W", "TECH 0.43W", "TECH 2W", "PURC 0.14W", "PURC 0.86W", "PROD 0.86W", "SITE 0.86W", "SITE 1W"]);
   expect(result.salesGanttRows).toBe(1);
   expect(result.salesBars).toBe(0);
   expect(result.shortBarLabels).toEqual([]);
@@ -221,7 +224,9 @@ test("PDF keeps phase durations and counts elapsed days after Sales handoff", as
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   await (await pending).saveAs(testInfo.outputPath("calendar-month-week-totals.pdf"));
   const result = await page.evaluate(() => (window as unknown as { calendarPdf: { labels: string[]; preTech: string; summary: string; fits: boolean } }).calendarPdf);
   expect(result.labels).toEqual(["", "1 MONTH", "1 MONTH 2 WEEKS", "2 MONTHS"]);
@@ -258,7 +263,9 @@ test("Gantt PDF hides Purchasing coverage until it has a release condition", asy
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   await (await pending).saveAs(testInfo.outputPath("without-purchasing.pdf"));
   const labels = await page.evaluate(() => (window as unknown as { pdfDepartments: string[] }).pdfDepartments);
   expect(labels).toContain("Sales Department");
@@ -332,7 +339,9 @@ test("Gantt PDF keeps legal and customer lists in department cards and supportin
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   await (await pending).saveAs(testInfo.outputPath("document-coverage.pdf"));
   const result = await page.evaluate(() => (window as unknown as { documentPdf: {
     phaseText: string; duration: string; salesLegal: string[]; techLegal: string[]; salesCustomer: string[]; techCustomer: string[]; salesDocumentSectionsSideBySide: boolean; supportingInsideCards: boolean; departmentBulletsVertical: boolean; salesDuration: string; techDuration: string; legalInsideCards: boolean; separateLegalRow: boolean; timelineHasVerticalGrid: boolean; dayOneDivider: boolean; supporting: string; salesLead: string; handover: string;
@@ -382,10 +391,13 @@ test("dense Gantt PDF stays on one 11 x 17 sheet", async ({ page }, testInfo) =>
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF", exact: true }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   const path = testInfo.outputPath("dense-gantt.pdf");
   await (await pending).saveAs(path);
-  const info = execFileSync("pdfinfo", [path], { encoding: "utf8" });
-  expect(info).toMatch(/Pages:\s+1\b/);
+  const info = pdfInfo(path);
+  // Page 1 holds the whole Gantt report; page 2 is the production calendar.
+  expect(info).toMatch(/Pages:\s+2\b/);
   expect(info).toMatch(/Page size:\s+1224(?:\.\d+)? x 792(?:\.\d+)? pts/);
 });

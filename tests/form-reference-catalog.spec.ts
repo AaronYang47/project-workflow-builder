@@ -76,18 +76,23 @@ test("Gantt PDF puts photographed form titles inside their department cards", as
         supporting: card.querySelector("[data-department-supporting]")?.textContent,
         overflow: card.scrollHeight > card.clientHeight + 1 || card.scrollWidth > card.clientWidth + 1,
       }));
+      if (root) (window as unknown as { supportingFooter: unknown }).supportingFooter = root.querySelector(".supporting-documents-footer")?.textContent ?? "";
       return original.apply(this, args);
     };
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF" }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   await (await pending).saveAs(testInfo.outputPath("form-reference-cards.pdf"));
   const cards = await page.evaluate(() => (window as unknown as { formCardCheck: { label: string; legal: string; customer: string; supporting: string; overflow: boolean }[] }).formCardCheck);
   expect(cards.find((card) => /Sales/i.test(card.label))?.customer).toContain("Client Qualification Form");
   expect(cards.find((card) => /Sales/i.test(card.label))?.legal).toContain("LOI");
-  expect(cards.find((card) => /Technical/i.test(card.label))?.supporting).toContain("Project Summary");
+  // Supporting documents are listed once below the chart, grouped by department.
+  const supporting = await page.evaluate(() => (window as unknown as { supportingFooter: string }).supportingFooter);
+  expect(supporting).toContain("Project Summary");
   expect(cards.find((card) => /Production/i.test(card.label))?.legal).toContain("Quality Assurance Inspection");
-  expect(cards.find((card) => /Site/i.test(card.label))?.supporting).toContain("Site Safety Plan");
+  expect(supporting).toContain("Site Safety Plan");
   expect(cards.every((card) => !card.overflow)).toBe(true);
 });

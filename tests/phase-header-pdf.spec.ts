@@ -65,7 +65,12 @@ for (const [gantt, extraDepartment] of [[false, false], [false, true], [true, fa
     await page.getByText(`High Level Process System Flowchart${gantt ? " with Gantt Chart" : ""}`, { exact: true }).click();
     const path = testInfo.outputPath("phase-headers.pdf");
     await (await pending).saveAs(path);
-    execFileSync("pdftoppm", ["-f", "1", "-singlefile", "-scale-to", "1800", "-png", path, testInfo.outputPath("phase-headers")]);
+    // Optional preview image for manual review; the assertions below do not need Poppler.
+    try {
+      execFileSync("pdftoppm", ["-f", "1", "-singlefile", "-scale-to", "1800", "-png", path, testInfo.outputPath("phase-headers")]);
+    } catch {
+      // pdftoppm is not installed on this machine.
+    }
     const headers = await page.evaluate(() => {
       type Header = { top: number; right: number; singleLine: boolean; clear: boolean; durationClear: boolean; contained: boolean; overflow: boolean };
       const state = window as unknown as { phaseHeaders: Header[]; clonedPhaseHeaders: Header[] };

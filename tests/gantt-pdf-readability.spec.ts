@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
+import { pdfInfo } from "./support/pdf-info";
 
 test("full Gantt report keeps task labels readable on one 11 x 17 sheet", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
@@ -78,7 +78,9 @@ test("full Gantt report keeps task labels readable on one 11 x 17 sheet", async 
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/process-overview");
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export Gantt PDF" }).click();
+  // The Gantt report is in the toolbar Export menu.
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("High Level Process System Flowchart with Gantt Chart", { exact: true }).click();
   const path = testInfo.outputPath("full-gantt-report.pdf");
   await (await pending).saveAs(path);
   const typography = await page.evaluate(() => (window as unknown as { reportTypography: { width: number; height: number; labelCssPx: number; cardOverflow: boolean; barsStayInRows: boolean; taskRowHeights: number[]; clippedTaskTitles: string[]; labelsClearBars: boolean; documentSectionsOverlap: boolean; phaseHeight: number; departmentHeight: number; chartHeight: number; footerHeight: number; documentColumns: { department: string; columns: number }[] } }).reportTypography);
@@ -93,6 +95,7 @@ test("full Gantt report keeps task labels readable on one 11 x 17 sheet", async 
   expect(typography.documentColumns.find((card) => card.department.startsWith("Technical"))?.columns).toBeGreaterThanOrEqual(2);
   expect(typography.documentColumns.find((card) => card.department.startsWith("Site/After"))?.columns).toBe(1);
   expect(effectiveLabelPoints).toBeGreaterThanOrEqual(8);
-  expect(execFileSync("pdfinfo", [path], { encoding: "utf8" })).toMatch(/Pages:\s+1\b/);
+  // Page 1 holds the whole Gantt report; page 2 is the production calendar.
+  expect(pdfInfo(path)).toMatch(/Pages:\s+2\b/);
 
 });
