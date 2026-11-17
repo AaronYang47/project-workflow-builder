@@ -1,178 +1,35 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from "react";
-import Link from "next/link";
-import { ArrowRight, CloudUpload, Download, FileCheck2, FileUp, FolderArchive, GripVertical, ListChecks, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from "react";
+import { ArrowRight, Download, FileUp, GripVertical, ListChecks, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { TopToolbar } from "./top-toolbar";
 import { AuthGate } from "./auth-gate";
 import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
 import { isReleaseConditionChapter, RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
 import { downloadReleaseConditionTemplate, parseReleaseConditionExcel } from "@/lib/release-condition-excel";
-import { fetchUploadedFilesFromR2, isFormReferenceRecord, type UploadedFileRecord, uploadFileToR2 } from "@/lib/file-storage";
-import { formReferencesForCondition } from "@/lib/form-reference-catalog";
-import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { orderReleaseConditionChapters } from "@/lib/release-condition-order";
 import { conditionDurationLabel } from "@/lib/condition-duration";
-import { getL1FallbackColor } from "@/lib/node-layout";
-import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
-import { releaseConditionForms } from "@/lib/release-condition-forms";
-import { type Condition, type DomainNode, type WorkflowFile } from "@/types/workflow";
+import { type Condition, type DomainNode } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
-
-const conditionText = (condition: Condition, index: number) =>
-  condition.label || condition.description || `Release condition ${index + 1}`;
-
-const chapterConditions = (node: DomainNode) => [...node.conditions, ...(node.optionalConditions ?? [])];
-const findChapterCondition = (node: DomainNode | undefined, id: string | undefined, index: number) =>
-  node ? id ? chapterConditions(node).find((condition) => condition.id === id) : chapterConditions(node)[index] : undefined;
-
-type WorkspaceDocument = {
-  id: string;
-  title: string;
-  code?: string;
-  fileName?: string;
-  dataUrl?: string;
-  url?: string;
-  checked?: boolean;
-  required?: boolean;
-  status?: string;
-  notes?: string;
-  category?: "legal" | "customer" | "supporting";
-  formKind?: "customer-selection";
-  [key: string]: unknown;
-};
-
-type DocumentCategory = "legal" | "customer" | "supporting";
-type DocumentField = "legalDocuments" | "customerDocuments" | "supportingDocuments";
-
-function documentField(category: DocumentCategory): DocumentField {
-  return category === "legal" ? "legalDocuments" : category === "customer" ? "customerDocuments" : "supportingDocuments";
-}
-
-function categoryForField(field: DocumentField): DocumentCategory {
-  return field === "legalDocuments" ? "legal" : field === "customerDocuments" ? "customer" : "supporting";
-}
-
-const DOCUMENT_GROUPS = [
-  { field: "legalDocuments", title: "Required Documents", tint: "indigo" },
-  { field: "customerDocuments", title: "Customer Information", tint: "sky" },
-  { field: "supportingDocuments", title: "Supporting Documents", tint: "emerald" },
-] as const;
-
-function conditionDocuments(node: DomainNode, condition: Condition, field: typeof DOCUMENT_GROUPS[number]["field"]): WorkspaceDocument[] {
-  if (field === "legalDocuments") {
-    return releaseConditionForms(node, condition).map((document) => ({
-      ...document,
-      id: document.id,
-      title: document.title,
-      checked: document.checked,
-      required: document.required,
-      status: document.status,
-    }));
-  }
-
-  const conditionId = condition.id?.trim() || "default";
-  const key = `${field}::release-condition::${conditionId}`;
-  const raw = node.customFields?.[key] ?? (node.conditions[0]?.id === condition.id ? node.customFields?.[field] : undefined);
-  if (typeof raw !== "string") return formReferencesForCondition(node, condition)
-    .filter((form) => form.category === categoryForField(field))
-    .map((form) => ({ id: `catalog-${form.category}-${form.code}-${condition.id || "default"}`, title: form.title, code: form.code, category: form.category, checked: false, required: form.category !== "supporting", status: form.category === "supporting" ? "Optional" : "Required" }));
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((document): document is WorkspaceDocument =>
-      Boolean(document && typeof document === "object" && "id" in document && typeof document.id === "string" && "title" in document && typeof document.title === "string"),
-    ).filter((document) => {
-      if (field === "customerDocuments") {
-        return !document.id?.startsWith("cust-") &&
-          document.fileName !== "Customer_Project_Spec_2026.pdf" &&
-          document.fileName !== "Client_Signatory_Authorization.pdf";
-      }
-      return !document.id?.startsWith("supp-") &&
-        document.fileName !== "Site_Foundation_Survey_Plan.pdf" &&
-        document.fileName !== "Class_CD_Cost_Estimate_Model.xlsx";
-    });
-  } catch {
-    return [];
-  }
-}
-
-function conditionFormCount(node: DomainNode, condition: Condition) {
-  return DOCUMENT_GROUPS.reduce((count, group) => count + conditionDocuments(node, condition, group.field).length, 0);
-}
-
-function departmentBoardHeading(node: DomainNode) {
-  const stage = String(node.config.stage ?? "").trim();
-  const title = node.title.trim();
-  const titleChapter = title.match(/^chapter\s*(\d+)$/i)?.[1];
-  const stageChapter = stage.match(/^(?:(?:chapter|department)\s*)?(\d+)$/i)?.[1];
-  const chapterNumber = titleChapter || stageChapter;
-  const rawDepartment = stageChapter
-    ? ""
-    : stage.replace(/^(?:department|chapter)\s*/i, "").replace(/\s+department$/i, "").trim();
-  const rawName = rawDepartment || (!titleChapter ? title : "");
-  const partiallyInvolved = /\s+partially\s+involved$/i.test(rawName);
-  const departmentName = rawName.replace(/\s+partially\s+involved$/i, "").replace(/^department\s*/i, "").replace(/\s+department$/i, "").trim();
-  return {
-    department: departmentName && !/^department$/i.test(departmentName)
-      ? `${departmentName} Department${partiallyInvolved ? " Partially Involved" : ""}`
-      : "Department",
-    chapter: chapterNumber ? `CHAPTER ${chapterNumber.padStart(2, "0")}` : title,
-  };
-}
-
-type ProcessMapGroup = {
-  id: string;
-  kind: string;
-  title: string;
-  description: string;
-  color: string;
-  chapters: DomainNode[];
-};
-
-type DocumentDialogTarget = {
-  chapterId: string;
-  conditionId?: string;
-  conditionIndex: number;
-  category: DocumentCategory;
-};
-
-type DocumentDialogFlow = "single" | "library-batch";
-
-function titleFromFileName(fileName: string) {
-  const name = fileName.split(/[\\/]/).pop() || fileName;
-  return name.replace(/\.[^.]+$/, "").trim() || name;
-}
-
-function processStepName(group: ProcessMapGroup) {
-  const description = group.description.trim();
-  if (description) return description;
-  return group.title.replace(/^phase\s*\d+$/i, "Phase").trim() || group.title;
-}
-
-function chapterPhaseId(chapter: DomainNode, file: WorkflowFile) {
-  const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));
-  const configPhaseId = typeof chapter.config.phaseId === "string" ? chapter.config.phaseId : undefined;
-  if (configPhaseId && nodeById.get(configPhaseId)?.type === "phase") return configPhaseId;
-  let parentId = file.layout.nodes[chapter.id]?.parentId;
-  const visited = new Set<string>();
-  while (parentId && !visited.has(parentId)) {
-    visited.add(parentId);
-    const parent = nodeById.get(parentId);
-    if (parent?.type === "phase") return parent.id;
-    parentId = file.layout.nodes[parentId]?.parentId;
-  }
-  return undefined;
-}
-
-function fitConditionText(element: HTMLTextAreaElement | null) {
-  if (!element) return;
-  element.style.height = "auto";
-  element.style.height = `${element.scrollHeight}px`;
-}
+import {
+  conditionText,
+  chapterConditions,
+  type DocumentCategory,
+  DOCUMENT_GROUPS,
+  conditionDocuments,
+  conditionFormCount,
+  departmentBoardHeading,
+  type DocumentDialogFlow,
+  processStepName,
+  fitConditionText,
+  buildProcessMap,
+} from "@/lib/release-conditions-workspace-model";
+import { AddDocumentDialog, type DocumentDialogRequest } from "./release-conditions/add-document-dialog";
+import { AssignConditionDialog } from "./release-conditions/assign-condition-dialog";
+import { ConditionFormsDialog } from "./release-conditions/condition-forms-dialog";
+import { OptionalConditionsDialog } from "./release-conditions/optional-conditions-dialog";
 
 function ConditionTextArea({ value, ...props }: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value"> & { value: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -196,27 +53,11 @@ export function ReleaseConditionsWorkspace() {
   const [selectedProcessConditionRef, setSelectedProcessCondition] = useState<{ id?: string; index: number } | null>(null);
   const [selectedProcessStepId, setSelectedProcessStepId] = useState<string | null>(null);
   const [documentsPopupOpen, setDocumentsPopupOpen] = useState(false);
-  const [optionalEditorChapterId, setOptionalEditorChapterId] = useState<string | null>(null);
   const [optionalPopupChapterId, setOptionalPopupChapterId] = useState<string | null>(null);
-  const [optionalTitle, setOptionalTitle] = useState("");
-  const [optionalDuration, setOptionalDuration] = useState("");
-  const [optionalUnit, setOptionalUnit] = useState<"days" | "weeks">("days");
   const [excelBusy, setExcelBusy] = useState(false);
   const [excelMessage, setExcelMessage] = useState<{ text: string; error: boolean } | null>(null);
-  const [documentDialogTarget, setDocumentDialogTarget] = useState<DocumentDialogTarget | null>(null);
-  const [documentDialogFlow, setDocumentDialogFlow] = useState<DocumentDialogFlow>("single");
-  const [documentLibrary, setDocumentLibrary] = useState<UploadedFileRecord[]>([]);
-  const [documentMode, setDocumentMode] = useState<"custom" | "library" | "upload">("custom");
-  const [selectedLibraryFileId, setSelectedLibraryFileId] = useState("");
-  const [selectedLibraryFileIds, setSelectedLibraryFileIds] = useState<string[]>([]);
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [documentRequired, setDocumentRequired] = useState(true);
-  const [documentUploadFiles, setDocumentUploadFiles] = useState<File[]>([]);
-  const [documentBusy, setDocumentBusy] = useState(false);
-  const [documentError, setDocumentError] = useState("");
-  const [documentMessage, setDocumentMessage] = useState("");
+  const [documentRequest, setDocumentRequest] = useState<DocumentDialogRequest | null>(null);
   const excelInput = useRef<HTMLInputElement>(null);
-  const documentInput = useRef<HTMLInputElement>(null);
   const file = useWorkflowStore((state) => state.file);
   const canEditWorkflow = useCollaborationStore((state) => canEditCollaborativeWorkflow(state));
   const collaborationRoomId = useCollaborationStore((state) => state.roomId);
@@ -235,164 +76,21 @@ export function ReleaseConditionsWorkspace() {
   const updateHighLevelNode = useWorkflowStore((state) => state.updateHighLevelNode);
   const inbox = file.releaseConditionInbox ?? [];
 
-  const documentCategory = documentDialogTarget?.category;
-  useEffect(() => {
-    if (!documentCategory) return;
-    let cancelled = false;
-    void fetchUploadedFilesFromR2(documentCategory).then((files) => {
-      if (!cancelled) setDocumentLibrary(files);
-    });
-    return () => { cancelled = true; };
-  }, [documentCategory]);
 
-  const openDocumentDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) => {
+
+
+
+
+
+
+  const requestDocumentDialog = (flow: DocumentDialogFlow, chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) => {
     const isOptional = (chapter.optionalConditions ?? []).some((item) => item.id === condition.id);
-    setDocumentDialogFlow("single");
-    setDocumentMode("custom");
-    setSelectedLibraryFileId("");
-    setSelectedLibraryFileIds([]);
-    setDocumentTitle("");
-    setDocumentRequired(!isOptional);
-    setDocumentUploadFiles([]);
-    setDocumentError("");
-    setDocumentMessage("");
-    setDocumentDialogTarget({ chapterId: chapter.id, conditionId: condition.id, conditionIndex, category });
+    setDocumentRequest({ flow, required: !isOptional, target: { chapterId: chapter.id, conditionId: condition.id, conditionIndex, category } });
   };
-
-  const openLibraryBatchDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) => {
-    const isOptional = (chapter.optionalConditions ?? []).some((item) => item.id === condition.id);
-    setDocumentDialogFlow("library-batch");
-    setSelectedLibraryFileId("");
-    setSelectedLibraryFileIds([]);
-    setDocumentTitle("");
-    setDocumentRequired(!isOptional);
-    setDocumentUploadFiles([]);
-    setDocumentError("");
-    setDocumentMessage("");
-    setDocumentDialogTarget({ chapterId: chapter.id, conditionId: condition.id, conditionIndex, category });
-  };
-
-  const persistConditionDocuments = (chapterId: string, conditionId: string | undefined, conditionIndex: number, field: DocumentField, documents: WorkspaceDocument[]) => {
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapterId);
-    if (!latest) return;
-    const condition = findChapterCondition(latest, conditionId, conditionIndex);
-    if (!condition) return;
-    const key = `${field}::release-condition::${condition.id?.trim() || "default"}`;
-    updateNode(latest.id, {
-      customFields: { ...latest.customFields, [key]: JSON.stringify(documents) },
-    });
-  };
-
-  const removeConditionDocument = (chapter: DomainNode, conditionId: string | undefined, conditionIndex: number, field: DocumentField, documentId: string) => {
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapter.id);
-    const condition = findChapterCondition(latest, conditionId, conditionIndex);
-    if (!latest || !condition) return;
-    const documents = conditionDocuments(latest, condition, field).filter((document) => document.id !== documentId);
-    persistConditionDocuments(latest.id, condition.id, conditionIndex, field, documents);
-  };
-
-  const addConditionDocument = async () => {
-    const target = documentDialogTarget;
-    if (!target || (documentMode !== "upload" && !documentTitle.trim())) return;
-    setDocumentBusy(true);
-    setDocumentError("");
-    try {
-      const field = documentField(target.category);
-      const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === target.chapterId);
-      const condition = findChapterCondition(latest, target.conditionId, target.conditionIndex);
-      if (!latest || !condition) throw new Error("This release condition is no longer available.");
-      const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
-      const required = isOptional ? false : documentRequired;
-      const prefix = target.category === "legal" ? "LEG" : target.category === "customer" ? "CUST" : "SUP";
-      const documents = conditionDocuments(latest, condition, field);
-      if (documentMode === "upload") {
-        if (!documentUploadFiles.length) throw new Error("Choose one or more files to upload.");
-        const additions: WorkspaceDocument[] = [];
-        for (const upload of documentUploadFiles) {
-          const title = titleFromFileName(upload.name);
-          const attachment = await uploadFileToR2(upload, { category: target.category, title, description: "" });
-          additions.push({
-            id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            title,
-            code: `${prefix}-${Math.floor(10 + Math.random() * 90)}`,
-            fileName: attachment.fileName,
-            dataUrl: attachment.dataUrl,
-            url: attachment.url,
-            notes: attachment.description,
-            category: target.category,
-            status: required ? "Required" : "Optional",
-            checked: false,
-            required,
-          });
-        }
-        persistConditionDocuments(latest.id, condition.id, target.conditionIndex, field, [...documents, ...additions]);
-      } else {
-        let attachment: UploadedFileRecord | undefined;
-        if (documentMode === "library") {
-          attachment = documentLibrary.find((item) => item.id === selectedLibraryFileId);
-          if (!attachment) throw new Error("Select a file from Library or choose a custom entry.");
-        }
-        const document: WorkspaceDocument = {
-          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          title: documentTitle.trim(),
-          code: `${prefix}-${Math.floor(10 + Math.random() * 90)}`,
-          ...(attachment && !isFormReferenceRecord(attachment) ? { fileName: attachment.fileName, dataUrl: attachment.dataUrl, url: attachment.url, notes: attachment.description } : {}),
-          category: target.category,
-          status: required ? "Required" : "Optional",
-          checked: false,
-          required,
-          ...(isCustomerSelectionForm(attachment ?? {}) ? { formKind: "customer-selection" as const } : {}),
-        };
-        const retained = attachment && !isFormReferenceRecord(attachment)
-          ? documents.filter((item) => !(item.id.startsWith("catalog-") && item.title.toLowerCase() === document.title.toLowerCase()))
-          : documents;
-        persistConditionDocuments(latest.id, condition.id, target.conditionIndex, field, [...retained, document]);
-      }
-      setDocumentDialogTarget(null);
-    } catch (error) {
-      setDocumentError(error instanceof Error ? error.message : "Could not add this document.");
-    } finally {
-      setDocumentBusy(false);
-    }
-  };
-
-  const addLibraryForms = () => {
-    const target = documentDialogTarget;
-    if (!target || !selectedLibraryFileIds.length) return;
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === target.chapterId);
-    const condition = findChapterCondition(latest, target.conditionId, target.conditionIndex);
-    if (!latest || !condition) {
-      setDocumentError("This release condition is no longer available.");
-      return;
-    }
-    const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
-    const required = isOptional ? false : documentRequired;
-    const field = documentField(target.category);
-    const current = conditionDocuments(latest, condition, field);
-    const selected = documentLibrary.filter((item) => selectedLibraryFileIds.includes(item.id));
-    const replacingTitles = new Set(selected.filter((item) => !isFormReferenceRecord(item)).map((item) => item.title.toLowerCase()));
-    const retained = current.filter((item) => !(item.id.startsWith("catalog-") && replacingTitles.has(item.title.toLowerCase())));
-    const existing = new Set(retained.map((document) => document.title.toLowerCase()));
-    const additions = selected.filter((item) => {
-      const key = item.title.toLowerCase();
-      if (existing.has(key)) return false;
-      existing.add(key);
-      return true;
-    }).map((attachment) => ({
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: attachment.title || titleFromFileName(attachment.fileName),
-      ...(isFormReferenceRecord(attachment) ? { code: attachment.fileName } : { fileName: attachment.fileName, dataUrl: attachment.dataUrl, url: attachment.url, notes: attachment.description }),
-      category: target.category,
-      status: required ? "Required" : "Optional",
-      checked: false,
-      required,
-      ...(isCustomerSelectionForm(attachment) ? { formKind: "customer-selection" as const } : {}),
-    } satisfies WorkspaceDocument));
-    persistConditionDocuments(latest.id, condition.id, target.conditionIndex, field, [...retained, ...additions]);
-    const skipped = selected.length - additions.length;
-    setDocumentMessage(`${additions.length} form${additions.length === 1 ? "" : "s"} added${skipped ? ` · ${skipped} already existed` : ""}.`);
-    setSelectedLibraryFileIds([]);
-  };
+  const openDocumentDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) =>
+    requestDocumentDialog("single", chapter, condition, conditionIndex, category);
+  const openLibraryBatchDialog = (chapter: DomainNode, condition: Condition, conditionIndex: number, category: DocumentCategory) =>
+    requestDocumentDialog("library-batch", chapter, condition, conditionIndex, category);
 
   const chapters = useMemo(() => file.graph.nodes.filter(isReleaseConditionChapter), [file.graph.nodes]);
   const orderedChapters = useMemo(() => orderReleaseConditionChapters(chapters, file), [chapters, file]);
@@ -404,68 +102,7 @@ export function ReleaseConditionsWorkspace() {
     .filter(({ condition, index }) => !needle || conditionText(condition, index).toLowerCase().includes(needle));
   const matchCount = visibleInbox.length + chapters.reduce((count, chapter) => count + chapter.conditions.filter((condition, index) =>
     !needle || conditionText(condition, index).toLowerCase().includes(needle)).length, 0);
-  const processMap = useMemo(() => {
-    const highLevel = file.highLevel?.graph;
-    const orderedHighLevel = highLevel
-      ? orderHighLevelNodes(highLevel.nodes, highLevel.edges)
-      : [];
-    const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
-    const highLevelGroups = orderedHighLevel.map((step, index) => {
-      const linkedIds = step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? [];
-      const linkedChapters = linkedIds.flatMap((id) => {
-        const chapter = chapterById.get(id);
-        return chapter ? [chapter] : [];
-      });
-      return {
-        id: step.id,
-        kind: step.type,
-        title: step.title,
-        description: step.description,
-        color: step.backgroundColor && step.backgroundColor !== "transparent"
-          ? step.backgroundColor
-          : getL1FallbackColor(step.title, index),
-        chapters: linkedChapters,
-      } satisfies ProcessMapGroup;
-    });
-    const hasHighLevelDepartmentLinks = highLevelGroups.some((group) => group.chapters.length > 0);
-
-    let groups: ProcessMapGroup[];
-    if (hasHighLevelDepartmentLinks) {
-      groups = highLevelGroups;
-    } else {
-      const phaseNodes = file.graph.nodes.filter((node) => node.type === "phase")
-        .sort((left, right) => (file.layout.nodes[left.id]?.x ?? 0) - (file.layout.nodes[right.id]?.x ?? 0));
-      groups = phaseNodes.map((phase, index) => ({
-        id: phase.id,
-        kind: "phase",
-        title: phase.title,
-        description: phase.description,
-        color: phase.color || getL1FallbackColor(phase.description || phase.title, index),
-        chapters: chapters.filter((chapter) => chapterPhaseId(chapter, file) === phase.id),
-      }));
-    }
-
-    const linkedChapterIds = new Set(groups.flatMap((group) => group.chapters.map((chapter) => chapter.id)));
-    const unlinkedChapters = chapters.filter((chapter) => !linkedChapterIds.has(chapter.id));
-    if (unlinkedChapters.length) {
-      groups = [...groups, {
-        id: "__unlinked-process-step__",
-        kind: "unlinked",
-        title: "No process link",
-        description: "Assign this Department to an L1 step to place it in the process map.",
-        color: "#64748b",
-        chapters: unlinkedChapters,
-      }];
-    }
-
-    const locationsByChapter = new Map<string, Array<{ group: ProcessMapGroup; position: number }>>();
-    for (const group of groups) {
-      group.chapters.forEach((chapter, position) => {
-        locationsByChapter.set(chapter.id, [...(locationsByChapter.get(chapter.id) ?? []), { group, position }]);
-      });
-    }
-    return { groups, locationsByChapter };
-  }, [chapters, file]);
+  const processMap = useMemo(() => buildProcessMap(file, chapters), [chapters, file]);
 
   const selectProcessLocation = (nodeId: string | null, condition?: { id?: string; index: number } | null, stepId?: string | null, scrollToBoard = false) => {
     setSelectedProcessNodeId(nodeId);
@@ -554,35 +191,6 @@ export function ReleaseConditionsWorkspace() {
     const currentIndex = conditionId ? latest.findIndex((condition) => condition.id === conditionId) : index;
     if (currentIndex < 0 || !latest[currentIndex]) return;
     setInbox(latest.map((condition, current) => current === currentIndex ? { ...condition, ...patch } : condition));
-  };
-  const createOptionalCondition = (chapterId: string) => {
-    if (!canEditWorkflow || !optionalTitle.trim()) return;
-    const duration = Number(optionalDuration);
-    if (!Number.isInteger(duration) || duration <= 0) return;
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapterId);
-    if (!latest) return;
-    updateNode(chapterId, { optionalConditions: [...(latest.optionalConditions ?? []), {
-      id: `optional-${crypto.randomUUID()}`, label: optionalTitle.trim(), duration, durationUnit: optionalUnit,
-    }] });
-    setOptionalEditorChapterId(null);
-    setOptionalTitle("");
-    setOptionalDuration("");
-    setOptionalUnit("days");
-  };
-  const updateOptionalCondition = (chapterId: string, conditionId: string | undefined, patch: Partial<Condition>) => {
-    if (!canEditWorkflow || !conditionId) return;
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapterId);
-    if (!latest) return;
-    updateNode(chapterId, { optionalConditions: (latest.optionalConditions ?? []).map((condition) => condition.id === conditionId ? { ...condition, ...patch } : condition) });
-  };
-  const removeOptionalCondition = (chapterId: string, conditionId: string | undefined) => {
-    if (!canEditWorkflow || !conditionId) return;
-    const latest = useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === chapterId);
-    if (!latest) return;
-    const customFields = { ...latest.customFields };
-    for (const group of DOCUMENT_GROUPS) delete customFields[`${group.field}::release-condition::${conditionId}`];
-    updateNode(chapterId, { optionalConditions: (latest.optionalConditions ?? []).filter((condition) => condition.id !== conditionId), customFields });
-    if (selectedProcessCondition?.id === conditionId) setDocumentsPopupOpen(false);
   };
   const move = (sourceId: string, sourceIndex: number, targetId: string, targetIndex?: number) => {
     const target = chapters.find((chapter) => chapter.id === targetId);
@@ -730,20 +338,9 @@ export function ReleaseConditionsWorkspace() {
               </div>
             </section>
 
-            {assignInboxCondition && (() => {
-              const sourceIndex = assignInboxCondition.id ? inbox.findIndex((condition) => condition.id === assignInboxCondition.id) : assignInboxCondition.index;
-              const condition = inbox[sourceIndex];
-              if (!condition) return null;
-              return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAssignInboxCondition(null); }}>
-                <section role="dialog" aria-modal="true" aria-labelledby="assign-condition-title" className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border bg-panel shadow-2xl">
-                  <header className="flex shrink-0 items-start justify-between gap-3 border-b p-4"><div className="min-w-0"><h2 id="assign-condition-title" className="text-sm font-bold">Assign release condition</h2><p className="mt-1 break-words text-xs text-muted-foreground">{conditionText(condition, sourceIndex)}</p></div><button type="button" aria-label="Close assignment" onClick={() => setAssignInboxCondition(null)} className="flex size-9 shrink-0 items-center justify-center rounded-lg border"><X className="size-4" /></button></header>
-                  <div className="scroll-thin min-h-0 space-y-2 overflow-y-auto p-3"><p className="px-1 text-xs text-muted-foreground">Choose the destination department and chapter.</p>{chapters.map((chapter) => {
-                    const heading = departmentBoardHeading(chapter);
-                    return <button key={chapter.id} type="button" aria-label={`Assign to ${heading.department} ${heading.chapter}`} onClick={() => assignFromInbox(chapter.id)} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-left hover:border-primary/60 hover:bg-primary/5"><span className="min-w-0"><span className="block truncate text-xs font-semibold">{heading.department}</span><span className="block text-[10px] text-muted-foreground">{heading.chapter}</span></span><ArrowRight className="size-4 shrink-0 text-primary" /></button>;
-                  })}</div>
-                </section>
-              </div>;
-            })()}
+            {assignInboxCondition ? (
+              <AssignConditionDialog request={assignInboxCondition} inbox={inbox} chapters={chapters} onAssign={assignFromInbox} onClose={() => setAssignInboxCondition(null)} />
+            ) : null}
 
             <section aria-label="Department condition board" className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div className="flex shrink-0 items-center justify-between border-b px-3 py-2 lg:justify-end lg:px-5">
@@ -862,237 +459,30 @@ export function ReleaseConditionsWorkspace() {
             </section>
           </div>
         )}
-        {optionalPopupChapterId ? (() => {
-          const chapter = file.graph.nodes.find((node) => node.id === optionalPopupChapterId);
-          if (!chapter) return null;
-          const heading = departmentBoardHeading(chapter);
-          const close = () => { setOptionalPopupChapterId(null); setOptionalEditorChapterId(null); };
-          return <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }} onKeyDown={(event) => { if (event.key === "Escape") close(); }}>
-            <section role="dialog" aria-modal="true" aria-labelledby="optional-conditions-title" className="flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl">
-              <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-primary/[0.06] px-4 py-3">
-                <div className="min-w-0"><p className="truncate text-[10px] font-semibold text-primary">{heading.department} · {heading.chapter}</p><h2 id="optional-conditions-title" className="text-sm font-bold">Optional Conditions · {(chapter.optionalConditions ?? []).length}</h2></div>
-                <button type="button" aria-label="Close Optional Conditions" onClick={close} className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
-              </header>
-              <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {canEditWorkflow ? <button type="button" aria-label={`Add Optional Condition to ${heading.department} ${heading.chapter}`} onClick={() => { setOptionalEditorChapterId(chapter.id); setOptionalTitle(""); setOptionalDuration(""); setOptionalUnit("days"); }} className="flex items-center gap-1 rounded border px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"><Plus className="size-4" /> Add Optional Condition</button> : null}
-                {optionalEditorChapterId === chapter.id ? <form aria-label={`New optional condition for ${heading.department} ${heading.chapter}`} onSubmit={(event) => { event.preventDefault(); createOptionalCondition(chapter.id); }} className="grid gap-2 rounded-lg border bg-background/70 p-3">
-                  <input autoFocus aria-label="Optional condition name" value={optionalTitle} onChange={(event) => setOptionalTitle(event.target.value)} placeholder="Optional condition name" className="h-9 rounded border bg-background px-3 text-xs" required />
-                  <div className="flex gap-2"><input aria-label="Optional condition duration" type="number" min="1" step="1" value={optionalDuration} onChange={(event) => setOptionalDuration(event.target.value)} placeholder="Time needed" className="h-9 min-w-0 flex-1 rounded border bg-background px-3 text-xs" required /><select aria-label="Optional condition duration unit" value={optionalUnit} onChange={(event) => setOptionalUnit(event.target.value as "days" | "weeks")} className="h-9 rounded border bg-background px-2 text-xs"><option value="days">Days</option><option value="weeks">Weeks</option></select></div>
-                  <div className="flex justify-end gap-2"><button type="button" onClick={() => setOptionalEditorChapterId(null)} className="rounded border px-3 py-2 text-xs">Cancel</button><button type="submit" className="rounded bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Optional Condition</button></div>
-                </form> : null}
-                {(chapter.optionalConditions ?? []).map((condition, index) => {
-                  const formsCount = conditionFormCount(chapter, condition);
-                  const fullIndex = chapter.conditions.length + index;
-                  return <div key={condition.id || index} role="group" aria-label={`Optional condition: ${conditionText(condition, index)}`} className="rounded-lg border bg-background/70 p-3">
-                    <div className="flex items-start gap-2"><span className="min-w-0 flex-1 text-sm font-semibold leading-5">{conditionText(condition, index)}</span>{canEditWorkflow ? <button type="button" aria-label={`Remove optional condition ${conditionText(condition, index)}`} onClick={() => removeOptionalCondition(chapter.id, condition.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button> : null}</div>
-                    <div className="mt-2 flex items-center gap-2"><input aria-label={`Time needed for ${conditionText(condition, index)}`} type="number" min="1" step="1" value={condition.duration ?? ""} disabled={!canEditWorkflow} onChange={(event) => { const value = event.target.valueAsNumber; updateOptionalCondition(chapter.id, condition.id, { duration: Number.isInteger(value) && value > 0 ? value : undefined }); }} className="h-9 w-20 shrink-0 rounded border bg-background px-2 text-xs" /><select aria-label={`Time unit for ${conditionText(condition, index)}`} value={condition.durationUnit || "days"} disabled={!canEditWorkflow} onChange={(event) => updateOptionalCondition(chapter.id, condition.id, { durationUnit: event.target.value as "days" | "weeks" })} className="h-9 rounded border bg-background px-2 text-xs"><option value="days">Days</option><option value="weeks">Weeks</option></select><button type="button" aria-label={`View forms for ${conditionText(condition, index)}`} onClick={() => { selectProcessLocation(chapter.id, { id: condition.id, index: fullIndex }); setDocumentsPopupOpen(true); }} className="ml-auto shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20">{formsCount} {formsCount === 1 ? "form" : "forms"}</button></div>
-                  </div>;
-                })}
-                {!(chapter.optionalConditions ?? []).length ? <p className="rounded-lg border border-dashed p-5 text-center text-xs text-muted-foreground">No optional conditions yet.</p> : null}
-              </div>
-            </section>
-          </div>;
-        })() : null}
-        {documentsPopupOpen && selectedProcessChapter && selectedProcessCondition ? (() => {
-          const chapter = selectedProcessChapter;
-          const condition = selectedProcessCondition;
-          const conditionIndex = selectedProcessConditionIndex;
-          const heading = departmentBoardHeading(chapter);
-          const documentColumns = DOCUMENT_GROUPS.map((group) => ({
-            ...group,
-            documents: conditionDocuments(chapter, condition, group.field).filter((document) => {
-              if (!needle || conditionText(condition, conditionIndex).toLowerCase().includes(needle)) return true;
-              return `${document.title} ${document.fileName ?? ""}`.toLowerCase().includes(needle);
-            }),
-          }));
-          return (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/25 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDocumentsPopupOpen(false); }}>
-              <section role="dialog" aria-modal="true" aria-labelledby="release-condition-forms-title" className="flex max-h-[88dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/50 bg-background/65 shadow-2xl backdrop-blur-2xl supports-[backdrop-filter]:bg-background/55 dark:border-white/15">
-                <header className="flex shrink-0 items-start justify-between gap-3 border-b border-white/40 bg-background/35 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4 dark:border-white/10">
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">{heading.department} · {heading.chapter}</p>
-                    <h2 id="release-condition-forms-title" className="mt-1 truncate text-sm font-bold sm:text-base">{conditionText(condition, conditionIndex)}</h2>
-                    <p className="mt-1 text-[10px] text-muted-foreground">Forms linked to this {selectedProcessConditionIsOptional ? "optional condition" : "release condition"}</p>
-                  </div>
-                  {canEditWorkflow && !selectedProcessConditionIsOptional ? <Link href={`${workflowHref}${workflowHref.includes("?") ? "&" : "?"}executionNode=${encodeURIComponent(chapter.id)}&condition=${encodeURIComponent(condition.id || "")}`} className="shrink-0 rounded border px-2 py-1 text-[10px] font-semibold text-primary">Forms & execution details</Link> : null}
-                  <button type="button" aria-label="Close forms window" onClick={() => setDocumentsPopupOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/40 bg-background/45 text-muted-foreground transition hover:bg-background/75 hover:text-foreground dark:border-white/10"><X className="size-4" /></button>
-                </header>
-                <div className="scroll-thin grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 sm:p-5 md:grid-cols-3">
-                  {documentColumns.map((column) => {
-                    const colors = column.tint === "indigo"
-                      ? { border: "border-indigo-500/30", header: "bg-indigo-500/[0.09] text-indigo-700 dark:text-indigo-300", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", hover: "hover:border-indigo-500/45" }
-                      : column.tint === "sky"
-                        ? { border: "border-sky-500/30", header: "bg-sky-500/[0.09] text-sky-700 dark:text-sky-300", badge: "bg-sky-500/10 text-sky-700 dark:text-sky-300", hover: "hover:border-sky-500/45" }
-                        : { border: "border-emerald-500/30", header: "bg-emerald-500/[0.09] text-emerald-700 dark:text-emerald-300", badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", hover: "hover:border-emerald-500/45" };
-                    const completed = column.documents.filter((document) => document.checked).length;
-                    const category = categoryForField(column.field);
-                    return (
-                      <section key={column.field} aria-label={column.title} className={`flex min-h-52 min-w-0 flex-col overflow-hidden rounded-xl border bg-background/35 backdrop-blur-xl ${colors.border}`}>
-                        <header className={`flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-white/30 px-3 py-2 dark:border-white/10 ${colors.header}`}>
-                          <h3 className="min-w-0 text-[11px] font-bold leading-4">{column.title}</h3>
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${colors.badge}`}>{completed}/{column.documents.length}</span>
-                            <button type="button" onClick={() => openDocumentDialog(chapter, condition, conditionIndex, category)} aria-label={`Add ${column.title}`} title={`Add ${column.title}`} className="flex size-6 items-center justify-center rounded text-current transition hover:bg-background/70"><Plus className="size-3.5" /></button>
-                          </div>
-                        </header>
-                        <button type="button" onClick={() => openLibraryBatchDialog(chapter, condition, conditionIndex, category)} aria-label={`Add Forms from Library to ${column.title}`} className="mx-2 mt-2 flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-dashed border-white/50 bg-background/35 px-2 py-1.5 text-[9px] font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-primary dark:border-white/15"><FolderArchive className="size-3" /> Add Forms from Library</button>
-                        <div className="scroll-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
-                          {column.documents.map((document) => (
-                            <div key={document.id || document.title} className={`flex min-w-0 items-stretch rounded-lg border bg-background/50 ${colors.hover}`}>
-                              <div className="min-w-0 flex-1 px-2.5 py-2">
-                                <p className="break-words text-[10px] font-semibold leading-4 text-foreground">{document.title}</p>
-                                {document.fileName ? <p className="mt-0.5 truncate text-[9px] text-muted-foreground">{document.fileName}</p> : <p className="mt-0.5 text-[9px] text-muted-foreground">Custom entry · no attached file</p>}
-                                <span className={`mt-1 inline-flex rounded px-1 py-0.5 text-[8px] font-bold uppercase ${document.checked ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : document.required === false ? "bg-muted text-muted-foreground" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>{document.checked ? "Done" : document.required === false ? "Optional" : "Required"}</span>
-                              </div>
-                              <button type="button" aria-label={`Remove ${document.title}`} title="Remove form from this release condition" onClick={() => removeConditionDocument(chapter, condition.id, conditionIndex, column.field, document.id)} className="flex w-8 shrink-0 items-center justify-center rounded-r-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
-                            </div>
-                          ))}
-                          {!column.documents.length ? <p className="rounded-lg border border-dashed border-white/50 px-2 py-4 text-center text-[9px] leading-4 text-muted-foreground dark:border-white/15">No forms added.</p> : null}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-              </section>
-            </div>
-          );
-        })() : null}
-        {documentDialogTarget ? (() => {
-          const targetChapter = file.graph.nodes.find((node) => node.id === documentDialogTarget.chapterId);
-          const targetCondition = findChapterCondition(targetChapter, documentDialogTarget.conditionId, documentDialogTarget.conditionIndex);
-          const targetIsOptional = Boolean(targetChapter?.optionalConditions?.some((condition) => condition.id === targetCondition?.id));
-          const categoryTitle = documentDialogTarget.category === "legal"
-            ? "Required Document"
-            : documentDialogTarget.category === "customer"
-              ? "Customer Information Form"
-              : "Supporting Document";
-          const selectedLibraryFile = documentLibrary.find((document) => document.id === selectedLibraryFileId);
-          return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !documentBusy) setDocumentDialogTarget(null); }}>
-              <section role="dialog" aria-modal="true" aria-labelledby="add-chapter-document-title" className="flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-xl border bg-card shadow-2xl">
-                <header className="flex shrink-0 items-center justify-between border-b bg-muted/30 px-4 py-3">
-                  <div className="min-w-0">
-                    <h2 id="add-chapter-document-title" className="text-sm font-bold">{documentDialogFlow === "library-batch" ? "Add Forms from Library" : `Add ${categoryTitle}`}</h2>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{targetChapter ? departmentBoardHeading(targetChapter).department : "Department"}</p>
-                  </div>
-                  <button type="button" aria-label="Close add document dialog" disabled={documentBusy} onClick={() => setDocumentDialogTarget(null)} className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
-                </header>
-                {documentDialogFlow === "library-batch" ? <>
-                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                    {targetIsOptional ? <p className="text-[11px] font-semibold">Optional condition · {targetCondition?.label}</p> : <label className="block text-[11px] font-semibold">Release condition
-                      <select aria-label="Choose release condition for forms" value={documentDialogTarget.conditionIndex} onChange={(event) => {
-                        const conditionIndex = Number(event.target.value);
-                        const condition = targetChapter?.conditions[conditionIndex];
-                        if (condition) { setDocumentDialogTarget({ ...documentDialogTarget, conditionId: condition.id, conditionIndex }); setDocumentMessage(""); setDocumentError(""); }
-                      }} className="mt-1.5 h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary">
-                        {targetChapter?.conditions.map((condition, index) => <option key={condition.id || index} value={index}>{conditionText(condition, index)}</option>)}
-                      </select>
-                    </label>}
-                    <p className="text-[10px] text-muted-foreground">Select one or more files from the L3 library for this release condition.</p>
-                    {!targetIsOptional ? <fieldset>
-                      <legend className="mb-1.5 text-[11px] font-semibold">Requirement level</legend>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button type="button" aria-pressed={documentRequired} onClick={() => setDocumentRequired(true)} className={`rounded-md border px-3 py-2 text-[11px] font-semibold ${documentRequired ? "border-amber-500 bg-amber-500/10 text-amber-700" : "bg-background text-muted-foreground"}`}>Required</button>
-                        <button type="button" aria-pressed={!documentRequired} onClick={() => setDocumentRequired(false)} className={`rounded-md border px-3 py-2 text-[11px] font-semibold ${!documentRequired ? "border-primary bg-primary/10 text-primary" : "bg-background text-muted-foreground"}`}>Optional</button>
-                      </div>
-                    </fieldset> : null}
-                    <div className="space-y-1.5">
-                      {documentLibrary.map((document) => {
-                        const checked = selectedLibraryFileIds.includes(document.id);
-                        return <label key={document.id} className={`flex cursor-pointer items-center gap-2.5 rounded-md border px-2.5 py-2 text-[11px] transition ${checked ? "border-primary bg-primary/5" : "bg-background hover:border-primary/40"}`}>
-                          <input type="checkbox" checked={checked} onChange={(event) => setSelectedLibraryFileIds((current) => event.target.checked ? [...current, document.id] : current.filter((id) => id !== document.id))} className="size-3.5 accent-primary" />
-                          <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{document.title || titleFromFileName(document.fileName)}</span><span className="block truncate text-[9px] text-muted-foreground">{document.fileName}</span></span>
-                          {document.fileSize ? <span className="shrink-0 text-[9px] text-muted-foreground">{(document.fileSize / 1024).toFixed(0)} KB</span> : null}
-                        </label>;
-                      })}
-                      {!documentLibrary.length ? <p className="rounded-md border border-dashed px-3 py-6 text-center text-[11px] text-muted-foreground">No files in this category yet. Upload files with the + button first.</p> : null}
-                    </div>
-                    {documentError ? <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{documentError}</p> : null}
-                    {documentMessage ? <p role="status" className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-2.5 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">{documentMessage}</p> : null}
-                  </div>
-                  <footer className="flex shrink-0 justify-between gap-2 border-t bg-muted/20 px-4 py-3">
-                    <span className="self-center text-[10px] text-muted-foreground">{selectedLibraryFileIds.length} selected</span>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setDocumentDialogTarget(null)} className="rounded-md border px-3 py-1.5 text-[11px] font-semibold">Close</button>
-                      <button type="button" disabled={!selectedLibraryFileIds.length || !targetCondition} onClick={addLibraryForms} className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground disabled:opacity-45"><Plus className="size-3.5" /> Add selected forms</button>
-                    </div>
-                  </footer>
-                </> : <>
-                <div className="min-h-0 space-y-4 overflow-y-auto p-4">
-                  {targetIsOptional ? <p className="text-[11px] font-semibold">Optional condition · {targetCondition?.label}</p> : <label className="block text-[11px] font-semibold">Release condition
-                    <select aria-label="Choose release condition for document" value={documentDialogTarget.conditionIndex} onChange={(event) => {
-                      const conditionIndex = Number(event.target.value);
-                      const condition = targetChapter?.conditions[conditionIndex];
-                      if (condition) setDocumentDialogTarget({ ...documentDialogTarget, conditionId: condition.id, conditionIndex });
-                    }} className="mt-1.5 h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary">
-                      {targetChapter?.conditions.map((condition, index) => <option key={condition.id || index} value={index}>{conditionText(condition, index)}</option>)}
-                    </select>
-                  </label>}
-
-                  <fieldset>
-                    <legend className="mb-1.5 text-[11px] font-semibold">Document source</legend>
-                    <div className="grid gap-1.5">
-                      <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] ${documentMode === "custom" ? "border-primary bg-primary/5" : "bg-background"}`}>
-                        <input type="radio" name="chapter-document-source" checked={documentMode === "custom"} onChange={() => setDocumentMode("custom")} className="accent-primary" />
-                        Custom entry without attached file
-                      </label>
-                      <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] ${documentMode === "library" ? "border-primary bg-primary/5" : "bg-background"}`}>
-                        <input type="radio" name="chapter-document-source" checked={documentMode === "library"} onChange={() => { setDocumentMode("library"); if (selectedLibraryFile) setDocumentTitle(selectedLibraryFile.title); }} className="accent-primary" />
-                        Choose an existing file from Library
-                      </label>
-                      {documentMode === "library" ? <select aria-label="Choose file from Library" value={selectedLibraryFileId} onChange={(event) => {
-                        setSelectedLibraryFileId(event.target.value);
-                        const selected = documentLibrary.find((document) => document.id === event.target.value);
-                        if (selected) setDocumentTitle(selected.title);
-                      }} className="h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary">
-                        <option value="">Select a file from Library</option>
-                        {documentLibrary.map((document) => <option key={document.id} value={document.id}>{document.title} · {document.fileName}</option>)}
-                      </select> : null}
-                      <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] ${documentMode === "upload" ? "border-primary bg-primary/5" : "bg-background"}`}>
-                        <input type="radio" name="chapter-document-source" checked={documentMode === "upload"} onChange={() => setDocumentMode("upload")} className="accent-primary" />
-                        Upload a file from this computer
-                      </label>
-                      {documentMode === "upload" ? <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-3 text-[11px] text-muted-foreground hover:border-primary/50">
-                        <input ref={documentInput} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.png,.jpg,.jpeg,.json" aria-label="Choose documents to upload" onChange={(event) => {
-                          const selected = Array.from(event.target.files ?? []);
-                          setDocumentUploadFiles(selected);
-                          if (selected.length === 1) setDocumentTitle(titleFromFileName(selected[0].name));
-                        }} className="sr-only" />
-                        {documentUploadFiles.length ? <FileCheck2 className="size-4 shrink-0 text-emerald-600" /> : <CloudUpload className="size-4 shrink-0" />}
-                        <span className="min-w-0 truncate">{documentUploadFiles.length ? `${documentUploadFiles.length} file${documentUploadFiles.length === 1 ? "" : "s"} selected · names will be taken from filenames` : "Choose one or more files to upload to Library"}</span>
-                      </label> : null}
-                    </div>
-                  </fieldset>
-
-                  {documentMode !== "upload" ? <label className="block text-[11px] font-semibold">Display title in L3
-                    <input aria-label="Document title" value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} placeholder="Enter a document name" className="mt-1.5 h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary" />
-                  </label> : documentUploadFiles.length ? <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
-                    {documentUploadFiles.map((upload) => <div key={`${upload.name}-${upload.size}-${upload.lastModified}`} className="flex min-w-0 items-center gap-2 text-[10px]"><FileCheck2 className="size-3.5 shrink-0 text-emerald-600" /><span className="min-w-0 flex-1 truncate font-medium">{titleFromFileName(upload.name)}</span><span className="shrink-0 text-muted-foreground">{(upload.size / 1024).toFixed(0)} KB</span></div>)}
-                  </div> : null}
-
-                  {!targetIsOptional ? <fieldset>
-                    <legend className="mb-1.5 text-[11px] font-semibold">Requirement level</legend>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" aria-pressed={documentRequired} onClick={() => setDocumentRequired(true)} className={`rounded-md border px-3 py-2 text-[11px] font-semibold ${documentRequired ? "border-amber-500 bg-amber-500/10 text-amber-700" : "bg-background text-muted-foreground"}`}>Required</button>
-                      <button type="button" aria-pressed={!documentRequired} onClick={() => setDocumentRequired(false)} className={`rounded-md border px-3 py-2 text-[11px] font-semibold ${!documentRequired ? "border-primary bg-primary/10 text-primary" : "bg-background text-muted-foreground"}`}>Optional</button>
-                    </div>
-                  </fieldset> : null}
-                  {documentError ? <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{documentError}</p> : null}
-                  {documentMessage ? <p role="status" className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-2.5 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">{documentMessage}</p> : null}
-                  {!targetCondition ? <p role="alert" className="text-[11px] text-destructive">Choose a valid release condition before adding this document.</p> : null}
-                </div>
-                <footer className="flex shrink-0 justify-end gap-2 border-t bg-muted/20 px-4 py-3">
-                  <button type="button" disabled={documentBusy} onClick={() => setDocumentDialogTarget(null)} className="rounded-md border px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50">Cancel</button>
-                  <button type="button" disabled={documentBusy || (documentMode !== "upload" && !documentTitle.trim()) || !targetCondition || (documentMode === "library" && !selectedLibraryFile) || (documentMode === "upload" && !documentUploadFiles.length)} onClick={() => void addConditionDocument()} className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground disabled:opacity-45">
-                    {documentBusy ? <CloudUpload className="size-3.5 animate-pulse" /> : <Plus className="size-3.5" />}
-                    {documentBusy ? "Saving…" : documentMode === "upload" && documentUploadFiles.length > 1 ? `Upload ${documentUploadFiles.length} files to L3` : "Add to L3"}
-                  </button>
-                </footer>
-                </>}
-              </section>
-            </div>
-          );
-        })() : null}
+        {optionalPopupChapterId ? (
+          <OptionalConditionsDialog
+            chapterId={optionalPopupChapterId}
+            canEdit={canEditWorkflow}
+            onClose={() => setOptionalPopupChapterId(null)}
+            onViewForms={(chapterId, condition) => { selectProcessLocation(chapterId, condition); setDocumentsPopupOpen(true); }}
+            onConditionRemoved={(conditionId) => { if (selectedProcessCondition?.id === conditionId) setDocumentsPopupOpen(false); }}
+          />
+        ) : null}
+        {documentsPopupOpen && selectedProcessChapter && selectedProcessCondition ? (
+          <ConditionFormsDialog
+            chapter={selectedProcessChapter}
+            condition={selectedProcessCondition}
+            conditionIndex={selectedProcessConditionIndex}
+            isOptional={selectedProcessConditionIsOptional}
+            needle={needle}
+            canEdit={canEditWorkflow}
+            workflowHref={workflowHref}
+            onClose={() => setDocumentsPopupOpen(false)}
+            onAddDocument={(category) => openDocumentDialog(selectedProcessChapter, selectedProcessCondition, selectedProcessConditionIndex, category)}
+            onAddFromLibrary={(category) => openLibraryBatchDialog(selectedProcessChapter, selectedProcessCondition, selectedProcessConditionIndex, category)}
+          />
+        ) : null}
+        {documentRequest ? <AddDocumentDialog key={JSON.stringify(documentRequest.target) + documentRequest.flow} request={documentRequest} onClose={() => setDocumentRequest(null)} /> : null}
       </main>
     </AuthGate>
   );
