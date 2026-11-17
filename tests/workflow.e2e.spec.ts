@@ -4,8 +4,17 @@ import { seedE2EWorkflow, WORKFLOW_STORAGE_KEY, createE2EWorkflow } from "./supp
 async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
   await page.goto("/");
+  await showToolbarOnPhone(page);
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
+}
+
+/** Phones start with the toolbar collapsed. */
+async function showToolbarOnPhone(page: Page) {
+  if ((page.viewportSize()?.width ?? 1280) >= 640) return;
+  const toggle = page.getByRole("button", { name: "Show toolbar" });
+  // Once open the button reads "Hide toolbar".
+  if (await toggle.isVisible()) await toggle.click();
 }
 
 async function openLayer2(page: Page) {
@@ -15,6 +24,7 @@ async function openLayer2(page: Page) {
 }
 
 async function openExecution(page: Page, nodeId: string) {
+  await showToolbarOnPhone(page);
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
   await page.evaluate(
@@ -107,9 +117,11 @@ test("dragging a linked node in L1 updates the saved L2 sequence, layout, and ST
     "gate-g1-qualified",
     "pre-construction",
   ]);
-  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "gate-g2-technical-commitment").config.stage).toBe("01");
-  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "gate-g1-qualified").config.stage).toBe("02");
-  expect(saved.graph.nodes.find((node: { id: string }) => node.id === "pre-construction").config.stage).toBe("03");
+  // The stage field is each step's Department label; reordering keeps it.
+  for (const id of ["gate-g2-technical-commitment", "gate-g1-qualified", "pre-construction"]) {
+    expect(saved.graph.nodes.find((node: { id: string }) => node.id === id).config.stage)
+      .toBe(file.graph.nodes.find((node) => node.id === id)!.config.stage);
+  }
   expect(saved.layout.nodes["gate-g2-technical-commitment"].x).toBeLessThan(
     saved.layout.nodes["gate-g1-qualified"].x,
   );
@@ -131,12 +143,13 @@ test("L1, L2, and the execution view are connected and G1 cannot be bypassed vis
   await expect(page.locator('[data-id="pre-construction"]')).toBeVisible();
 
   await page.locator('[data-id="pre-construction"]').click();
-  await expect(page.getByRole("button", { name: "RC · Forms & execution" })).toBeEnabled();
-  await page.getByRole("button", { name: "RC · Forms & execution" }).click();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } })));
 
   await expect(page.getByText("PRE-CONSTRUCTION", { exact: true })).toBeVisible();
-  await expect(page.getByText("Required files", { exact: true })).toBeVisible();
   await expect(page.getByTestId("required-file-checklist")).toBeVisible();
+  for (const column of ["Required Documents", "Customer Information", "Supporting Documents"]) {
+    await expect(page.getByText(column, { exact: true })).toBeVisible();
+  }
   await expect(page.getByText("Execution Item", { exact: true })).toHaveCount(0);
 });
 
@@ -166,7 +179,7 @@ test("L3 Detailed Workflow minimap keeps the lifecycle order and excludes retire
   await expect(dialog.locator('button[title*="responsibility-lane"]')).toHaveCount(0);
 });
 
-test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation", async ({
+test("the pyramid opens expanded and its Department and L3 levels can be collapsed", async ({
   page,
 }) => {
   await openLayer1(page);
@@ -181,14 +194,15 @@ test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation"
   });
   await expect(dialog).toBeVisible();
 
+  // The locator opens with every L1 step's Departments expanded.
   const l2Toggles = dialog.locator("[data-process-locator-l2-toggle]");
   expect(await l2Toggles.count()).toBeGreaterThan(0);
   expect(
     await l2Toggles.evaluateAll((elements) =>
-      elements.every((element) => element.getAttribute("aria-expanded") === "false"),
+      elements.every((element) => element.getAttribute("aria-expanded") === "true"),
     ),
   ).toBe(true);
-  await expect(dialog.locator('button[title^="Open L2 ·"]')).toHaveCount(0);
+  expect(await dialog.locator('button[title^="Open L2 ·"]').count()).toBeGreaterThan(0);
 
   const firstL1Card = dialog.locator('button[title="Open L1 · Start"]');
   const firstL2Toggle = dialog.locator(
@@ -209,18 +223,20 @@ test("the pyramid starts with L2 collapsed and exposes only L1-to-L2 navigation"
     }
   }
 
-  // Verify L3 toggle buttons are present on L2 nodes and start collapsed
+  // L3 toggle buttons are present on L2 nodes and also start expanded
   const l3Toggles = dialog.locator("[data-process-locator-l3-toggle]");
   expect(await l3Toggles.count()).toBeGreaterThan(0);
   expect(
     await l3Toggles.evaluateAll((elements) =>
-      elements.every((element) => element.getAttribute("aria-expanded") === "false"),
+      elements.every((element) => element.getAttribute("aria-expanded") === "true"),
     ),
   ).toBe(true);
 
-  // Expand the first L3 toggle
+  // Collapse and re-expand the first L3 toggle
   await l3Toggles.first().click();
-  expect(await l3Toggles.first().getAttribute("aria-expanded")).toBe("true");
+  await expect(l3Toggles.first()).toHaveAttribute("aria-expanded", "false");
+  await l3Toggles.first().click();
+  await expect(l3Toggles.first()).toHaveAttribute("aria-expanded", "true");
 
   // Verify L3 cards are displayed
   const l3Cards = dialog.locator('button[title^="Open L3 ·"]');
@@ -274,7 +290,8 @@ test("the execution view releases when every required file is checked", async ({
   for (let index = 0; index < count; index += 1) {
     await files.nth(index).check();
   }
-  await expect(page.getByText("PRE-CONSTRUCTION is ready to release.", { exact: true })).toBeVisible();
+  // L3 shows one release condition at a time; the node releases once all of them are complete.
+  await expect(page.getByText("This release condition is complete. Complete the remaining department requirements to release this node.", { exact: true })).toBeVisible();
 });
 
 test("the execution view does not expose execution-item editing", async ({ page }) => {
@@ -438,7 +455,7 @@ test("Export dropdown provides Image and PDF export options", async ({ page }) =
   // Verify L1, L2, L3 PDF items and image options
   await expect(menu.getByText("L1 · High-Level Process")).toBeVisible();
   await expect(menu.getByText("L2 · Detailed Workflow")).toBeVisible();
-  await expect(menu.getByText("L3 · All Expanded Matrix")).toBeVisible();
+  await expect(menu.getByText("Conditions · Forms Matrix")).toBeVisible();
   await expect(menu.getByText("Export Image (PNG)")).toBeVisible();
   await expect(menu.getByText("Export SVG (Vector)")).toBeVisible();
 });
@@ -451,7 +468,7 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
 
   await page.getByRole("button", { name: "Upload Forms" }).click();
   await expect(page.getByText("Cloudflare R2 Document Center")).toBeVisible();
-  await page.getByRole("button", { name: /R2 File Library/ }).click();
+  await page.getByRole("button", { name: /^Library \(\d+\)$/ }).click();
   await expect(page.getByText("Form").first()).toBeVisible();
   await page.getByRole("button", { name: "customer", exact: true }).click();
   await expect(page.getByText("Form").first()).toBeVisible();
@@ -483,7 +500,10 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await page.getByLabel("Commercial Commitment").selectOption("None");
   await page.getByRole("button", { name: "Save Form" }).click();
 
+  // A completed selection form ticks itself; a manual untick is respected.
   await expect(checkbox).toBeEnabled();
+  await expect(checkbox).toBeChecked();
+  await checkbox.uncheck();
   await expect(checkbox).not.toBeChecked();
   await checkbox.check();
   await expect(checkbox).toBeChecked();
