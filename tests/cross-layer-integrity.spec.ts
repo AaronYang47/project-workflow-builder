@@ -269,10 +269,7 @@ test.describe("L1 / L2 / L3 reference integrity", () => {
     ).toBe(false);
   });
 
-  // Pending a product decision: since 4c06ea0 nothing removes retired Approval /
-  // Responsibility Matrix nodes from saved projects (ensureDetailedLifecycleScaffold
-  // is no longer called). Re-enable once removing them on load is confirmed.
-  test.fixme("migrating retired matrix nodes removes their graph, layout, L1, and L3 artifacts", () => {
+  test("migrating retired matrix nodes removes their graph, layout, L1, and L3 artifacts", () => {
     const file = createDefaultDetailedLifecycle();
     const approvalMatrix = createDomainNode("approvalMatrix", "legacy-approval-matrix");
     const responsibilityMatrix = createDomainNode(

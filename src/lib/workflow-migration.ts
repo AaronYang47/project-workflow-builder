@@ -20,6 +20,7 @@ import { getProfabForm } from "@/lib/profab-forms";
 import {
   createDefaultDetailedLifecycle,
   isCommercialPathwayNode,
+  isRemovedMatrixNode,
   isRemovedOpportunityNode,
 } from "@/lib/detailed-workflow";
 import { normalizeProjectOperations } from "@/lib/project-operations";
@@ -432,7 +433,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   if (file.calendar) file.calendar = normalizeScheduleCalendar(file.calendar);
   const retiredNodeIds = new Set(
     file.graph.nodes
-      .filter((node) => isRemovedOpportunityNode(node) || isCommercialPathwayNode(node))
+      .filter((node) => isRemovedOpportunityNode(node) || isCommercialPathwayNode(node) || isRemovedMatrixNode(node))
       .map((node) => node.id),
   );
   const isRetiredNodeId = (id: string) =>
@@ -516,7 +517,8 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     legacyPreGateIds.has(node.id) ||
     isRetiredOpportunityId(node.id) ||
     isRemovedOpportunityNode(node) ||
-    isCommercialPathwayNode(node),
+    isCommercialPathwayNode(node) ||
+    retiredNodeIds.has(node.id),
   );
   if (hasLegacyPreGate) {
     file.graph.nodes = file.graph.nodes.filter(
@@ -524,7 +526,8 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         !legacyPreGateIds.has(node.id) &&
         !isRetiredOpportunityId(node.id) &&
         !isRemovedOpportunityNode(node) &&
-        !isCommercialPathwayNode(node),
+        !isCommercialPathwayNode(node) &&
+        !retiredNodeIds.has(node.id),
     );
     const legacyEdgePrefixes = ["pre-sales-", "opp-", "lifecycle-opportunity-", "lifecycle-project-start-opportunity", "lifecycle-hold-rework"];
     file.graph.edges = file.graph.edges.filter(
@@ -684,7 +687,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     linkedLayer2NodeIds: keepExisting(node.linkedLayer2NodeIds),
     ...(node.linkedDetailedNodeIds ? { linkedDetailedNodeIds: keepExisting(node.linkedDetailedNodeIds) } : {}),
   }));
-  // Ad-hoc L3 items of retired Opportunity / Commercial Pathway nodes go with
+  // Ad-hoc L3 items of retired Opportunity / Commercial Pathway / matrix nodes go with
   // their node. Controlled register forms (catalogId) are kept and relinked,
   // and items of user-deleted nodes stay so Validation can report them.
   if (file.execution) {
