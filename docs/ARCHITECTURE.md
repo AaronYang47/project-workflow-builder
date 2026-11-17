@@ -150,6 +150,7 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 ```bash
 npm run dev          # local app on http://localhost:3000
 npm run lint
+npm run format       # Prettier; npm run format:check in review
 npx tsc --noEmit
 npm test             # all Playwright tests (starts the dev server)
 npm run build        # static export to out/
@@ -159,17 +160,17 @@ npm run build        # static export to out/
 
 Tracked here so it is fixed deliberately, not by accident:
 
-- **Tests**: the full suite passes (249). Three tests are skipped on purpose:
+- **Tests**: the full suite passes (250). Two tests are skipped on purpose:
   `cloud-save-refresh` and `account-session-browser` need a dev server without
-  `NEXT_PUBLIC_AUTH_BYPASS=1` (real sign-in and cloud API), and the retired
-  matrix-node migration test waits for a product decision.
-- **Formatting**: no formatter is configured yet (Prettier needs npm, which
-  was not available when this was written); long JSX lines remain in a few files.
-- **Lint**: 7 `react-hooks/set-state-in-effect` errors (`workflow-builder.tsx`,
-  `customer-selection-form.tsx`, `pyramid-location-widget.tsx`). Most read the
-  URL or sessionStorage after the static page hydrates, which cannot happen
-  during the first render without a hydration mismatch. Leave them unless the
-  component is restructured.
+  `NEXT_PUBLIC_AUTH_BYPASS=1` (real sign-in and cloud API). The collaboration
+  tests use public relays and can time out when those are slow.
+- **Formatting**: Prettier 3.9.10 (`.prettierrc.json`, width 100). Run
+  `npm run format` before committing. Long Tailwind class strings and
+  template literals stay on one line; Prettier does not split strings.
+- **Lint**: 0 problems. Three effects in `workflow-builder.tsx` keep a
+  documented `set-state-in-effect` exception: they read the URL,
+  sessionStorage or the collaboration channel, which exist only after the
+  static page hydrates.
 - **Largest components** are now under ~1,000 lines: `pyramid-location-widget.tsx`
   (~970; camera pan/zoom could become a hook), `execution-view.tsx` (~850),
   `execution-form-sheet.tsx` and `layer-context-minimap.tsx` (~780). Split
