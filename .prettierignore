@@ -1,0 +1,20 @@
+# Generated or third-party files
+node_modules/
+.next/
+out/
+tmp/
+test-results/
+.wrangler/
+auditlog/.wrangler/
+next-env.d.ts
+worker-configuration.d.ts
+package-lock.json
+
+# Not code
+artifacts/
+output/
+outputs/
+public/
+floorplan/
+.pptx-build/
+*.md

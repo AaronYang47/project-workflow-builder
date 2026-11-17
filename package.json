@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "playwright test",
     "test:rules": "playwright test tests/cross-layer-integrity.spec.ts",
     "test:e2e": "playwright test tests/workflow.e2e.spec.ts"
@@ -44,6 +46,7 @@
     "eslint": "latest",
     "eslint-config-next": "latest",
     "playwright": "^1.62.1",
+    "prettier": "3.9.10",
     "tailwindcss": "latest",
     "typescript": "latest",
     "wrangler": "^4.123.0"
