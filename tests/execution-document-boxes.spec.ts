@@ -14,6 +14,10 @@ async function openL3(page: Page) {
     { id: "leg-1", title: "Permit set", code: "LEG-11", category: "legal", status: "Required", checked: false, required: true },
     { id: "leg-2", title: "Shop drawings", category: "legal", status: "Optional", checked: false, required: false },
   ]);
+  chapter.customFields["customerDocuments::release-condition::design"] = JSON.stringify([
+    { id: "contact-1", title: "Client contact sheet", code: "CUST-21", category: "customer", status: "Required", checked: false, required: true },
+    { id: "selection-form", title: "Customer Selection Form", fileName: "Customer_Selection_Form.json", category: "customer", status: "Required", checked: false, required: true, formKind: "customer-selection" },
+  ]);
   chapter.customFields["supportingDocuments::release-condition::design"] = JSON.stringify([
     { id: "sup-1", title: "Load calculation", category: "supporting", status: "Required", checked: false, required: true },
     { id: "sup-2", title: "Site photos", code: "SUP-77", category: "supporting", status: "Optional", checked: false, required: false },
@@ -65,4 +69,25 @@ test("Required and Supporting boxes count, tick, label and remove documents", as
   await page.getByRole("button", { name: "Close dialog" }).click();
   await supporting.getByRole("button", { name: "Add Supporting Document" }).click();
   await expect(page.getByRole("heading", { name: "Add Supporting Document" })).toBeVisible();
+});
+
+test("Customer Information box ticks documents but keeps an incomplete selection form locked", async ({ page }) => {
+  await openL3(page);
+  const customer = box(page, "Customer Information");
+  await expect(customer).toContainText("0/2 Verified");
+  await expect(customer).toContainText("CUST-21");
+  await expect(customer.getByRole("checkbox", { name: "Required file: Customer Selection Form" })).toBeDisabled();
+  await expect(customer.getByRole("button", { name: "Open Form" })).toBeVisible();
+
+  await customer.getByRole("checkbox", { name: "Required file: Client contact sheet" }).check();
+  await expect(customer).toContainText("1/2 Verified");
+  await customer.getByRole("checkbox", { name: "Required file: Client contact sheet" }).uncheck();
+  await expect(customer).toContainText("0/2 Verified");
+
+  await customer.getByRole("button", { name: "Remove form" }).first().click();
+  await expect(customer).not.toContainText("Client contact sheet");
+  await expect(customer).toContainText("0/1 Verified");
+
+  await customer.getByRole("button", { name: "Add Customer Information Form" }).click();
+  await expect(page.getByRole("heading", { name: /Add Customer/ })).toBeVisible();
 });
