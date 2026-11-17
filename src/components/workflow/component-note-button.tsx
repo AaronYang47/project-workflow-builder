@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { CornerUpLeft, MessageSquareText, Plus, Send, Trash2, X } from "lucide-react";
+import { CornerUpLeft, MessageSquareText, Send, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { ComponentNote, ComponentNotePost } from "@/types/workflow";

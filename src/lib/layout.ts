@@ -1,4 +1,4 @@
-import type { ElkExtendedEdge, LayoutOptions } from "elkjs/lib/elk-api";
+import type { LayoutOptions } from "elkjs/lib/elk-api";
 import type {
   NodeLayout,
   WorkflowFile,
@@ -8,15 +8,8 @@ import { isReferenceNodeType } from "@/types/workflow";
 import { getAdaptiveNodeSize, getL1FallbackColor } from "@/lib/node-layout";
 import { synchronizeLinkedWorkflowOrder } from "@/lib/high-level-workflow";
 import {
-  expandGapsForLabeledEdges,
   normalizeGateHandles,
-  packPhases,
-  placeDecorativeReferences,
-  placeEmptyPhases,
-  placeBranchNodes,
-  placeProjectStart,
   restoreChildCoordinates,
-  routeRemainingEdges,
 } from "@/lib/layout-pack";
 
 // `unnecessaryBendpoints` is missing from elkjs' typed `LayoutOptions`; cast

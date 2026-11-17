@@ -4,7 +4,6 @@ import { parseGateServiceTypeId } from "@/lib/gate-service-types";
 import { wholeDayCondition } from "@/lib/condition-duration";
 import { getGateLayoutMetrics } from "@/lib/gate-layout";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
-import { absoluteLayoutPosition } from "@/lib/layout-geometry";
 import {
   LEGACY_REFERENCE_NODE_TYPES,
   REFERENCE_NODE_TYPES,
@@ -486,7 +485,6 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     ).filter((linkedId) => highLevelOwnership.get(linkedId) === node.id),
   }));
   let originalNodes = file.layout.nodes;
-  const absolute = (id: string) => absoluteLayoutPosition(originalNodes, id);
   const legacyPreGateIds = new Set([
     "lead-inquiry",
     "client-decision-maker",

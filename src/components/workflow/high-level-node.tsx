@@ -8,7 +8,6 @@ import {
   Factory,
   Flag,
   GripVertical,
-  Layers3,
   Milestone,
   Pencil,
   Ruler,

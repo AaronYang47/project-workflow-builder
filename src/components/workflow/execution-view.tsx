@@ -6,9 +6,7 @@ import {
   ArrowLeft,
   Building2,
   Check,
-  CloudUpload,
   Download,
-  FileCheck2,
   FileText,
   FolderArchive,
   Plus,
@@ -23,14 +21,11 @@ import {
   getExecutionSummary,
 } from "@/lib/execution";
 import {
-  isReferenceNodeType,
-  type DomainNode,
   type ExecutionItem,
 } from "@/types/workflow";
 import { conditionHasL3Forms, conditionIsSatisfied, nodeReleaseReady, sequentialExecutionBlocker } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
-import { getNodeDefinition } from "@/lib/node-catalog";
 import {
   type UploadedFileRecord,
   getUploadedFiles,

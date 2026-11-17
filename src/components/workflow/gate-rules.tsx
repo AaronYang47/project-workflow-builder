@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVertical, Landmark, ShieldCheck } from "lucide-react";
+import { GripVertical, Landmark } from "lucide-react";
 import { Handle, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { ComponentNoteButton } from "./component-note-button";
@@ -21,8 +21,6 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import {
   iconOptions,
   saveText,
-  statusStyles,
-  stopBubble,
   textareaRows,
 } from "./node-utils";
 import { useGateContext } from "./use-gate-context";
@@ -81,7 +79,6 @@ export function GateRules({
   const gateHeaderColor =
     node.config.gateHeaderColor || node.color || phaseColor || "#0d233b";
   const gateTitleColor = node.config.gateTitleColor || "#ffffff";
-  const yes = outcomes.find((outcome) => outcome.id === "yes");
   const saveRules = (nextRules: typeof rules) => {
     const store = useWorkflowStore.getState();
     const currentNode =

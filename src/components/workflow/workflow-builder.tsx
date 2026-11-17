@@ -343,8 +343,15 @@ export default function WorkflowBuilder() {
   const copied = useRef<
     { items: Array<{ node: DomainNode; layout: NodeLayout }> } | null
   >(null);
-  const { leftOpen, rightOpen, validationOpen, selection, togglePanel } =
-    useWorkflowStore();
+  // Subscribe only to panel state; the builder must not re-render on every edit.
+  const { leftOpen, rightOpen, validationOpen, togglePanel } = useWorkflowStore(
+    useShallow((state) => ({
+      leftOpen: state.leftOpen,
+      rightOpen: state.rightOpen,
+      validationOpen: state.validationOpen,
+      togglePanel: state.togglePanel,
+    })),
+  );
   useEffect(() => {
     const mobile = window.matchMedia("(max-width: 767px)");
     const compact = window.matchMedia("(max-width: 1023px)");

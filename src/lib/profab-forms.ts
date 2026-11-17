@@ -1,5 +1,4 @@
 import type {
-  EditableFormField,
   ExecutionApplicability,
   ExecutionItem,
   ExecutionItemType,
@@ -483,32 +482,8 @@ const formText = (
   meta: FieldMeta = {},
 ) => indexedSpecific(index, key, label, "text", required, undefined, help, meta);
 
-const formDate = (
-  index: string,
-  key: string,
-  label: string,
-  required = true,
-  help?: string,
-  meta: FieldMeta = {},
-) => indexedSpecific(index, key, label, "date", required, undefined, help, meta);
 
-const formNumber = (
-  index: string,
-  key: string,
-  label: string,
-  required = true,
-  help?: string,
-  meta: FieldMeta = {},
-) => indexedSpecific(index, key, label, "number", required, undefined, help, meta);
 
-const formArea = (
-  index: string,
-  key: string,
-  label: string,
-  required = true,
-  help?: string,
-  meta: FieldMeta = {},
-) => indexedSpecific(index, key, label, "textarea", required, undefined, help, meta);
 
 const FORM_OPERATIONAL_FIELDS: Record<string, ProfabFormFieldDefinition[]> = {
   "1.1": [
@@ -916,20 +891,6 @@ export const PROFAB_SOURCE_PACKAGE_ISSUES = [
   "Included SOW, PSO, and WMA headers do not match their controlled index numbers; the index remains the lifecycle identifier.",
 ] as const;
 
-function editableFieldFromDefinition(
-  definition: ProfabFormFieldDefinition,
-): EditableFormField {
-  return {
-    id: definition.id,
-    label: definition.label,
-    type: definition.type,
-    required: definition.required,
-    section: definition.section,
-    ...(definition.placeholder ? { placeholder: definition.placeholder } : {}),
-    ...(definition.help ? { help: definition.help } : {}),
-    ...(definition.options?.length ? { options: [...definition.options] } : {}),
-  };
-}
 
 type ProfabFormItem = Pick<ExecutionItem, "catalogId"> &
   Partial<Pick<ExecutionItem, "formOverrides" | "id" | "title" | "description">>;

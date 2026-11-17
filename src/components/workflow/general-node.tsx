@@ -57,8 +57,6 @@ export function GeneralNode({
   );
 
   const {
-    isProjectStart,
-    projectStartProjectId,
     nodeUuid,
     projectIdDraft,
     setProjectIdDraft,

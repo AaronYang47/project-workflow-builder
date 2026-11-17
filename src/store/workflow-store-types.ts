@@ -1,4 +1,3 @@
-import { autoArrangeHighLevel } from "@/lib/high-level-workflow";
 import { type ReleaseConditionImportResult, type ReleaseConditionImportRow } from "@/lib/release-condition-import";
 import type { ApprovalRole, ProjectOperations } from "@/types/project-operations";
 import type { DomainEdge, Condition, DomainNode, ExecutionItem, ExecutionItemType, HighLevelEdge, HighLevelNode, HighLevelNodeLayout, HighLevelNodeType, NodeLayout, ValidationIssue, WorkflowFile, WorkflowNodeType } from "@/types/workflow";

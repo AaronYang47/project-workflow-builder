@@ -542,7 +542,6 @@ export function LayerContextMinimap({
             {displayNodes.map((node) => {
               const isContainer = node.container;
               const isActive = Boolean(node.active);
-              const nodeColor = node.color || "var(--primary)";
               const cornerRadius = isContainer
                 ? 36
                 : Math.max(20, Math.round(Math.min(node.width, node.height) * 0.12));

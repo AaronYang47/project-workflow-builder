@@ -225,8 +225,6 @@ export function SemanticEdge({
           ? sourceObstacle.x + sourceObstacle.width
           : sourceX;
         const targetLeft = targetObstacle?.x ?? targetX;
-        const escapeX = sourceRight + 28;
-        const approachX = targetLeft - 28;
         // Exclude obstacles that *contain* the source or target node — the
         // edge ends inside them, so they can't be in the way between the two
         // endpoints.

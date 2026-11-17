@@ -2,7 +2,6 @@
 
 import { clone } from "@/lib/clone";
 import { appendOperationsAudit, calculateClassD, classifyClientPath, convertClientToProject, createEstimateVersion, evaluatePaymentRelease, normalizeProjectOperations, roleCanApprove, scheduleWarranty } from "@/lib/project-operations";
-import type { ProjectOperations } from "@/types/project-operations";
 import { withOperationalIdentity } from "@/store/workflow-store-helpers";
 import type { StoreGet, StoreSet, WorkflowState } from "@/store/workflow-store-types";
 

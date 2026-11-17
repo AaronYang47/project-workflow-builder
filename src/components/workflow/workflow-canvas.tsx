@@ -26,7 +26,6 @@ import { SemanticEdge } from "./semantic-edge";
 import { getSemanticEdgeColor, type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import {
-  resolveAbsolutePosition,
   CANVAS_MIN_ZOOM,
   CANVAS_MAX_ZOOM,
   FIT_VIEW_PADDING,
@@ -42,7 +41,6 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useNodeDragHandlers } from "./use-node-drag-handlers";
-import { isApprovedEdge, isDeniedEdge } from "@/lib/workflow-graph";
 import { isReferenceNodeType, type DomainEdge, type DomainNode, type WorkflowNodeType } from "@/types/workflow";
 import { useCanvasAutoMeasure } from "./use-canvas-auto-measure";
 import { useCanvasExport } from "./use-canvas-export";

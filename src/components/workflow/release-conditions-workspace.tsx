@@ -2,10 +2,9 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CloudUpload, Download, FileCheck2, FileUp, FolderArchive, GripVertical, ListChecks, MapPin, Pencil, Plus, Search, Trash2, Undo2, Redo2, X } from "lucide-react";
+import { ArrowRight, CloudUpload, Download, FileCheck2, FileUp, FolderArchive, GripVertical, ListChecks, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { TopToolbar } from "./top-toolbar";
 import { AuthGate } from "./auth-gate";
-import { CloudProjectControls } from "./cloud-project-controls";
 import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
 import { isReleaseConditionChapter, RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
 import { downloadReleaseConditionTemplate, parseReleaseConditionExcel } from "@/lib/release-condition-excel";
@@ -20,7 +19,6 @@ import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { type Condition, type DomainNode, type WorkflowFile } from "@/types/workflow";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { canEditCollaborativeWorkflow, useCollaborationStore } from "@/lib/collaboration/collaboration-store";
-import { CollaboratorPresence } from "./collaborator-presence";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
 
 const conditionText = (condition: Condition, index: number) =>
@@ -227,8 +225,6 @@ export function ReleaseConditionsWorkspace() {
     ? `/?room=${encodeURIComponent(collaborationRoomId)}${collaborationEditorId ? `&editor=${encodeURIComponent(collaborationEditorId)}` : ""}`
     : "/";
   const hydrated = useWorkflowStore((state) => state.hydrated);
-  const past = useWorkflowStore((state) => state.past);
-  const future = useWorkflowStore((state) => state.future);
   const addLines = useWorkflowStore((state) => state.addReleaseConditionLines);
   const ensureReleaseConditionIds = useWorkflowStore((state) => state.ensureReleaseConditionIds);
   const importReleaseConditions = useWorkflowStore((state) => state.importReleaseConditions);
@@ -237,8 +233,6 @@ export function ReleaseConditionsWorkspace() {
   const addNode = useWorkflowStore((state) => state.addNode);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const updateHighLevelNode = useWorkflowStore((state) => state.updateHighLevelNode);
-  const undo = useWorkflowStore((state) => state.undo);
-  const redo = useWorkflowStore((state) => state.redo);
   const inbox = file.releaseConditionInbox ?? [];
 
   const documentCategory = documentDialogTarget?.category;
@@ -408,7 +402,6 @@ export function ReleaseConditionsWorkspace() {
     Number(left.conditions.some((condition, index) => conditionText(condition, index).toLowerCase().includes(needle)))) : orderedChapters;
   const visibleInbox = inbox.map((condition, index) => ({ condition, index }))
     .filter(({ condition, index }) => !needle || conditionText(condition, index).toLowerCase().includes(needle));
-  const assignedCount = chapters.reduce((count, chapter) => count + chapter.conditions.length, 0);
   const matchCount = visibleInbox.length + chapters.reduce((count, chapter) => count + chapter.conditions.filter((condition, index) =>
     !needle || conditionText(condition, index).toLowerCase().includes(needle)).length, 0);
   const processMap = useMemo(() => {

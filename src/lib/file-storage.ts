@@ -92,8 +92,6 @@ function createPlaceholderDataUrl(name: string, title: string) {
   return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
 }
 
-const DEFAULT_SEEDED_FILES: UploadedFileRecord[] = [];
-
 export function getUploadedFiles(category?: "legal" | "customer" | "supporting"): UploadedFileRecord[] {
   if (typeof window === "undefined") return [];
   const key = storageKey();

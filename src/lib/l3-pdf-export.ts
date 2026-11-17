@@ -1,4 +1,4 @@
-import type { WorkflowFile, DomainNode, Condition } from "@/types/workflow";
+import type { WorkflowFile } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { chapterLabel } from "@/lib/chapter-label";

@@ -25,7 +25,7 @@ const PRESET_COLORS = [
 ];
 
 export function CollaboratorPresence() {
-  const { roomId, isConnected, editorPeerId, localUser, remotePeers, setLocalUser, setRoomId, setEditControl } =
+  const { isConnected, editorPeerId, localUser, remotePeers, setLocalUser, setRoomId, setEditControl } =
     useCollaborationStore();
   const authUser = useWorkflowStore((state) => state.authUser);
   const projectName = useWorkflowStore((state) => state.file.graph.metadata.name);

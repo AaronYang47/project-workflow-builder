@@ -10,7 +10,6 @@ import type {
 import {
   canReceiveDeniedReturn,
   deniedTargetHandle,
-  isApprovedEdge,
   isDeniedSourceHandle,
 } from "@/lib/workflow-graph";
 import type { DomainEdge, DomainNode } from "@/types/workflow";
