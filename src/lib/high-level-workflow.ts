@@ -81,6 +81,69 @@ export function linkedWorkflowGate(
   return undefined;
 }
 
+/**
+ * An L2 Phase frame belongs to one L1 step: the step most of its cards are
+ * linked to (ties go to the step with the frame's title). A card linked to a
+ * different L1 step (for example Final Close's "Project Complete" inside the
+ * Phase 4 frame) is moved out of the frame. Mutates `layouts`.
+ */
+function detachCardsFromOtherStepFrames(
+  graphNodes: WorkflowFile["graph"]["nodes"],
+  layouts: WorkflowFile["layout"]["nodes"],
+  highLevelNodes: HighLevelNode[],
+) {
+  const nodeById = new Map(graphNodes.map((node) => [node.id, node]));
+  const ownerOf = new Map<string, HighLevelNode>();
+  for (const step of highLevelNodes) {
+    for (const id of step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? []) {
+      if (!ownerOf.has(id)) ownerOf.set(id, step);
+    }
+  }
+  const phaseFrameOf = (id: string) => {
+    const seen = new Set([id]);
+    let parentId = layouts[id]?.parentId;
+    while (parentId && !seen.has(parentId)) {
+      seen.add(parentId);
+      if (nodeById.get(parentId)?.type === "phase") return parentId;
+      parentId = layouts[parentId]?.parentId;
+    }
+    return undefined;
+  };
+  const cardsByFrame = new Map<string, string[]>();
+  for (const id of ownerOf.keys()) {
+    const frameId = layouts[id] ? phaseFrameOf(id) : undefined;
+    if (frameId) cardsByFrame.set(frameId, [...(cardsByFrame.get(frameId) ?? []), id]);
+  }
+  for (const [frameId, ids] of cardsByFrame) {
+    const owners = new Set(ids.map((id) => ownerOf.get(id)!.id));
+    if (owners.size < 2) continue;
+    const frameTitle = nodeById.get(frameId)?.title.trim().toLowerCase();
+    const count = (stepId: string) => ids.filter((id) => ownerOf.get(id)!.id === stepId).length;
+    const frameOwner = [...owners].sort(
+      (left, right) =>
+        count(right) - count(left) ||
+        Number(
+          highLevelNodes
+            .find((step) => step.id === right)
+            ?.title.trim()
+            .toLowerCase() === frameTitle,
+        ) -
+          Number(
+            highLevelNodes
+              .find((step) => step.id === left)
+              ?.title.trim()
+              .toLowerCase() === frameTitle,
+          ),
+    )[0];
+    for (const id of ids) {
+      if (ownerOf.get(id)!.id === frameOwner) continue;
+      const { parentId: _parentId, ...rest } = layouts[id];
+      void _parentId;
+      layouts[id] = rest;
+    }
+  }
+}
+
 /** Keep the L1 sequence authoritative for L2 card positions and simple mainline edges. */
 export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile {
   const highLevel = file.highLevel;
@@ -124,6 +187,7 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
       }
     }
   }
+  detachCardsFromOtherStepFrames(file.graph.nodes, layouts, highLevel.graph.nodes);
   const positionedIds = allLinkedIds.filter((id) => layouts[id]);
   // L2 stores absolute canvas coordinates even when parentId marks membership.
   // Reuse the existing slots so a reorder does not collapse later phases.

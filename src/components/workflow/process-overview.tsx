@@ -78,9 +78,9 @@ export function ProcessOverview() {
   const scroll = useGanttScroll(hydrated, [minimumTimelineWidth, createOpen, mobileGanttView]);
   const { boardRef: ganttBoardRef, beginPan, setScrollLeft } = scroll;
   const inboxCount = file.releaseConditionInbox?.length ?? 0;
-  const phaseSummary = schedule.phases.filter(
-    (phase) => phase.type === "phase" || /phase\s*\d+/i.test(phase.title),
-  );
+  // Every L1 step, Start and Final Close included, so the strip matches the
+  // phase count and the Gantt rows.
+  const phaseSummary = schedule.phases.filter((phase) => phase.type !== "primaryGate");
 
   // Schedule edits always read the latest store state, not this render's copy.
   const currentSchedule = () => buildProcessSchedule(useWorkflowStore.getState().file);

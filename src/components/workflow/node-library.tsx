@@ -22,7 +22,11 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
   const [query, setQuery] = useState("");
   const catalog = useMemo<Array<(typeof AVAILABLE_NODE_CATALOG)[number] | HighLevelNodeDefinition>>(
     () =>
-      (highLevelMode ? HIGH_LEVEL_NODE_CATALOG : AVAILABLE_NODE_CATALOG).filter((item) =>
+      (highLevelMode
+        ? // Every project already has its one Start, so it is not offered here.
+          HIGH_LEVEL_NODE_CATALOG.filter((item) => item.type !== "start")
+        : AVAILABLE_NODE_CATALOG
+      ).filter((item) =>
         `${item.label} ${item.description}`.toLowerCase().includes(query.toLowerCase()),
       ),
     [highLevelMode, query],

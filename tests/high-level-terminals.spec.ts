@@ -1,5 +1,12 @@
 import { expect, test } from "playwright/test";
-import { demoteExtraHighLevelTerminals } from "../src/lib/high-level-workflow";
+import { createDomainNode } from "../src/lib/create-domain-node";
+import { linkedNodeIds } from "../src/lib/l1-department-swimlane-model";
+import { buildProcessSchedule } from "../src/lib/process-schedule";
+import { buildProcessMap } from "../src/lib/release-conditions-workspace-model";
+import {
+  demoteExtraHighLevelTerminals,
+  synchronizeLinkedWorkflowOrder,
+} from "../src/lib/high-level-workflow";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import type { HighLevelWorkflow } from "../src/types/workflow";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
@@ -72,4 +79,73 @@ test("a Phase saved as Final Close gets both handles and connects to Final Close
       has: page.locator("path"),
     }),
   ).toHaveCount(2);
+});
+
+test("an L2 card linked to Final Close is moved out of the Phase 4 frame", () => {
+  const file = createProjectWorkflow("Frame ownership test");
+  const frame = createDomainNode("phase", "frame-p4");
+  frame.title = "PHASE 4";
+  file.graph.nodes.push(frame);
+  file.layout.nodes[frame.id] = { nodeId: frame.id, x: 0, y: 0, width: 1000, height: 700 };
+  for (const [index, id] of ["site", "complete"].entries()) {
+    const node = createDomainNode("general", id);
+    node.title = id;
+    file.graph.nodes.push(node);
+    file.layout.nodes[id] = {
+      nodeId: id,
+      x: 40 + index * 500,
+      y: 160,
+      width: 300,
+      height: 400,
+      parentId: frame.id,
+    };
+  }
+  file.highLevel!.graph.nodes = [
+    { id: "p4", type: "phase", title: "PHASE 4", description: "", linkedLayer2NodeIds: ["site"] },
+    {
+      id: "fc",
+      type: "end",
+      title: "Final Close",
+      description: "",
+      linkedLayer2NodeIds: ["complete"],
+    },
+  ];
+  file.highLevel!.graph.edges = [{ id: "e", source: "p4", target: "fc" }];
+  const repaired = synchronizeLinkedWorkflowOrder(file);
+  expect(repaired.layout.nodes.site.parentId).toBe("frame-p4");
+  expect(repaired.layout.nodes.complete.parentId).toBeUndefined();
+  const box = repaired.layout.nodes["frame-p4"];
+  expect(box.x + box.width).toBeLessThanOrEqual(repaired.layout.nodes.complete.x);
+
+  // L3 (Release Conditions map), L4 (schedule) and the swimlane PDF agree.
+  const chapters = repaired.graph.nodes.filter((node) => node.type === "general");
+  const groups = buildProcessMap(repaired, chapters).groups;
+  const groupOf = (id: string) =>
+    groups.find((group) => group.chapters.some((chapter) => chapter.id === id))?.id;
+  expect(groupOf("site")).toBe("p4");
+  expect(groupOf("complete")).toBe("fc");
+  for (const node of chapters) {
+    node.conditions = [
+      { id: `${node.id}-rc`, label: "rc", durationValue: 2, durationUnit: "days" } as never,
+    ];
+  }
+  const schedule = buildProcessSchedule(repaired);
+  const phaseOf = (id: string) =>
+    schedule.phases[schedule.tasks.find((task) => task.nodeId === id)!.phaseIndex].id;
+  expect(phaseOf("site")).toBe("p4");
+  expect(phaseOf("complete")).toBe("fc");
+  const nodeById = new Map(repaired.graph.nodes.map((node) => [node.id, node]));
+  const finalClose = repaired.highLevel!.graph.nodes.find((node) => node.id === "fc")!;
+  const phase4 = repaired.highLevel!.graph.nodes.find((node) => node.id === "p4")!;
+  expect(linkedNodeIds(finalClose, repaired, nodeById)).toEqual(["complete"]);
+  expect(linkedNodeIds(phase4, repaired, nodeById)).toEqual(["site"]);
+});
+
+test("the L1 node library no longer offers Start", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  const library = page.locator("aside").filter({ hasText: "High-Level Nodes" });
+  await expect(library.getByText("Phase", { exact: true })).toBeVisible();
+  await expect(library.getByText("Final Close", { exact: true })).toBeVisible();
+  await expect(library.getByText("Start", { exact: true })).toHaveCount(0);
 });

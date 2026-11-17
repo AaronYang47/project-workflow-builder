@@ -128,3 +128,29 @@ test("the Final Close FOB yard switch greys out Phase 4 and routes around it", a
   await expect(phase4).toHaveCount(0);
   await expect(page.locator(".react-flow__edge")).toHaveCount(3);
 });
+
+for (const fobYard of [false, true]) {
+  test(`L4 phase strip shows Final Close (FOB yard ${fobYard ? "on" : "off"})`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ key, file }) => {
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+            version: 0,
+          }),
+        );
+      },
+      { key: WORKFLOW_STORAGE_KEY, file: fourPhaseWorkflow(fobYard) },
+    );
+    await page.goto("/process-overview");
+    const strip = page.getByRole("region", { name: "Complete process flowchart" });
+    await expect(strip.locator("h3")).toHaveText(
+      fobYard
+        ? ["Start", "PHASE 3", "Final Close"]
+        : ["Start", "PHASE 3", "PHASE 4", "Final Close"],
+    );
+  });
+}

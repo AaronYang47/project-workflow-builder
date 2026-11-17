@@ -5,7 +5,7 @@ async function openExecution(page: Page, nodeId: string) {
   await seedE2EWorkflow(page);
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
-  await expect(page.getByText("Start", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".high-level-node-card").first()).toBeVisible();
   await page.evaluate(
     ({ targetNodeId }) => {
       window.dispatchEvent(
