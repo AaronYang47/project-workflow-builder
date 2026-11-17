@@ -14,6 +14,7 @@ import { isReferenceNodeType, type DomainEdge } from "@/types/workflow";
 import { getExecutionSummary } from "@/lib/execution";
 import { matrixKindForNode } from "@/lib/matrix-config";
 import type { WorkflowFile } from "@/types/workflow";
+import { fobYardSkippedIds } from "@/lib/fob-yard";
 import type { getWorkflowProgress } from "@/lib/workflow-progress";
 
 export type CanvasProgress = ReturnType<typeof getWorkflowProgress>;
@@ -25,6 +26,7 @@ export function buildCanvasNodes(
   progress: CanvasProgress,
 ): Node[] {
   const highLevelNodes = file.highLevel?.graph.nodes || [];
+  const fobYardSkipped = fobYardSkippedIds(file).l2;
   const l1PhaseColorByL2NodeId = new Map<string, string>();
   highLevelNodes.forEach((hlNode, index) => {
     const color =
@@ -124,6 +126,7 @@ export function buildCanvasNodes(
         draggable: true,
         dragHandle: isContainer ? ".phase-drag-handle" : undefined,
         style: isContainer ? { pointerEvents: "none" } : undefined,
+        className: fobYardSkipped.has(domain.id) ? "fob-yard-skipped" : undefined,
         data: {
           domain,
           reached: progress.reachedNodeIds.has(domain.id),
@@ -201,6 +204,7 @@ export function buildCanvasEdges(
   selection: { edgeId?: string },
 ): Edge[] {
   const chapterConnections = routeChapterConnections(file);
+  const fobYardSkipped = fobYardSkippedIds(file).l2;
   const nodesById = new Map(file.graph.nodes.map((node) => [node.id, node]));
   const supportingEdgeLanes = new Map(
     file.graph.edges
@@ -240,6 +244,10 @@ export function buildCanvasEdges(
       id: domain.id,
       type: "semantic",
       zIndex: 10,
+      className:
+        fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
+          ? "fob-yard-skipped"
+          : undefined,
       source: domain.source,
       target: domain.target,
       sourceHandle: domain.sourceHandle,

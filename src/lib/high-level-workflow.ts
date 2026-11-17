@@ -478,6 +478,88 @@ export function isDefaultHighLevelProcess(highLevel: HighLevelWorkflow | undefin
   );
 }
 
+/**
+ * L1 allows exactly one Start and one Final Close. Extra copies (for example a
+ * Final Close dragged in and renamed "Phase 4") lose a connection point, so
+ * they are turned back into Phase nodes. The kept Final Close is the one named
+ * "Final Close", otherwise the rightmost; the kept Start is the leftmost.
+ */
+export function demoteExtraHighLevelTerminals(highLevel: HighLevelWorkflow): HighLevelWorkflow {
+  const x = (id: string) => highLevel.layout.nodes[id]?.x ?? 0;
+  const pick = (type: "start" | "end") => {
+    const matches = highLevel.graph.nodes.filter((node) => node.type === type);
+    if (matches.length < 2) return undefined;
+    if (type === "end") {
+      const named = matches.find((node) => /final\s*close/i.test(node.title));
+      if (named) return named.id;
+    }
+    return [...matches].sort((a, b) => (type === "end" ? x(b.id) - x(a.id) : x(a.id) - x(b.id)))[0]
+      .id;
+  };
+  const keep = { start: pick("start"), end: pick("end") };
+  if (!keep.start && !keep.end) return highLevel;
+  return {
+    ...highLevel,
+    graph: {
+      ...highLevel.graph,
+      nodes: highLevel.graph.nodes.map((node) =>
+        (node.type === "start" || node.type === "end") &&
+        keep[node.type] &&
+        keep[node.type] !== node.id
+          ? { ...node, type: "phase" as const }
+          : node,
+      ),
+    },
+  };
+}
+
+/**
+ * When Final Close has FOB yard on, every Phase connected straight into it is
+ * skipped. Returns those Phases, the lines touching them (drawn grey) and the
+ * display-only bypass lines from the step before each skipped Phase to Final Close.
+ */
+export function fobYardSkip(graph: { nodes: HighLevelNode[]; edges: HighLevelEdge[] }) {
+  const skippedNodeIds = new Set<string>();
+  const skippedEdgeIds = new Set<string>();
+  const bypassEdges: Array<HighLevelEdge & { skippedNodeId: string }> = [];
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  for (const end of graph.nodes) {
+    if (end.type !== "end" || !end.fobYard) continue;
+    for (const edge of graph.edges) {
+      if (edge.target === end.id && byId.get(edge.source)?.type === "phase") {
+        skippedNodeIds.add(edge.source);
+      }
+    }
+  }
+  for (const edge of graph.edges) {
+    if (skippedNodeIds.has(edge.source) || skippedNodeIds.has(edge.target)) {
+      skippedEdgeIds.add(edge.id);
+    }
+  }
+  for (const end of graph.nodes) {
+    if (end.type !== "end" || !end.fobYard) continue;
+    for (const skipped of graph.edges.filter(
+      (edge) => edge.target === end.id && skippedNodeIds.has(edge.source),
+    )) {
+      for (const incoming of graph.edges) {
+        if (incoming.target !== skipped.source || skippedNodeIds.has(incoming.source)) continue;
+        const exists =
+          graph.edges.some((edge) => edge.source === incoming.source && edge.target === end.id) ||
+          bypassEdges.some((edge) => edge.source === incoming.source && edge.target === end.id);
+        if (!exists) {
+          bypassEdges.push({
+            id: `fob-yard-bypass-${incoming.source}-${end.id}`,
+            source: incoming.source,
+            target: end.id,
+            skippedNodeId: skipped.source,
+          });
+        }
+      }
+    }
+  }
+  return { skippedNodeIds, skippedEdgeIds, bypassEdges };
+}
+
 export function createHighLevelNode(type: HighLevelNodeType, id: string): HighLevelNode {
   const definition = HIGH_LEVEL_NODE_CATALOG.find((item) => item.type === type)!;
   return defaultNode(id, type, definition.label, definition.description);

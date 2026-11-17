@@ -12,12 +12,14 @@ export function LifecycleOverview({
   workflowGateCount,
   selectedNodeId,
   onFocusNode,
+  skippedNodeIds,
 }: {
   nodes: HighLevelNode[];
   edges: HighLevelEdge[];
   workflowGateCount: number;
   selectedNodeId?: string;
   onFocusNode: (nodeId: string) => void;
+  skippedNodeIds?: ReadonlySet<string>;
 }) {
   const orderedNodes = useMemo(() => orderHighLevelNodes(nodes, edges), [nodes, edges]);
   const [overviewOpen, setOverviewOpen] = useState(true);
@@ -82,6 +84,7 @@ export function LifecycleOverview({
                 const isSelected = node.id === activeNodeId;
                 const isGate = node.type === "primaryGate";
                 const isBoundary = node.type === "start" || node.type === "end";
+                const isSkipped = skippedNodeIds?.has(node.id) === true;
                 return (
                   <div key={node.id} className="flex items-center gap-1">
                     <button
@@ -101,6 +104,7 @@ export function LifecycleOverview({
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border/70 bg-card hover:border-primary/45 hover:bg-primary/5",
                         isGate && !isSelected ? "border-primary/35 bg-primary/[0.04]" : "",
+                        isSkipped ? "opacity-45 grayscale" : "",
                       )}
                     >
                       <span className="flex items-start gap-1.5">
@@ -128,7 +132,9 @@ export function LifecycleOverview({
                             ? "Start"
                             : node.type === "end"
                               ? "Final Close"
-                              : "Phase"}
+                              : isSkipped
+                                ? "Skipped · FOB yard"
+                                : "Phase"}
                       </span>
                     </button>
                     {index < nodes.length - 1 ? (

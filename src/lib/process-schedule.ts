@@ -1,5 +1,6 @@
 import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
+import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName, isSalesDepartmentName } from "@/lib/department-label";
 import { isReleaseConditionChapter } from "@/lib/release-condition-inbox";
 import { getL1FallbackColor } from "@/lib/node-layout";
@@ -52,7 +53,8 @@ export function schedulePredecessorCandidates(tasks: ScheduleTask[], task: Sched
 }
 
 export function buildProcessSchedule(file: WorkflowFile) {
-  file = normalizePreviousPhaseDependencies(file);
+  // A Phase skipped by FOB yard takes no time and has no tasks.
+  file = normalizePreviousPhaseDependencies(applyFobYardSkip(file));
   // Entered durations are total elapsed time, including all days off.
   const workingDaysPerWeek = 7;
   const phases = orderHighLevelNodes(

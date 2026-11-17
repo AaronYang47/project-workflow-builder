@@ -51,8 +51,9 @@ export function ProcessMapPanel({
           {processMap.groups.length ? (
             <div className="flex min-w-max items-stretch gap-2">
               {processMap.groups.map((group, groupIndex) => {
-                const kindLabel =
-                  group.kind === "start"
+                const kindLabel = group.skipped
+                  ? "SKIPPED · FOB YARD"
+                  : group.kind === "start"
                     ? "START"
                     : group.kind === "end"
                       ? "FINISH"
@@ -64,7 +65,8 @@ export function ProcessMapPanel({
                 return (
                   <div key={group.id} className="flex items-stretch gap-2">
                     <div
-                      className="w-[210px] shrink-0 overflow-hidden rounded-lg border bg-background shadow-xs"
+                      data-fob-yard-skipped={group.skipped ? "true" : undefined}
+                      className={`w-[210px] shrink-0 overflow-hidden rounded-lg border bg-background shadow-xs ${group.skipped ? "opacity-45 grayscale" : ""}`}
                       style={{ borderColor: `${group.color}66` }}
                     >
                       <button

@@ -14,6 +14,7 @@ import {
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
+import { fobYardSkippedIds } from "@/lib/fob-yard";
 import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
@@ -405,6 +406,7 @@ export function ExecutionView({
   }
 
   const sequenceBlocker = sequentialExecutionBlocker(file, node.id);
+  const fobYardSkipped = fobYardSkippedIds(file).l2.has(node.id);
 
   return (
     <section
@@ -537,6 +539,15 @@ export function ExecutionView({
           </div>
         </div>
       </header>
+      {fobYardSkipped ? (
+        <p
+          data-fob-yard-skipped-notice
+          className="shrink-0 border-b bg-slate-500/10 px-4 py-2 text-xs font-semibold text-slate-600 sm:px-6 dark:text-slate-300"
+        >
+          Skipped · FOB yard — Final Close has FOB yard on, so this Phase is not part of this
+          project and is left out of the schedule and PDFs.
+        </p>
+      ) : null}
 
       {sequenceBlocker ? (
         <p

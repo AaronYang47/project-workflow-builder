@@ -118,6 +118,13 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
       // Primary Gates are no longer part of the L1 authoring model. Keep
       // this guard for stale drag/drop or command events from old sessions.
       if (type === "primaryGate") return "";
+      // Only one Start and one Final Close; another copy is added as a Phase so
+      // it keeps both connection points.
+      if (
+        (type === "start" || type === "end") &&
+        get().file.highLevel?.graph.nodes.some((node) => node.type === type)
+      )
+        type = "phase";
       const id = `high-level-${type}-${crypto.randomUUID().slice(0, 8)}`;
       const node = createHighLevelNode(type, id);
       set((state) => {

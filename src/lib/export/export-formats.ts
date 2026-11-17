@@ -36,7 +36,10 @@ export const requestExport = (format: ExportFormat) =>
 
 /** Builds a document PDF. Each exporter is loaded only when used, so jsPDF
  * and the large report builders stay out of the initial page bundle. */
-export async function exportDocument(format: DocumentExportFormat, file: WorkflowFile) {
+export async function exportDocument(format: DocumentExportFormat, source: WorkflowFile) {
+  // With FOB yard on, documents show the project without the skipped Phase.
+  const { applyFobYardSkip } = await import("@/lib/fob-yard");
+  const file = applyFobYardSkip(source);
   switch (format) {
     case "l1-swimlane-pdf":
     case "l1-gantt-pdf": {

@@ -1,3 +1,4 @@
+import { applyFobYardSkip } from "@/lib/fob-yard";
 import { useEffect, type RefObject } from "react";
 import { type useReactFlow } from "@xyflow/react";
 import { fitCanvasToWorkflow } from "@/lib/flow-helpers";
@@ -125,7 +126,7 @@ export function useCanvasExport(
           targetHandle: edge.targetHandle,
         }));
         const file = useWorkflowStore.getState().file;
-        const forms = phaseFormsSummary(file);
+        const forms = phaseFormsSummary(applyFobYardSkip(file));
         printCanvasVector(
           flowElement,
           cards,

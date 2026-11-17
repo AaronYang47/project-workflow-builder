@@ -26,6 +26,10 @@ export type HighLevelFlowNode = Node<
     code?: string;
     backgroundColor?: string;
     type: HighLevelNodeType;
+    /** Final Close with FOB yard on. */
+    fobYard?: boolean;
+    /** Phase skipped because Final Close has FOB yard on. */
+    skipped?: boolean;
     linkedDetailedNodeIds?: string[];
     linkedLayer2Nodes?: Array<{
       id: string;
@@ -780,7 +784,9 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
             ? "w-64 min-w-64 max-w-64 min-h-[184px]"
             : "w-52 min-w-52 max-w-52 bg-card",
         data.type !== "phase" && !nodeColor ? visual.border : "",
+        data.skipped ? "opacity-45 grayscale" : "",
       )}
+      data-fob-yard-skipped={data.skipped ? "true" : undefined}
       data-glass-tint={nodeColor ? "true" : undefined}
       style={nodeColor ? ({ "--node-glass-tint": nodeColor.tint } as CSSProperties) : undefined}
     >
@@ -839,6 +845,16 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
         {data.description ? (
           <p className="mt-2 text-[12px] font-medium leading-5 text-muted-foreground">
             {data.description}
+          </p>
+        ) : null}
+        {data.skipped ? (
+          <p className="mt-2 w-fit rounded-full border border-slate-400/50 bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            Skipped · FOB yard
+          </p>
+        ) : null}
+        {data.fobYard ? (
+          <p className="mt-2 w-fit rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+            FOB yard
           </p>
         ) : null}
         {linkedNodeList}

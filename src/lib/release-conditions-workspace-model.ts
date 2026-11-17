@@ -5,7 +5,7 @@
  */
 import { formReferencesForCondition } from "@/lib/form-reference-catalog";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
-import { orderHighLevelNodes } from "@/lib/high-level-workflow";
+import { fobYardSkip, orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { getL1FallbackColor } from "@/lib/node-layout";
 import { type Condition, type DomainNode, type WorkflowFile } from "@/types/workflow";
 
@@ -167,6 +167,8 @@ export type ProcessMapGroup = {
   description: string;
   color: string;
   chapters: DomainNode[];
+  /** Skipped because Final Close has FOB yard on. */
+  skipped?: boolean;
 };
 export type DocumentDialogTarget = {
   chapterId: string;
@@ -214,6 +216,7 @@ export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
   const highLevel = file.highLevel?.graph;
   const orderedHighLevel = highLevel ? orderHighLevelNodes(highLevel.nodes, highLevel.edges) : [];
   const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
+  const skippedSteps = highLevel ? fobYardSkip(highLevel).skippedNodeIds : new Set<string>();
   const highLevelGroups = orderedHighLevel.map((step, index) => {
     const linkedIds = step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? [];
     const linkedChapters = linkedIds.flatMap((id) => {
@@ -230,6 +233,7 @@ export function buildProcessMap(file: WorkflowFile, chapters: DomainNode[]) {
           ? step.backgroundColor
           : getL1FallbackColor(step.title, index),
       chapters: linkedChapters,
+      skipped: skippedSteps.has(step.id),
     } satisfies ProcessMapGroup;
   });
   const hasHighLevelDepartmentLinks = highLevelGroups.some((group) => group.chapters.length > 0);

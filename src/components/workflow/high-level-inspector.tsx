@@ -145,6 +145,32 @@ export function HighLevelInspector() {
                 Optional label shown in the node’s upper-right corner.
               </p>
             </div>
+            {node.type === "end" ? (
+              <label className="flex cursor-pointer items-start justify-between gap-3 border-t pt-4">
+                <span>
+                  <span className="block text-sm font-medium">FOB yard</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                    On: the project closes at the FOB yard, so the Phase connected straight into
+                    Final Close is skipped and its lines turn grey. Off: that Phase runs, then the
+                    project completes.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="FOB yard"
+                  checked={node.fobYard === true}
+                  onChange={(event) =>
+                    updateHighLevelNode(node.id, { fobYard: event.target.checked })
+                  }
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden
+                  className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-muted-foreground/30 transition peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
+                />
+              </label>
+            ) : null}
             <div className="space-y-2 border-t pt-4">
               {node.type === "phase" || node.type === "start" || node.type === "end" ? (
                 <div className="space-y-3">

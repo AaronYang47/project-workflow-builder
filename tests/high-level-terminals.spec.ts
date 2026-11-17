@@ -1,0 +1,75 @@
+import { expect, test } from "playwright/test";
+import { demoteExtraHighLevelTerminals } from "../src/lib/high-level-workflow";
+import { createProjectWorkflow } from "../src/lib/project-template";
+import type { HighLevelWorkflow } from "../src/types/workflow";
+import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
+
+function phaseSavedAsFinalClose() {
+  const file = createProjectWorkflow("Terminal repair test");
+  file.highLevel!.graph.nodes = [
+    { id: "s", type: "start", title: "Start", description: "" },
+    { id: "p4", type: "end", title: "PHASE 4", description: "POST-CONSTRUCTION", code: "Finish" },
+    { id: "fc", type: "end", title: "Final Close", description: "" },
+  ];
+  file.highLevel!.graph.edges = [{ id: "e1", source: "s", target: "p4" }];
+  file.highLevel!.layout.nodes = {
+    s: { nodeId: "s", x: 0, y: 220 },
+    p4: { nodeId: "p4", x: 340, y: 220 },
+    fc: { nodeId: "fc", x: 760, y: 220 },
+  };
+  return file;
+}
+
+test("extra Final Close nodes become Phases; the named or rightmost one stays", () => {
+  const file = phaseSavedAsFinalClose();
+  const repaired = demoteExtraHighLevelTerminals(file.highLevel!);
+  expect(repaired.graph.nodes.map((node) => node.type)).toEqual(["start", "phase", "end"]);
+  const unnamed: HighLevelWorkflow = {
+    ...file.highLevel!,
+    graph: {
+      ...file.highLevel!.graph,
+      nodes: file.highLevel!.graph.nodes.map((node) => ({ ...node, title: node.id })),
+    },
+  };
+  expect(
+    demoteExtraHighLevelTerminals(unnamed).graph.nodes.find((node) => node.type === "end")?.id,
+  ).toBe("fc");
+  const single = demoteExtraHighLevelTerminals(repaired);
+  expect(single).toBe(repaired);
+});
+
+test("a Phase saved as Final Close gets both handles and connects to Final Close", async ({
+  page,
+}) => {
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file: phaseSavedAsFinalClose() },
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  const phase = page.locator('.react-flow__node[data-id="p4"]');
+  await expect(phase.locator(".react-flow__handle.target")).toHaveCount(1);
+  const source = phase.locator(".react-flow__handle.source");
+  await expect(source).toHaveCount(1);
+  const target = page.locator('.react-flow__node[data-id="fc"] .react-flow__handle.target');
+  const from = (await source.boundingBox())!;
+  const to = (await target.boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect(
+    page.locator(".react-flow__edge[data-id], .react-flow__edge").filter({
+      has: page.locator("path"),
+    }),
+  ).toHaveCount(2);
+});

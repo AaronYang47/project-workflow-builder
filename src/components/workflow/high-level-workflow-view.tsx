@@ -16,7 +16,11 @@ import {
 import "@xyflow/react/dist/style.css";
 import { createEmptyHighLevelWorkflow } from "@/types/workflow";
 import type { DomainNode, HighLevelNode } from "@/types/workflow";
-import { linkedWorkflowGate, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
+import {
+  fobYardSkip,
+  linkedWorkflowGate,
+  orderLinkedWorkflowNodeIds,
+} from "@/lib/high-level-workflow";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import { departmentDisplayName } from "@/lib/department-label";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -30,6 +34,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
 import { useCanvasExport } from "./use-canvas-export";
 import { LifecycleOverview } from "./high-level/lifecycle-overview";
+import { FobYardBypassEdgeComponent } from "./high-level/fob-yard-bypass-edge";
 
 const highLevelNodeTypes = {
   start: HighLevelNodeComponent,
@@ -37,6 +42,8 @@ const highLevelNodeTypes = {
   primaryGate: HighLevelNodeComponent,
   end: HighLevelNodeComponent,
 };
+
+const highLevelEdgeTypes = { fobYardBypass: FobYardBypassEdgeComponent };
 
 const emptyHighLevel = createEmptyHighLevelWorkflow();
 
@@ -147,6 +154,7 @@ function HighLevelCanvasInner({
     [layer2ById, onExit, onFocusLayer2Nodes, selectHighLevelNodes],
   );
 
+  const fobYard = useMemo(() => fobYardSkip(highLevel.graph), [highLevel.graph]);
   const modelNodes = useMemo<HighLevelFlowNode[]>(
     () =>
       highLevel.graph.nodes.map((node) => {
@@ -207,6 +215,8 @@ function HighLevelCanvasInner({
             code: node.code,
             backgroundColor: node.backgroundColor,
             type: node.type,
+            fobYard: node.type === "end" && node.fobYard === true,
+            skipped: fobYard.skippedNodeIds.has(node.id),
             linkedDetailedNodeIds: linkedLayer2NodeIds,
             availableGates,
             linkedLayer2Nodes: linkedLayer2NodeIds.flatMap((nodeId, linkedIndex) => {
@@ -281,6 +291,7 @@ function HighLevelCanvasInner({
       file.graph.nodes,
       file.graph.edges,
       file.layout.nodes,
+      fobYard,
     ],
   );
   const { nodes, onNodesChange } = useFlowNodes(modelNodes);
@@ -345,9 +356,33 @@ function HighLevelCanvasInner({
   }, [selectHighLevelEdge, selectHighLevelNodes]);
 
   const edges = useMemo<Edge[]>(
-    () =>
-      highLevel.graph.edges.map((edge) => {
+    () => [
+      ...highLevel.graph.edges.map((edge) => {
         const isSelected = highLevelSelection.edgeId === edge.id;
+        if (fobYard.skippedEdgeIds.has(edge.id)) {
+          // Skipped by FOB yard: grey, still selectable so it can be removed.
+          return {
+            id: edge.id,
+            type: "smoothstep",
+            source: edge.source,
+            target: edge.target,
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left,
+            className: "high-level-flow-edge",
+            data: { fobYardSkipped: true },
+            style: {
+              stroke: isSelected ? "#64748b" : "#a8b3c2",
+              strokeWidth: isSelected ? 3.4 : 2.6,
+              strokeDasharray: "6 6",
+              strokeLinecap: "round" as const,
+            },
+            markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "#a8b3c2" },
+            pathOptions: { borderRadius: 14, offset: 18 },
+            selectable: true,
+            focusable: true,
+            selected: isSelected,
+          };
+        }
         return {
           id: edge.id,
           type: "smoothstep",
@@ -360,8 +395,8 @@ function HighLevelCanvasInner({
           style: {
             stroke: isSelected ? "#0d9488" : "#159a75",
             strokeWidth: isSelected ? 4 : 3.2,
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
+            strokeLinecap: "round" as const,
+            strokeLinejoin: "round" as const,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -375,7 +410,23 @@ function HighLevelCanvasInner({
           selected: isSelected,
         };
       }),
-    [highLevel.graph.edges, highLevelSelection.edgeId],
+      // Display-only route around the skipped Phase; never saved.
+      ...fobYard.bypassEdges.map((edge) => ({
+        id: edge.id,
+        type: "fobYardBypass",
+        source: edge.source,
+        target: edge.target,
+        animated: true,
+        className: "high-level-flow-edge",
+        data: { skippedNodeId: edge.skippedNodeId },
+        style: { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" as const },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "#159a75" },
+        selectable: false,
+        deletable: false,
+        focusable: false,
+      })),
+    ],
+    [fobYard, highLevel.graph.edges, highLevelSelection.edgeId],
   );
 
   const onDrop = useCallback(
@@ -419,6 +470,7 @@ function HighLevelCanvasInner({
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        edgeTypes={highLevelEdgeTypes}
         nodeTypes={highLevelNodeTypes}
         onNodesChange={onNodesChange}
         onNodeDragStart={(_, node) => {
@@ -496,6 +548,7 @@ function HighLevelCanvasInner({
           <LifecycleOverview
             nodes={highLevel.graph.nodes}
             edges={highLevel.graph.edges}
+            skippedNodeIds={fobYard.skippedNodeIds}
             workflowGateCount={workflowGateCount}
             selectedNodeId={highLevelSelection.nodeIds[0]}
             onFocusNode={focusHighLevelNode}
