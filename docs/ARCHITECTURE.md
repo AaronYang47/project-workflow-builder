@@ -141,6 +141,8 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 | L2 canvas nodes/edges for React Flow | `buildCanvasNodes` / `buildCanvasEdges` in `src/lib/canvas-model.ts` |
 | A checklist column of L3 documents | `DocumentBox` / `CustomerInfoBox` in `components/workflow/execution/` |
 | Process Locator layout | `buildPyramidDiagram` in `src/lib/process-locator/pyramid-diagram.ts` |
+| Project operations (payments, gates, warranty) | `src/lib/project-operations/` (`defaults`, `finance`, `gates`, `reporting`; import from `@/lib/project-operations`) |
+| Render only in the browser (portals, `window`) | `useHydrated` in `src/lib/use-hydrated.ts` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
 
 ## 6. Commands

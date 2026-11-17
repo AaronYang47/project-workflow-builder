@@ -119,6 +119,8 @@ export default function WorkflowBuilder() {
   useEffect(() => {
     const returnView = sessionStorage.getItem("release-conditions:return-view");
     const layer = new URLSearchParams(window.location.search).get("layer");
+    // The URL and sessionStorage exist only in the browser, so they are read after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (layer === "L2" || (!layer && returnView === "l2")) setIsHighLevelView(false);
     sessionStorage.removeItem("release-conditions:return-view");
   }, []);
@@ -131,6 +133,8 @@ export default function WorkflowBuilder() {
     const params = new URLSearchParams(window.location.search);
     const nodeId = params.get("executionNode");
     if (!nodeId || !useWorkflowStore.getState().file.graph.nodes.some((node) => node.id === nodeId)) return;
+    // A deep link to L3 can open only once the saved workflow has loaded.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsHighLevelView(false);
     setExecutionNodeId(nodeId);
     setExecutionConditionId(params.get("condition") || null);
@@ -171,6 +175,8 @@ export default function WorkflowBuilder() {
   }, []);
   useEffect(() => {
     if (!editControlReady || canEditWorkflow || !editorViewState) return;
+    // Viewers follow the layer the editor broadcasts over the collaboration channel.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     applyEditorView(editorViewState);
   }, [applyEditorView, canEditWorkflow, editControlReady, editorViewState, editorExecutionNodeAvailable, isCollaborationConnected]);
   const [layer1FocusRequest, setLayer1FocusRequest] = useState<string | null>(null);

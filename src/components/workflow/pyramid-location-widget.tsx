@@ -40,14 +40,12 @@ export function PyramidLocationWidget({
   const operations = useWorkflowStore((state) => state.file.operations);
 
   const [open, setOpen] = useState(false);
-  const [collapsedL1Ids, setCollapsedL1Ids] = useState<Set<string>>(
+  const [collapsedL1Selection, setCollapsedL1Ids] = useState<Set<string>>(
     () => new Set<string>(),
   );
-  const collapsedL1SeedRef = useRef(new Set<string>());
-  const [collapsedL2Ids, setCollapsedL2Ids] = useState<Set<string>>(
+  const [collapsedL2Selection, setCollapsedL2Ids] = useState<Set<string>>(
     () => new Set<string>(),
   );
-  const collapsedL2SeedRef = useRef(new Set<string>());
   const { dock, dockPos, dockDragging, dockMagnet, dockButtonRef, finishDockDrag, onDockPointerDown, onDockPointerMove } =
     useDockCorner(() => setOpen(true));
   const diagramFrameRef = useRef<HTMLDivElement>(null);
@@ -67,37 +65,20 @@ export function PyramidLocationWidget({
   } | null>(null);
   const hasFittedRef = useRef(false);
 
-  useEffect(() => {
-    const groups = buildGlobalPyramidGroups(
-      orderHighLevelNodes(highLevelNodes, highLevelEdges),
-      nodes,
-      executionItems,
-      layer2Edges,
-    );
-    const groupIds = new Set(
-      groups.filter((group) => group.l2.length).map((group) => group.l1.id),
-    );
-    setCollapsedL1Ids((current) => {
-      const next = new Set(current);
-      // Only remove IDs that no longer exist; never auto-collapse new nodes
-      for (const id of next) {
-        if (!groupIds.has(id)) next.delete(id);
-      }
-      return next;
-    });
-    collapsedL1SeedRef.current = groupIds;
-
+  // Collapsed IDs of nodes that no longer exist are ignored; new nodes start expanded.
+  const collapsibleL1Ids = useMemo(() => new Set(
+    buildGlobalPyramidGroups(orderHighLevelNodes(highLevelNodes, highLevelEdges), nodes, executionItems, layer2Edges)
+      .filter((group) => group.l2.length)
+      .map((group) => group.l1.id),
+  ), [executionItems, highLevelEdges, highLevelNodes, layer2Edges, nodes]);
+  const collapsedL1Ids = useMemo(
+    () => new Set([...collapsedL1Selection].filter((id) => collapsibleL1Ids.has(id))),
+    [collapsedL1Selection, collapsibleL1Ids],
+  );
+  const collapsedL2Ids = useMemo(() => {
     const nodeIds = new Set(nodes.map((node) => node.id));
-    setCollapsedL2Ids((current) => {
-      const next = new Set(current);
-      // Only remove IDs that no longer exist; never auto-collapse new nodes
-      for (const id of next) {
-        if (!nodeIds.has(id)) next.delete(id);
-      }
-      return next;
-    });
-    collapsedL2SeedRef.current = nodeIds;
-  }, [executionItems, highLevelEdges, highLevelNodes, layer2Edges, nodes]);
+    return new Set([...collapsedL2Selection].filter((id) => nodeIds.has(id)));
+  }, [collapsedL2Selection, nodes]);
 
   const applyCamera = useCallback((nextCamera: Camera) => {
     cameraRef.current = nextCamera;

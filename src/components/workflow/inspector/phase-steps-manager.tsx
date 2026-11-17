@@ -24,7 +24,7 @@ export function PhaseStepsManager({
   const isGate = phaseNode.type === "gate";
   const label = isGate ? "Gate" : "Phase";
   const highLevel = useWorkflowStore((state) => state.file.highLevel);
-  const highLevelNodes = highLevel?.graph.nodes || [];
+  const highLevelNodes = useMemo(() => highLevel?.graph.nodes || [], [highLevel]);
 
   // Helper to find which Phase a step belongs to
   const getStepPhaseId = useCallback(

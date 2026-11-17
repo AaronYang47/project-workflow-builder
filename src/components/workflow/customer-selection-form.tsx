@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 import { createPortal } from "react-dom";
 import { Building2, ChevronDown, MapPin, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,8 +109,8 @@ export function CustomerSelectionForm({
   onSave: (selection: CustomerSelectionResult) => void;
 }) {
   const [query, setQuery] = useState(initialName);
-  const [matches, setMatches] = useState<FalconCustomerProfile[]>([]);
-  const [searching, setSearching] = useState(false);
+  // Results of the last finished search, tagged with the query they answer.
+  const [searchResults, setSearchResults] = useState<{ query: string; items: FalconCustomerProfile[] }>({ query: "", items: [] });
   const [profile, setProfile] = useState<FalconCustomerProfile | null>(
     initialProfile || null,
   );
@@ -117,22 +118,22 @@ export function CustomerSelectionForm({
   const [answers, setAnswers] = useState<CustomerFormAnswers>(
     normalizeSalesQualificationAnswers(initialAnswers),
   );
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [showCriteria, setShowCriteria] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    setQuery(initialName);
-    setProfile(initialProfile || null);
-    setAnswers(normalizeSalesQualificationAnswers(initialAnswers));
-    setShowCriteria(true);
-    setShowDetails(true);
-  }, [open]);
+  // Each time the form opens it starts again from the caller's values.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setQuery(initialName);
+      setProfile(initialProfile || null);
+      setAnswers(normalizeSalesQualificationAnswers(initialAnswers));
+      setShowCriteria(true);
+      setShowDetails(true);
+    }
+  }
 
   useEffect(() => {
     if (!open || !leadNumber) return;
@@ -162,33 +163,27 @@ export function CustomerSelectionForm({
     };
   }, [open, leadNumber, initialName]);
 
+  // Search once the query has two characters and is not the chosen company.
+  const trimmedQuery = query.trim();
+  const searchQuery = open && trimmedQuery.length >= 2 && !(profile && trimmedQuery === profile.organizationName)
+    ? trimmedQuery
+    : "";
+  const matches = searchQuery ? searchResults.items : [];
+  const searching = searchQuery !== "" && searchResults.query !== searchQuery;
+
   useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    if (profile && q === profile.organizationName) {
-      setMatches([]);
-      setSearching(false);
-      return;
-    }
-    if (q.length < 2) {
-      setMatches([]);
-      setSearching(false);
-      return;
-    }
+    if (!searchQuery) return;
     let cancelled = false;
-    setSearching(true);
     const timer = window.setTimeout(() => {
-      void searchFalconCustomers(q).then((results) => {
-        if (cancelled) return;
-        setMatches(results);
-        setSearching(false);
+      void searchFalconCustomers(searchQuery).then((items) => {
+        if (!cancelled) setSearchResults({ query: searchQuery, items });
       });
     }, 180);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, query, profile]);
+  }, [searchQuery]);
 
   const location = useMemo(
     () => (profile ? customerLocation(profile) : ""),
@@ -206,7 +201,6 @@ export function CustomerSelectionForm({
 
   const selectCompany = async (company: FalconCustomerProfile) => {
     setQuery(company.organizationName);
-    setMatches([]);
     setProfile(company);
     setLoadingProfile(true);
     const full = await fetchFalconCustomerProfile(company);
@@ -280,6 +274,7 @@ export function CustomerSelectionForm({
                       key={company.companyId || company.organizationName}
                       type="button"
                       role="option"
+                      aria-selected={false}
                       onClick={() => void selectCompany(company)}
                       className="flex w-full flex-col items-start gap-0.5 border-b border-slate-100 dark:border-slate-800 px-3 py-2.5 text-left last:border-b-0 hover:bg-muted/60 cursor-pointer"
                     >
