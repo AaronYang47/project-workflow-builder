@@ -49,6 +49,7 @@ test("L3 visibly explains the lock and disables premature completion",async({pag
  await page.goto("/");
  await page.getByRole("button",{name:"L2 · Detailed Workflow",exact:true}).click();
  await page.locator('[data-id="second"]').getByRole("button",{name:"Open L3 details for release condition 1",exact:true}).click();
- await expect(page.getByText("Complete the preceding chapter and its required release conditions before completing this chapter.",{exact:true})).toBeVisible();
- await expect(page.getByRole("checkbox",{name:/Required file:/})).toBeDisabled();
+ await expect(page.getByText("Complete the preceding department and its required release conditions before completing this department.",{exact:true})).toBeVisible();
+ // The locked condition cannot be marked complete from L3.
+ await expect(page.getByRole("button",{name:"Check release condition",exact:true})).toBeDisabled();
 });

@@ -41,7 +41,7 @@ test("five-digit project display and release condition drag across stages", asyn
   await expect(page.getByRole("textbox", { name: "Job Number (5 digits)" })).toHaveValue("27084");
   const source = page.locator('[data-id="stage-one"]');
   const target = page.locator('[data-id="stage-two"]');
-  await expect(source.getByRole("textbox", { name: "Chapter" })).toHaveValue("Chapter");
+  await expect(source.getByRole("textbox", { name: "Department" })).toHaveValue("Department");
   await page.waitForTimeout(250);
   const sourceGrip = source.getByRole("button", { name: "Drag to reorder release condition 1" });
   await expect.poll(async () => {

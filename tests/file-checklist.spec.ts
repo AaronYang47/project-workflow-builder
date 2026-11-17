@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "playwright/test";
-import { seedE2EWorkflow } from "./support/e2e-workflow";
+import { createE2EWorkflow, seedE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
 async function openExecution(page: Page, nodeId: string) {
   await seedE2EWorkflow(page);
@@ -19,13 +19,15 @@ async function openExecution(page: Page, nodeId: string) {
   await expect(page.getByRole("button", { name: "Back to L2" })).toBeVisible();
 }
 
-test("L3 is a required-file checklist and all checks release the node", async ({
+test("L3 lists a condition's files in three columns and ticking them completes the condition", async ({
   page,
 }) => {
   await openExecution(page, "pre-construction");
 
   await expect(page.getByTestId("required-file-checklist")).toBeVisible();
-  await expect(page.getByText("Required files", { exact: true })).toBeVisible();
+  for (const column of ["Required Documents", "Customer Information", "Supporting Documents"]) {
+    await expect(page.getByText(column, { exact: true })).toBeVisible();
+  }
   await expect(page.getByText("Execution Item", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Edit execution item/ })).toHaveCount(0);
 
@@ -35,17 +37,26 @@ test("L3 is a required-file checklist and all checks release the node", async ({
   for (let index = 0; index < count; index += 1) {
     await files.nth(index).check();
   }
-  await expect(page.getByText("PRE-CONSTRUCTION is ready to release.", { exact: true })).toBeVisible();
+  // L3 shows one release condition at a time; the node releases once all of them are complete.
+  await expect(page.getByText("This release condition is complete. Complete the remaining department requirements to release this node.", { exact: true })).toBeVisible();
 });
 
 test("a release-condition checkbox stays in L2", async ({ page }) => {
-  await seedE2EWorkflow(page);
+  // Conditions with L3 forms are completed in L3, so add one without forms.
+  const file = createE2EWorkflow();
+  const preConstruction = file.graph.nodes.find((node) => node.id === "pre-construction")!;
+  preConstruction.conditions.push({ id: "no-forms-check", label: "Internal kickoff held", required: true, checked: false });
+  await page.addInitScript(({ key, file }) => {
+    localStorage.setItem(key, JSON.stringify({ state: { file, workspaceOwnerId: "dev-bypass", dirty: false }, version: 0 }));
+  }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const node = page.locator('[data-id="pre-construction"]');
   await expect(node).toBeVisible();
-  await node.getByRole("button", { name: "Check release condition 1" }).click();
+  const index = preConstruction.conditions.length;
+  await node.getByRole("button", { name: `Check release condition ${index}`, exact: true }).click();
+  await expect(node.getByRole("button", { name: `Uncheck release condition ${index}`, exact: true })).toBeVisible();
   await expect(page.getByText("L3 · Execution Layer", { exact: true })).toHaveCount(0);
 });
 

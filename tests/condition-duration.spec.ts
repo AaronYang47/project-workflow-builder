@@ -22,9 +22,12 @@ test("release condition duration replaces date and persists in weeks", async ({ 
   await expect(page.getByText("Display date", { exact: true })).toHaveCount(0);
   await page.getByRole("spinbutton", { name: "Release condition 1 duration", exact: true }).fill("2");
   await page.getByRole("combobox", { name: "Release condition 1 duration unit" }).selectOption("weeks");
-  await expect(card).toContainText("2 weeks");
+  // L2 cards list condition names only; the duration lives in the Inspector, Gantt and L3.
   await expect(card).not.toContainText("2026-10-29");
   await page.reload();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
-  await expect(card).toContainText("2 weeks");
+  await card.getByRole("button", { name: "Edit release condition 1 in Inspector", exact: true }).first().click();
+  await expect(page.getByRole("spinbutton", { name: "Release condition 1 duration", exact: true })).toHaveValue("2");
+  await expect(page.getByRole("combobox", { name: "Release condition 1 duration unit" })).toHaveValue("weeks");
+  await expect(page.getByText("Display date", { exact: true })).toHaveCount(0);
 });

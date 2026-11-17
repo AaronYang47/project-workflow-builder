@@ -2,13 +2,17 @@ import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
+import { authBypassEnabled, NEEDS_REAL_AUTH } from "./support/auth-mode";
 
 test("workspace manual save and autosave survive a fresh cloud reload", async ({ page }) => {
+  test.skip(authBypassEnabled(), NEEDS_REAL_AUTH);
   const file = createProjectWorkflow("Cloud persistence");
   const chapter = createDomainNode("general", "sales");
   chapter.title = "Sales";
-  chapter.conditions = [{ id: "c1", label: "Original condition" }];
+  chapter.conditions = [];
   file.graph.nodes = [chapter];
+  // The L3 page edits Unassigned condition text in place.
+  file.releaseConditionInbox = [{ id: "c1", label: "Original condition", required: true, checked: false }];
   file.layout.nodes = { sales: { nodeId: "sales", x: 0, y: 0, width: 384, height: 500 } };
   const user = { id: "test-owner", name: "Owner", email: "owner@example.com" };
   let cloud = { id: "saved-project", name: "Cloud persistence", project_number: "27000", created_at: "2026-10-27T10:00:00Z", updated_at: "2026-10-27T10:00:00Z", workflow: file };
@@ -35,12 +39,12 @@ test("workspace manual save and autosave survive a fresh cloud reload", async ({
     sessionStorage.setItem("cloud-save-seeded", "1");
   }, { key: WORKFLOW_STORAGE_KEY, workflow: file, owner: user });
   await page.goto("/release-conditions");
-  const input = page.getByRole("textbox", { name: "Text for Sales release condition 1" });
+  const input = page.getByRole("textbox", { name: "Unassigned condition text 1" });
   await expect(input).toHaveValue("Original condition");
   await input.fill("Manual edited condition · EOI");
   await input.blur();
   await page.getByRole("button", { name: "Save project to cloud" }).click();
-  await expect.poll(() => cloud.workflow.graph.nodes.find((node) => node.id === "sales")?.conditions[0].label).toBe("Manual edited condition · EOI");
+  await expect.poll(() => cloud.workflow.releaseConditionInbox?.[0]?.label).toBe("Manual edited condition · EOI");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   // Deliberately seed an older clean local snapshot so the refresh must read
   // the cloud value rather than just restoring localStorage.
@@ -48,7 +52,7 @@ test("workspace manual save and autosave survive a fresh cloud reload", async ({
   await page.reload();
   await expect(input).toHaveValue("Manual edited condition · EOI");
   await input.fill("Automatically saved condition · NDA");
-  await expect.poll(() => cloud.workflow.graph.nodes.find((node) => node.id === "sales")?.conditions[0].label).toBe("Automatically saved condition · NDA");
+  await expect.poll(() => cloud.workflow.releaseConditionInbox?.[0]?.label).toBe("Automatically saved condition · NDA");
   await expect(input).toBeFocused();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   expect(saves).toBeGreaterThanOrEqual(2);
@@ -60,6 +64,6 @@ test("workspace manual save and autosave survive a fresh cloud reload", async ({
   await input.fill("Edit made while the cloud request was still loading");
   await input.blur();
   releaseRead!();
-  await expect.poll(() => cloud.workflow.graph.nodes.find((node) => node.id === "sales")?.conditions[0].label).toBe("Edit made while the cloud request was still loading");
+  await expect.poll(() => cloud.workflow.releaseConditionInbox?.[0]?.label).toBe("Edit made while the cloud request was still loading");
   await expect(input).toHaveValue("Edit made while the cloud request was still loading");
 });

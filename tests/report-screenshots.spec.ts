@@ -63,10 +63,8 @@ test("capture the required-file checklist", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await openLayer1(page);
   await openExecution(page, "pre-construction");
-  const form = page
-    .locator("section")
-    .filter({ hasText: "Required files" })
-    .first();
+  // L3 lists a condition's files in Required / Customer / Supporting columns.
+  const form = page.getByTestId("required-file-checklist");
   await expect(form).toBeVisible();
   await form.screenshot({
     path: join(outputDir, "03-l3-required-file-checklist.png"),
@@ -78,7 +76,7 @@ test("capture the Gate 1 required-file checklist", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 1050 });
   await openLayer1(page);
   await openExecution(page, "gate-g1-qualified");
-  await expect(page.getByText("Required files", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("required-file-checklist")).toBeVisible();
   await page.locator('[data-testid="required-file-checklist"]').screenshot({
     path: join(outputDir, "04-g1-required-file-checklist.png"),
     animations: "disabled",

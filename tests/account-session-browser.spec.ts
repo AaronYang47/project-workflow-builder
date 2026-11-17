@@ -2,8 +2,10 @@ import { expect, test } from 'playwright/test';
 import { createProjectWorkflow } from '../src/lib/project-template';
 import { createDomainNode } from '../src/lib/create-domain-node';
 import { WORKFLOW_STORAGE_KEY } from './support/e2e-workflow';
+import { authBypassEnabled, NEEDS_REAL_AUTH } from './support/auth-mode';
 
 test('another tab changing the account clears the previous L3 workspace before reopening', async ({ page }) => {
+  test.skip(authBypassEnabled(), NEEDS_REAL_AUTH);
   const alice = { id: 'isolation-alice', email: 'alice@example.invalid', name: 'Alice' };
   const bob = { id: 'isolation-bob', email: 'bob@example.invalid', name: 'Bob' };
   let sessionUser = alice;
@@ -29,7 +31,7 @@ test('another tab changing the account clears the previous L3 workspace before r
   await page.waitForLoadState('domcontentloaded');
   await expect.poll(async () => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').state?.workspaceOwnerId, WORKFLOW_STORAGE_KEY)).toBe(bob.id);
   await expect(page.getByRole('dialog', {name:'New project'})).toBeVisible();
-  await expect(page.locator('h1')).toHaveText('L3 · Conditions');
+  await expect(page.getByRole('region', { name: 'Department condition board' })).toBeVisible();
   await expect(page.getByText('Alice confidential L3 condition', {exact:true})).toHaveCount(0);
   const persisted = await page.evaluate(key => localStorage.getItem(key), WORKFLOW_STORAGE_KEY);
   expect(persisted).not.toContain('secret.pdf');
