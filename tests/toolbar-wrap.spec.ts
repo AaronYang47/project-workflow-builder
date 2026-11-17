@@ -7,6 +7,8 @@ for (const width of [1440, 1280, 1024, 390]) {
     await seedE2EWorkflow(page);
     await page.goto("/");
     const toolbar = page.locator("[data-workflow-toolbar]");
+    // Phones start with the toolbar collapsed.
+    if (width < 640) await page.getByRole("button", { name: "Show toolbar" }).click();
     await expect(toolbar.getByRole("button", { name: "Export", exact: true })).toBeVisible();
     const overflow = await toolbar.evaluate((root) => {
       const bounds = root.getBoundingClientRect();

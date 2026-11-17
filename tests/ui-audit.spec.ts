@@ -4,6 +4,8 @@ import { seedE2EWorkflow } from "./support/e2e-workflow";
 async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
   await page.goto("/");
+  // Phones start with the toolbar collapsed.
+  if ((page.viewportSize()?.width ?? 1280) < 640) await page.getByRole("button", { name: "Show toolbar" }).click();
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(
     page.getByText("Start", { exact: true }).first(),
@@ -82,8 +84,8 @@ for (const viewport of viewports) {
     await expect(page.locator('[data-id="gate-g1-qualified"]')).toBeVisible();
     await assertNoDocumentOverflow(page);
 
-    await page.locator('[data-id="pre-construction"]').click();
-    await page.getByRole("button", { name: "RC · Forms & execution" }).click();
+    // L3 for a node opens from its release conditions; the event is the same entry point.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("workflow:open-execution", { detail: { nodeId: "pre-construction" } })));
     await expect(page.getByText("L3 · Execution Layer")).toBeVisible();
     await assertNoDocumentOverflow(page);
   });

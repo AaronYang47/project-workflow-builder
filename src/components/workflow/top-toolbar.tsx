@@ -413,7 +413,7 @@ export function TopToolbar({
         </ToolButton></span>
       </div>
       <div className="mx-2 hidden h-6 w-px shrink-0 bg-border/60 sm:block" />
-      <div data-toolbar-search-group className="order-2 mr-0 flex min-w-0 flex-1 flex-nowrap items-center gap-1 sm:order-none sm:ml-auto sm:mr-2 sm:gap-2.5">
+      <div data-toolbar-search-group className="order-2 mr-0 flex min-w-0 flex-1 flex-nowrap items-center gap-1 sm:order-none sm:ml-auto sm:mr-2 sm:min-w-fit sm:gap-2.5">
         <Button
           variant="ghost"
           size="sm"

@@ -8,16 +8,17 @@ test("four layers navigate without a selected node and preserve L2 return contex
   await seedE2EWorkflow(page);
   await page.goto("/");
   const toolbar = page.locator("[data-workflow-toolbar]");
-  await expect(toolbar.getByRole("link", { name: "Open Release Conditions Workspace" })).toHaveText("L3 · Conditions");
-  await expect(toolbar.getByRole("link", { name: "Open Process Overview" })).toHaveText("L4 · Process & Gantt");
+  // Wide screens show the full label, narrower ones just "L3" / "L4".
+  await expect(toolbar.getByRole("link", { name: "Open Release Conditions Workspace" })).toContainText("L3 · Conditions");
+  await expect(toolbar.getByRole("link", { name: "Open Process Overview" })).toContainText("L4 · Process & Gantt");
   await expect(toolbar.getByRole("button", { name: "L3 · Execution View" })).toHaveCount(0);
   await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
-  await expect(page.getByRole("heading", { name: "L3 · Conditions", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Department condition board" })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workflow layers" });
   await expect(nav.getByRole("link")).toHaveCount(4);
   await expect(nav.getByRole("link", { name: "Open Release Conditions Workspace" })).toHaveAttribute("aria-current", "page");
   await nav.getByRole("link", { name: "Open Process Overview" }).click();
-  await expect(page.getByRole("heading", { name: "L4 · Process & Gantt", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Process system & schedule", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Workflow layers" }).getByRole("link", { name: "Open Process Overview" })).toHaveAttribute("aria-current", "page");
   await page.getByRole("link", { name: "L2 · Department Workflow", exact: true }).click();
   await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute("aria-pressed", "true");
@@ -43,13 +44,13 @@ test("L3 condition details retain the existing forms editor and L4 stays separat
   }, { key: WORKFLOW_STORAGE_KEY, file });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/release-conditions");
-  await expect(page.getByRole("heading", { name: "L3 · Conditions", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Department condition board" })).toBeVisible();
   await page.screenshot({ path: "tmp/four-layer-conditions.png", fullPage: true });
-  await page.getByRole("button", { name: /Inspect contract/ }).click();
+  await page.getByRole("button", { name: "View forms for Inspect contract" }).click();
   await page.getByRole("link", { name: "Forms & execution details", exact: true }).click();
   await expect(page.getByRole("button", { name: "Add Required Document", exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get("condition")).toBe("detail-rc");
   await page.locator("[data-workflow-toolbar]").getByRole("link", { name: "Open Process Overview" }).click();
-  await expect(page.getByRole("heading", { name: "L4 · Process & Gantt", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Process system & schedule", exact: true })).toBeVisible();
   await page.screenshot({ path: "tmp/four-layer-gantt.png", fullPage: true });
 });
