@@ -124,6 +124,10 @@ export function useCanvasExport(
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
+          passUnder:
+            edge.type === "fobYardBypass"
+              ? (edge.data as { skippedNodeIds?: string[] } | undefined)?.skippedNodeIds
+              : undefined,
         }));
         const file = useWorkflowStore.getState().file;
         const forms = phaseFormsSummary(applyFobYardSkip(file));

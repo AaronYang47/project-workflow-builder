@@ -531,6 +531,8 @@ export interface ScheduleCalendar {
   holidayRegion?: "CA-ON";
   /** Override the date (or exclude with null) of a generated provincial holiday. */
   holidayOverrides?: Record<string, string | null>;
+  /** Gantt bar and calendar colours for days off (hex). Unset uses the defaults. */
+  dayOffColors?: Partial<Record<"weekend" | "statutory" | "shutdown", string>>;
 }
 
 export interface WorkflowFile {

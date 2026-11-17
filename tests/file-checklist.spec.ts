@@ -1,8 +1,13 @@
 import { expect, test, type Page } from "playwright/test";
-import { createE2EWorkflow, seedE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
+import {
+  createE2EWorkflow,
+  outOfSequence,
+  seedE2EWorkflow,
+  WORKFLOW_STORAGE_KEY,
+} from "./support/e2e-workflow";
 
 async function openExecution(page: Page, nodeId: string) {
-  await seedE2EWorkflow(page);
+  await seedE2EWorkflow(page, outOfSequence(createE2EWorkflow(), nodeId));
   await page.goto("/");
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   await expect(page.locator(".high-level-node-card").first()).toBeVisible();
@@ -48,7 +53,7 @@ test("L3 lists a condition's files in three columns and ticking them completes t
 
 test("a release-condition checkbox stays in L2", async ({ page }) => {
   // Conditions with L3 forms are completed in L3, so add one without forms.
-  const file = createE2EWorkflow();
+  const file = outOfSequence(createE2EWorkflow(), "pre-construction");
   const preConstruction = file.graph.nodes.find((node) => node.id === "pre-construction")!;
   preConstruction.conditions.push({
     id: "no-forms-check",

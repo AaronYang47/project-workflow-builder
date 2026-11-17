@@ -160,8 +160,15 @@ export function ProcessOverview() {
       startDate: timeline.dateAt(task.start),
       endDate: timeline.dateAt(task.end - 1),
       summary: calendarWorkSummary(task.end - task.start, pauses),
-      badges: taskCalendarBadges(task.department, task.condition, pauses, task.color),
+      badges: taskCalendarBadges(
+        task.department,
+        task.condition,
+        pauses,
+        task.color,
+        timeline.palette,
+      ),
       periods: timeline.nonWorkingPeriods.map((period) => ({ ...period })),
+      palette: timeline.palette,
     });
   };
   const rowActions: GanttRowActions = {
@@ -175,6 +182,7 @@ export function ProcessOverview() {
       bar.style.background = taskSegmentBackground(
         timeline.taskSegments(start, start + days),
         bar.dataset.ganttColor || "#64748b",
+        timeline.palette,
       );
     },
   };

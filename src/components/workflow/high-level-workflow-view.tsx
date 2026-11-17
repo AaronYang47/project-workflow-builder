@@ -22,6 +22,7 @@ import {
   orderLinkedWorkflowNodeIds,
 } from "@/lib/high-level-workflow";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { getFileProgress } from "@/lib/workflow-progress";
 import { departmentDisplayName } from "@/lib/department-label";
 import { useWorkflowStore } from "@/store/workflow-store";
 import {
@@ -355,6 +356,19 @@ function HighLevelCanvasInner({
     return () => document.removeEventListener("pointerdown", onNodePointerDownCapture, true);
   }, [selectHighLevelEdge, selectHighLevelNodes]);
 
+  // An L1 line is green once the flow reaches its target step: one of the
+  // target's linked L2 departments is reached (release conditions met).
+  // With FOB yard on, progress follows the bypass around skipped Phases.
+  const reachedSteps = useMemo(() => {
+    const progress = getFileProgress(file);
+    const reached = new Set<string>();
+    for (const step of highLevel.graph.nodes) {
+      const linked = step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? [];
+      if (linked.some((id) => progress.reachedNodeIds.has(id))) reached.add(step.id);
+    }
+    return reached;
+  }, [file, highLevel.graph.nodes]);
+  const lineActive = (target: string) => reachedSteps.has(target);
   const edges = useMemo<Edge[]>(
     () => [
       ...highLevel.graph.edges.map((edge) => {
@@ -390,11 +404,12 @@ function HighLevelCanvasInner({
           target: edge.target,
           sourcePosition: Position.Right,
           targetPosition: Position.Left,
-          animated: true,
+          animated: lineActive(edge.target),
           className: "high-level-flow-edge",
+          data: { active: lineActive(edge.target) },
           style: {
-            stroke: isSelected ? "#0d9488" : "#159a75",
-            strokeWidth: isSelected ? 4 : 3.2,
+            stroke: isSelected ? "#0d9488" : lineActive(edge.target) ? "#159a75" : "#94a3b8",
+            strokeWidth: isSelected ? 4 : lineActive(edge.target) ? 3.2 : 2.4,
             strokeLinecap: "round" as const,
             strokeLinejoin: "round" as const,
           },
@@ -402,7 +417,7 @@ function HighLevelCanvasInner({
             type: MarkerType.ArrowClosed,
             width: 14,
             height: 14,
-            color: isSelected ? "#0d9488" : "#159a75",
+            color: isSelected ? "#0d9488" : lineActive(edge.target) ? "#159a75" : "#94a3b8",
           },
           pathOptions: { borderRadius: 14, offset: 18 },
           selectable: true,
@@ -416,17 +431,30 @@ function HighLevelCanvasInner({
         type: "fobYardBypass",
         source: edge.source,
         target: edge.target,
-        animated: true,
+        animated: lineActive(edge.target),
         className: "high-level-flow-edge",
-        data: { skippedNodeIds: edge.skippedNodeIds },
-        style: { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" as const },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "#159a75" },
+        data: { skippedNodeIds: edge.skippedNodeIds, active: lineActive(edge.target) },
+        style: lineActive(edge.target)
+          ? { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" as const }
+          : {
+              stroke: "#94a3b8",
+              strokeWidth: 2.4,
+              strokeLinecap: "round" as const,
+              strokeDasharray: "7 5",
+            },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 14,
+          height: 14,
+          color: lineActive(edge.target) ? "#159a75" : "#94a3b8",
+        },
         selectable: false,
         deletable: false,
         focusable: false,
       })),
     ],
-    [fobYard, highLevel.graph.edges, highLevelSelection.edgeId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lineActive reads reachedSteps
+    [fobYard, highLevel.graph.edges, highLevelSelection.edgeId, reachedSteps],
   );
 
   const onDrop = useCallback(

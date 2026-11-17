@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, X } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { calendarDateDay, shutdownLabel } from "@/lib/schedule-calendar";
+import { calendarDateDay, dayOffPalette, shutdownLabel } from "@/lib/schedule-calendar";
 import type { ScheduleCalendar, ScheduleShutdown, ShutdownOverride } from "@/types/workflow";
 import {
   annualShutdownForYear,
@@ -104,6 +104,10 @@ export function ProcessCalendarSettings({
   const [holidayOverrides, setHolidayOverrides] = useState<Record<string, string | null>>(
     value?.holidayOverrides ?? {},
   );
+  const [dayOffColors, setDayOffColors] = useState<NonNullable<ScheduleCalendar["dayOffColors"]>>(
+    value?.dayOffColors ?? {},
+  );
+  const palette = dayOffPalette({ dayOffColors });
   const shutdownDays = shutdowns.reduce((sum, period) => {
     const start = calendarDateDay(period.startDate),
       end = calendarDateDay(period.endDate);
@@ -129,6 +133,7 @@ export function ProcessCalendarSettings({
     shutdownOverrides,
     ...(fourDayWeek ? { workWeek: "mon-thu" } : {}),
     ...(includeOntario ? { holidayRegion: "CA-ON", holidayOverrides } : {}),
+    ...(Object.keys(dayOffColors).length ? { dayOffColors } : {}),
   };
   const setOverride = (kind: ScheduleShutdown["kind"], override: ShutdownOverride) =>
     setShutdownOverrides((current) => ({
@@ -208,6 +213,54 @@ export function ProcessCalendarSettings({
           />
           Work Monday–Thursday · Friday–Sunday weekend
         </label>
+        <div data-day-off-colors className="space-y-2 rounded-md border bg-muted/30 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <strong className="text-xs">Gantt bar colours</strong>
+            {Object.keys(dayOffColors).length ? (
+              <button
+                type="button"
+                onClick={() => setDayOffColors({})}
+                className="min-h-8 rounded-md border px-2.5 text-xs font-semibold"
+              >
+                Reset colours
+              </button>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Colours for days off inside each Gantt bar, its tags, the task calendar and the PDF
+            calendar.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["weekend", "Weekend"],
+                ["statutory", "Stats"],
+                ["shutdown", "Shutdown"],
+              ] as const
+            ).map(([kind, label]) => (
+              <label
+                key={kind}
+                className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-semibold"
+              >
+                <input
+                  type="color"
+                  aria-label={`${label} colour`}
+                  value={palette.fill[kind]}
+                  onChange={(event) =>
+                    setDayOffColors((current) => ({ ...current, [kind]: event.target.value }))
+                  }
+                  className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                />
+                <span
+                  className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                  style={{ background: palette.fill[kind], color: palette.ink[kind] }}
+                >
+                  {label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
         <div className="space-y-3 rounded-md border bg-muted/30 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <strong className="text-xs">Automatic annual shutdowns</strong>

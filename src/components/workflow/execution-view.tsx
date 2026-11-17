@@ -13,6 +13,7 @@ import {
   sequentialExecutionBlocker,
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { blockIfOutOfSequence } from "@/store/sequence-guard";
 import { cn } from "@/lib/utils";
 import { fobYardSkippedIds } from "@/lib/fob-yard";
 import { isCustomerSelectionForm } from "@/lib/falcon-customer-intelligence";
@@ -251,6 +252,8 @@ export function ExecutionView({
         };
       }
       if (doc.checked || skippedFormAutoCheck.current.has(doc.id)) return doc;
+      // Out of sequence: leave it for the user (ticking shows why it's blocked).
+      if (sequentialExecutionBlocker(useWorkflowStore.getState().file, node.id)) return doc;
       return { ...doc, checked: true, status: "Verified" as const };
     });
     const changed = next.some(
@@ -486,10 +489,12 @@ export function ExecutionView({
                       : "Mark release condition complete"
                   }
                   disabled={
-                    (currentConditionHasL3Forms && currentCondition.id !== "project-id-required") ||
-                    Boolean(sequenceBlocker && !currentCondition.checked)
+                    currentConditionHasL3Forms &&
+                    currentCondition.id !== "project-id-required" &&
+                    !(sequenceBlocker && !currentCondition.checked)
                   }
                   onClick={() => {
+                    if (!currentCondition.checked && blockIfOutOfSequence(node.id)) return;
                     const nextChecked = !currentCondition.checked;
                     const updatedConditions = (node.conditions || []).map((c) =>
                       c.id === currentCondition.id ? { ...c, checked: nextChecked } : c,

@@ -247,15 +247,29 @@ export function buildCanvasEdges(
             target: edge.target,
             sourceHandle: edge.sourceHandle,
             targetHandle: edge.targetHandle,
-            animated: true,
+            animated: progress.activeEdgeIds.has(edge.id),
             selectable: false,
             deletable: false,
             focusable: false,
             reconnectable: false,
             className: "fob-yard-bypass",
-            data: { skippedNodeIds: [...new Set(skippedIds)] },
-            style: { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "#159a75" },
+            data: {
+              skippedNodeIds: [...new Set(skippedIds)],
+              active: progress.activeEdgeIds.has(edge.id),
+            },
+            // Green once the flow reaches it (release conditions met), grey before.
+            style: progress.activeEdgeIds.has(edge.id)
+              ? { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" }
+              : {
+                  stroke: "#94a3b8",
+                  strokeWidth: 2,
+                  strokeLinecap: "round",
+                  strokeDasharray: "7 5",
+                },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: progress.activeEdgeIds.has(edge.id) ? "#159a75" : "#94a3b8",
+            },
           };
         })
     : [];

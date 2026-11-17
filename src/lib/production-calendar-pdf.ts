@@ -3,8 +3,7 @@ import type { WorkflowFile } from "@/types/workflow";
 import { buildProcessSchedule } from "@/lib/process-schedule";
 import {
   buildProcessTimeline,
-  DAY_OFF_COLORS,
-  DAY_OFF_INK,
+  type DayOffPalette,
   splitCalendarTask,
 } from "@/lib/schedule-calendar";
 import { calendarWorkSummary } from "@/lib/gantt-bar-label";
@@ -18,19 +17,20 @@ const priority = ["winter", "summer", "statutory", "weekend"] as const;
 const serial = (date: string) => Date.parse(`${date}T00:00:00Z`) / DAY_MS;
 const codes = { winter: "SD", summer: "SD", statutory: "H", weekend: "OFF", work: "" };
 // Day-off fills are shared with the Gantt bars and their labels.
-const colors = {
-  winter: [DAY_OFF_COLORS.shutdown, DAY_OFF_INK.shutdown],
-  summer: [DAY_OFF_COLORS.shutdown, DAY_OFF_INK.shutdown],
-  statutory: [DAY_OFF_COLORS.statutory, DAY_OFF_INK.statutory],
-  weekend: [DAY_OFF_COLORS.weekend, DAY_OFF_INK.weekend],
+const dayColors = (palette: DayOffPalette) => ({
+  winter: [palette.fill.shutdown, palette.ink.shutdown],
+  summer: [palette.fill.shutdown, palette.ink.shutdown],
+  statutory: [palette.fill.statutory, palette.ink.statutory],
+  weekend: [palette.fill.weekend, palette.ink.weekend],
   work: ["#f0fdf4", "#166534"],
-};
+});
 
 /** A project-wide calendar uses unique dates, never a sum of overlapping tasks.
  * Up to 24 months fit one 11x17 sheet; longer projects continue on equal-size sheets. */
 export function productionCalendarPageHtml(file: WorkflowFile): string[] {
   const schedule = buildProcessSchedule(file),
     timeline = buildProcessTimeline(file, schedule);
+  const colors = dayColors(timeline.palette);
   const tasks = schedule.tasks.filter((task) => task.start !== undefined && task.end !== undefined);
   const name = file.graph.metadata.name || "Project workflow",
     job = workflowLegacyJobNumber(file) || "PROJECT";
@@ -132,7 +132,7 @@ export function productionCalendarPageHtml(file: WorkflowFile): string[] {
       .production-calendar-page .pc-month{background:#fff;border:1px solid #dbe3ee;border-radius:14px;padding:${rows >= 3 ? 12 : 16}px;min-height:0;display:flex;flex-direction:column;gap:8px}.production-calendar-page h3{font-size:${columns > 6 ? 23 : 27}px;line-height:1;margin:0 0 6px;font-weight:800}.production-calendar-page .pc-week{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:${columns > 6 ? 12 : 14}px;font-weight:700;color:#64748b}.production-calendar-page .pc-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:4px;min-height:0;flex:1}.production-calendar-page .pc-day{border-radius:6px;position:relative;padding:${rows >= 3 ? 2 : 5}px;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.production-calendar-page .pc-day b{font-size:${columns > 6 ? 17 : rows >= 3 ? 20 : 25}px;line-height:1}.production-calendar-page .pc-code{font-size:${columns > 6 ? 6 : rows >= 3 ? 7 : 10}px;font-weight:800;margin-top:2px;line-height:1}.production-calendar-page .pc-owners{position:absolute;bottom:3px;left:3px;right:3px;display:flex;gap:2px;height:4px}.production-calendar-page .pc-owners i{flex:1;border-radius:2px}
       .production-calendar-page .pc-legend{display:flex;flex-wrap:wrap;gap:10px}.production-calendar-page .pc-department{display:flex;align-items:center;gap:8px;border:1px solid #dbe3ee;background:#fff;border-radius:7px;padding:8px 12px;font-size:16px}.production-calendar-page .pc-department i{width:12px;height:12px;border-radius:3px}.production-calendar-page .pc-department span{font-size:14px;color:#64748b}.production-calendar-page .pc-footer{border-top:1px solid #dbe3ee;padding-top:12px;color:#64748b;font-size:15px;display:flex;justify-content:space-between;gap:30px}.production-calendar-page .pc-empty{flex:1;display:flex;align-items:center;justify-content:center;border:2px dashed #cbd5e1;border-radius:14px;color:#64748b;font-size:34px}
       </style><header class="pc-header"><div><div class="pc-kicker">PROJECT PRODUCTION CALENDAR</div><h1>${escape(name)}</h1><div class="pc-subtitle">${enabled ? `${startDate} - ${endDate} · ${months.length} months · Whole project schedule` : "Whole project calendar"}</div></div><div class="pc-job">${escape(job)}<span>11 × 17 in · Landscape${chunks.length > 1 ? ` · Calendar sheet ${sheet + 1}/${chunks.length}` : ""}</span></div></header>
-      ${enabled ? `<div class="pc-summary">${calendarTextHtml([{ kind: "total", text: `TOTAL ${summary.totalDays}D`, background: "#15243b", color: "#fff" }, ...calendarSummaryBadges(summary).map((badge) => (badge.kind === "work" ? { ...badge, text: `WORKING DAYS ${summary.workDays}D` } : badge))], 21)}<small>${file.calendar?.workWeek === "mon-thu" ? "MON–THU WORK · FRI–SUN OFF" : "7-DAY WEEK"}</small></div><div class="pc-grid">${monthHtml}</div><div class="pc-legend">${legend}</div>` : '<div class="pc-empty">Set the Calendar handoff date and complete task durations to generate dated calendars.</div>'}
+      ${enabled ? `<div class="pc-summary">${calendarTextHtml([{ kind: "total", text: `TOTAL ${summary.totalDays}D`, background: "#15243b", color: "#fff" }, ...calendarSummaryBadges(summary, timeline.palette).map((badge) => (badge.kind === "work" ? { ...badge, text: `WORKING DAYS ${summary.workDays}D` } : badge))], 21)}<small>${file.calendar?.workWeek === "mon-thu" ? "MON–THU WORK · FRI–SUN OFF" : "7-DAY WEEK"}</small></div><div class="pc-grid">${monthHtml}</div><div class="pc-legend">${legend}</div>` : '<div class="pc-empty">Set the Calendar handoff date and complete task durations to generate dated calendars.</div>'}
       <footer class="pc-footer"><span>Counts are unique days across the project range, not a sum of overlapping tasks. OFF = stats + shutdown + weekend. Overlapping dates count once.</span><span>Day markers show active departments. SD = shutdown · H = stat holiday · OFF = weekend.</span></footer></div>`;
   });
 }

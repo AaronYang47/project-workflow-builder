@@ -2,14 +2,19 @@
 
 import { BaseEdge, EdgeLabelRenderer, useStore, type Edge, type EdgeProps } from "@xyflow/react";
 
-export type FobYardBypassEdge = Edge<{ skippedNodeIds: string[] }, "fobYardBypass">;
+export type FobYardBypassEdge = Edge<
+  { skippedNodeIds: string[]; active?: boolean },
+  "fobYardBypass"
+>;
 
 const RADIUS = 12;
 const CLEARANCE = 44;
+const LABEL_GAP = 6;
 
 /** Display-only route from the step before the skipped Phases to the step
  * after them, drawn underneath every skipped Phase so it never crosses one. */
 export function FobYardBypassEdgeComponent({
+  id,
   sourceX,
   sourceY,
   targetX,
@@ -50,9 +55,11 @@ export function FobYardBypassEdgeComponent({
       <BaseEdge path={path} markerEnd={markerEnd} style={style} />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan pointer-events-none absolute rounded-full border border-emerald-500/40 bg-background px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300"
+          data-edge-label={id}
+          className={`nodrag nopan pointer-events-none absolute rounded-full border bg-background px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${data?.active ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" : "border-slate-400/50 text-slate-500"}`}
           style={{
-            transform: `translate(-50%, -50%) translate(${(outX + inX) / 2}px, ${laneY}px)`,
+            // Just below the line, so the line never runs through the text.
+            transform: `translate(-50%, 0) translate(${(outX + inX) / 2}px, ${laneY + LABEL_GAP}px)`,
           }}
         >
           FOB yard

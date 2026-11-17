@@ -142,7 +142,7 @@ export function processGanttPdfHtml(
               // Zero actual work is printed red so impossible windows stand out.
               const workHtml = `<span data-calendar-tag="work" style="display:inline-block;flex:0 0 auto;white-space:nowrap;font:800 19px/1.2 Arial,sans-serif;color:#15803d">ACTUAL WORK <span data-actual-work-days="${summary.workDays}" style="${summary.workDays === 0 ? "color:#dc2626;font-weight:900" : ""}">${summary.workDays}D</span></span>`;
               const labelHtml = timeline.enabled
-                ? `${calendarTextHtml(taskCalendarBadges(task.department, task.condition, pauses, color).filter((badge) => badge.kind === "department"))} ${workHtml}`
+                ? `${calendarTextHtml(taskCalendarBadges(task.department, task.condition, pauses, color, timeline.palette).filter((badge) => badge.kind === "department"))} ${workHtml}`
                 : calendarTextHtml([
                     { kind: "department", text: endLabel, background: color, color: "#ffffff" },
                   ]);
@@ -153,7 +153,7 @@ export function processGanttPdfHtml(
                 .map((segment, index) =>
                   segment.kind === "work"
                     ? `<div class="gantt-bar" data-start="${task.start}" data-end="${task.end}" data-duration="${escape(ganttDurationText(task.condition, true, schedule.workingDaysPerWeek).toUpperCase())}" data-segment-start="${segment.start}" data-segment-end="${segment.end}"${timeline.enabled ? ` data-calendar-start="${timeline.dateAt(start)}" data-calendar-end="${timeline.dateAt(end - 1)}"` : ""} style="left:${(segment.start / total) * 100}%;width:${((segment.end - segment.start) / total) * 100}%;background:${color};${corners(index)}"></div>`
-                    : `<div class="gantt-pause-segment" data-pdf-task-pause data-pdf-pause-periods="${escape(segment.periods.map((period) => period.id).join(" "))}" data-segment-start="${segment.start}" data-segment-end="${segment.end}" title="${escape(segment.description)}" style="left:${(segment.start / total) * 100}%;width:${((segment.end - segment.start) / total) * 100}%;background:${pauseSegmentBackground(segment)};${corners(index)}"></div>`,
+                    : `<div class="gantt-pause-segment" data-pdf-task-pause data-pdf-pause-periods="${escape(segment.periods.map((period) => period.id).join(" "))}" data-segment-start="${segment.start}" data-segment-end="${segment.end}" title="${escape(segment.description)}" style="left:${(segment.start / total) * 100}%;width:${((segment.end - segment.start) / total) * 100}%;background:${pauseSegmentBackground(segment, timeline.palette)};${corners(index)}"></div>`,
                 )
                 .join("");
               return `<div class="gantt-row" data-pdf-gantt-task="${escape(task.title)}" data-pdf-gantt-phase="${escape(phase?.id || "")}" data-pdf-gantt-department="${escape(task.department)}"><div class="gantt-label gantt-task-label">${heading}</div><div class="gantt-track">${salesLabelOnly ? "" : task.start !== undefined && task.end !== undefined ? `${bars}<span class="gantt-bar-text" title="${escape(summary.formula)}"${shutdownDays ? ` data-shutdown-days="${shutdownDays}"` : ""} style="left:${(end / total) * 100}%;">${labelHtml}</span>` : `<span class="gantt-issue">${escape(task.issue || "Not scheduled")}</span>`}</div></div>`;

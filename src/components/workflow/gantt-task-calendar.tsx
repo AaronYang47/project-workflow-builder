@@ -3,7 +3,11 @@
 import { useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { CalendarDays, X } from "lucide-react";
-import { DAY_OFF_COLORS, DAY_OFF_INK, type CalendarPause } from "@/lib/schedule-calendar";
+import {
+  DEFAULT_DAY_OFF_PALETTE,
+  type CalendarPause,
+  type DayOffPalette,
+} from "@/lib/schedule-calendar";
 import type { CalendarBadge, CalendarSummary } from "@/lib/calendar-badges";
 import { CalendarTags } from "./calendar-tags";
 import { DAY_MS, isoFromDay as iso, monthYearFormat as monthName } from "@/lib/calendar-date";
@@ -41,6 +45,8 @@ export type TaskCalendarValue = {
   summary: CalendarSummary;
   periods: CalendarPause[];
   badges: CalendarBadge[];
+  /** Day-off colours chosen in the Calendar. */
+  palette?: DayOffPalette;
 };
 
 export function GanttTaskCalendar({
@@ -193,8 +199,12 @@ export function GanttTaskCalendar({
                                 style={
                                   inTask && kind !== "work"
                                     ? {
-                                        background: DAY_OFF_COLORS[dayOffStyle[kind]],
-                                        color: DAY_OFF_INK[dayOffStyle[kind]],
+                                        background: (value.palette ?? DEFAULT_DAY_OFF_PALETTE).fill[
+                                          dayOffStyle[kind]
+                                        ],
+                                        color: (value.palette ?? DEFAULT_DAY_OFF_PALETTE).ink[
+                                          dayOffStyle[kind]
+                                        ],
                                       }
                                     : undefined
                                 }

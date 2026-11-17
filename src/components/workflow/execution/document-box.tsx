@@ -109,7 +109,6 @@ export function DocumentBox({
               type="checkbox"
               aria-label={`Required file: ${doc.title}`}
               checked={doc.checked}
-              disabled={Boolean(lockedReason && !doc.checked)}
               title={lockedReason}
               onChange={() => {
                 const updated = [...docs];

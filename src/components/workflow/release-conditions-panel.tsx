@@ -10,6 +10,7 @@ import {
   nodeReleaseReady,
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { blockIfOutOfSequence, openDepartmentL3 } from "@/store/sequence-guard";
 import { cn } from "@/lib/utils";
 import { stopBubble } from "./node-utils";
 import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
@@ -32,7 +33,6 @@ export function ReleaseConditionsPanel({
   const deleteNodeCondition = useWorkflowStore((state) => state.deleteNodeCondition);
   const focusedInspectorField = useWorkflowStore((state) => state.focusedInspectorField);
   const conditions = node.conditions || [];
-  const sequenceLocked = node.metadata.executionOrder === "strict-sequential" && !reached;
   const statusReady =
     reached && nodeReleaseReady(node, projectStartNode, executionItems, operations);
   const saveConditions = (next: Condition[]) => updateNode(node.id, { conditions: next });
@@ -77,6 +77,11 @@ export function ReleaseConditionsPanel({
           };
           const toggleCondition = () => {
             if (condition.id === "project-id-required") return;
+            if (!checked && blockIfOutOfSequence(node.id)) return;
+            if (!checked && conditionHasL3Forms(condition, node)) {
+              openDepartmentL3(node.id);
+              return;
+            }
             const linkedItem = condition.linkedExecutionItemId
               ? executionItems.find((item) => item.id === condition.linkedExecutionItemId)
               : undefined;
@@ -141,18 +146,17 @@ export function ReleaseConditionsPanel({
                 title={
                   condition.id === "project-id-required"
                     ? "Automatically checked when a complete Job Number is entered"
-                    : sequenceLocked && !checked
-                      ? "Complete the preceding department first"
-                      : checked
-                        ? "Uncheck this release condition"
-                        : "Mark this release condition complete"
+                    : checked
+                      ? "Uncheck this release condition"
+                      : "Mark this release condition complete"
                 }
                 disabled={
                   condition.id === "project-id-required" ||
-                  (sequenceLocked && !checked) ||
-                  (Boolean(condition.linkedExecutionItemId) &&
-                    condition.id !== "project-id-required") ||
-                  (conditionHasL3Forms(condition, node) && condition.id !== "project-id-required")
+                  // Unticked ones stay clickable: the click explains what to finish first,
+                  // or opens L3 for conditions completed through their files.
+                  (checked &&
+                    (Boolean(condition.linkedExecutionItemId) ||
+                      conditionHasL3Forms(condition, node)))
                 }
                 onClick={stopBubble(toggleCondition)}
                 className={cn(

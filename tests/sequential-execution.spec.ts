@@ -82,13 +82,15 @@ test("L2 and L3 completion cannot bypass the preceding chapter", () => {
   ]).toEqual(expect.arrayContaining(["first", "second"]));
 });
 
-test("strict ordering is opt-in and does not lock other workflows", () => {
+test("ordering applies to every workflow, not only strict-sequential ones", () => {
   const file = fixture();
-  file.graph.nodes[1].metadata = {};
-  expect(sequentialExecutionBlocker(file, "second")).toBeUndefined();
+  file.graph.nodes.forEach((node) => (node.metadata = {}));
+  expect(sequentialExecutionBlocker(file, "second")).toContain("Chapter 1");
+  // The first department is never held up.
+  expect(sequentialExecutionBlocker(file, "first")).toBeUndefined();
 });
 
-test("L3 visibly explains the lock and disables premature completion", async ({ page }) => {
+test("L3 explains the lock and ticking shows the previous-department popup", async ({ page }) => {
   await page.addInitScript(
     ({ key, file }) =>
       localStorage.setItem(
@@ -107,13 +109,12 @@ test("L3 visibly explains the lock and disables premature completion", async ({ 
     .getByRole("button", { name: "Open L3 details for release condition 1", exact: true })
     .click();
   await expect(
-    page.getByText(
-      "Complete the preceding department and its required release conditions before completing this department.",
-      { exact: true },
-    ),
+    page.getByText(/Finish every release condition in Chapter 1 first/).first(),
   ).toBeVisible();
-  // The locked condition cannot be marked complete from L3.
+  await page.getByRole("button", { name: "Check release condition", exact: true }).click();
+  await expect(page.getByText("Finish the previous department first")).toBeVisible();
+  await page.getByRole("button", { name: "Got it" }).click();
   await expect(
     page.getByRole("button", { name: "Check release condition", exact: true }),
-  ).toBeDisabled();
+  ).toBeVisible();
 });

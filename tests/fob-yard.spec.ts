@@ -307,3 +307,32 @@ test("L2, L3 and the Release Conditions map follow the Phase chosen on Final Clo
   await expect(map.locator("[data-fob-yard-skipped]")).toContainText("l2-p3");
   await expect(map.locator("[data-fob-yard-skipped]")).not.toContainText("l2-p4");
 });
+
+test("FOB yard lines stay grey until release conditions let the flow through", async ({ page }) => {
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file: fourPhaseWorkflow(true) },
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  // Start -> PHASE 3 is reached (PHASE 3 holds the project start); its release
+  // conditions are open, so the bypass to Final Close is not.
+  await expect(page.locator('.react-flow__edge[data-id="e1"]')).toHaveClass(/animated/);
+  const l1Bypass = page.locator('.react-flow__edge[data-id="fob-yard-bypass-p3-fc"]');
+  await expect(l1Bypass).toHaveCount(1);
+  await expect(l1Bypass).not.toHaveClass(/animated/);
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  const l2Bypass = page.locator('.react-flow__edge[data-id="fob-yard-l2-p3-l2-fc"]');
+  await expect(l2Bypass).toHaveCount(1);
+  await expect(l2Bypass).not.toHaveClass(/animated/);
+  await expect(page.locator('[data-edge-label="fob-yard-l2-p3-l2-fc"]')).toHaveClass(/slate/);
+});

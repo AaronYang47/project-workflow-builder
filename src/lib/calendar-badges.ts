@@ -6,34 +6,41 @@ import {
 } from "@/lib/gantt-bar-label";
 import { isSalesDepartmentName } from "@/lib/department-label";
 import { buildProcessSchedule } from "@/lib/process-schedule";
-import { buildProcessTimeline, DAY_OFF_COLORS, DAY_OFF_INK } from "@/lib/schedule-calendar";
+import {
+  buildProcessTimeline,
+  DEFAULT_DAY_OFF_PALETTE,
+  type DayOffPalette,
+} from "@/lib/schedule-calendar";
 import type { Condition, WorkflowFile } from "@/types/workflow";
 import { escapeHtml as escape } from "@/lib/html";
 
 export type CalendarSummary = ReturnType<typeof calendarWorkSummary>;
 export type CalendarBadge = { kind: string; text: string; background: string; color: string };
-export function calendarSummaryBadges(summary: CalendarSummary): CalendarBadge[] {
+export function calendarSummaryBadges(
+  summary: CalendarSummary,
+  palette: DayOffPalette = DEFAULT_DAY_OFF_PALETTE,
+): CalendarBadge[] {
   const badges: (CalendarBadge & { days: number })[] = [
     {
       kind: "statutory",
       days: summary.totals.statutory,
       text: `- STATS OFF ${summary.totals.statutory}D`,
-      background: DAY_OFF_COLORS.statutory,
-      color: DAY_OFF_INK.statutory,
+      background: palette.fill.statutory,
+      color: palette.ink.statutory,
     },
     {
       kind: "shutdown",
       days: summary.totals.winter + summary.totals.summer,
       text: `- SHUTDOWN ${summary.totals.winter + summary.totals.summer}D`,
-      background: DAY_OFF_COLORS.shutdown,
-      color: DAY_OFF_INK.shutdown,
+      background: palette.fill.shutdown,
+      color: palette.ink.shutdown,
     },
     {
       kind: "weekend",
       days: summary.totals.weekend,
       text: `- WEEKEND ${summary.totals.weekend}D`,
-      background: DAY_OFF_COLORS.weekend,
-      color: DAY_OFF_INK.weekend,
+      background: palette.fill.weekend,
+      color: palette.ink.weekend,
     },
     {
       kind: "work",
@@ -50,6 +57,7 @@ export function taskCalendarBadges(
   condition: Condition,
   pauses: readonly PauseSegment[],
   phaseColor = "#2563eb",
+  palette: DayOffPalette = DEFAULT_DAY_OFF_PALETTE,
 ): CalendarBadge[] {
   const label = `${ganttBarLabel(department, condition).toUpperCase()}${isSalesDepartmentName(department) ? ` ${ganttDurationText(condition, true).toUpperCase()}` : ""}`;
   const color = /^#[\da-f]{6}$/i.test(phaseColor) ? phaseColor : "#2563eb";
@@ -60,7 +68,7 @@ export function taskCalendarBadges(
     (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? "#15243b" : "#ffffff";
   return [
     { kind: "department", text: label, background: color, color: foreground },
-    ...calendarSummaryBadges(calendarWorkSummary(total, pauses)),
+    ...calendarSummaryBadges(calendarWorkSummary(total, pauses), palette),
   ];
 }
 export function calendarBadgesHtml(badges: CalendarBadge[], fontSize = 13) {

@@ -51,6 +51,34 @@ export type GraphSlice = Pick<
 >;
 
 /** L2 detailed workflow: nodes, phases, edges and canvas layout. */
+export const PREVIOUS_DEPARTMENT_TITLE = "Finish the previous department first";
+
+/** True when a customFields patch ticks a release-condition file that wasn't ticked. */
+function ticksDocument(
+  current: Record<string, string | number | boolean> | undefined,
+  next: Record<string, string | number | boolean> | undefined,
+) {
+  if (!next) return false;
+  const ticked = (raw: unknown) => {
+    if (typeof raw !== "string" || !raw.startsWith("[")) return new Set<string>();
+    try {
+      const list = JSON.parse(raw) as Array<{ id?: string; checked?: boolean }>;
+      return new Set(
+        Array.isArray(list)
+          ? list.filter((doc) => doc?.checked === true).map((doc, i) => doc.id ?? String(i))
+          : [],
+      );
+    } catch {
+      return new Set<string>();
+    }
+  };
+  return Object.entries(next).some(([key, value]) => {
+    if (!key.includes("::release-condition::") || current?.[key] === value) return false;
+    const before = ticked(current?.[key]);
+    return [...ticked(value)].some((id) => !before.has(id));
+  });
+}
+
 export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
   return {
     clearDetailedNodes: () =>
@@ -439,16 +467,15 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
     updateNode: (id, patch) => {
       const currentFile = get().file;
       const currentNode = currentFile.graph.nodes.find((item) => item.id === id);
-      const completing = patch.conditions?.some(
-        (condition) =>
-          condition.checked &&
-          !currentNode?.conditions.find((item) => item.id === condition.id)?.checked,
-      );
+      const completing =
+        patch.conditions?.some(
+          (condition) =>
+            condition.checked &&
+            !currentNode?.conditions.find((item) => item.id === condition.id)?.checked,
+        ) || ticksDocument(currentNode?.customFields, patch.customFields);
       const blocker = completing && sequentialExecutionBlocker(currentFile, id);
       if (blocker) {
-        set({
-          deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] },
-        });
+        set({ deleteBlocked: { title: PREVIOUS_DEPARTMENT_TITLE, message: blocker, items: [] } });
         return;
       }
       set((state) => {

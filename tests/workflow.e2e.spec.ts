@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "playwright/test";
-import { seedE2EWorkflow, WORKFLOW_STORAGE_KEY, createE2EWorkflow } from "./support/e2e-workflow";
+import {
+  createE2EWorkflow,
+  outOfSequence,
+  seedE2EWorkflow,
+  WORKFLOW_STORAGE_KEY,
+} from "./support/e2e-workflow";
 
 async function openLayer1(page: Page) {
   await seedE2EWorkflow(page);
@@ -294,7 +299,7 @@ test("retired matrix nodes are not addable or present in L2", async ({ page }) =
 });
 
 test("the execution view releases when every required file is checked", async ({ page }) => {
-  await seedE2EWorkflow(page);
+  await seedE2EWorkflow(page, outOfSequence(createE2EWorkflow(), "pre-construction"));
   await page.goto("/");
   await openExecution(page, "pre-construction");
   const checklist = page.getByTestId("required-file-checklist");

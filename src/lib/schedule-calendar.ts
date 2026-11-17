@@ -94,6 +94,30 @@ export const DAY_OFF_INK = {
 } as const;
 export type DayOffKind = keyof typeof DAY_OFF_COLORS;
 
+const isHexColor = (value: unknown): value is string =>
+  typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
+/** Dark or white text, whichever reads on `fill`. */
+const readableInk = (fill: string) => {
+  const [r, g, b] = [1, 3, 5].map((offset) => parseInt(fill.slice(offset, offset + 2), 16));
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#0f172a" : "#ffffff";
+};
+
+/** Day-off fills and the text drawn on them, as chosen in the Calendar. */
+export type DayOffPalette = { fill: Record<DayOffKind, string>; ink: Record<DayOffKind, string> };
+export function dayOffPalette(calendar?: Pick<ScheduleCalendar, "dayOffColors">): DayOffPalette {
+  const fill = { ...DAY_OFF_COLORS } as Record<DayOffKind, string>;
+  const ink = { ...DAY_OFF_INK } as Record<DayOffKind, string>;
+  for (const kind of Object.keys(DAY_OFF_COLORS) as DayOffKind[]) {
+    const chosen = calendar?.dayOffColors?.[kind];
+    if (isHexColor(chosen) && chosen.toLowerCase() !== DAY_OFF_COLORS[kind]) {
+      fill[kind] = chosen;
+      ink[kind] = readableInk(chosen);
+    }
+  }
+  return { fill, ink };
+}
+export const DEFAULT_DAY_OFF_PALETTE = dayOffPalette();
+
 /** Split a merged pause into pieces by kind. Each day counts once, with the
  * same precedence as the work summary: shutdown, then statutory, then weekend. */
 export function pauseKindParts(pause: Extract<TaskTimelineSegment, { kind: "pause" }>) {
@@ -132,16 +156,23 @@ export function pauseKindParts(pause: Extract<TaskTimelineSegment, { kind: "paus
 }
 
 /** Fill for one pause piece, coloured per day-off kind like its tag. */
-export function pauseSegmentBackground(pause: Extract<TaskTimelineSegment, { kind: "pause" }>) {
+export function pauseSegmentBackground(
+  pause: Extract<TaskTimelineSegment, { kind: "pause" }>,
+  palette: DayOffPalette = DEFAULT_DAY_OFF_PALETTE,
+) {
   const span = pause.end - pause.start;
   const parts = pauseKindParts(pause);
-  if (span <= 0 || !parts.length) return DAY_OFF_COLORS.weekend;
-  if (parts.length === 1) return DAY_OFF_COLORS[parts[0].kind];
-  return `linear-gradient(to right, ${parts.map((part) => `${DAY_OFF_COLORS[part.kind]} ${((part.start - pause.start) / span) * 100}% ${((part.end - pause.start) / span) * 100}%`).join(", ")})`;
+  if (span <= 0 || !parts.length) return palette.fill.weekend;
+  if (parts.length === 1) return palette.fill[parts[0].kind];
+  return `linear-gradient(to right, ${parts.map((part) => `${palette.fill[part.kind]} ${((part.start - pause.start) / span) * 100}% ${((part.end - pause.start) / span) * 100}%`).join(", ")})`;
 }
 
 /** Used by both the resting task bar and its live drag/resize preview. */
-export function taskSegmentBackground(segments: TaskTimelineSegment[], color: string) {
+export function taskSegmentBackground(
+  segments: TaskTimelineSegment[],
+  color: string,
+  palette: DayOffPalette = DEFAULT_DAY_OFF_PALETTE,
+) {
   const from = segments[0]?.start ?? 0,
     span = (segments.at(-1)?.end ?? from) - from;
   if (span <= 0 || segments.every((segment) => segment.kind === "work")) return color;
@@ -149,7 +180,7 @@ export function taskSegmentBackground(segments: TaskTimelineSegment[], color: st
     segment.kind === "work"
       ? [{ color, start: segment.start, end: segment.end }]
       : pauseKindParts(segment).map((part) => ({
-          color: DAY_OFF_COLORS[part.kind],
+          color: palette.fill[part.kind],
           start: part.start,
           end: part.end,
         })),
@@ -207,6 +238,11 @@ export function normalizeScheduleCalendar(value: unknown): ScheduleCalendar | un
       );
     }),
   );
+  const dayOffColors = Object.fromEntries(
+    Object.entries(calendar.dayOffColors ?? {}).filter(
+      ([kind, color]) => kind in DAY_OFF_COLORS && isHexColor(color),
+    ),
+  ) as NonNullable<ScheduleCalendar["dayOffColors"]>;
   return {
     startDate: calendar.startDate!,
     shutdowns,
@@ -215,6 +251,7 @@ export function normalizeScheduleCalendar(value: unknown): ScheduleCalendar | un
     ...(calendar.workWeek === "mon-thu" ? { workWeek: "mon-thu" as const } : {}),
     ...(calendar.holidayRegion === "CA-ON" ? { holidayRegion: "CA-ON" as const } : {}),
     ...(Object.keys(holidayOverrides).length ? { holidayOverrides } : {}),
+    ...(Object.keys(dayOffColors).length ? { dayOffColors } : {}),
   };
 }
 
@@ -408,6 +445,8 @@ export function buildProcessTimeline(
   return {
     enabled,
     calendar,
+    /** Day-off colours chosen in the Calendar. */
+    palette: dayOffPalette(calendar),
     originDay: origin === null ? null : origin + axisShift,
     shutdowns,
     holidays,

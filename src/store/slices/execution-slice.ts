@@ -74,7 +74,11 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
           );
         if (blocker)
           return {
-            deleteBlocked: { title: "Sequential execution required", message: blocker, items: [] },
+            deleteBlocked: {
+              title: "Finish the previous department first",
+              message: blocker,
+              items: [],
+            },
           };
         if (
           patch.linkedLayer2NodeId !== undefined &&

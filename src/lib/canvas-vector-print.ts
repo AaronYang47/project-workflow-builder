@@ -23,6 +23,8 @@ export type CanvasLink = {
   target: string;
   sourceHandle?: string | null;
   targetHandle?: string | null;
+  /** FOB yard bypass: route underneath these skipped cards instead of through them. */
+  passUnder?: string[];
 };
 
 /** Editing controls inside cards that aren't part of the flowchart itself. */
@@ -460,6 +462,32 @@ function rerouteLinks(copy: HTMLElement, viewport: HTMLElement, links: CanvasLin
       `.react-flow__edge[data-id="${CSS.escape(link.id)}"]`,
     );
     if (!from || !to || !group) continue;
+    if (link.passUnder?.length) {
+      // Out to the right, down below every skipped card, across, then up into the target.
+      const origin = viewport.getBoundingClientRect();
+      const bottom = Math.max(
+        from.y,
+        to.y,
+        ...link.passUnder.map((id) => {
+          const card = copy.querySelector<HTMLElement>(
+            `.react-flow__node[data-id="${CSS.escape(id)}"]`,
+          );
+          return card ? card.getBoundingClientRect().bottom - origin.top : -Infinity;
+        }),
+      );
+      const lane = bottom + 44;
+      const outX = from.x + 24;
+      const inX = to.x - 24;
+      const path = `M ${from.x} ${from.y} L ${outX} ${from.y} L ${outX} ${lane} L ${inX} ${lane} L ${inX} ${to.y} L ${to.x} ${to.y}`;
+      group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
+      copy
+        .querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`)
+        ?.style.setProperty(
+          "transform",
+          `translate(-50%, 0) translate(${(outX + inX) / 2}px, ${lane + 6}px)`,
+        );
+      continue;
+    }
     const horizontal = Math.abs(to.x - from.x) >= Math.abs(to.y - from.y);
     const middle = horizontal ? (from.x + to.x) / 2 : (from.y + to.y) / 2;
     const path = horizontal

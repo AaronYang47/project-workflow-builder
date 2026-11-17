@@ -7,6 +7,7 @@ import { getNodeDefinition } from "@/lib/node-catalog";
 import { cn } from "@/lib/utils";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { blockIfOutOfSequence, openDepartmentL3 } from "@/store/sequence-guard";
 import type { DomainNode } from "@/types/workflow";
 import {
   conditionHasL3Forms,
@@ -363,6 +364,11 @@ export function GeneralNode({
                   const hasL3Forms = conditionHasL3Forms(condition, node);
                   const toggleCondition = () => {
                     if (condition.id === "project-id-required") return;
+                    if (!checked && blockIfOutOfSequence(node.id)) return;
+                    if (!checked && hasL3Forms) {
+                      openDepartmentL3(node.id);
+                      return;
+                    }
                     const linkedItem = condition.linkedExecutionItemId
                       ? executionItems.find((item) => item.id === condition.linkedExecutionItemId)
                       : undefined;
@@ -435,7 +441,7 @@ export function GeneralNode({
                               ? "Uncheck this release condition"
                               : "Mark this release condition complete"
                         }
-                        disabled={condition.id === "project-id-required" || hasL3Forms}
+                        disabled={condition.id === "project-id-required" || (hasL3Forms && checked)}
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded border",

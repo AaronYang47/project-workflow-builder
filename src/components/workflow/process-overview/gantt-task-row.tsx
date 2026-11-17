@@ -202,7 +202,7 @@ export function GanttTaskRow({
             style={{
               left: `${(displayStart / total) * 100}%`,
               width: `${((displayEnd - displayStart) / total) * 100}%`,
-              background: taskSegmentBackground(segments, task.color),
+              background: taskSegmentBackground(segments, task.color, timeline.palette),
             }}
           >
             {segments.map((segment, segmentIndex) => (
@@ -223,7 +223,7 @@ export function GanttTaskRow({
                   left: `${((segment.start - displayStart) / (displayEnd - displayStart)) * 100}%`,
                   width: `${((segment.end - segment.start) / (displayEnd - displayStart)) * 100}%`,
                   ...(segment.kind === "pause"
-                    ? { background: pauseSegmentBackground(segment) }
+                    ? { background: pauseSegmentBackground(segment, timeline.palette) }
                     : {}),
                 }}
               />
@@ -237,7 +237,13 @@ export function GanttTaskRow({
                 <span className="inline-flex items-center gap-2">
                   <CalendarTags
                     compact
-                    badges={taskCalendarBadges(task.department, task.condition, pauses, task.color)}
+                    badges={taskCalendarBadges(
+                      task.department,
+                      task.condition,
+                      pauses,
+                      task.color,
+                      timeline.palette,
+                    )}
                   />
                   {offWarning && (
                     <span

@@ -714,3 +714,44 @@ test("Gantt PDF export asks before printing tasks that are mostly days off", asy
   expect(messages[0]).toContain("too many days off");
   expect(messages[0]).toContain("Export the PDF anyway?");
 });
+
+test("Calendar lets you pick the Weekend, Stats and Shutdown bar colours", async ({ page }) => {
+  await seed(page, calendarFile());
+  await page.goto("/process-overview");
+  const pause = page.locator("[data-gantt-pause-segment]").first();
+  await expect(pause).toBeVisible();
+  const before = await pause.evaluate(
+    (element) =>
+      getComputedStyle(element).backgroundImage + getComputedStyle(element).backgroundColor,
+  );
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Weekend colour", { exact: true }).fill("#ff0000");
+  await dialog.getByLabel("Stats colour", { exact: true }).fill("#00ff00");
+  await dialog.getByLabel("Shutdown colour", { exact: true }).fill("#0000ff");
+  await page.getByRole("button", { name: "Apply calendar", exact: true }).click();
+  const painted = async () =>
+    page
+      .locator("[data-gantt-pause-segment]")
+      .evaluateAll((items) =>
+        items
+          .map(
+            (item) =>
+              getComputedStyle(item).backgroundImage + getComputedStyle(item).backgroundColor,
+          )
+          .join(" "),
+      );
+  await expect.poll(painted).toMatch(/rgb\(255, 0, 0\)|rgb\(0, 0, 255\)|rgb\(0, 255, 0\)/);
+  expect(await painted()).not.toBe(before);
+  await page.screenshot({
+    path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/daycolors.png",
+  });
+  // Saved with the project.
+  await page.reload();
+  await expect.poll(painted).toMatch(/rgb\(255, 0, 0\)|rgb\(0, 0, 255\)|rgb\(0, 255, 0\)/);
+  // Reset brings the defaults back.
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Reset colours", exact: true }).click();
+  await page.getByRole("button", { name: "Apply calendar", exact: true }).click();
+  await expect.poll(painted).not.toMatch(/rgb\(255, 0, 0\)|rgb\(0, 0, 255\)|rgb\(0, 255, 0\)/);
+});

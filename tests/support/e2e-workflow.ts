@@ -79,7 +79,18 @@ export function createE2EWorkflow(): WorkflowFile {
   return file;
 }
 
-export async function seedE2EWorkflow(page: Page) {
+/**
+ * Takes a department out of the sequential flow (no incoming lines), so a
+ * test can tick its conditions and files without first completing every
+ * earlier department. The sequence rule itself is covered in
+ * previous-department.spec.ts.
+ */
+export function outOfSequence(file: WorkflowFile, nodeId: string) {
+  file.graph.edges = file.graph.edges.filter((edge) => edge.target !== nodeId);
+  return file;
+}
+
+export async function seedE2EWorkflow(page: Page, file: WorkflowFile = createE2EWorkflow()) {
   await page.addInitScript(
     ({ key, persistedFile }) => {
       window.localStorage.removeItem(key);
@@ -95,6 +106,6 @@ export async function seedE2EWorkflow(page: Page) {
         }),
       );
     },
-    { key: WORKFLOW_STORAGE_KEY, persistedFile: createE2EWorkflow() },
+    { key: WORKFLOW_STORAGE_KEY, persistedFile: file },
   );
 }

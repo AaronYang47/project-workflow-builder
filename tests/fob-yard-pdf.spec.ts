@@ -84,3 +84,64 @@ for (const [name, label] of [
     await download.saveAs(testInfo.outputPath(`${name}.pdf`));
   });
 }
+
+test("L2 PDF routes the FOB yard line underneath the skipped cards", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+      (window as unknown as { printed: unknown[] }).printed = [];
+      window.print = () => {
+        const root = document.getElementById("vector-canvas-print")!;
+        // The print copy is hidden on screen; show it to measure.
+        root.style.setProperty("display", "block", "important");
+        root.style.setProperty("visibility", "visible", "important");
+        const bypass = root.querySelector<SVGGElement>('.react-flow__edge[data-id^="fob-yard-"]');
+        const pathBox = bypass?.querySelector("path")?.getBoundingClientRect();
+        const skippedBottom = Math.max(
+          ...Array.from(
+            root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped"),
+          ).map((card) => card.getBoundingClientRect().bottom),
+        );
+        (window as unknown as { printed: unknown[] }).printed.push({
+          hasBypass: Boolean(bypass),
+          laneBelowSkipped: pathBox ? pathBox.bottom > skippedBottom : false,
+          debug: {
+            d: bypass?.querySelector("path")?.getAttribute("d"),
+            pathBottom: pathBox?.bottom,
+            skipped: Array.from(
+              root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped"),
+            ).map((card) => [card.dataset.id, Math.round(card.getBoundingClientRect().bottom)]),
+          },
+        });
+      };
+    },
+    { key: WORKFLOW_STORAGE_KEY, file: workflow(true) },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await expect(page.locator(".react-flow__node.fob-yard-skipped").first()).toBeVisible();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
+  await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length);
+  const [printed] = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          printed: { hasBypass: boolean; laneBelowSkipped: boolean; debug: unknown }[];
+        }
+      ).printed,
+  );
+  expect(printed).toMatchObject({ hasBypass: true, laneBelowSkipped: true });
+  await page.pdf({
+    path: testInfo.outputPath("L2.pdf"),
+    preferCSSPageSize: true,
+    printBackground: true,
+  });
+});

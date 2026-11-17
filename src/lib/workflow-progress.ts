@@ -15,6 +15,8 @@ import type { ExecutionItem } from "@/types/workflow";
 import { operationsGateStatus } from "@/lib/project-operations";
 import type { ProjectOperations } from "@/types/project-operations";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
+import { applyFobYardSkip } from "@/lib/fob-yard";
+import { departmentDisplayName } from "@/lib/department-label";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 
@@ -336,16 +338,75 @@ export function getWorkflowProgress(
   return { reachedNodeIds, activeEdgeIds };
 }
 
-/** Opt-in policy for workflows that require a single execution sequence. */
+/**
+ * Progress of the project as it runs: with FOB yard on, the skipped Phases
+ * are left out and the flow continues along the bypass, so FOB yard lines
+ * (ids starting "fob-yard-") turn active once their source is released.
+ */
+export function getFileProgress(file: WorkflowFile) {
+  const running = applyFobYardSkip(file);
+  return getWorkflowProgress(
+    running.graph.nodes,
+    running.graph.edges,
+    running.execution?.items,
+    running.operations,
+  );
+}
+
+/**
+ * A department's release conditions (and their files) can be ticked only once
+ * the flow has reached it: every earlier department on the way has all its
+ * release conditions complete (and every Gate on the way is approved). With
+ * FOB yard on, the flow runs around the skipped Phases. Returns the message
+ * naming what to finish first, or undefined when ticking is allowed. A
+ * department the flow can't reach at all (not connected) is not blocked.
+ */
 export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
-  const node = file.graph.nodes.find((item) => item.id === nodeId);
-  if (node?.metadata.executionOrder !== "strict-sequential") return undefined;
+  const running = applyFobYardSkip(file);
+  const node = running.graph.nodes.find((item) => item.id === nodeId);
+  if (!node || node.type === "phase" || node.type === "gate") return undefined;
   const progress = getWorkflowProgress(
-    file.graph.nodes,
-    file.graph.edges,
-    file.execution?.items,
-    file.operations,
+    running.graph.nodes,
+    running.graph.edges,
+    running.execution?.items,
+    running.operations,
   );
   if (progress.reachedNodeIds.has(nodeId)) return undefined;
-  return "Complete the preceding department and its required release conditions before completing this department.";
+
+  const nodeById = new Map(running.graph.nodes.map((item) => [item.id, item]));
+  const projectStart = running.graph.nodes.find((item) => item.type === "projectStart");
+  const sources = new Map<string, string[]>();
+  for (const edge of running.graph.edges) {
+    if (["rework", "reopen", "failure"].includes(edge.type)) continue;
+    sources.set(edge.target, [...(sources.get(edge.target) ?? []), edge.source]);
+  }
+  // Walk back to the nearest reached steps: those are what hold this one up.
+  const blocking: DomainNode[] = [];
+  const seen = new Set([nodeId]);
+  const queue = [...(sources.get(nodeId) ?? [])];
+  while (queue.length) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const step = nodeById.get(id);
+    if (!step) continue;
+    if (progress.reachedNodeIds.has(id)) {
+      const ready =
+        step.type === "gate"
+          ? gateApprovalReady(step)
+          : nodeReleaseReady(step, projectStart, running.execution?.items, running.operations);
+      if (!ready) blocking.push(step);
+      continue;
+    }
+    queue.push(...(sources.get(id) ?? []));
+  }
+  if (!blocking.length) return undefined;
+  const label = (step: DomainNode) => {
+    const name = departmentDisplayName(step);
+    return name === "Department" && step.title.trim() ? step.title.trim() : name;
+  };
+  const names = blocking.map((step) =>
+    step.type === "gate" ? `${step.title} (Gate approval)` : label(step),
+  );
+  return `Finish every release condition in ${names.join(", ")} first. ${label(node)} can be ticked once the previous department is complete.`;
 }

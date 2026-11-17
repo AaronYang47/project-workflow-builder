@@ -23,7 +23,7 @@ import { FobYardBypassEdgeComponent } from "./high-level/fob-yard-bypass-edge";
 import { type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
-import { getWorkflowProgress } from "@/lib/workflow-progress";
+import { getFileProgress } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
 import { useFlowNodes } from "./use-flow-nodes";
@@ -127,16 +127,8 @@ function CanvasInner({
     })),
   );
 
-  const progress = useMemo(
-    () =>
-      getWorkflowProgress(
-        file.graph.nodes,
-        file.graph.edges,
-        file.execution?.items ?? [],
-        file.operations,
-      ),
-    [file.graph.nodes, file.graph.edges, file.execution?.items, file.operations],
-  );
+  // With FOB yard on, progress follows the bypass around the skipped Phases.
+  const progress = useMemo(() => getFileProgress(file), [file]);
 
   const layer1Context = useMemo(() => {
     const highLevel = file.highLevel;
