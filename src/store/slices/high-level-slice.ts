@@ -2,6 +2,7 @@
 
 import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
 import { clone } from "@/lib/clone";
+import { syncFinalCloseCompletion } from "@/lib/fob-yard";
 import {
   autoArrangeHighLevel,
   createHighLevelNode,
@@ -180,18 +181,20 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
           : patch;
         return {
           past: appendHistory(state.past, state.file),
-          file: normalizePreviousPhaseDependencies({
-            ...state.file,
-            highLevel: {
-              ...highLevel,
-              graph: {
-                ...highLevel.graph,
-                nodes: highLevel.graph.nodes.map((node) =>
-                  node.id === id ? { ...node, ...normalizedPatch } : node,
-                ),
+          file: syncFinalCloseCompletion(
+            normalizePreviousPhaseDependencies({
+              ...state.file,
+              highLevel: {
+                ...highLevel,
+                graph: {
+                  ...highLevel.graph,
+                  nodes: highLevel.graph.nodes.map((node) =>
+                    node.id === id ? { ...node, ...normalizedPatch } : node,
+                  ),
+                },
               },
-            },
-          }),
+            }),
+          ),
           future: [],
           dirty: true,
         };

@@ -450,6 +450,8 @@ export function PyramidLocationWidget({
       });
 
       pdf.addImage(dataUrl, "PNG", 0, 0, width, height);
+      const { stampFobYardTag } = await import("@/lib/export/fob-yard-tag");
+      stampFobYardTag(pdf, useWorkflowStore.getState().file);
       pdf.save("workflow-L3-process-locator.pdf");
     } catch (err) {
       console.error("Failed to export process locator PDF:", err);

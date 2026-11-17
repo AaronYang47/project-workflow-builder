@@ -1,4 +1,5 @@
 import { calendarDurationParts } from "@/lib/condition-duration";
+import { fobYardTag } from "@/lib/fob-yard";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { buildProcessSchedule, salesHandoffTime } from "@/lib/process-schedule";
@@ -81,6 +82,7 @@ export async function exportL1DepartmentSwimlanePdf(
   const canvasWidth = Math.ceil(innerWidth + paddingX * 2);
   const projectName = file.graph.metadata.name?.trim() || "Process Workflow";
   const documentTitle = `High Level Process System Flowchart${options.gantt ? " with Gantt Chart" : ""}`;
+  const deliveryTag = fobYardTag(file);
   const projectNumber =
     workflowLegacyJobNumber(file) ||
     [
@@ -317,6 +319,8 @@ export async function exportL1DepartmentSwimlanePdf(
     *{box-sizing:border-box}
     .document-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:2px solid #0f172a;padding-bottom:12px}
     .kicker{font:800 11px Arial,sans-serif;letter-spacing:.13em;color:#475569;text-transform:uppercase}
+    .delivery-tag{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:#475569;color:#fff;font:800 11px Arial,sans-serif;letter-spacing:.08em}
+    .delivery-tag.fob{background:#159a75}
     h1{margin:5px 0 0;font-size:25px;line-height:1.12;color:#0f172a;overflow-wrap:anywhere}
     .project-meta{text-align:right;font-size:11px;line-height:1.4;color:#475569}
     .project-number{display:flex;align-items:baseline;justify-content:flex-end;gap:5px;font-size:12px;font-weight:800;color:#1e293b}
@@ -392,7 +396,7 @@ export async function exportL1DepartmentSwimlanePdf(
     .footer{margin-top:9px;border-top:1px solid #cbd5e1;padding-top:5px;font-size:9px;color:#64748b}
   </style>
   <div class="document-header">
-    <div><div class="kicker">${documentTitle}</div><h1>${escapeHtml(projectName)}</h1></div>
+    <div><div class="kicker">${documentTitle}</div><h1>${escapeHtml(projectName)}</h1>${deliveryTag ? `<div class="delivery-tag${deliveryTag.fobYard ? " fob" : ""}">${escapeHtml(deliveryTag.label)}</div>` : ""}</div>
     <div class="project-meta">${projectNumber ? `<div class="project-number"><span class="project-number-label">Job Number</span><span>${escapeHtml(projectNumber)}</span></div>` : ""}<div>Phases · Departments · ${options.gantt ? "Release Conditions · Gantt Chart" : "Release Conditions · Forms"}</div></div>
   </div>
   <div class="phase-ribbon"></div>

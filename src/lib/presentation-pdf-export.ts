@@ -1,4 +1,5 @@
 import { conditionDurationLabel } from "@/lib/condition-duration";
+import { stampFobYardTag } from "@/lib/export/fob-yard-tag";
 import type { WorkflowFile, DomainNode, HighLevelNode } from "@/types/workflow";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { conditionIsSatisfied } from "@/lib/workflow-progress";
@@ -780,6 +781,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
+    stampFobYardTag(pdf, file);
     pdf.save(`${safeProjectName}-L1-L2-L3-Tech.pdf`);
   } finally {
     document.body.removeChild(container);

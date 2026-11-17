@@ -577,47 +577,77 @@ export function demoteExtraHighLevelTerminals(highLevel: HighLevelWorkflow): Hig
   };
 }
 
+/** Phases Final Close skips by default: those connected straight into it. */
+export function defaultFobYardSkipPhaseIds(
+  graph: { nodes: HighLevelNode[]; edges: HighLevelEdge[] },
+  endId: string,
+) {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.edges
+    .filter((edge) => edge.target === endId && byId.get(edge.source)?.type === "phase")
+    .map((edge) => edge.source);
+}
+
+/** The Phases a Final Close skips: the user's choice, or the default. */
+export function fobYardSkipPhaseIds(
+  graph: { nodes: HighLevelNode[]; edges: HighLevelEdge[] },
+  end: HighLevelNode,
+) {
+  if (end.type !== "end" || !end.fobYard) return [];
+  const phaseIds = new Set(graph.nodes.filter((node) => node.type === "phase").map((n) => n.id));
+  return (end.fobYardSkipPhaseIds ?? defaultFobYardSkipPhaseIds(graph, end.id)).filter((id) =>
+    phaseIds.has(id),
+  );
+}
+
 /**
- * When Final Close has FOB yard on, every Phase connected straight into it is
- * skipped. Returns those Phases, the lines touching them (drawn grey) and the
- * display-only bypass lines from the step before each skipped Phase to Final Close.
+ * When Final Close has FOB yard on, the Phases chosen on it (by default the
+ * Phase connected straight into it) are skipped. Returns those Phases, the
+ * lines touching them (drawn grey) and display-only bypass lines from each
+ * kept step before a skipped run to the first kept steps after it.
  */
 export function fobYardSkip(graph: { nodes: HighLevelNode[]; edges: HighLevelEdge[] }) {
   const skippedNodeIds = new Set<string>();
   const skippedEdgeIds = new Set<string>();
-  const bypassEdges: Array<HighLevelEdge & { skippedNodeId: string }> = [];
-  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const bypassEdges: Array<HighLevelEdge & { skippedNodeIds: string[] }> = [];
   for (const end of graph.nodes) {
-    if (end.type !== "end" || !end.fobYard) continue;
-    for (const edge of graph.edges) {
-      if (edge.target === end.id && byId.get(edge.source)?.type === "phase") {
-        skippedNodeIds.add(edge.source);
-      }
-    }
+    for (const id of fobYardSkipPhaseIds(graph, end)) skippedNodeIds.add(id);
   }
+  if (!skippedNodeIds.size) return { skippedNodeIds, skippedEdgeIds, bypassEdges };
   for (const edge of graph.edges) {
     if (skippedNodeIds.has(edge.source) || skippedNodeIds.has(edge.target)) {
       skippedEdgeIds.add(edge.id);
     }
   }
-  for (const end of graph.nodes) {
-    if (end.type !== "end" || !end.fobYard) continue;
-    for (const skipped of graph.edges.filter(
-      (edge) => edge.target === end.id && skippedNodeIds.has(edge.source),
-    )) {
-      for (const incoming of graph.edges) {
-        if (incoming.target !== skipped.source || skippedNodeIds.has(incoming.source)) continue;
-        const exists =
-          graph.edges.some((edge) => edge.source === incoming.source && edge.target === end.id) ||
-          bypassEdges.some((edge) => edge.source === incoming.source && edge.target === end.id);
-        if (!exists) {
-          bypassEdges.push({
-            id: `fob-yard-bypass-${incoming.source}-${end.id}`,
-            source: incoming.source,
-            target: end.id,
-            skippedNodeId: skipped.source,
-          });
-        }
+  // From a skipped step, every kept step reached through skipped steps only.
+  const keptAfter = (
+    id: string,
+    via: string[],
+    seen: Set<string>,
+  ): Array<{ target: string; via: string[] }> => {
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return graph.edges
+      .filter((edge) => edge.source === id)
+      .flatMap((edge) =>
+        skippedNodeIds.has(edge.target)
+          ? keptAfter(edge.target, [...via, edge.target], seen)
+          : [{ target: edge.target, via }],
+      );
+  };
+  for (const edge of graph.edges) {
+    if (skippedNodeIds.has(edge.source) || !skippedNodeIds.has(edge.target)) continue;
+    for (const { target, via } of keptAfter(edge.target, [edge.target], new Set())) {
+      const exists = [...graph.edges, ...bypassEdges].some(
+        (candidate) => candidate.source === edge.source && candidate.target === target,
+      );
+      if (!exists && target !== edge.source) {
+        bypassEdges.push({
+          id: `fob-yard-bypass-${edge.source}-${target}`,
+          source: edge.source,
+          target,
+          skippedNodeIds: via,
+        });
       }
     }
   }

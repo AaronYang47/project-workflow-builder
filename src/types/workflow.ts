@@ -341,9 +341,12 @@ export interface HighLevelNode {
   code?: string;
   /** Optional glass tint, stored as a hex value or the transparent preset. */
   backgroundColor?: string;
-  /** Final Close only: the project closes at the FOB yard, so the Phase that
-   * leads into Final Close is skipped. */
+  /** Final Close only: the project closes at the FOB yard, so the chosen
+   * Phases are skipped. */
   fobYard?: boolean;
+  /** Final Close only: the Phases FOB yard skips. Unset means the Phase
+   * connected straight into Final Close. */
+  fobYardSkipPhaseIds?: string[];
   linkedDetailedNodeIds?: string[];
   linkedLayer2NodeIds?: string[];
 }

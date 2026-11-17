@@ -1,4 +1,5 @@
 import { conditionDurationLabel } from "@/lib/condition-duration";
+import { stampFobYardTag } from "@/lib/export/fob-yard-tag";
 import type { WorkflowFile, DomainNode, HighLevelNode, NodeLayout } from "@/types/workflow";
 import { orderHighLevelNodes, orderLinkedWorkflowNodeIds } from "@/lib/high-level-workflow";
 import { chapterLabel } from "@/lib/chapter-label";
@@ -718,6 +719,7 @@ export async function exportExecutivePresentationPdf(
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
+    stampFobYardTag(pdf, file);
     pdf.save(
       `${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Release-Conditions"}.pdf`,
     );

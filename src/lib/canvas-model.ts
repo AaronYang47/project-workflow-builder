@@ -14,7 +14,7 @@ import { isReferenceNodeType, type DomainEdge } from "@/types/workflow";
 import { getExecutionSummary } from "@/lib/execution";
 import { matrixKindForNode } from "@/lib/matrix-config";
 import type { WorkflowFile } from "@/types/workflow";
-import { fobYardSkippedIds } from "@/lib/fob-yard";
+import { applyFobYardSkip, fobYardSkippedIds } from "@/lib/fob-yard";
 import type { getWorkflowProgress } from "@/lib/workflow-progress";
 
 export type CanvasProgress = ReturnType<typeof getWorkflowProgress>;
@@ -219,7 +219,47 @@ export function buildCanvasEdges(
       )
       .map(({ edge }, index) => [edge.id, index]),
   );
-  return file.graph.edges.map((domain) => {
+  // FOB yard: display-only route from the card before the skipped Phase to
+  // Final Close, drawn underneath the skipped Phase frame. Never saved.
+  const fobYardBypass = fobYardSkipped.size
+    ? applyFobYardSkip(file)
+        .graph.edges.filter((edge) => edge.id.startsWith("fob-yard-"))
+        .map((edge): Edge => {
+          // Route under the outermost skipped frame of every skipped card.
+          const skippedIds = String(edge.customFields.fobYardSkippedNodeIds ?? "")
+            .split(",")
+            .filter(Boolean)
+            .map((id) => {
+              let top = id;
+              for (
+                let parentId = file.layout.nodes[top]?.parentId;
+                parentId && fobYardSkipped.has(parentId);
+                parentId = file.layout.nodes[parentId]?.parentId
+              )
+                top = parentId;
+              return top;
+            });
+          return {
+            id: edge.id,
+            type: "fobYardBypass",
+            zIndex: 10,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            animated: true,
+            selectable: false,
+            deletable: false,
+            focusable: false,
+            reconnectable: false,
+            className: "fob-yard-bypass",
+            data: { skippedNodeIds: [...new Set(skippedIds)] },
+            style: { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" },
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#159a75" },
+          };
+        })
+    : [];
+  const edges = file.graph.edges.map((domain) => {
     const siblingEdges = edgeIndexes.siblings.get(domain.source) || [];
     const siblingIndex = siblingEdges.findIndex((edge) => edge.id === domain.id);
     const returnIndex = edgeIndexes.returnIndex.get(domain.id) ?? -1;
@@ -282,4 +322,5 @@ export function buildCanvasEdges(
       },
     };
   });
+  return [...edges, ...fobYardBypass];
 }

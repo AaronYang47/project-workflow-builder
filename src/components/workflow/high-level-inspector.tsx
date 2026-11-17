@@ -7,7 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { useShallow } from "zustand/react/shallow";
-import { orderLinkedWorkflowNodeIds, orderWorkflowNodeIds } from "@/lib/high-level-workflow";
+import {
+  fobYardSkipPhaseIds,
+  orderHighLevelNodes,
+  orderLinkedWorkflowNodeIds,
+  orderWorkflowNodeIds,
+} from "@/lib/high-level-workflow";
 import { departmentDisplayName } from "@/lib/department-label";
 import type { HighLevelNodeType } from "@/types/workflow";
 
@@ -50,6 +55,11 @@ export function HighLevelInspector() {
     (item) => item.id === highLevelSelection.nodeIds[0],
   );
   const edge = file.highLevel?.graph.edges.find((item) => item.id === highLevelSelection.edgeId);
+  const highLevelGraph = file.highLevel?.graph ?? { nodes: [], edges: [] };
+  const fobYardPhases = orderHighLevelNodes(highLevelGraph.nodes, highLevelGraph.edges).filter(
+    (item) => item.type === "phase",
+  );
+  const fobYardSkipped = new Set(node ? fobYardSkipPhaseIds(highLevelGraph, node) : []);
   const linkedIds = node
     ? orderLinkedWorkflowNodeIds(
         node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds,
@@ -146,30 +156,69 @@ export function HighLevelInspector() {
               </p>
             </div>
             {node.type === "end" ? (
-              <label className="flex cursor-pointer items-start justify-between gap-3 border-t pt-4">
-                <span>
-                  <span className="block text-sm font-medium">FOB yard</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                    On: the project closes at the FOB yard, so the Phase connected straight into
-                    Final Close is skipped and its lines turn grey. Off: that Phase runs, then the
-                    project completes.
+              <div className="space-y-3 border-t pt-4">
+                <label className="flex cursor-pointer items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-medium">FOB yard</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      On: the project closes at the FOB yard and the Phases ticked below are skipped
+                      everywhere (grey on screen, left out of the schedule and PDFs). Off: every
+                      Phase runs, then the project completes.
+                    </span>
                   </span>
-                </span>
-                <input
-                  type="checkbox"
-                  role="switch"
-                  aria-label="FOB yard"
-                  checked={node.fobYard === true}
-                  onChange={(event) =>
-                    updateHighLevelNode(node.id, { fobYard: event.target.checked })
-                  }
-                  className="peer sr-only"
-                />
-                <span
-                  aria-hidden
-                  className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-muted-foreground/30 transition peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
-                />
-              </label>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-label="FOB yard"
+                    checked={node.fobYard === true}
+                    onChange={(event) =>
+                      updateHighLevelNode(node.id, { fobYard: event.target.checked })
+                    }
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden
+                    className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-muted-foreground/30 transition peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
+                  />
+                </label>
+                {node.fobYard ? (
+                  <fieldset data-fob-yard-phases className="space-y-1.5 rounded-md border p-2">
+                    <legend className="px-1 text-xs font-semibold">Skip these Phases</legend>
+                    {fobYardPhases.length ? (
+                      fobYardPhases.map((phase) => (
+                        <label
+                          key={phase.id}
+                          className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            aria-label={`Skip ${phase.title}`}
+                            checked={fobYardSkipped.has(phase.id)}
+                            onChange={(event) => {
+                              const next = new Set(fobYardSkipped);
+                              if (event.target.checked) next.add(phase.id);
+                              else next.delete(phase.id);
+                              updateHighLevelNode(node.id, {
+                                fobYardSkipPhaseIds: fobYardPhases
+                                  .map((item) => item.id)
+                                  .filter((id) => next.has(id)),
+                              });
+                            }}
+                          />
+                          <span className="min-w-0 truncate font-medium">{phase.title}</span>
+                          {phase.description ? (
+                            <span className="min-w-0 truncate text-muted-foreground">
+                              {phase.description}
+                            </span>
+                          ) : null}
+                        </label>
+                      ))
+                    ) : (
+                      <p className="px-1.5 text-xs text-muted-foreground">No Phases to skip.</p>
+                    )}
+                  </fieldset>
+                ) : null}
+              </div>
             ) : null}
             <div className="space-y-2 border-t pt-4">
               {node.type === "phase" || node.type === "start" || node.type === "end" ? (

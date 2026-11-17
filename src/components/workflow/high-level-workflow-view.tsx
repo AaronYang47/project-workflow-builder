@@ -418,7 +418,7 @@ function HighLevelCanvasInner({
         target: edge.target,
         animated: true,
         className: "high-level-flow-edge",
-        data: { skippedNodeId: edge.skippedNodeId },
+        data: { skippedNodeIds: edge.skippedNodeIds },
         style: { stroke: "#159a75", strokeWidth: 3.2, strokeLinecap: "round" as const },
         markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "#159a75" },
         selectable: false,

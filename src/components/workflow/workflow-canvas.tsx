@@ -19,6 +19,7 @@ import { PhaseNode } from "./phase-node";
 import { ReferenceNode } from "./reference-node";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { SemanticEdge } from "./semantic-edge";
+import { FobYardBypassEdgeComponent } from "./high-level/fob-yard-bypass-edge";
 import { type LabelObstacle } from "@/lib/semantic-edge-geometry";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, FIT_VIEW_PADDING } from "@/lib/flow-helpers";
@@ -52,7 +53,7 @@ const nodeTypes = {
   phase: PhaseNode,
   reference: ReferenceNode,
 };
-const edgeTypes = { semantic: SemanticEdge };
+const edgeTypes = { semantic: SemanticEdge, fobYardBypass: FobYardBypassEdgeComponent };
 type WorkflowCanvasProps = {
   active?: boolean;
   focusNodeIds?: string[] | null;

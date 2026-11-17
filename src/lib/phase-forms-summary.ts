@@ -1,3 +1,4 @@
+import { fobYardTag } from "@/lib/fob-yard";
 import { departmentDocumentSummary } from "@/lib/department-document-summary";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { linkedNodeIds, phaseColor } from "@/lib/l1-department-swimlane-model";
@@ -87,6 +88,7 @@ export function flowchartPrintHeader(
           : "—",
       },
       { label: "Phases", value: String(phaseCount) },
+      ...(fobYardTag(file) ? [{ label: "Delivery", value: fobYardTag(file)!.label }] : []),
       {
         label: "Exported",
         value: new Date().toLocaleDateString(undefined, {

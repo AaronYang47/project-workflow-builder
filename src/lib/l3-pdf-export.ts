@@ -1,4 +1,5 @@
 import type { WorkflowFile } from "@/types/workflow";
+import { stampFobYardTag } from "@/lib/export/fob-yard-tag";
 import { isReferenceNodeType } from "@/types/workflow";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { chapterLabel } from "@/lib/chapter-label";
@@ -398,6 +399,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
     });
 
     pdf.addImage(dataUrl, "PNG", 0, 0, imgWidth, imgHeight);
+    stampFobYardTag(pdf, file);
     pdf.save("workflow-L3-execution-matrix.pdf");
   } finally {
     document.body.removeChild(container);

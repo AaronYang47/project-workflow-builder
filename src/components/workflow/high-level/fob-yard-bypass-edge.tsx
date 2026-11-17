@@ -1,20 +1,14 @@
 "use client";
 
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  useInternalNode,
-  type Edge,
-  type EdgeProps,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, useStore, type Edge, type EdgeProps } from "@xyflow/react";
 
-export type FobYardBypassEdge = Edge<{ skippedNodeId: string }, "fobYardBypass">;
+export type FobYardBypassEdge = Edge<{ skippedNodeIds: string[] }, "fobYardBypass">;
 
 const RADIUS = 12;
 const CLEARANCE = 44;
 
-/** Display-only route from the step before a skipped Phase to Final Close,
- * drawn underneath the skipped Phase so it never crosses it. */
+/** Display-only route from the step before the skipped Phases to the step
+ * after them, drawn underneath every skipped Phase so it never crosses one. */
 export function FobYardBypassEdgeComponent({
   sourceX,
   sourceY,
@@ -24,10 +18,17 @@ export function FobYardBypassEdgeComponent({
   markerEnd,
   style,
 }: EdgeProps<FobYardBypassEdge>) {
-  const skipped = useInternalNode(data?.skippedNodeId ?? "");
-  const skippedBottom = skipped
-    ? skipped.internals.positionAbsolute.y + (skipped.measured.height ?? 0)
-    : Math.max(sourceY, targetY);
+  const skippedIds = data?.skippedNodeIds ?? [];
+  // A number, so the edge only re-renders when the lowest bottom moves.
+  const skippedBottom = useStore((state) =>
+    Math.max(
+      Math.max(sourceY, targetY),
+      ...skippedIds.map((id) => {
+        const node = state.nodeLookup.get(id);
+        return node ? node.internals.positionAbsolute.y + (node.measured.height ?? 0) : -Infinity;
+      }),
+    ),
+  );
   const laneY = Math.max(sourceY, targetY, skippedBottom) + CLEARANCE;
   const outX = sourceX + 24;
   const inX = targetX - 24;

@@ -43,6 +43,9 @@ export function fobYardSkippedIds(file: WorkflowFile) {
 export function applyFobYardSkip(file: WorkflowFile): WorkflowFile {
   const { l1, l2 } = fobYardSkippedIds(file);
   if (!l1.size || !file.highLevel) return file;
+  const skippedTitles = file.highLevel.graph.nodes
+    .filter((node) => l1.has(node.id))
+    .map((node) => node.title.trim());
 
   const hl = file.highLevel.graph;
   const { bypassEdges } = fobYardSkip(hl);
@@ -57,23 +60,35 @@ export function applyFobYardSkip(file: WorkflowFile): WorkflowFile {
   for (const edge of file.graph.edges) {
     outgoing.set(edge.source, [...(outgoing.get(edge.source) ?? []), edge]);
   }
-  const keptAfter = (id: string, seen = new Set<string>()): string[] => {
+  const keptAfter = (
+    id: string,
+    via: string[],
+    seen: Set<string>,
+  ): Array<{ target: string; via: string[] }> => {
     if (seen.has(id)) return [];
     seen.add(id);
     return (outgoing.get(id) ?? []).flatMap((edge) =>
-      l2.has(edge.target) ? keptAfter(edge.target, seen) : [edge.target],
+      l2.has(edge.target)
+        ? keptAfter(edge.target, [...via, edge.target], seen)
+        : [{ target: edge.target, via }],
     );
   };
   const keptEdges = file.graph.edges.filter((edge) => !l2.has(edge.source) && !l2.has(edge.target));
   const bridged: DomainEdge[] = [];
   for (const edge of file.graph.edges) {
     if (l2.has(edge.source) || !l2.has(edge.target)) continue;
-    for (const target of new Set(keptAfter(edge.target))) {
+    for (const { target, via } of keptAfter(edge.target, [edge.target], new Set())) {
       const exists = [...keptEdges, ...bridged].some(
         (candidate) => candidate.source === edge.source && candidate.target === target,
       );
       if (!exists && target !== edge.source) {
-        bridged.push({ ...edge, id: `fob-yard-${edge.source}-${target}`, target });
+        bridged.push({
+          ...edge,
+          id: `fob-yard-${edge.source}-${target}`,
+          target,
+          label: "FOB yard",
+          customFields: { ...edge.customFields, fobYardSkippedNodeIds: via.join(",") },
+        });
       }
     }
   }
@@ -87,7 +102,7 @@ export function applyFobYardSkip(file: WorkflowFile): WorkflowFile {
       )
     : undefined;
 
-  return {
+  const skipped: WorkflowFile = {
     ...file,
     graph: {
       ...file.graph,
@@ -106,4 +121,83 @@ export function applyFobYardSkip(file: WorkflowFile): WorkflowFile {
       },
     },
   };
+  skippedTitlesByFile.set(skipped, skippedTitles);
+  return skipped;
+}
+
+const skippedTitlesByFile = new WeakMap<WorkflowFile, string[]>();
+
+/**
+ * Delivery tag every PDF carries: "FOB YARD · PHASE 4 SKIPPED" when Final
+ * Close has FOB yard on, otherwise "SITE WORK COMPLETION". Works on the
+ * original file or on the result of applyFobYardSkip. Undefined without a
+ * Final Close.
+ */
+export function fobYardTag(file: WorkflowFile): { label: string; fobYard: boolean } | undefined {
+  const end = file.highLevel?.graph.nodes.find((node) => node.type === "end");
+  if (!end) return undefined;
+  if (!end.fobYard) return { label: "SITE WORK COMPLETION", fobYard: false };
+  const titles =
+    skippedTitlesByFile.get(file) ??
+    (file.highLevel?.graph.nodes ?? [])
+      .filter((node) => fobYardSkippedIds(file).l1.has(node.id))
+      .map((node) => node.title.trim());
+  return {
+    label: titles.length ? `FOB YARD · ${titles.join(", ")} SKIPPED`.toUpperCase() : "FOB YARD",
+    fobYard: true,
+  };
+}
+
+export const FOB_YARD_COMPLETION = "FOB Yard Completion";
+export const SITE_WORK_COMPLETION = "Site Work Completion";
+const MANAGED_COMPLETION_TEXTS = new Set(
+  [FOB_YARD_COMPLETION, SITE_WORK_COMPLETION, "Project completion and warranty are recorded"].map(
+    (text) => text.toLowerCase(),
+  ),
+);
+const isManagedText = (text?: string) =>
+  MANAGED_COMPLETION_TEXTS.has((text ?? "").trim().toLowerCase());
+
+/**
+ * The completion release condition of every L2 node linked to Final Close
+ * reads "FOB Yard Completion" when FOB yard is on, otherwise "Site Work
+ * Completion". Only the default completion condition (or one already showing
+ * either text) is managed, so custom conditions are left alone. Returns the
+ * same file when nothing changes.
+ */
+export function syncFinalCloseCompletion(file: WorkflowFile): WorkflowFile {
+  const ends = (file.highLevel?.graph.nodes ?? []).filter((node) => node.type === "end");
+  if (!ends.length) return file;
+  const wanted = new Map<string, string>();
+  for (const end of ends) {
+    const text = end.fobYard ? FOB_YARD_COMPLETION : SITE_WORK_COMPLETION;
+    for (const id of end.linkedLayer2NodeIds ?? end.linkedDetailedNodeIds ?? [])
+      wanted.set(id, text);
+  }
+  let changed = false;
+  const nodes = file.graph.nodes.map((node) => {
+    const text = wanted.get(node.id);
+    if (!text) return node;
+    const index = node.conditions.findIndex(
+      (condition) =>
+        condition.id === "project-completion-recorded" ||
+        isManagedText(condition.label || condition.description),
+    );
+    if (index < 0) return node;
+    const condition = node.conditions[index];
+    const next = {
+      ...condition,
+      label: text,
+      ...(condition.description && isManagedText(condition.description)
+        ? { description: text }
+        : {}),
+    };
+    if (next.label === condition.label && next.description === condition.description) return node;
+    changed = true;
+    return {
+      ...node,
+      conditions: node.conditions.map((item, itemIndex) => (itemIndex === index ? next : item)),
+    };
+  });
+  return changed ? { ...file, graph: { ...file.graph, nodes } } : file;
 }

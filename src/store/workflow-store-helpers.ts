@@ -3,6 +3,7 @@
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { createEmptyWorkspace } from "@/lib/project-template";
 import { migrateWorkflowFile } from "@/lib/workflow-migration";
+import { syncFinalCloseCompletion } from "@/lib/fob-yard";
 import {
   demoteExtraHighLevelTerminals,
   isDefaultHighLevelProcess,
@@ -208,9 +209,11 @@ export function removePhaseSelfLinks(file: WorkflowFile) {
 }
 
 export function normalizeLoadedWorkflow(loaded: WorkflowFile) {
-  const file = loaded.highLevel
-    ? { ...loaded, highLevel: demoteExtraHighLevelTerminals(loaded.highLevel) }
-    : loaded;
+  const file = syncFinalCloseCompletion(
+    loaded.highLevel
+      ? { ...loaded, highLevel: demoteExtraHighLevelTerminals(loaded.highLevel) }
+      : loaded,
+  );
   if (isDefaultHighLevelProcess(file.highLevel) || isLegacyDefaultHighLevelFamily(file.highLevel)) {
     return { file: clearDefaultWorkflow(file), clearedDefault: true };
   }
