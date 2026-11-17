@@ -143,6 +143,9 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 | Process Locator layout | `buildPyramidDiagram` in `src/lib/process-locator/pyramid-diagram.ts` |
 | Project operations (payments, gates, warranty) | `src/lib/project-operations/` (`defaults`, `finance`, `gates`, `reporting`; import from `@/lib/project-operations`) |
 | Render only in the browser (portals, `window`) | `useHydrated` in `src/lib/use-hydrated.ts` |
+| Presentation PDF colours and Gate detection | `src/lib/export/presentation-theme.ts` |
+| L1 swimlane PDF data / post-layout fitting | `src/lib/l1-department-swimlane-model.ts` / `l1-department-swimlane-fit.ts` |
+| Release Conditions page pieces | `release-conditions/inbox-panel.tsx`, `process-map-panel.tsx`, `use-process-selection.ts` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
 
 ## 6. Commands

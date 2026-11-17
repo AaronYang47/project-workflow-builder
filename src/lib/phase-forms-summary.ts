@@ -1,6 +1,6 @@
 import { departmentDocumentSummary } from "@/lib/department-document-summary";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
-import { linkedNodeIds, phaseColor } from "@/lib/l1-department-swimlane-pdf-export";
+import { linkedNodeIds, phaseColor } from "@/lib/l1-department-swimlane-model";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import type { DomainNode, WorkflowFile } from "@/types/workflow";
 
