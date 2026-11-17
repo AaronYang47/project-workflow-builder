@@ -10,6 +10,7 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { cn } from "@/lib/utils";
 import { EXPORT_EVENT } from "@/lib/export/export-formats";
 import { measureCard, type Layer, type ViewLayer, type FlowStatus, type PositionedCard, type PyramidEdge, L1_GAP, L2_GAP, V_GAP, L1_ACTION_GAP, L1_ACTION_H, L2_ACTION_GAP, L2_ACTION_H, L3_STACK_GAP, L3_GAP, PAD, LAYER_RAIL, ZOOM_STEP, ZOOM_ANIMATION_MS, type Camera, type DockCorner, DOCK_SNAP_PX, DOCK_DRAG_THRESHOLD, readDockCorner, writeDockCorner, cornerAnchor, nearestDockCorner, clampZoom, cameraAtPoint, fitCamera, l2FlowStatus, l1FlowStatus, edgeFlows, UNLINKED_L1_ID, linkedIds, buildGlobalPyramidGroups, findOwningL1Id, assignEdgePaths, statusTone, statusLabel, cardBadgeStatus } from "@/lib/process-locator/pyramid-layout";
+import { exportPixelRatio } from "@/lib/export/canvas-limits";
 
 export function PyramidLocationWidget({
   viewLayer,
@@ -875,7 +876,7 @@ export function PyramidLocationWidget({
 
       const dataUrl = await toPng(el, {
         backgroundColor,
-        pixelRatio: 2,
+        pixelRatio: exportPixelRatio(width, height),
         width,
         height,
         // Change only the export clone so the live camera also survives export failures.

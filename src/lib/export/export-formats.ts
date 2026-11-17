@@ -59,5 +59,11 @@ export async function exportDocument(format: DocumentExportFormat, file: Workflo
   }
 }
 
-export const exportErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : "Could not export document.";
+/** html-to-image rejects with a bare Event when the browser refuses to draw
+ * the page image (usually a canvas size limit), so name that case clearly. */
+export const exportErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof Event !== "undefined" && error instanceof Event)
+    return "Could not export document: the browser could not render the page image. Try again on a computer, or export a smaller section.";
+  return "Could not export document.";
+};

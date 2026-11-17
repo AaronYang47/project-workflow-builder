@@ -5,6 +5,7 @@ import { printCanvasVector } from "@/lib/canvas-vector-print";
 import { flowchartPrintHeader, phaseFormsSummary } from "@/lib/phase-forms-summary";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { EXPORT_EVENT } from "@/lib/export/export-formats";
+import { exportPixelRatio } from "@/lib/export/canvas-limits";
 
 type ReactFlowInstance = ReturnType<typeof useReactFlow>;
 
@@ -141,7 +142,7 @@ export function useCanvasExport(
       // triggers its ResizeObserver and can change the viewport during capture.
       viewport.style.setProperty("transform", `translate(${padding - bounds.x}px, ${padding - bounds.y}px) scale(1)`, "important");
       // Stay below browser canvas dimension and area limits for large projects.
-      const pixelRatio = Math.min(2, 12000 / Math.max(targetWidth, targetHeight), Math.sqrt(32000000 / (targetWidth * targetHeight)));
+      const pixelRatio = exportPixelRatio(targetWidth, targetHeight);
       const captureStyle = { width: `${targetWidth}px`, height: `${targetHeight}px` };
 
       try {

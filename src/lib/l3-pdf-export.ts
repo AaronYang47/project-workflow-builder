@@ -3,6 +3,7 @@ import { isReferenceNodeType } from "@/types/workflow";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { chapterLabel } from "@/lib/chapter-label";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { exportPixelRatio } from "@/lib/export/canvas-limits";
 
 interface DocItem {
   title: string;
@@ -387,7 +388,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
   try {
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
-      pixelRatio: 2,
+      pixelRatio: exportPixelRatio(container.offsetWidth, container.offsetHeight),
     });
 
     const imgWidth = 1100;

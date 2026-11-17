@@ -5,6 +5,7 @@ import { chapterLabel } from "@/lib/chapter-label";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import { conditionIsSatisfied, ruleComplete, signatureComplete } from "@/lib/workflow-progress";
 import { escapeHtml } from "@/lib/html";
+import { exportPixelRatio } from "@/lib/export/canvas-limits";
 
 // 1:1 Matching colors from the project canvas (薄荷绿 -> 玫瑰粉红 -> 橘黄色 -> 金黄色)
 const DEFAULT_PHASE_THEMES = [
@@ -763,7 +764,7 @@ export async function exportExecutivePresentationPdf(
 
     const dataUrl = await toPng(container, {
       backgroundColor: "#ffffff",
-      pixelRatio: 2,
+      pixelRatio: exportPixelRatio(canvasWidth, container.offsetHeight),
       width: canvasWidth,
       height: container.offsetHeight,
       cacheBust: true,

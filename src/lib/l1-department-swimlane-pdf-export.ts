@@ -10,6 +10,7 @@ import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import { confirmDayOffWarnings } from "@/lib/calendar-badges";
 import type { DomainNode, HighLevelNode, WorkflowFile } from "@/types/workflow";
 import { escapeHtml } from "@/lib/html";
+import { exportPixelRatio } from "@/lib/export/canvas-limits";
 
 type PhaseColumn = {
   node: HighLevelNode;
@@ -893,7 +894,7 @@ export async function exportL1DepartmentSwimlanePdf(file: WorkflowFile, options:
     const width = Math.ceil(container.offsetWidth);
     const height = Math.ceil(container.offsetHeight);
     if (!width || !height) throw new Error("The High Level Process System Flowchart PDF preview could not be laid out.");
-    const pixelRatio = Math.min(2, 12000 / Math.max(width, height), Math.sqrt(32_000_000 / (width * height)));
+    const pixelRatio = exportPixelRatio(width, height);
     const image = await toPng(container, {
       backgroundColor: "#ffffff",
       pixelRatio,
