@@ -21,6 +21,12 @@ const layers = [
     path: "/process-overview",
     aria: "Open Process Overview",
   },
+  {
+    id: "L5",
+    label: "L5 · Simulation",
+    path: "/construction-simulation",
+    aria: "Open Construction Simulation",
+  },
 ] as const;
 
 export function WorkflowLayerNavigation({
@@ -28,7 +34,7 @@ export function WorkflowLayerNavigation({
   onlyAdvanced = false,
   embedded = false,
 }: {
-  currentLayer: "L1" | "L2" | "L3" | "L4";
+  currentLayer: "L1" | "L2" | "L3" | "L4" | "L5";
   onlyAdvanced?: boolean;
   embedded?: boolean;
 }) {
@@ -45,7 +51,7 @@ export function WorkflowLayerNavigation({
       }
     >
       {layers
-        .filter((layer) => !onlyAdvanced || layer.id === "L3" || layer.id === "L4")
+        .filter((layer) => !onlyAdvanced || ["L3", "L4", "L5"].includes(layer.id))
         .map((layer) => {
           const query = new URLSearchParams();
           if (room !== "local-only") {
@@ -54,17 +60,22 @@ export function WorkflowLayerNavigation({
           }
           if (layer.id === "L1" || layer.id === "L2") query.set("layer", layer.id);
           const href = `${layer.path}${query.size ? `?${query}` : ""}`;
-          const style = `flex h-7 items-center whitespace-nowrap rounded px-2 text-[11px] font-semibold ${currentLayer === layer.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`;
+          // L5 is a desktop page: hidden on phones, its long name only on wide screens.
+          const isL5 = layer.id === "L5";
+          const style = `${isL5 ? "max-sm:hidden" : ""} flex h-7 items-center whitespace-nowrap rounded px-2 text-[11px] font-semibold ${currentLayer === layer.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`;
+          const shortClass = isL5 ? "2xl:hidden" : "xl:hidden";
+          const longClass = isL5 ? "hidden 2xl:inline" : "hidden xl:inline";
           return canEdit ? (
             <Link
               key={layer.id}
               href={href}
               aria-label={layer.aria}
+              title={layer.label}
               aria-current={currentLayer === layer.id ? "page" : undefined}
               className={style}
             >
-              <span className="xl:hidden">{layer.id}</span>
-              <span className="hidden xl:inline">{layer.label}</span>
+              <span className={shortClass}>{layer.id}</span>
+              <span className={longClass}>{layer.label}</span>
             </Link>
           ) : (
             <span
@@ -73,8 +84,8 @@ export function WorkflowLayerNavigation({
               aria-current={currentLayer === layer.id ? "page" : undefined}
               className={`${style} opacity-60`}
             >
-              <span className="xl:hidden">{layer.id}</span>
-              <span className="hidden xl:inline">{layer.label}</span>
+              <span className={shortClass}>{layer.id}</span>
+              <span className={longClass}>{layer.label}</span>
             </span>
           );
         })}

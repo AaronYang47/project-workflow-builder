@@ -101,7 +101,7 @@ export function TopToolbar({
   canOpenExecutionView?: boolean;
   onOpenExecutionView?: () => void;
   onCloseExecutionView?: () => void;
-  pageLayer?: "L3" | "L4";
+  pageLayer?: "L3" | "L4" | "L5";
   onPageExport?: (format: string) => void;
   onPageSearch?: () => void;
 }) {

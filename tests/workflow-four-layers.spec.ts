@@ -21,7 +21,7 @@ test("four layers navigate without a selected node and preserve L2 return contex
   await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
   await expect(page.getByRole("region", { name: "Department condition board" })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workflow layers" });
-  await expect(nav.getByRole("link")).toHaveCount(4);
+  await expect(nav.getByRole("link")).toHaveCount(5);
   await expect(
     nav.getByRole("link", { name: "Open Release Conditions Workspace" }),
   ).toHaveAttribute("aria-current", "page");
