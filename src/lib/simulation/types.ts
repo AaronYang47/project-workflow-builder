@@ -101,6 +101,8 @@ export interface SimDay {
   sites: Record<string, { arrived: number; installed: number; modules: number }>;
   /** FOB yard projects collected today. */
   pickedUp: string[];
+  /** Modules that left the factory today, including FOB pickups and site dispatches. */
+  departures: Record<string, number>;
   /** Modules that came off the line today, by project. */
   built: Record<string, number>;
   /** Modules that arrived at their site today, by project. */

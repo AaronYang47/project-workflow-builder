@@ -208,6 +208,7 @@ export function FactoryPlayback({
           day={day}
           projects={projects}
           stepMs={playing ? stepMs : 250}
+          departureMs={playing ? Math.round(stepMs * 0.9) : 850}
           yardCapacity={factory.yardCapacity}
         />
       </div>

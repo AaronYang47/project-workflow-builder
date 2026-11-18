@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type CSSProperties } from "react";
 import type { SimDay, SimProject } from "@/lib/simulation";
 import { FactoryModuleInventory } from "./factory-module-inventory";
 
@@ -10,11 +10,13 @@ export function FactoryScene({
   day,
   projects,
   stepMs,
+  departureMs,
   yardCapacity,
 }: {
   day: SimDay;
   projects: SimProject[];
   stepMs: number;
+  departureMs: number;
   yardCapacity: number;
 }) {
   const [zoom, setZoom] = useState(1);
@@ -23,19 +25,12 @@ export function FactoryScene({
   const yard = Object.entries(day.yard).flatMap(([projectId, count]) =>
     Array.from({ length: count }, () => projectId),
   );
-  const shipments = [
-    ...Object.entries(day.inTransit)
-      .filter(([, count]) => count > 0)
-      .map(([projectId, count]) => ({
-        projectId,
-        label: String(count),
-        detail: `${count} in transit`,
-      })),
-    ...day.pickedUp.map((projectId) => ({ projectId, label: "↑", detail: "Picked up today" })),
-  ];
+  const shipments = Object.entries(day.departures);
+  const trucksPerRow = 8;
+  const pickedUp = new Set(day.pickedUp);
   const bayCount = Math.max(yard.length, Math.min(yardCapacity, 24));
   const roadY = 54 + Math.ceil(bayCount / 12) * 52;
-  const roadHeight = Math.max(1, Math.ceil(shipments.length / 12)) * 58;
+  const roadHeight = Math.max(1, Math.ceil(shipments.length / trucksPerRow)) * 58;
   const height = 226 + roadY + roadHeight + 50;
 
   return (
@@ -201,34 +196,55 @@ export function FactoryScene({
               stroke="#475569"
             />
             <path d={`M44 ${roadY + 29} H916`} stroke="#64748b" strokeDasharray="12 10" />
-            {shipments.map((event, index) => (
-              <g
-                key={index}
-                transform={`translate(${46 + (index % 12) * 72} ${roadY + Math.floor(index / 12) * 58 + 14})`}
-              >
-                <title>{`${byId.get(event.projectId)?.name ?? event.projectId} · ${event.detail}`}</title>
-                <rect
-                  width="48"
-                  height="30"
-                  rx="3"
-                  fill={byId.get(event.projectId)?.color ?? "#475569"}
-                  stroke="#94a3b8"
-                />
-                <rect x="49" y="4" width="12" height="22" rx="3" fill="#cbd5e1" />
-                <text
-                  x="24"
-                  y="20"
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize="15"
-                  paintOrder="stroke"
-                  stroke="#0f172a"
-                  strokeWidth="2"
+            {shipments.map(([projectId, count], index) => {
+              const project = byId.get(projectId);
+              const row = Math.floor(index / trucksPerRow);
+              const rowCount = Math.min(trucksPerRow, shipments.length - row * trucksPerRow);
+              const column = index % trucksPerRow;
+              const x = 920 - (rowCount - column) * 105;
+              const y = roadY + row * 58;
+              return (
+                <g
+                  key={`${day.date}-${projectId}`}
+                  transform={`translate(${x} ${y})`}
+                  data-truck-departure={projectId}
+                  data-departure-count={count}
                 >
-                  {event.label}
-                </text>
-              </g>
-            ))}
+                  <title>{`${project?.name ?? projectId} · ${count} modules ${pickedUp.has(projectId) ? "picked up" : "shipped to site"}`}</title>
+                  <g
+                    className="motion-safe:animate-[factory-truck-departure_ease-in_both]"
+                    style={
+                      {
+                        animationDuration: `${departureMs}ms`,
+                        "--truck-travel": `${44 + column * 105 - x}px`,
+                      } as CSSProperties
+                    }
+                  >
+                    <image href="/simulation-assets/truck.png" width="96" height="58" />
+                    <rect
+                      x="7"
+                      y="33"
+                      width="35"
+                      height="20"
+                      rx="5"
+                      fill="#0f172a"
+                      stroke={project?.color ?? "#94a3b8"}
+                      strokeWidth="2"
+                    />
+                    <text
+                      x="24.5"
+                      y="48"
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="14"
+                      fontWeight="700"
+                    >
+                      ×{count}
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
             <text x="28" y={roadY + roadHeight + 28} fill="#94a3b8" fontSize="15">
               Shipping lane →
             </text>

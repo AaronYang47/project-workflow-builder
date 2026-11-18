@@ -1246,3 +1246,12 @@ button:disabled {
     animation: none;
   }
 }
+
+@keyframes factory-truck-departure {
+  from {
+    transform: translateX(var(--truck-travel));
+  }
+  to {
+    transform: translateX(0);
+  }
+}

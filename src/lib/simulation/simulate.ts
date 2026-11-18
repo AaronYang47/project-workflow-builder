@@ -134,6 +134,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
     const events: string[] = [];
     const built: Record<string, number> = {};
     const pickedToday: string[] = [];
+    const departures: Record<string, number> = {};
     const delivered: Record<string, number> = {};
     const working = factoryCalendar.isWorking(day);
     let blocked = false;
@@ -233,6 +234,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
         state.collected += taken;
         state.batchReadyDay = undefined;
         pickedToday.push(state.project.id);
+        departures[state.project.id] = taken;
         events.push(
           `${state.project.name}: customer collected ${taken} module${taken === 1 ? "" : "s"} from the FOB yard.`,
         );
@@ -253,6 +255,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
         state.inYard -= count;
         yardTotal -= count;
         state.departed += count;
+        departures[state.project.id] = count;
         state.arrivals.push({ day: day + Math.max(0, delivery.transportDays), count });
       }
       for (const arrival of state.arrivals) {
@@ -341,6 +344,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           ]),
       ),
       pickedUp: pickedToday,
+      departures,
       built,
       delivered,
       installedDone: states

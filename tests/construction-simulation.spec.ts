@@ -166,6 +166,11 @@ test("site projects ship, arrive and wait for a free install crew", () => {
   expect(b.installStart! > a.installEnd!).toBe(true);
   // Shipped once all were built, then two days on the road.
   expect(a.installStart! >= a.productionEnd!).toBe(true);
+  const dispatch = result.days.findIndex((day) => day.departures.A === 4);
+  expect(dispatch).toBeGreaterThanOrEqual(0);
+  expect(result.days[dispatch].date).toBe(a.productionEnd);
+  expect(result.days[dispatch + 1].inTransit.A).toBe(4);
+  expect(result.days[dispatch + 1].departures.A).toBeUndefined();
 });
 
 test("the factory doesn't move on Friday to Sunday with a Monday–Thursday calendar", () => {

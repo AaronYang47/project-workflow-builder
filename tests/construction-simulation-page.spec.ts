@@ -580,6 +580,13 @@ test("factory inventory counts each finished module waiting in the yard", async 
   await expect(page.locator("[data-yard-module]")).toHaveCount(4);
   await expect(page.locator("[data-scene-yard-module]")).toHaveCount(4);
   await expect(page.locator("[data-line-module]")).toHaveCount(0);
+  await expect(page.locator("[data-truck-departure]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Jump to end" }).click();
+  const truck = page.locator("[data-truck-departure]");
+  await expect(truck).toHaveAttribute("data-departure-count", "4");
+  await expect(truck.locator("title")).toHaveText(/4 modules picked up/);
+  await expect(truck.locator("image")).toHaveAttribute("href", "/simulation-assets/truck.png");
+  await expect(truck.locator("g")).toHaveCSS("animation-name", "factory-truck-departure");
 });
 
 test("the dashboard and playback stay within the viewport on desktop and phone", async ({
