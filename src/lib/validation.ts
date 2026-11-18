@@ -22,40 +22,18 @@ const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
 export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { nodes, edges, rules } = file.graph;
+  // SALES (the Project Start node) holds the Job Number but is otherwise a
+  // normal Department: the flow starts at Qualification, and anything may
+  // lead into it. Only one may exist.
   const projectStarts = nodes.filter((node) => node.type === "projectStart");
-  if (projectStarts.length !== 1)
+  if (projectStarts.length > 1)
     issues.push({
       id: "project-start-count",
       severity: "error",
       code: "PROJECT_START_COUNT",
-      message:
-        projectStarts.length === 0
-          ? "The workflow is missing Project Start"
-          : "The workflow contains more than one Project Start",
+      message: "The workflow contains more than one Project Start",
       nodeId: projectStarts[0]?.id,
     });
-  for (const projectStart of projectStarts) {
-    // Only a Qualification step may come before Project Start.
-    const qualificationIds = new Set(
-      nodes.filter((node) => node.type === "qualification").map((node) => node.id),
-    );
-    if (edges.some((edge) => edge.target === projectStart.id && !qualificationIds.has(edge.source)))
-      issues.push({
-        id: `project-start-incoming-${projectStart.id}`,
-        severity: "error",
-        code: "PROJECT_START_INCOMING",
-        message: "Project Start cannot have an incoming connection",
-        nodeId: projectStart.id,
-      });
-    if (nodes.length > 1 && !edges.some((edge) => edge.source === projectStart.id))
-      issues.push({
-        id: `project-start-outgoing-${projectStart.id}`,
-        severity: "error",
-        code: "PROJECT_START_DISCONNECTED",
-        message: "Project Start must connect to the first workflow node",
-        nodeId: projectStart.id,
-      });
-  }
   const ids = new Set<string>();
   for (const node of nodes) {
     if (ids.has(node.id))

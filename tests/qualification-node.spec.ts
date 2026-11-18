@@ -11,7 +11,7 @@ test("Plans Available? decides the route after Qualification", () => {
   expect(qualificationRoute({ plansAvailable: "yes", commercialPath: "PCS" })).toBe("PCS");
 });
 
-test("a Qualification step may lead into Project Start; nothing else may", () => {
+test("SALES (Project Start) is a normal Department: anything may lead into it", () => {
   const file = createE2EWorkflow();
   const start = file.graph.nodes.find((node) => node.type === "projectStart")!;
   const qualification = createDomainNode("qualification", "qualification-1");
@@ -26,11 +26,13 @@ test("a Qualification step may lead into Project Start; nothing else may", () =>
     customFields: {},
   });
   file.graph.edges.push(edge(qualification.id));
-  const codes = () => validateWorkflow(file).map((issue) => issue.code);
-  expect(codes()).not.toContain("PROJECT_START_INCOMING");
   const other = file.graph.nodes.find((node) => node.type === "general")!;
   file.graph.edges.push(edge(other.id));
-  expect(codes()).toContain("PROJECT_START_INCOMING");
+  const codes = validateWorkflow(file).map((issue) => issue.code);
+  expect(codes).not.toContain("PROJECT_START_INCOMING");
+  // A project without a Project Start node is fine too.
+  file.graph.nodes = file.graph.nodes.filter((node) => node.id !== start.id);
+  expect(validateWorkflow(file).map((issue) => issue.code)).not.toContain("PROJECT_START_COUNT");
 });
 
 test("Qualification is added from the L2 library at the far left, linked to Project Start", async ({
@@ -51,6 +53,8 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const libraryItem = page.getByRole("button", { name: /^Qualification/ });
+  // The library starts with Qualification; Project Start is no longer offered.
+  await expect(page.getByRole("button", { name: /^Project Start/ })).toHaveCount(0);
   await libraryItem.dblclick();
   const node = page.locator("[data-qualification-node]");
   await expect(node).toBeVisible();

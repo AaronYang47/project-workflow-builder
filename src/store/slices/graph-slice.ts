@@ -611,28 +611,13 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
       set({ selection: { nodeIds: [] } });
     },
     addEdge: (edge) => {
-      const nodes = get().file.graph.nodes;
-      if (
-        nodes.find((node) => node.id === edge.target)?.type === "projectStart" &&
-        nodes.find((node) => node.id === edge.source)?.type !== "qualification"
-      ) {
-        set({
-          deleteBlocked: {
-            title: "Invalid connection",
-            message:
-              "Project Start must be the first node (only Qualification may come before it).",
-            items: ["Connect from Project Start to the next node instead."],
-          },
-        });
-      } else {
-        get().commit((file) => addOrReplaceEdge(file, edge));
-        broadcastIfLocal((senderId) => ({
-          type: "ADD_EDGE",
-          senderId,
-          edge,
-          timestamp: Date.now(),
-        }));
-      }
+      get().commit((file) => addOrReplaceEdge(file, edge));
+      broadcastIfLocal((senderId) => ({
+        type: "ADD_EDGE",
+        senderId,
+        edge,
+        timestamp: Date.now(),
+      }));
     },
     updateEdge: (id, patch) => {
       get().commit((file) => {

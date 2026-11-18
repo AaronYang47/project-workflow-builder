@@ -29,7 +29,7 @@ export function isApprovedEdge(edge: { sourceHandle?: string | null; type?: stri
 }
 
 export function canReceiveDeniedReturn(type?: WorkflowNodeType) {
-  return Boolean(type) && type !== "projectStart" && type !== "phase";
+  return Boolean(type) && type !== "phase";
 }
 
 export function deniedTargetHandle(options: {

@@ -31,7 +31,6 @@ import type { WorkflowNodeType } from "@/types/workflow";
 // node types users can drag or double-click to add.
 export const PALETTE_NODE_TYPES = [
   "qualification",
-  "projectStart",
   "general",
   "gate",
   "terminal",

@@ -99,8 +99,6 @@ export function GeneralNode({
           data-glass-tint={nodeColor ? "true" : undefined}
           className={cn(
             "workflow-node l2-node-card group h-full w-full overflow-hidden rounded-xl border bg-card shadow-[0_3px_12px_rgba(15,23,42,.09)] transition duration-200",
-            node.type === "projectStart" &&
-              "rounded-2xl border-2 shadow-[0_6px_18px_rgba(37,99,169,.12)]",
             selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background shadow-lg",
             emphasized && "shadow-[0_0_0_2px_rgba(37,99,169,.28),0_8px_22px_rgba(15,23,42,.12)]",
             dimmed && "opacity-35",
@@ -533,15 +531,13 @@ export function GeneralNode({
           className="!size-3 !border-2 !border-background"
           style={{ backgroundColor: color }}
         />
-        {node.type !== "projectStart" ? (
-          <Handle
-            type="target"
-            position={Position.Top}
-            id="rework-in"
-            aria-label="Denied return entry"
-            className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600 !opacity-0"
-          />
-        ) : null}
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="rework-in"
+          aria-label="Denied return entry"
+          className="!top-[-7px] !z-50 !size-3.5 !border-2 !border-background !bg-rose-600 !opacity-0"
+        />
       </div>
       {nodeUuid ? (
         <div
