@@ -201,3 +201,30 @@ export function syncFinalCloseCompletion(file: WorkflowFile): WorkflowFile {
   });
   return changed ? { ...file, graph: { ...file.graph, nodes } } : file;
 }
+
+/** Whether the project's Final Close has FOB yard on; undefined without a Final Close. */
+export function finalCloseFobYard(file: WorkflowFile): boolean | undefined {
+  const ends = (file.highLevel?.graph.nodes ?? []).filter((node) => node.type === "end");
+  return ends.length ? ends.some((node) => node.fobYard === true) : undefined;
+}
+
+/**
+ * Turns FOB yard on or off on the project's Final Close (L1), which L2–L4
+ * follow, and updates the completion release condition text to match.
+ */
+export function setFinalCloseFobYard(file: WorkflowFile, fobYard: boolean): WorkflowFile {
+  const highLevel = file.highLevel;
+  if (!highLevel || finalCloseFobYard(file) === undefined) return file;
+  return syncFinalCloseCompletion({
+    ...file,
+    highLevel: {
+      ...highLevel,
+      graph: {
+        ...highLevel.graph,
+        nodes: highLevel.graph.nodes.map((node) =>
+          node.type === "end" ? { ...node, fobYard } : node,
+        ),
+      },
+    },
+  });
+}

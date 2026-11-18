@@ -34,15 +34,23 @@ import {
   simProjectFromWorkflow,
   simulateScenario,
   virtualSimProject,
+  type SimDelivery,
   type SimFactory,
   type SimProject,
   type SimScenario,
 } from "@/lib/simulation";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { canEditCollaborativeWorkflow } from "@/lib/collaboration/collaboration-store";
 import { ProcessCalendarButton } from "@/components/workflow/process-calendar-settings";
 import type { WorkflowFile } from "@/types/workflow";
-import { listCloudProjects, loadCloudProject, type CloudProjectSummary } from "./cloud-projects";
+import {
+  listCloudProjects,
+  loadCloudProject,
+  saveCloudProject,
+  type CloudProjectSummary,
+} from "./cloud-projects";
+import { finalCloseFobYard, setFinalCloseFobYard } from "@/lib/fob-yard";
 import { NumberInput } from "./draft-inputs";
 import { CALENDAR_EVENT, FactoryPlayback } from "./factory-playback";
 import { DayActivity } from "./day-activity";
@@ -248,6 +256,84 @@ function SimulationWorkspace() {
     setProjects(
       draft.projects.map((project) => (project.id === id ? { ...project, ...patch } : project)),
     );
+  // A saved project's FOB yard lives on its L1 Final Close; L2–L4 follow it.
+  const fileOf = (project: SimProject) =>
+    project.source.kind !== "cloud"
+      ? undefined
+      : project.source.projectId === currentId
+        ? currentFile
+        : files[project.id];
+  /** The project switched to FOB yard or Ship & install, keeping the other settings. */
+  const switchDelivery = (project: SimProject, file: WorkflowFile | undefined, fob: boolean) => {
+    if ((project.delivery.kind === "fob") === fob) return project;
+    const parked = project.parkedDelivery;
+    let delivery: SimDelivery;
+    if (parked && (parked.kind === "fob") === fob) delivery = parked;
+    else if (file) {
+      const fresh = simProjectFromWorkflow(
+        setFinalCloseFobYard(file, fob),
+        project.source.kind === "cloud" ? project.source.projectId : project.id,
+        0,
+        todayIso(),
+      ).delivery;
+      delivery =
+        fresh.kind === "fob"
+          ? { ...fresh, pickupDate: fobPickupDate(project, draft.factory.targetOnLine) }
+          : fresh;
+    } else return project;
+    return { ...project, delivery, parkedDelivery: project.delivery };
+  };
+  // L1 → L5: a changed Final Close switches the project's delivery here.
+  const synced = draft.projects.map((project) => {
+    const file = fileOf(project);
+    const fob = file ? finalCloseFobYard(file) : undefined;
+    return fob === undefined ? project : switchDelivery(project, file, fob);
+  });
+  if (synced.some((project, index) => project !== draft.projects[index])) setProjects(synced);
+  // L5 → L1: choosing FOB yard or Ship & install sets the project's Final Close.
+  const changeDelivery = (project: SimProject, picked: SimDelivery) => {
+    if (
+      project.source.kind === "cloud" &&
+      project.source.projectId === currentId &&
+      !canEditCollaborativeWorkflow()
+    ) {
+      setNotice(
+        `${project.name}: you don't have edit control of this project, so its FOB yard can't change.`,
+      );
+      return;
+    }
+    const parked = project.parkedDelivery;
+    const delivery = parked && parked.kind === picked.kind ? parked : picked;
+    updateProject(project.id, { delivery, parkedDelivery: project.delivery });
+    const file = fileOf(project);
+    if (!file || project.source.kind !== "cloud" || finalCloseFobYard(file) === undefined) return;
+    const fob = delivery.kind === "fob";
+    const label = fob ? "FOB yard on" : "FOB yard off (Ship & install)";
+    if (project.source.projectId === currentId) {
+      const store = useWorkflowStore.getState();
+      for (const node of store.file.highLevel?.graph.nodes ?? [])
+        if (node.type === "end") store.updateHighLevelNode(node.id, { fobYard: fob });
+      setNotice(`${project.name}: ${label} in L1 Final Close; L2–L4 follow.`);
+      return;
+    }
+    const id = project.source.projectId;
+    setFiles((current) => ({ ...current, [project.id]: setFinalCloseFobYard(file, fob) }));
+    void loadCloudProject(id)
+      .then((latest) => {
+        const next = setFinalCloseFobYard(latest, fob);
+        return saveCloudProject(id, next).then(() => {
+          setFiles((current) => ({ ...current, [project.id]: next }));
+          setNotice(`${project.name}: ${label} saved to its L1 Final Close; L2–L4 follow.`);
+        });
+      })
+      .catch((error: unknown) => {
+        // Put the saved project's own choice back; the sync above follows it.
+        setFiles((current) => ({ ...current, [project.id]: file }));
+        setNotice(
+          `${project.name}: could not save FOB yard to the project (${error instanceof Error ? error.message : "error"}).`,
+        );
+      });
+  };
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
   const calendarStart = result.days[0]?.date ?? todayIso();
@@ -560,7 +646,13 @@ function SimulationWorkspace() {
                 l4Start={l4Starts.get(project.id)}
                 lineSlots={draft.factory.targetOnLine}
                 lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
-                onChange={(patch) => updateProject(project.id, patch)}
+                onChange={(patch) => {
+                  const { delivery, ...rest } = patch;
+                  if (delivery && delivery.kind !== project.delivery.kind) {
+                    if (Object.keys(rest).length) updateProject(project.id, rest);
+                    changeDelivery(project, delivery);
+                  } else updateProject(project.id, patch);
+                }}
                 onPhaseChange={(productionPhaseId) => {
                   const dates = projectScheduleDates(files[project.id], productionPhaseId);
                   updateProject(project.id, {

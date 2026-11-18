@@ -49,6 +49,8 @@ export interface SimProject {
   /** Customer's required date: pickup (FOB yard) or installation complete (site). */
   dueDate: string;
   delivery: SimDelivery;
+  /** The other delivery's settings, restored when the project switches back. */
+  parkedDelivery?: SimDelivery;
   /** Working days for site installation; the factory calendar when unset. */
   siteCalendar?: ScheduleCalendar;
   /** Let this project's modules go on closer together, up to crowdedMax (warned). */

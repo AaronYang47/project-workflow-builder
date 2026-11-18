@@ -184,7 +184,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative order-last flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-slate-950 p-2">
+      <div className="relative order-last flex min-h-0 flex-1 flex-col bg-slate-950 p-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle

@@ -1,3 +1,4 @@
+import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { normalizeLoadedWorkflow } from "@/store/workflow-store-helpers";
 import type { WorkflowFile } from "@/types/workflow";
 
@@ -22,4 +23,22 @@ export async function loadCloudProject(id: string): Promise<WorkflowFile> {
     `/api/projects/${encodeURIComponent(id)}`,
   );
   return normalizeLoadedWorkflow(project.workflow).file;
+}
+
+/** Saves a project that is not open in the editor (for example a changed FOB yard). */
+export async function saveCloudProject(id: string, file: WorkflowFile) {
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: file.graph.metadata.name?.trim() || "Project",
+      projectNumber: workflowLegacyJobNumber(file),
+      workflow: file,
+    }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || "Could not save the project.");
+  }
 }

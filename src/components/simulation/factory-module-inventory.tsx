@@ -35,7 +35,7 @@ export function FactoryModuleInventory({
   );
   const line = [...day.line].sort((a, b) => b.progress - a.progress);
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 text-slate-100" data-module-inventory>
+    <div className="flex min-h-0 flex-[4] flex-col gap-1.5 text-slate-100" data-module-inventory>
       <div className="grid shrink-0 grid-cols-4 gap-1 text-center">
         <div className="rounded-lg border border-sky-800 bg-sky-950 p-1">
           <strong data-inventory-factory-count className="block text-base tabular-nums">
@@ -60,10 +60,10 @@ export function FactoryModuleInventory({
           <span className="text-xs text-slate-300">In transit</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <section aria-label="Production modules" className="flex min-w-0 flex-col">
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
+        <section aria-label="Production modules" className="flex min-h-0 min-w-0 flex-col">
           <h3 className="mb-1 text-[11px] font-bold">Production line · {line.length} modules</h3>
-          <div className="grid auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1">
+          <div className="grid min-h-0 auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
             {line.map((module) => {
               const project = byId.get(module.projectId);
               const progress = Math.min(100, Math.max(0, Math.round(module.progress * 100)));
@@ -111,11 +111,11 @@ export function FactoryModuleInventory({
             </p>
           ) : null}
         </section>
-        <section aria-label="Yard modules" className="flex min-w-0 flex-col">
+        <section aria-label="Yard modules" className="flex min-h-0 min-w-0 flex-col">
           <h3 className="mb-1 text-[11px] font-bold">
             Yard · {day.yardTotal} / {yardCapacity} spaces occupied
           </h3>
-          <div className="grid auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1">
+          <div className="grid min-h-0 auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
             {yard.map((module, index) => {
               const project = byId.get(module.projectId);
               return (

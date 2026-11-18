@@ -336,3 +336,54 @@ test("FOB yard lines stay grey until release conditions let the flow through", a
   await expect(l2Bypass).not.toHaveClass(/animated/);
   await expect(page.locator('[data-edge-label="fob-yard-l2-p3-l2-fc"]')).toHaveClass(/slate/);
 });
+
+test("L5 FOB yard / Ship & install and the L1 Final Close switch follow each other", async ({
+  page,
+}) => {
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false, activeProjectId: "p1" },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file: fourPhaseWorkflow(false) },
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await expect(page.locator('.react-flow__node[data-id="fc"]')).toBeVisible();
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  const card = page.locator('[data-sim-project="cloud-p1"]');
+  const fob = card.getByRole("radio", { name: "FOB yard" });
+  const site = card.getByRole("radio", { name: "Ship & install" });
+  await expect(site).toHaveAttribute("aria-checked", "true");
+  await expect(card.locator("[data-fob-yard-linked]")).toBeVisible();
+
+  // L5 → L1–L4.
+  await fob.click();
+  await expect(page.locator("[data-sim-notice]")).toContainText("FOB yard on in L1 Final Close");
+  await page.getByRole("link", { name: "L1 · Process" }).click();
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await expect(page.locator('.react-flow__node[data-id="p4"] [data-fob-yard-skipped]')).toHaveCount(
+    1,
+  );
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await expect(page.locator('.react-flow__node[data-id="l2-fc"]')).toContainText(
+    "FOB Yard Completion",
+  );
+
+  // L1 → L5.
+  await page.getByRole("button", { name: "L1 · High Level" }).click();
+  await page.locator('.react-flow__node[data-id="fc"]').click();
+  await page.getByRole("switch", { name: "FOB yard" }).uncheck({ force: true });
+  await expect(page.locator('.react-flow__node[data-id="p4"] [data-fob-yard-skipped]')).toHaveCount(
+    0,
+  );
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  await expect(site).toHaveAttribute("aria-checked", "true");
+  await expect(fob).toHaveAttribute("aria-checked", "false");
+});

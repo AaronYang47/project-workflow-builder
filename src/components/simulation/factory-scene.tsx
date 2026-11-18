@@ -39,7 +39,7 @@ export function FactoryScene({
   const dayOffWidth = Math.min(560, 36 + dayOffText.length * 12.5);
 
   return (
-    <div className="flex min-h-full w-full flex-col gap-1.5">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5">
       <div className="flex shrink-0 items-center justify-end">
         <div className="flex items-center rounded-md border border-slate-700 text-white">
           <button
@@ -70,7 +70,7 @@ export function FactoryScene({
           </button>
         </div>
       </div>
-      <div className="min-h-[220px] flex-1 overflow-auto rounded-lg border border-slate-700">
+      <div className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700">
         <svg
           role="img"
           aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}

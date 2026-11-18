@@ -272,6 +272,7 @@ export function ProjectCard({
             role="radio"
             aria-checked={delivery.kind === kind}
             onClick={() =>
+              delivery.kind !== kind &&
               onChange({
                 delivery:
                   kind === "fob"
@@ -285,6 +286,12 @@ export function ProjectCard({
           </button>
         ))}
       </div>
+      {project.source.kind === "cloud" ? (
+        <p data-fob-yard-linked className="mt-1 text-[10px] leading-snug text-muted-foreground">
+          Linked to this project&apos;s L1 Final Close FOB yard switch — L1–L4 change with it, and a
+          change there shows here.
+        </p>
+      ) : null}
 
       {delivery.kind === "fob" ? (
         <div className="mt-2 grid grid-cols-2 gap-2" data-fob-pickup>

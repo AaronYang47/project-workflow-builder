@@ -654,8 +654,6 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
   await noPageScroll();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  // The inventory check scrolled the playback area down to the last card.
-  await page.locator("[data-factory-scene]").scrollIntoViewIfNeeded();
   await fit("[data-factory-scene]");
   await fit('input[aria-label="Simulation day"]');
   await page
@@ -672,9 +670,7 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
   await noPageScroll();
 });
 
-test("factory days off show their Calendar type, and every inventory card can be seen", async ({
-  page,
-}) => {
+test("factory days off show their Calendar type and the scene keeps its size", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem(
       "construction-simulation:scenarios:v1",
@@ -729,13 +725,14 @@ test("factory days off show their Calendar type, and every inventory card can be
   // Friday is the Mon–Thu week's weekend.
   await slider.fill("44");
   await expect(page.locator('[data-scene-day-off="weekend"]')).toContainText("DAY OFF · WEEKEND");
-  // The inventory keeps its natural height; the playback area scrolls to reach it.
+  // The scene keeps its size; the inventory lists scroll inside it.
+  const scene = (await page.locator("[data-factory-scene]").boundingBox())!;
+  await slider.fill("10");
+  expect((await page.locator("[data-factory-scene]").boundingBox())!.height).toBeCloseTo(
+    scene.height,
+    0,
+  );
   const cards = page.locator("[data-line-module]");
-  const count = await cards.count();
-  expect(count).toBeGreaterThan(0);
   await cards.last().scrollIntoViewIfNeeded();
   await expect(cards.last()).toBeInViewport();
-  const lastBox = (await cards.last().boundingBox())!;
-  const inventory = (await page.locator("[data-module-inventory]").boundingBox())!;
-  expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(inventory.y + inventory.height + 1);
 });
