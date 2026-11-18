@@ -62,15 +62,19 @@ function DailyChart({
   const width = Math.max(1, values.length - 1);
   const top = Math.max(max, ...values, 1);
   const y = (value: number) => 100 - (value / top) * 100;
-  const points = values.map((value, index) => `${index},${y(value)}`).join(" ");
-  const x = (index: number) => (index / width) * 100;
   const current = Math.min(Math.max(0, currentIndex), values.length - 1);
+  // Like an ECG trace: drawn only up to the playback day.
+  const points = values
+    .slice(0, current + 1)
+    .map((value, index) => `${index},${y(value)}`)
+    .join(" ");
+  const x = (index: number) => (index / width) * 100;
   const months = dates.flatMap((date, index) =>
     index > 0 && date.endsWith("-01")
       ? [{ index, label: monthFormat.format(new Date(`${date}T00:00:00Z`)) }]
       : [],
   );
-  const step = Math.max(1, Math.ceil(months.length / 8));
+  const step = Math.max(1, Math.ceil(months.length / 5));
   return (
     <figure className="flex flex-col rounded-lg border bg-background p-3" data-daily-chart={title}>
       <figcaption className="mb-2 flex items-center justify-between gap-2 text-xs font-bold">
@@ -93,8 +97,14 @@ function DailyChart({
           className="absolute inset-0 h-full w-full overflow-visible"
           aria-hidden
         >
-          <polygon points={`0,100 ${points} ${width},100`} fill={color} fillOpacity={0.18} />
+          <polygon
+            data-chart-trace-fill
+            points={`0,100 ${points} ${current},100`}
+            fill={color}
+            fillOpacity={0.18}
+          />
           <polyline
+            data-chart-trace
             points={points}
             fill="none"
             stroke={color}
@@ -135,16 +145,21 @@ function DailyChart({
             {level.label}
           </span>
         ))}
-        {/* Playback day */}
+        {/* The pen: the newest point of the trace. */}
         <div
-          data-chart-playhead
-          className="pointer-events-none absolute inset-y-0 w-0.5 bg-primary"
-          style={{ left: `${x(current)}%`, transition: "left 120ms linear" }}
-        />
-        <div
-          className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background"
-          style={{ left: `${x(current)}%`, top: `${y(values[current])}%`, background: color }}
-        />
+          data-chart-pen
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: `${x(current)}%`, top: `${y(values[current])}%` }}
+        >
+          <span
+            className="absolute inset-0 animate-ping rounded-full opacity-60"
+            style={{ background: color }}
+          />
+          <span
+            className="relative block size-2.5 rounded-full border-2 border-background"
+            style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+          />
+        </div>
       </div>
       <div className="relative mt-1 h-4 text-[10px] text-muted-foreground">
         {months

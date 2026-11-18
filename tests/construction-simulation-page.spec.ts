@@ -405,15 +405,27 @@ test("the charts and timeline follow the playback day, and clicking a chart jump
   await page.getByRole("button", { name: "Add virtual" }).click();
   const lineChart = page.locator('[data-daily-chart="Modules on the line each day"]');
   const label = lineChart.locator("[data-chart-current]");
-  const playhead = lineChart.locator("[data-chart-playhead]");
+  const pen = lineChart.locator("[data-chart-pen]");
   const leftOf = async () =>
-    Number((await playhead.getAttribute("style"))!.match(/left: ([\d.]+)%/)![1]);
+    Number((await pen.getAttribute("style"))!.match(/left: ([\d.]+)%/)![1]);
+  // Like an ECG: the trace is only drawn up to the playback day.
+  const tracePoints = async () =>
+    (await lineChart.locator("[data-chart-trace]").getAttribute("points"))!.trim().split(/\s+/)
+      .length;
 
   await page.getByRole("button", { name: "Back to start" }).click();
   expect(await leftOf()).toBe(0);
+  expect(await tracePoints()).toBe(1);
   const startLabel = await label.textContent();
+  await page.getByRole("button", { name: "Next day" }).click();
+  await page.getByRole("button", { name: "Next day" }).click();
+  expect(await tracePoints()).toBe(3);
   await page.getByRole("button", { name: "Jump to end" }).click();
   expect(await leftOf()).toBe(100);
+  const days = Number(
+    await page.getByRole("slider", { name: "Simulation day" }).getAttribute("max"),
+  );
+  expect(await tracePoints()).toBe(days + 1);
   await expect(label).not.toHaveText(startLabel!);
   await expect(page.locator("[data-timeline-playhead]").first()).toBeVisible();
   await expect(page.locator("[data-timeline-playhead-label]")).toBeVisible();
