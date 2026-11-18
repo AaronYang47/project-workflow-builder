@@ -428,30 +428,32 @@ function SimulationWorkspace() {
   );
   useEffect(() => {
     if (!factoryRowChanges.length) return;
-    const timer = window.setTimeout(() => {
-      for (const change of factoryRowChanges) {
-        const { project, file, next, days, scenarioName } = change;
-        const target = project.l4Target;
-        if (change.current) {
-          if (!canEditCollaborativeWorkflow()) continue;
-          const store = useWorkflowStore.getState();
-          for (const node of next.graph.nodes) {
-            const before = file.graph.nodes.find((item) => item.id === node.id);
-            if (before && before.conditions !== node.conditions)
-              store.updateNode(node.id, { conditions: node.conditions });
-          }
-        } else {
-          writeSavedProject(
-            project,
-            (latest) => syncFactoryProductionRow(latest, target, days, scenarioName),
-            {
-              saved: `${project.name}: Factory Production in L4 updated and saved.`,
-              failed: "could not update Factory Production in L4",
-            },
-          );
-        }
+    // The open project changes at once, so L4 is up to date even when L5 is left
+    // straight away; other saved projects are saved after a short pause.
+    const others = factoryRowChanges.filter((change) => !change.current);
+    for (const change of factoryRowChanges) {
+      if (!change.current || !canEditCollaborativeWorkflow()) continue;
+      const store = useWorkflowStore.getState();
+      for (const node of change.next.graph.nodes) {
+        const before = change.file.graph.nodes.find((item) => item.id === node.id);
+        if (before && before.conditions !== node.conditions)
+          store.updateNode(node.id, { conditions: node.conditions });
       }
-    }, 800);
+    }
+    if (!others.length) return;
+    const timer = window.setTimeout(() => {
+      for (const { project, days, scenarioName } of others) {
+        const target = project.l4Target;
+        writeSavedProject(
+          project,
+          (latest) => syncFactoryProductionRow(latest, target, days, scenarioName),
+          {
+            saved: `${project.name}: Factory Production in L4 updated and saved.`,
+            failed: "could not update Factory Production in L4",
+          },
+        );
+      }
+    }, 600);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the wanted rows change
   }, [factoryRowChanges]);
@@ -490,6 +492,32 @@ function SimulationWorkspace() {
   };
   // Fixes belong to the projects they were worked out for.
   const shownFixes = fixes && fixes.projects === JSON.stringify(draft.projects) ? fixes.items : [];
+  /** Removing a saved project takes its Factory Production row out of L4 at once. */
+  const removeProject = (project: SimProject) => {
+    setProjects(draft.projects.filter((item) => item.id !== project.id));
+    const file = fileOf(project);
+    if (!file || project.source.kind !== "cloud") return;
+    const cleared = syncFactoryProductionRow(file, undefined, undefined, "");
+    if (cleared === file) return;
+    if (project.source.projectId === currentId) {
+      if (!canEditCollaborativeWorkflow()) return;
+      const store = useWorkflowStore.getState();
+      for (const node of cleared.graph.nodes) {
+        const before = file.graph.nodes.find((item) => item.id === node.id);
+        if (before && before.conditions !== node.conditions)
+          store.updateNode(node.id, { conditions: node.conditions });
+      }
+    } else {
+      writeSavedProject(
+        project,
+        (latest) => syncFactoryProductionRow(latest, undefined, undefined, ""),
+        {
+          saved: `${project.name} removed; its Factory Production row is gone from L4.`,
+          failed: "could not remove its Factory Production row from L4",
+        },
+      );
+    }
+  };
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
   const calendarStart = result.days[0]?.date ?? todayIso();
@@ -593,17 +621,6 @@ function SimulationWorkspace() {
                   min={1}
                   integer
                   onCommit={(yardCapacity) => updateFactory({ yardCapacity })}
-                  className={inputClass}
-                />
-              </label>
-              <label className="block text-[11px] font-semibold text-muted-foreground">
-                Install crews
-                <NumberInput
-                  label="Install crews"
-                  value={draft.factory.installCrews}
-                  min={0}
-                  integer
-                  onCommit={(installCrews) => updateFactory({ installCrews })}
                   className={inputClass}
                 />
               </label>
@@ -765,6 +782,8 @@ function SimulationWorkspace() {
                 }
                 l4Start={l4Starts.get(project.id)}
                 lineSlots={draft.factory.targetOnLine}
+                installCrews={draft.factory.installCrews}
+                onInstallCrews={(installCrews) => updateFactory({ installCrews })}
                 releaseConditions={
                   fileOf(project)
                     ? productionReleaseConditions(fileOf(project)!, project.productionPhaseId)
@@ -792,9 +811,7 @@ function SimulationWorkspace() {
                   next.splice(index + direction, 0, moved);
                   setProjects(next);
                 }}
-                onRemove={() =>
-                  setProjects(draft.projects.filter((item) => item.id !== project.id))
-                }
+                onRemove={() => removeProject(project)}
                 onRefresh={
                   project.source.kind === "cloud"
                     ? () => void refreshFromL4(project, index)

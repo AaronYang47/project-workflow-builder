@@ -225,6 +225,8 @@ export function ProjectCard({
   phaseOptions,
   l4Start,
   lineSlots,
+  installCrews,
+  onInstallCrews,
   releaseConditions,
   lineDays,
   lateDays,
@@ -242,6 +244,9 @@ export function ProjectCard({
   l4Start?: { date: string; phase: string; factory?: { reason: string } };
   /** Modules the line holds at its normal pace (the pipeline length). */
   lineSlots: number;
+  /** Site install crews, shared by every Ship & install project. */
+  installCrews: number;
+  onInstallCrews: (crews: number) => void;
   /** Saved projects: Departments in the production Phase and their L4 release conditions. */
   releaseConditions?: ReturnType<typeof productionReleaseConditions>;
   /** Days this project is on the line in the simulation. */
@@ -524,6 +529,17 @@ export function ProjectCard({
         </div>
       ) : (
         <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="col-span-2" data-install-crews>
+            <NumberField
+              label="Install crews"
+              value={installCrews}
+              integer
+              onChange={onInstallCrews}
+            />
+            <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+              Shared by every Ship &amp; install project; a site waits when all crews are busy.
+            </p>
+          </div>
           <label className={`${labelClass} col-span-2`}>
             Shipping starts
             <select

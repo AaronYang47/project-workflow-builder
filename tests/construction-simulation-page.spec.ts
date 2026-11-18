@@ -167,7 +167,11 @@ test("typing into every L5 number and date box works like a normal form", async 
   await box("Modules").blur();
   await expect(box("Modules")).toHaveValue("25");
 
-  for (const label of ["Yard holds (modules)", "Install crews"]) {
+  // Install crews only show for Ship & install.
+  await expect(
+    page.getByRole("region", { name: "Factory" }).getByLabel("Install crews", { exact: true }),
+  ).toHaveCount(0);
+  for (const label of ["Yard holds (modules)"]) {
     const field = page.getByLabel(label, { exact: true });
     await field.click();
     await field.press("ControlOrMeta+a");
@@ -178,6 +182,7 @@ test("typing into every L5 number and date box works like a normal form", async 
   // Ship & install fields.
   await card.getByRole("radio", { name: "Ship & install" }).click();
   for (const [label, typed] of [
+    ["Install crews", "4"],
     ["Transport days", "3"],
     ["Modules shipped per day", "2"],
     ["Installed per day", "5"],
@@ -777,7 +782,6 @@ test("L5 adds a Factory Production row below the chosen L4 release condition", a
   await expect(status).toContainText(/a Factory Production row below .*: \d+ days on the line/);
   const days = Number((await status.textContent())!.match(/: (\d+) days on the line/)![1]);
   await expect(card.getByRole("button", { name: /Write .* to L4/ })).toHaveCount(0);
-  await page.waitForTimeout(1200);
 
   await page.getByRole("link", { name: "Open Process Overview" }).click();
   const tasks = page.locator("[data-gantt-task]");
@@ -798,9 +802,20 @@ test("L5 adds a Factory Production row below the chosen L4 release condition", a
   await page.getByRole("link", { name: "Open Construction Simulation" }).click();
   await card.getByLabel("Department").selectOption("");
   await expect(status).toContainText("Choose a Department and a release condition");
-  await page.waitForTimeout(1200);
   await page.getByRole("link", { name: "Open Process Overview" }).click();
   await expect(tasks).toHaveCount(firstTitle);
+  await expect(row).toHaveCount(0);
+
+  // Removing the project from L5 takes its row out of L4 straight away.
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  await card.getByLabel("Department").selectOption({ label: "Department Lifecycle Phase" });
+  await card.getByLabel("Add below").selectOption({ index: 1 });
+  await page.getByRole("link", { name: "Open Process Overview" }).click();
+  await expect(row).toHaveCount(1);
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  await card.getByRole("button", { name: /^Remove / }).click();
+  await expect(card).toHaveCount(0);
+  await page.getByRole("link", { name: "Open Process Overview" }).click();
   await expect(row).toHaveCount(0);
 });
 
