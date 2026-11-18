@@ -106,13 +106,10 @@ test("playback opens on the first production day and explains an idle line befor
   await page.setViewportSize({ width: 1600, height: 1100 });
   await page.goto("/construction-simulation");
   const card = page.locator("[data-sim-project]").first();
-  const start = await page.getByLabel("Simulation start").inputValue();
-  const later = new Date(Date.parse(`${start}T00:00:00Z`) + 60 * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-  await card.getByLabel("Earliest line start").fill(later);
-  await page.reload();
-  await card.getByLabel("Earliest line start").fill(later);
+  await expect(page.getByLabel("Simulation start")).toHaveCount(0);
+  await expect(card.getByLabel("Due date")).toBeVisible();
+  // Friday starts the time axis, while the first load is the next working day.
+  await card.getByLabel("Earliest line start").fill("2027-02-05");
 
   // Opens with modules already on the line.
   await expect(page.locator("[data-line-module]").first()).toBeVisible();
@@ -120,6 +117,7 @@ test("playback opens on the first production day and explains an idle line befor
 
   await page.getByRole("button", { name: "Back to start" }).click();
   await expect(page.locator("[data-line-idle]")).toContainText("production starts");
+  await expect(page.locator("[data-playback-date]")).toContainText("05 Feb 2027");
   await page.getByRole("button", { name: "Jump to first module" }).click();
   await expect(page.locator("[data-line-idle]")).toHaveCount(0);
   await expect(page.locator("[data-line-module]").first()).toBeVisible();
@@ -184,8 +182,6 @@ test("typing into every L5 number and date box works like a normal form", async 
   await expect(page.locator("[data-sim-row]").first()).toHaveText(before!);
   await box("Earliest line start").blur();
   await expect(box("Earliest line start")).not.toHaveValue("0002-05-02");
-  await box("Due date").fill("2030-06-30");
-  await expect(box("Due date")).toHaveValue("2030-06-30");
 });
 
 test("the production calendar opens as a glass popup, ticks off work and flags problems", async ({
@@ -378,7 +374,7 @@ test("the factory calendar can customise single years", async ({ page }) => {
   await page.getByRole("button", { name: "Factory calendar years" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Factory working days");
-  await expect(dialog.getByLabel("Simulation start", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Simulation start", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Customize a year", exact: true }).click();
   await expect(dialog.getByRole("spinbutton", { name: "Shutdown year" })).toBeVisible();
   await page.getByRole("button", { name: "Apply calendar", exact: true }).click();

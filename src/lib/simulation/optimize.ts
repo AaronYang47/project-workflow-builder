@@ -2,13 +2,15 @@ import { dayOf } from "./work-calendar";
 import { simulateScenario } from "./simulate";
 import type { SimResult, SimScenario } from "./types";
 
-/** Lower is better: unfinished projects, then total and worst lateness, then the last finish. */
+/** Prefer finishing all projects, then the earliest overall finish and earlier individual finishes. */
 export function scheduleScore(result: SimResult) {
   const unfinished = result.projects.filter((project) => !project.finished).length;
-  const totalLate = result.projects.reduce((sum, project) => sum + project.lateDays, 0);
-  const worstLate = Math.max(0, ...result.projects.map((project) => project.lateDays));
-  const end = dayOf(result.makespanEnd ?? "") ?? Number.MAX_SAFE_INTEGER;
-  return [unfinished, totalLate, worstLate, end] as const;
+  const end = dayOf(result.makespanEnd ?? "") ?? Infinity;
+  const completionDays = result.projects.reduce(
+    (sum, project) => sum + (dayOf(project.completion ?? "") ?? 0),
+    0,
+  );
+  return [unfinished, end, completionDays] as const;
 }
 
 const better = (left: readonly number[], right: readonly number[]) => {
@@ -18,21 +20,13 @@ const better = (left: readonly number[], right: readonly number[]) => {
   return false;
 };
 
-/**
- * Finds a loading priority that keeps projects on time first and then
- * finishes everything earliest. Starts from the earliest due date first, then
- * keeps swapping two projects or moving one to another place in the queue
- * while that improves the result.
- */
+/** Search for an earlier finish by swapping and moving projects in loading order. */
 export function optimizeScenario(scenario: SimScenario): SimResult {
-  let order = [...scenario.projects]
-    .sort(
-      (left, right) =>
-        (dayOf(left.dueDate) ?? Infinity) - (dayOf(right.dueDate) ?? Infinity) ||
-        (dayOf(left.earliestStart) ?? 0) - (dayOf(right.earliestStart) ?? 0),
-    )
+  let best = simulateScenario(scenario);
+  let order = best.priority;
+  const byEarliestStart = [...scenario.projects]
+    .sort((left, right) => (dayOf(left.earliestStart) ?? 0) - (dayOf(right.earliestStart) ?? 0))
     .map((project) => project.id);
-  let best = simulateScenario(scenario, order);
   let bestScore = scheduleScore(best);
   const consider = (candidate: string[]) => {
     const result = simulateScenario(scenario, candidate);
@@ -43,6 +37,7 @@ export function optimizeScenario(scenario: SimScenario): SimResult {
     bestScore = score;
     return true;
   };
+  consider(byEarliestStart);
   for (let round = 0; round < 20; round += 1) {
     let improved = false;
     // Swap two projects.

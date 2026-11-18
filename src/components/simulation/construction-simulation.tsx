@@ -41,7 +41,7 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import { ProcessCalendarButton } from "@/components/workflow/process-calendar-settings";
 import type { WorkflowFile } from "@/types/workflow";
 import { listCloudProjects, loadCloudProject, type CloudProjectSummary } from "./cloud-projects";
-import { DateInput, NumberInput } from "./draft-inputs";
+import { NumberInput } from "./draft-inputs";
 import { CALENDAR_EVENT, FactoryPlayback } from "./factory-playback";
 import { DayActivity } from "./day-activity";
 import { ProjectCard } from "./project-card";
@@ -156,12 +156,6 @@ function SimulationWorkspace() {
       const fresh = simProjectFromWorkflow(file, id, index, todayIso());
       const phaseId = project.productionPhaseId ?? fresh.productionPhaseId;
       const dates = projectScheduleDates(file, phaseId);
-      const delivery =
-        fresh.delivery.kind === project.delivery.kind
-          ? project.delivery.kind === "fob"
-            ? { ...project.delivery, pickupDate: dates.dueDate ?? project.delivery.pickupDate }
-            : project.delivery
-          : fresh.delivery;
       updateProject(project.id, {
         productionPhaseId: phaseId,
         earliestStart: dates.earliestStart ?? project.earliestStart,
@@ -170,7 +164,7 @@ function SimulationWorkspace() {
         ...(file.factoryProduction?.weeksPerModule
           ? { weeksPerModule: file.factoryProduction.weeksPerModule }
           : {}),
-        delivery,
+        delivery: fresh.delivery.kind === project.delivery.kind ? project.delivery : fresh.delivery,
         siteCalendar: file.calendar,
       });
       setNotice(`${project.name} refreshed from its L4 schedule.`);
@@ -241,7 +235,8 @@ function SimulationWorkspace() {
     );
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
-  const calendar = draft.factory.calendar ?? { startDate: draft.factory.startDate, shutdowns: [] };
+  const calendarStart = result.days[0]?.date ?? todayIso();
+  const calendar = draft.factory.calendar ?? { startDate: calendarStart, shutdowns: [] };
 
   const openPicker = async () => {
     setPicker({ open: true, loading: true, projects: [] });
@@ -380,15 +375,6 @@ function SimulationWorkspace() {
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="block text-[11px] font-semibold text-muted-foreground">
-                Simulation start
-                <DateInput
-                  label="Simulation start"
-                  value={draft.factory.startDate}
-                  onCommit={(startDate) => updateFactory({ startDate })}
-                  className={inputClass}
-                />
-              </label>
-              <label className="block text-[11px] font-semibold text-muted-foreground">
                 Yard holds (modules)
                 <NumberInput
                   label="Yard holds (modules)"
@@ -451,14 +437,13 @@ function SimulationWorkspace() {
               <div className="pt-1 text-xs">
                 <ProcessCalendarButton
                   mode="factory"
-                  value={{ ...calendar, startDate: draft.factory.startDate }}
+                  value={{ ...calendar, startDate: calendarStart }}
                   canEdit
                   workingDays={result.days.length}
                   onSave={(saved) =>
                     saved &&
                     updateFactory({
-                      calendar: { ...saved, startDate: draft.factory.startDate },
-                      startDate: saved.startDate || draft.factory.startDate,
+                      calendar: { ...saved, startDate: calendarStart },
                     })
                   }
                 />
@@ -478,7 +463,7 @@ function SimulationWorkspace() {
                 onClick={() =>
                   setProjects([
                     ...draft.projects,
-                    virtualSimProject(draft.projects.length, draft.factory.startDate),
+                    virtualSimProject(draft.projects.length, calendarStart),
                   ])
                 }
               >
@@ -592,11 +577,10 @@ function SimulationWorkspace() {
               const best = optimizeScenario(simDraft);
               const byId = new Map(draft.projects.map((project) => [project.id, project]));
               setProjects(best.priority.map((id) => byId.get(id)!).filter(Boolean));
-              const late = best.projects.filter((project) => project.lateDays > 0).length;
               setNotice(
-                late
-                  ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
-                  : "Best order found: every project is on time.",
+                best.projects.every((project) => project.finished) && best.makespanEnd
+                  ? `Best order found · all projects finish by ${best.makespanEnd}.`
+                  : "Best order found · some projects remain unfinished.",
               );
             }}
             disabled={draft.projects.length < 1}
@@ -670,12 +654,12 @@ function SimulationWorkspace() {
 function ScenarioComparison({ scenarios }: { scenarios: SimScenario[] }) {
   const rows = scenarios.map((scenario) => {
     const result = simulateScenario(scenario);
-    const [unfinished, totalLate] = scheduleScore(result);
+    const [unfinished] = scheduleScore(result);
     return {
       scenario,
       unfinished,
-      totalLate,
       late: result.projects.filter((project) => project.lateDays > 0).length,
+      totalLate: result.projects.reduce((sum, project) => sum + project.lateDays, 0),
       end: result.makespanEnd ?? "—",
     };
   });

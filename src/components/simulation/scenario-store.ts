@@ -11,7 +11,6 @@ export function defaultFactory(today: string): SimFactory {
     crowdedMax: 23,
     yardCapacity: 24,
     installCrews: 2,
-    startDate: today,
     calendar: {
       startDate: today,
       shutdowns: [],

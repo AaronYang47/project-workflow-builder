@@ -91,7 +91,7 @@ export function ProcessCalendarSettings({
   onSave,
   mode = "project",
 }: CalendarSettingsProps) {
-  const startLabel = mode === "factory" ? "Simulation start" : "Technical handoff date";
+  const startLabel = "Technical handoff date";
   const [startDate, setStartDate] = useState(value?.startDate ?? "");
   const shutdowns = value?.shutdowns ?? [];
   const [shutdownOverrides, setShutdownOverrides] = useState<Record<string, ShutdownOverride>>(
@@ -195,22 +195,24 @@ export function ProcessCalendarSettings({
           : "No weekly days off selected."}
       </p>
       <fieldset disabled={!canEdit} className="mt-4 space-y-3 disabled:opacity-60">
-        <label className="block max-w-xs text-xs font-semibold">
-          {startLabel}
-          <input
-            type="date"
-            aria-label={startLabel}
-            value={startDate}
-            onChange={(event) => {
-              setStartDate(event.target.value);
-              if (calendarDateDay(event.target.value) !== null) {
-                setYearInput(event.target.value.slice(0, 4));
-                setEditing({});
-              }
-            }}
-            className="mt-1 block min-h-10 w-full rounded-md border bg-background px-3 text-sm"
-          />
-        </label>
+        {mode === "project" ? (
+          <label className="block max-w-xs text-xs font-semibold">
+            {startLabel}
+            <input
+              type="date"
+              aria-label={startLabel}
+              value={startDate}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                if (calendarDateDay(event.target.value) !== null) {
+                  setYearInput(event.target.value.slice(0, 4));
+                  setEditing({});
+                }
+              }}
+              className="mt-1 block min-h-10 w-full rounded-md border bg-background px-3 text-sm"
+            />
+          </label>
+        ) : null}
         <label className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-xs font-semibold">
           <input
             type="checkbox"

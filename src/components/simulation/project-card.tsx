@@ -263,7 +263,9 @@ export function ProjectCard({
             onClick={() =>
               onChange({
                 delivery:
-                  kind === "fob" ? { kind: "fob", pickupDate: project.dueDate } : SITE_DEFAULT,
+                  kind === "fob"
+                    ? { kind: "fob", pickupDate: project.earliestStart }
+                    : SITE_DEFAULT,
               })
             }
             className={`min-h-8 rounded text-xs font-semibold ${delivery.kind === kind ? "bg-background shadow-sm" : "text-muted-foreground"}`}

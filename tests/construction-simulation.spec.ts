@@ -140,7 +140,7 @@ test("FOB yard projects are collected on the pickup date once every module is bu
       }),
     ]),
   );
-  // Not built by the pickup date: collected the day it is, and counted late.
+  // A pickup reservation stays in effect even when the modules finish after it.
   expect(late.projects[0].pickup! > "2027-01-20").toBe(true);
   expect(late.projects[0].lateDays).toBeGreaterThan(0);
 });
@@ -184,18 +184,30 @@ test("the factory doesn't move on Friday to Sunday with a Monday–Thursday cale
   }
 });
 
-test("the optimizer orders projects so fewer are late", () => {
+test("the time axis uses the earliest eligible project date over a legacy factory start", () => {
   const projects = [
-    project("relaxed", { modules: 18, dueDate: "2027-12-01" }),
-    project("tight", { modules: 6, dueDate: "2027-02-20" }),
+    project("later", { earliestStart: "2027-01-18" }),
+    project("earlier", { earliestStart: "2027-01-11" }),
   ];
-  const naive = simulateScenario(scenario(projects), ["relaxed", "tight"]);
+  const result = simulateScenario(scenario(projects, { startDate: "2027-03-01" }));
+  expect(result.days[0].date).toBe("2027-01-11");
+  expect(result.projects.find((row) => row.projectId === "earlier")?.firstLoad).toBe("2027-01-11");
+});
+
+test("the optimizer finishes the scenario earlier and ranks by finish date instead of due date", () => {
+  const projects = [
+    project("slow", { modules: 18, weeksPerModule: 8, dueDate: "2027-01-01" }),
+    project("fast", { modules: 6, weeksPerModule: 1, dueDate: "2028-01-01" }),
+  ];
+  const baseline = simulateScenario(scenario(projects));
   const best = optimizeScenario(scenario(projects));
-  const late = (result: typeof naive) =>
-    result.projects.reduce((sum, item) => sum + item.lateDays, 0);
-  expect(late(naive)).toBeGreaterThan(0);
-  expect(late(best)).toBeLessThan(late(naive));
-  expect(best.priority[0]).toBe("tight");
+  expect(Date.parse(best.makespanEnd!)).toBeLessThan(Date.parse(baseline.makespanEnd!));
+  expect(best.priority[0]).toBe("fast");
+  const changedDeadlines = projects.map((item, index) => ({
+    ...item,
+    dueDate: projects[1 - index].dueDate,
+  }));
+  expect(optimizeScenario(scenario(changedDeadlines)).priority).toEqual(best.priority);
 });
 
 test("a saved project brings its production Phase and FOB yard choice", () => {
@@ -246,7 +258,7 @@ test("a project may allow a tight line, up to 23 modules, which is counted and w
   expect(tight.warnings.join(" ")).toContain("tight");
 });
 
-test("late projects say what held them up", () => {
+test("projects report what held them up", () => {
   const result = simulateScenario(
     scenario([
       project("relaxed", { modules: 18, dueDate: "2027-12-01" }),
@@ -255,9 +267,7 @@ test("late projects say what held them up", () => {
     ["relaxed", "tight"],
   );
   const late = result.projects.find((row) => row.projectId === "tight")!;
-  expect(late.lateDays).toBeGreaterThan(0);
   expect(late.reasons[0]).toMatch(/waited \d+ working days for the line/);
-  expect(result.warnings.join(" ")).toContain("waited");
 
   const site = (id: string): SimProject =>
     project(id, {

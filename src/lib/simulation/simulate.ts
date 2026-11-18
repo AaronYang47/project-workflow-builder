@@ -67,10 +67,14 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
   const order = priority ?? scenario.priority ?? scenario.projects.map((project) => project.id);
   const rank = new Map(order.map((id, index) => [id, index]));
   const projects = scenario.projects.filter((project) => project.modules > 0);
+  const firstDay = projects.reduce(
+    (earliest, project) => Math.min(earliest, dayOf(project.earliestStart) ?? Infinity),
+    Infinity,
+  );
   const states: ProjectState[] = projects
     .map((project) => ({
       project,
-      start: dayOf(project.earliestStart) ?? dayOf(factory.startDate) ?? 0,
+      start: dayOf(project.earliestStart) ?? firstDay,
       due: dayOf(project.dueDate) ?? Number.POSITIVE_INFINITY,
       lineDays: Math.max(
         1,
@@ -120,8 +124,6 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
   let peakOnLine = 0;
   const installing = new Set<string>();
   const days: SimDay[] = [];
-  // The factory runs from its start date; earlier project dates just mean "ready now".
-  const firstDay = dayOf(factory.startDate) ?? Math.min(...states.map((state) => state.start));
   const done = () => states.every((state) => state.completion !== undefined);
 
   for (let day = firstDay; Number.isFinite(day) && !done(); day += 1) {

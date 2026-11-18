@@ -66,8 +66,8 @@ export interface SimFactory {
   installCrews: number;
   /** Factory working days (weekends, stats, shutdowns). Its startDate is ignored. */
   calendar?: ScheduleCalendar;
-  /** Simulation starts on this date. */
-  startDate: string;
+  /** Legacy saved scenario field. */
+  startDate?: string;
 }
 
 export interface SimScenario {

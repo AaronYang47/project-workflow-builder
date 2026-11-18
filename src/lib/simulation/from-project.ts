@@ -71,7 +71,7 @@ export function simProjectFromWorkflow(
     earliestStart,
     dueDate,
     delivery: fobYard
-      ? { kind: "fob", pickupDate: dueDate }
+      ? { kind: "fob", pickupDate: earliestStart }
       : {
           kind: "site",
           transport: "as-built",
@@ -95,6 +95,6 @@ export function virtualSimProject(index: number, today: string): SimProject {
     splittable: true,
     earliestStart: today,
     dueDate: isoFromDay(start + 7 * 12),
-    delivery: { kind: "fob", pickupDate: isoFromDay(start + 7 * 12) },
+    delivery: { kind: "fob", pickupDate: today },
   };
 }
