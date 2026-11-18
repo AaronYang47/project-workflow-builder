@@ -9,7 +9,7 @@ import { readPath } from "@/lib/object-path";
 import { getProfabForm } from "@/lib/profab-forms";
 import { RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
-import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
+import { precedingConditionBlocker, sequentialExecutionBlocker } from "@/lib/workflow-progress";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   document: ["title"],
@@ -324,7 +324,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
         message: "The workflow contains a cycle while cycles are disallowed",
       });
   }
-  // Ticks made before the department-order rule existed: flag them, keep them.
+  // Ticks made before the department/condition-order rules existed: flag them, keep them.
   for (const node of nodes) {
     if (node.type !== "general" && node.type !== "projectStart") continue;
     const ticked = node.conditions.filter(
@@ -332,14 +332,28 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
     );
     if (!ticked.length) continue;
     const blocker = sequentialExecutionBlocker(file, node.id);
-    if (!blocker) continue;
-    issues.push({
-      id: `out-of-order-ticks-${node.id}`,
-      severity: "warning",
-      code: "OUT_OF_ORDER_TICKS",
-      message: `${node.title}: ${ticked.length} release condition${ticked.length === 1 ? " is" : "s are"} ticked before the previous department is finished. ${blocker}`,
-      nodeId: node.id,
-    });
+    if (blocker) {
+      issues.push({
+        id: `out-of-order-ticks-${node.id}`,
+        severity: "warning",
+        code: "OUT_OF_ORDER_TICKS",
+        message: `${node.title}: ${ticked.length} release condition${ticked.length === 1 ? " is" : "s are"} ticked before the previous department is finished. ${blocker}`,
+        nodeId: node.id,
+      });
+      continue;
+    }
+    for (const [index, condition] of node.conditions.entries()) {
+      if (!condition.checked || condition.id === "project-id-required") continue;
+      const condBlocker = precedingConditionBlocker(file, node.id, condition.id || index);
+      if (!condBlocker) continue;
+      issues.push({
+        id: `out-of-order-ticks-${node.id}-${condition.id || index}`,
+        severity: "warning",
+        code: "OUT_OF_ORDER_TICKS",
+        message: `${node.title}: ${condBlocker}`,
+        nodeId: node.id,
+      });
+    }
   }
   return issues;
 }

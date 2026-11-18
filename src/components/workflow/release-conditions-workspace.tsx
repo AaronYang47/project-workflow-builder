@@ -18,6 +18,7 @@ import {
   useCollaborationStore,
 } from "@/lib/collaboration/collaboration-store";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
+import { DeleteBlockedDialog } from "./delete-blocked-dialog";
 import {
   conditionText,
   type DocumentCategory,
@@ -625,6 +626,7 @@ export function ReleaseConditionsWorkspace() {
             onClose={() => setDocumentRequest(null)}
           />
         ) : null}
+        <DeleteBlockedDialog />
       </main>
     </AuthGate>
   );

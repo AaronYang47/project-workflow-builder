@@ -55,7 +55,7 @@ test("a release-condition checkbox stays in L2", async ({ page }) => {
   // Conditions with L3 forms are completed in L3, so add one without forms.
   const file = outOfSequence(createE2EWorkflow(), "pre-construction");
   const preConstruction = file.graph.nodes.find((node) => node.id === "pre-construction")!;
-  preConstruction.conditions.push({
+  preConstruction.conditions.unshift({
     id: "no-forms-check",
     label: "Internal kickoff held",
     required: true,
@@ -78,7 +78,7 @@ test("a release-condition checkbox stays in L2", async ({ page }) => {
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const node = page.locator('[data-id="pre-construction"]');
   await expect(node).toBeVisible();
-  const index = preConstruction.conditions.length;
+  const index = 1;
   await node.getByRole("button", { name: `Check release condition ${index}`, exact: true }).click();
   await expect(
     node.getByRole("button", { name: `Uncheck release condition ${index}`, exact: true }),

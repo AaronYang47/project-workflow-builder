@@ -15,12 +15,18 @@ import type { DocRecord } from "./doc-record";
  */
 export function CustomerInfoBox({
   docs,
+  lockedReason,
+  onBlocked,
   onSave,
   onOpenForm,
   onSelectionFormToggled,
   onAdd,
 }: {
   docs: DocRecord[];
+  /** When set, unticked documents cannot be ticked yet (sequential release). */
+  lockedReason?: string;
+  /** Before a file is ticked: true (after showing why) when it must wait. */
+  onBlocked?: () => boolean;
   onSave: (docs: DocRecord[]) => void;
   onOpenForm: (docId: string) => void;
   /** A selection form ticked or unticked by hand; manual unticks stop auto-ticking. */
@@ -82,6 +88,8 @@ export function CustomerInfoBox({
                 ) {
                   return;
                 }
+                // Ticking waits for earlier steps / release conditions (shows why in a popup).
+                if (!doc.checked && onBlocked?.()) return;
                 const nextChecked = !doc.checked;
                 if (isCustomerSelectionForm(doc)) onSelectionFormToggled(doc.id, nextChecked);
                 const updated = [...docs];
@@ -100,7 +108,7 @@ export function CustomerInfoBox({
                 isCustomerSelectionForm(doc) &&
                 !customerFormIsComplete(doc.customerProfile, doc.customerForm)
                   ? "Open and complete the form before checking this box"
-                  : undefined
+                  : lockedReason
               }
               className="mt-1 size-4 shrink-0 accent-sky-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
             />

@@ -361,9 +361,9 @@ export function GeneralNode({
                   );
                   const hasL3Forms = conditionHasL3Forms(condition, node);
                   const toggleCondition = () => {
-                    if (!checked && blockIfOutOfSequence(node.id)) return;
+                    if (!checked && blockIfOutOfSequence(node.id, condition.id || index)) return;
                     if (!checked && hasL3Forms) {
-                      openDepartmentL3(node.id);
+                      openDepartmentL3(node.id, condition.id || `condition-${index}`);
                       return;
                     }
                     const linkedItem = condition.linkedExecutionItemId

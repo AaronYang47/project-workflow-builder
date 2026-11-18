@@ -3,7 +3,7 @@
 import { clone } from "@/lib/clone";
 import { createDomainNode } from "@/lib/create-domain-node";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
-import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
+import { releaseConditionBlocker } from "@/lib/workflow-progress";
 import {
   addOrReplaceEdge,
   applyLayoutDrag,
@@ -53,12 +53,19 @@ export type GraphSlice = Pick<
 /** L2 detailed workflow: nodes, phases, edges and canvas layout. */
 export const PREVIOUS_DEPARTMENT_TITLE = "Finish the previous department first";
 
-/** True when a customFields patch ticks a release-condition file that wasn't ticked. */
-function ticksDocument(
+const LEGACY_DOCUMENT_FIELDS = new Set([
+  "legalDocuments",
+  "customerDocuments",
+  "supportingDocuments",
+]);
+
+/** Returns condition keys whose customFields file checklist gained at least one newly ticked item. */
+function tickedDocumentConditionKeys(
   current: Record<string, string | number | boolean> | undefined,
   next: Record<string, string | number | boolean> | undefined,
-) {
-  if (!next) return false;
+  firstConditionKey: string | number = 0,
+): Array<string | number> {
+  if (!next) return [];
   const ticked = (raw: unknown) => {
     if (typeof raw !== "string" || !raw.startsWith("[")) return new Set<string>();
     try {
@@ -72,11 +79,23 @@ function ticksDocument(
       return new Set<string>();
     }
   };
-  return Object.entries(next).some(([key, value]) => {
-    if (!key.includes("::release-condition::") || current?.[key] === value) return false;
+  const keys: Array<string | number> = [];
+  for (const [key, value] of Object.entries(next)) {
+    if (current?.[key] === value) continue;
+    const markerIndex = key.indexOf("::release-condition::");
+    const isConditionDocs = markerIndex >= 0;
+    const isLegacyDocs = LEGACY_DOCUMENT_FIELDS.has(key);
+    if (!isConditionDocs && !isLegacyDocs) continue;
     const before = ticked(current?.[key]);
-    return [...ticked(value)].some((id) => !before.has(id));
-  });
+    if ([...ticked(value)].some((id) => !before.has(id))) {
+      keys.push(
+        isConditionDocs
+          ? key.slice(markerIndex + "::release-condition::".length)
+          : firstConditionKey,
+      );
+    }
+  }
+  return keys;
 }
 
 export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
@@ -517,15 +536,31 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
     updateNode: (id, patch) => {
       const currentFile = get().file;
       const currentNode = currentFile.graph.nodes.find((item) => item.id === id);
-      const completing =
-        patch.conditions?.some(
-          (condition) =>
-            condition.checked &&
-            !currentNode?.conditions.find((item) => item.id === condition.id)?.checked,
-        ) || ticksDocument(currentNode?.customFields, patch.customFields);
-      const blocker = completing && sequentialExecutionBlocker(currentFile, id);
-      if (blocker) {
-        set({ deleteBlocked: { title: PREVIOUS_DEPARTMENT_TITLE, message: blocker, items: [] } });
+      const conditionBlocker = (() => {
+        if (!currentNode) return undefined;
+        for (const [index, condition] of (patch.conditions ?? []).entries()) {
+          const prev =
+            (condition.id
+              ? currentNode.conditions.find((item) => item.id === condition.id)
+              : undefined) ?? currentNode.conditions[index];
+          if (condition.checked && !prev?.checked) {
+            const blocked = releaseConditionBlocker(currentFile, id, condition.id || index);
+            if (blocked) return blocked;
+          }
+        }
+        const firstConditionKey = currentNode.conditions[0]?.id || 0;
+        for (const conditionKey of tickedDocumentConditionKeys(
+          currentNode.customFields,
+          patch.customFields,
+          firstConditionKey,
+        )) {
+          const blocked = releaseConditionBlocker(currentFile, id, conditionKey);
+          if (blocked) return blocked;
+        }
+        return undefined;
+      })();
+      if (conditionBlocker) {
+        set({ deleteBlocked: { ...conditionBlocker, items: [] } });
         return;
       }
       set((state) => {

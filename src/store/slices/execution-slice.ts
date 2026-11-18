@@ -1,7 +1,7 @@
 "use client";
 
 import { createExecutionItem } from "@/lib/execution";
-import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
+import { releaseConditionBlocker } from "@/lib/workflow-progress";
 import { createEmptyExecutionLayer } from "@/types/workflow";
 import { appendHistory } from "@/store/workflow-persist";
 import type { ExecutionItem } from "@/types/workflow";
@@ -65,18 +65,23 @@ export function createExecutionSlice(set: StoreSet, get: StoreGet): ExecutionSli
         const execution = state.file.execution;
         const current = execution?.items.find((item) => item.id === id);
         if (!execution || !current) return state;
+        const targetNodeId = patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId;
+        const targetNode = state.file.graph.nodes.find((node) => node.id === targetNodeId);
+        const linkedConditionIndex =
+          targetNode?.conditions.findIndex((condition) => condition.linkedExecutionItemId === id) ??
+          -1;
         const blocker =
-          patch.checklistComplete === true &&
-          !current.checklistComplete &&
-          sequentialExecutionBlocker(
-            state.file,
-            patch.linkedLayer2NodeId ?? current.linkedLayer2NodeId,
-          );
+          patch.checklistComplete === true && !current.checklistComplete
+            ? releaseConditionBlocker(
+                state.file,
+                targetNodeId,
+                linkedConditionIndex >= 0 ? linkedConditionIndex : undefined,
+              )
+            : undefined;
         if (blocker)
           return {
             deleteBlocked: {
-              title: "Finish the previous department first",
-              message: blocker,
+              ...blocker,
               items: [],
             },
           };

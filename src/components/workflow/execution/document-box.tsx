@@ -46,6 +46,7 @@ export function DocumentBox({
   checkedLabel,
   codeFallback,
   lockedReason,
+  onBlocked,
   emptyTitle,
   addLabel,
   onSave,
@@ -62,6 +63,8 @@ export function DocumentBox({
   codeFallback: (index: number) => string;
   /** When set, unticked documents cannot be ticked yet (sequential release). */
   lockedReason?: string;
+  /** Before a file is ticked: true (after showing why) when it must wait. */
+  onBlocked?: () => boolean;
   emptyTitle: string;
   addLabel: string;
   onSave: (docs: DocRecord[]) => void;
@@ -111,6 +114,8 @@ export function DocumentBox({
               checked={doc.checked}
               title={lockedReason}
               onChange={() => {
+                // Ticking waits for the earlier steps (shows why in a popup).
+                if (!doc.checked && onBlocked?.()) return;
                 const updated = [...docs];
                 updated[index] = { ...doc, checked: !doc.checked };
                 onSave(updated);

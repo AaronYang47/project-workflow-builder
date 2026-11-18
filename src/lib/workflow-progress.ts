@@ -19,6 +19,10 @@ import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
 
 export type GateCompletionState = "none" | "partial" | "complete";
+export type SequenceBlockerNotice = {
+  title: string;
+  message: string;
+};
 
 export const COMPUTED_CONDITION_IDS = new Set([
   "project-id-required",
@@ -303,18 +307,45 @@ export function getWorkflowProgress(
   const explicitStarts = nodes.filter(
     (node) => node.config.stage?.trim().toLowerCase() === "start" && !incoming.has(node.id),
   );
-  const starts = projectStarts.length
-    ? projectStarts
-    : explicitStarts.length
-      ? explicitStarts
-      : nodes
-          .filter(
-            (node) =>
-              !incoming.has(node.id) &&
-              node.type !== "phase" &&
-              !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(node.type),
-          )
-          .slice(0, 1);
+  const rootProjectStarts = projectStarts.filter((node) => !incoming.has(node.id));
+  const projectStartAncestors = (() => {
+    if (!projectStarts.length || rootProjectStarts.length === projectStarts.length) return [];
+    const upstream = new Map<string, string[]>();
+    for (const edge of edges) {
+      if (["rework", "reopen", "failure"].includes(edge.type)) continue;
+      upstream.set(edge.target, [...(upstream.get(edge.target) ?? []), edge.source]);
+    }
+    const roots: DomainNode[] = [];
+    const visited = new Set<string>();
+    const backQueue = projectStarts.map((node) => node.id);
+    while (backQueue.length) {
+      const id = backQueue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const prevIds = upstream.get(id) ?? [];
+      if (!prevIds.length) {
+        const node = nodeById.get(id);
+        if (node) roots.push(node);
+      } else {
+        backQueue.push(...prevIds);
+      }
+    }
+    return roots;
+  })();
+  const starts = rootProjectStarts.length
+    ? rootProjectStarts
+    : projectStartAncestors.length
+      ? projectStartAncestors
+      : explicitStarts.length
+        ? explicitStarts
+        : nodes
+            .filter(
+              (node) =>
+                !incoming.has(node.id) &&
+                node.type !== "phase" &&
+                !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(node.type),
+            )
+            .slice(0, 1);
   const reachedNodeIds = new Set(starts.map((node) => node.id));
   const activeEdgeIds = new Set<string>();
   const queue = starts.map((node) => node.id);
@@ -362,6 +393,94 @@ export function getFileProgress(file: WorkflowFile) {
     running.execution?.items,
     running.operations,
   );
+}
+
+function nodeDisplayLabel(step: DomainNode) {
+  const name = departmentDisplayName(step);
+  return name === "Department" && step.title.trim() ? step.title.trim() : name;
+}
+
+function resolveConditionIndex(node: DomainNode, conditionIdOrIndex?: string | number) {
+  const conditions = node.conditions || [];
+  if (typeof conditionIdOrIndex === "number") {
+    return conditionIdOrIndex >= 0 && conditionIdOrIndex < conditions.length
+      ? conditionIdOrIndex
+      : -1;
+  }
+  if (typeof conditionIdOrIndex !== "string") return -1;
+  const byId = conditions.findIndex((condition) => condition.id === conditionIdOrIndex);
+  if (byId >= 0) return byId;
+  if (conditionIdOrIndex === "default" && conditions.length > 0) return 0;
+  const indexedMatch = conditionIdOrIndex.match(/^(?:condition|index)-(\d+)$/);
+  if (indexedMatch) {
+    const idx = Number(indexedMatch[1]);
+    return idx >= 0 && idx < conditions.length ? idx : -1;
+  }
+  return -1;
+}
+
+/**
+ * A release condition (and its L3 files) can be ticked only once all earlier
+ * required release conditions on the same department are satisfied. Optional
+ * conditions and the informational Job Number condition do not block later ones.
+ */
+export function precedingConditionBlocker(
+  file: WorkflowFile,
+  nodeId: string,
+  conditionIdOrIndex?: string | number,
+) {
+  if (conditionIdOrIndex === undefined) return undefined;
+  const node = file.graph.nodes.find((item) => item.id === nodeId);
+  if (!node || node.type === "phase" || node.type === "gate") return undefined;
+  const targetIndex = resolveConditionIndex(node, conditionIdOrIndex);
+  if (targetIndex <= 0) return undefined;
+
+  const projectStart = file.graph.nodes.find((item) => item.type === "projectStart");
+  const conditions = node.conditions || [];
+  const unmet = conditions
+    .slice(0, targetIndex)
+    .filter(
+      (condition) =>
+        condition.required !== false &&
+        condition.id !== "project-id-required" &&
+        !conditionIsSatisfied(
+          condition,
+          node,
+          projectStart,
+          file.execution?.items,
+          file.operations,
+        ),
+    );
+  if (!unmet.length) return undefined;
+
+  const prevLabels = unmet.map((item) => {
+    const idx = conditions.indexOf(item);
+    return item.label?.trim() || item.description?.trim() || `Release condition ${idx + 1}`;
+  });
+  const target = conditions[targetIndex];
+  const targetLabel =
+    target.label?.trim() || target.description?.trim() || `Release condition ${targetIndex + 1}`;
+  return `Finish ${prevLabels.map((name) => `“${name}”`).join(", ")} in ${nodeDisplayLabel(node)} first. “${targetLabel}” can be ticked once the preceding release condition is satisfied.`;
+}
+
+/**
+ * Combines the previous-department check with the preceding-condition check on
+ * the same department so UI handlers and store mutations enforce one sequence rule.
+ */
+export function releaseConditionBlocker(
+  file: WorkflowFile,
+  nodeId: string,
+  conditionIdOrIndex?: string | number,
+): SequenceBlockerNotice | undefined {
+  const departmentBlocker = sequentialExecutionBlocker(file, nodeId);
+  if (departmentBlocker) {
+    return { title: "Finish the previous department first", message: departmentBlocker };
+  }
+  const conditionBlocker = precedingConditionBlocker(file, nodeId, conditionIdOrIndex);
+  if (conditionBlocker) {
+    return { title: "Finish the previous release condition first", message: conditionBlocker };
+  }
+  return undefined;
 }
 
 /**
@@ -412,12 +531,8 @@ export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
     queue.push(...(sources.get(id) ?? []));
   }
   if (!blocking.length) return undefined;
-  const label = (step: DomainNode) => {
-    const name = departmentDisplayName(step);
-    return name === "Department" && step.title.trim() ? step.title.trim() : name;
-  };
   const names = blocking.map((step) =>
-    step.type === "gate" ? `${step.title} (Gate approval)` : label(step),
+    step.type === "gate" ? `${step.title} (Gate approval)` : nodeDisplayLabel(step),
   );
-  return `Finish every release condition in ${names.join(", ")} first. ${label(node)} can be ticked once the previous department is complete.`;
+  return `Finish every release condition in ${names.join(", ")} first. ${nodeDisplayLabel(node)} can be ticked once the previous department is complete.`;
 }

@@ -76,9 +76,9 @@ export function ReleaseConditionsPanel({
             store.setFocusedInspectorField(inspectorKey);
           };
           const toggleCondition = () => {
-            if (!checked && blockIfOutOfSequence(node.id)) return;
+            if (!checked && blockIfOutOfSequence(node.id, condition.id || index)) return;
             if (!checked && conditionHasL3Forms(condition, node)) {
-              openDepartmentL3(node.id);
+              openDepartmentL3(node.id, condition.id || `condition-${index}`);
               return;
             }
             const linkedItem = condition.linkedExecutionItemId

@@ -10,7 +10,7 @@ import {
   conditionHasL3Forms,
   conditionIsSatisfied,
   nodeReleaseReady,
-  sequentialExecutionBlocker,
+  releaseConditionBlocker,
 } from "@/lib/workflow-progress";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { blockIfOutOfSequence } from "@/store/sequence-guard";
@@ -116,6 +116,10 @@ export function ExecutionView({
     }
     return conditions[0];
   }, [conditions, activeConditionId]);
+  const currentConditionIndex = currentCondition ? conditions.indexOf(currentCondition) : -1;
+  const activeConditionKey =
+    currentCondition?.id?.trim() ||
+    (currentConditionIndex >= 0 ? currentConditionIndex : undefined);
   const currentConditionHasL3Forms = Boolean(
     node && currentCondition && conditionHasL3Forms(currentCondition, node),
   );
@@ -253,7 +257,8 @@ export function ExecutionView({
       }
       if (doc.checked || skippedFormAutoCheck.current.has(doc.id)) return doc;
       // Out of sequence: leave it for the user (ticking shows why it's blocked).
-      if (sequentialExecutionBlocker(useWorkflowStore.getState().file, node.id)) return doc;
+      if (releaseConditionBlocker(useWorkflowStore.getState().file, node.id, activeConditionKey))
+        return doc;
       return { ...doc, checked: true, status: "Verified" as const };
     });
     const changed = next.some(
@@ -262,7 +267,7 @@ export function ExecutionView({
         doc.status !== customCustomerDocs[index]?.status,
     );
     if (changed) saveCustomerDocs(next);
-  }, [customCustomerDocs, node, saveCustomerDocs]);
+  }, [activeConditionKey, customCustomerDocs, node, saveCustomerDocs]);
 
   const saveSupportingDocs = (docs: DocRecord[]) => {
     if (!node) return;
@@ -305,7 +310,6 @@ export function ExecutionView({
   // before the condition flag was written.
   useEffect(() => {
     if (!node || !conditions.length) return;
-    const blocked = sequentialExecutionBlocker(file, node.id);
     let changed = false;
     const updatedConditions = conditions.map((condition, index) => {
       if (!condition.linkedExecutionItemId) return condition;
@@ -313,6 +317,7 @@ export function ExecutionView({
         (item) => item.id === condition.linkedExecutionItemId,
       );
       if (!linkedItem) return condition;
+      const blocked = Boolean(releaseConditionBlocker(file, node.id, condition.id || index));
 
       const fields = ["customerDocuments", "supportingDocuments"];
       const documents = [
@@ -408,7 +413,8 @@ export function ExecutionView({
     );
   }
 
-  const sequenceBlocker = sequentialExecutionBlocker(file, node.id);
+  const sequenceBlocker = releaseConditionBlocker(file, node.id, activeConditionKey)?.message;
+  const blockCurrentCondition = () => blockIfOutOfSequence(node.id, activeConditionKey);
   const fobYardSkipped = fobYardSkippedIds(file).l2.has(node.id);
 
   return (
@@ -494,7 +500,7 @@ export function ExecutionView({
                     !(sequenceBlocker && !currentCondition.checked)
                   }
                   onClick={() => {
-                    if (!currentCondition.checked && blockIfOutOfSequence(node.id)) return;
+                    if (!currentCondition.checked && blockCurrentCondition()) return;
                     const nextChecked = !currentCondition.checked;
                     const updatedConditions = (node.conditions || []).map((c) =>
                       c.id === currentCondition.id ? { ...c, checked: nextChecked } : c,
@@ -573,16 +579,21 @@ export function ExecutionView({
             const isSelected =
               currentCondition?.id === condition.id || (!currentCondition && idx === 0);
             const isPassed =
-              condition.id === "project-id-required" && node
+              node && (condition.id === "project-id-required" || condition.required !== false)
                 ? conditionIsSatisfied(
                     condition,
                     node,
                     projectStartNode,
                     file.execution?.items,
                     file.operations,
-                  )
+                  ) ||
+                  (isSelected && allRequiredChecked)
                 : Boolean(condition.checked) || (isSelected && allRequiredChecked);
             const hasL3Forms = node ? conditionHasL3Forms(condition, node) : false;
+            const pillKey = condition.id?.trim() || idx;
+            const pillBlocked = Boolean(
+              node && !isPassed && releaseConditionBlocker(file, node.id, pillKey),
+            );
 
             return (
               <button
@@ -603,13 +614,14 @@ export function ExecutionView({
                 <span
                   role="checkbox"
                   aria-checked={Boolean(isPassed)}
-                  aria-disabled={hasL3Forms}
+                  aria-disabled={hasL3Forms && !pillBlocked}
                   title={
                     isPassed ? "Click to uncheck condition" : "Click to mark condition complete"
                   }
                   onClick={(e) => {
-                    if (hasL3Forms) return;
                     e.stopPropagation();
+                    if (!isPassed && node && blockIfOutOfSequence(node.id, pillKey)) return;
+                    if (hasL3Forms) return;
                     const nextChecked = !isPassed;
                     const updatedConditions = (node.conditions || []).map((c, i) =>
                       c.id === condition.id || (!c.id && i === idx)
@@ -679,8 +691,10 @@ export function ExecutionView({
                     type="checkbox"
                     aria-label={`Required task: ${item.title || item.type}`}
                     checked={checked}
-                    onChange={() => handleToggleExecutionItem(item)}
-                    disabled={Boolean(sequenceBlocker && !checked)}
+                    onChange={() => {
+                      if (!checked && blockCurrentCondition()) return;
+                      handleToggleExecutionItem(item);
+                    }}
                     title={sequenceBlocker}
                     className="mt-1 size-4 shrink-0 accent-indigo-600 rounded cursor-pointer"
                   />
@@ -715,6 +729,7 @@ export function ExecutionView({
             checkedLabel="Executed"
             codeFallback={() => "FORM"}
             lockedReason={sequenceBlocker}
+            onBlocked={blockCurrentCondition}
             emptyTitle="No required documents added yet."
             addLabel="Add Required Document"
             onSave={saveLegalDocs}
@@ -725,6 +740,8 @@ export function ExecutionView({
           {/* ============================================================ */}
           <CustomerInfoBox
             docs={customCustomerDocs}
+            lockedReason={sequenceBlocker}
+            onBlocked={blockCurrentCondition}
             onSave={saveCustomerDocs}
             onOpenForm={setSelectionFormDocId}
             onSelectionFormToggled={(docId, checked) => {
@@ -745,6 +762,8 @@ export function ExecutionView({
             docs={customSupportingDocs}
             checkedLabel="Verified"
             codeFallback={(index) => `SUP-0${index + 1}`}
+            lockedReason={sequenceBlocker}
+            onBlocked={blockCurrentCondition}
             emptyTitle="No supporting documents added yet."
             addLabel="Add Supporting Document"
             onSave={saveSupportingDocs}
@@ -806,7 +825,17 @@ export function ExecutionView({
             onSave={({ customerCategory, customerName, customerProfile, customerForm }) => {
               if (!node) return;
               const complete = customerFormIsComplete(customerProfile, customerForm);
-              if (complete) skippedFormAutoCheck.current.delete(selectionFormDoc.id);
+              const blockedBySequence = Boolean(
+                releaseConditionBlocker(
+                  useWorkflowStore.getState().file,
+                  node.id,
+                  activeConditionKey,
+                ),
+              );
+              const nextChecked = complete && !blockedBySequence ? true : selectionFormDoc.checked;
+              if (complete && !blockedBySequence) {
+                skippedFormAutoCheck.current.delete(selectionFormDoc.id);
+              }
               const updatedDocs = customCustomerDocs.map((doc) =>
                 doc.id === selectionFormDoc.id
                   ? {
@@ -816,9 +845,9 @@ export function ExecutionView({
                       customerProfile,
                       customerForm,
                       notes: `${customerName} · ${customerForm.decisionAuthority || "Sales"} · ${customerForm.siteMunicipality || customerForm.siteStatus}`,
-                      checked: complete,
+                      checked: nextChecked,
                       required: true,
-                      status: complete ? "Verified" : "Required",
+                      status: nextChecked ? "Verified" : "Required",
                     }
                   : doc,
               );
@@ -860,6 +889,9 @@ export function ExecutionView({
                 }).catch(() => undefined);
               }
               setSelectionFormDocId(null);
+              if (complete && blockedBySequence) {
+                blockCurrentCondition();
+              }
             }}
           />
         );
