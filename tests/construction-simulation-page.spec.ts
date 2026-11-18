@@ -540,3 +540,46 @@ test("Earliest line start can't be before the production Phase starts in L4", as
   await expect(start).toHaveValue(after);
   await expect(hint).not.toContainText("Before L4 allows");
 });
+
+test("factory inventory counts each finished module waiting in the yard", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "construction-simulation:scenarios:v1",
+      JSON.stringify([
+        {
+          id: "yard-count-check",
+          name: "Yard count check",
+          factory: {
+            startDate: "2027-01-01",
+            targetOnLine: 18,
+            normalMax: 19,
+            crowdedMax: 23,
+            yardCapacity: 24,
+            installCrews: 2,
+          },
+          projects: [
+            {
+              id: "inventory-project",
+              name: "Inventory project",
+              color: "#2563eb",
+              source: { kind: "virtual" },
+              modules: 4,
+              weeksPerModule: 1,
+              splittable: false,
+              earliestStart: "2027-01-01",
+              dueDate: "2027-02-10",
+              delivery: { kind: "fob", pickupDate: "2027-02-01" },
+            },
+          ],
+        },
+      ]),
+    );
+  });
+  await page.goto("/construction-simulation");
+  await page.getByRole("slider", { name: "Simulation day" }).fill("20");
+  await expect(page.locator("[data-inventory-line-count]")).toHaveText("0");
+  await expect(page.locator("[data-inventory-yard-count]")).toHaveText("4");
+  await expect(page.locator("[data-inventory-factory-count]")).toHaveText("4");
+  await expect(page.locator("[data-yard-module]")).toHaveCount(4);
+  await expect(page.locator("[data-line-module]")).toHaveCount(0);
+});
