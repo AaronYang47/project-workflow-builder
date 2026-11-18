@@ -1,5 +1,6 @@
 import { calendarDurationParts } from "@/lib/condition-duration";
 import { fobYardTag } from "@/lib/fob-yard";
+import { factoryProductionNote, isFactoryProductionRow } from "@/lib/factory-production-row";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { buildProcessSchedule, salesHandoffTime } from "@/lib/process-schedule";
@@ -19,6 +20,7 @@ import {
   rgba,
   phaseColor,
   linkedNodeIds,
+  departmentIdentity,
   gradient,
   makeColumns,
   ganttCoverage,
@@ -111,6 +113,10 @@ export async function exportL1DepartmentSwimlanePdf(
 
   const schedule = buildProcessSchedule(file);
   const handoff = salesHandoffTime(schedule);
+  // L5 data: once Factory Production is in L4, it replaces the general note.
+  const hasFactoryProduction = schedule.tasks.some((task) =>
+    isFactoryProductionRow(task.condition),
+  );
   const phaseHtml = phases
     .map((phase, index) => {
       if (aligned && coverage!.ranges[index].end <= coverage!.ranges[index].start) return "";
@@ -165,12 +171,17 @@ export async function exportL1DepartmentSwimlanePdf(
                   "",
                 )}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
             : '<span class="phase-duration-pending">Duration not set</span>';
-      const actualProductionNote =
-        options.gantt &&
-        countedTasks.length &&
-        tasks.some((task) => isProductionDepartmentName(task.department))
-          ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
-          : "";
+      // With L5's Factory Production row in this Phase, it replaces the general note.
+      const factoryRow = tasks.find((task) => isFactoryProductionRow(task.condition));
+      const actualProductionNote = !options.gantt
+        ? ""
+        : factoryRow
+          ? `<span class="phase-actual-production-note" data-phase-factory-production>${escapeHtml(factoryProductionNote(factoryRow.days))}</span>`
+          : !hasFactoryProduction &&
+              countedTasks.length &&
+              tasks.some((task) => isProductionDepartmentName(task.department))
+            ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
+            : "";
       return `<div class="phase-card" data-pdf-phase-id="${escapeHtml(phase.node.id)}" style="--phase-color:${phase.color};--phase-tint:${rgba(phase.color, 0.09)};">
       <div class="phase-meta"><span>${escapeHtml(phase.node.title || `PHASE ${index + 1}`)}</span><span class="phase-involvement">${departmentCount} ${departmentCount === 1 ? "Department" : "Departments"} Involved</span></div>
       <div class="phase-title">${escapeHtml(title)}</div>
@@ -209,15 +220,41 @@ export async function exportL1DepartmentSwimlanePdf(
           Math.min(...scheduledTasks.map((task) => task.start!))
         : undefined;
       const partialDuration = scheduledTasks.length < departmentTasks.length;
-      const actualProductionNote =
-        isProductionDepartmentName(column.label) && departmentDays !== undefined
+      // Any of this Department's nodes in its Phases (a box keeps only one node per Phase).
+      const departmentFactoryRow = schedule.tasks.find((task) => {
+        if (!isFactoryProductionRow(task.condition)) return false;
+        const owner = nodeById.get(task.nodeId);
+        const phaseId = schedule.phases[task.phaseIndex]?.id;
+        // An aligned box covers one Phase's span; otherwise any of its Phases.
+        const cardPhase = aligned
+          ? phases[
+              coverage!.ranges.findIndex(
+                (range) => card.start >= range.start - 0.000001 && card.start < range.end,
+              )
+            ]?.node.id
+          : undefined;
+        return (
+          owner !== undefined &&
+          departmentIdentity(owner).key === column.key &&
+          (cardPhase
+            ? cardPhase === phaseId
+            : column.connections.some(
+                (connection) => phases[connection.phaseIndex]?.node.id === phaseId,
+              ))
+        );
+      });
+      const actualProductionNote = departmentFactoryRow
+        ? `<span class="department-actual-production-note" data-department-factory-production>${escapeHtml(factoryProductionNote(departmentFactoryRow.days))}</span>`
+        : !hasFactoryProduction &&
+            isProductionDepartmentName(column.label) &&
+            departmentDays !== undefined
           ? '<span class="department-actual-production-note" data-department-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
           : "";
       const durationHtml =
         options.gantt && !isSalesDepartmentName(column.label)
           ? `<div class="department-duration" data-department-duration="${escapeHtml(column.label)}">${
               departmentDays === undefined
-                ? '<span class="department-duration-pending">Duration not set</span>'
+                ? `<span class="department-duration-pending">Duration not set</span>${departmentFactoryRow ? actualProductionNote : ""}`
                 : `<div class="department-duration-main">${calendarDurationParts(
                     departmentDays,
                     schedule.workingDaysPerWeek,

@@ -1,5 +1,6 @@
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { buildProcessSchedule } from "@/lib/process-schedule";
+import { isFactoryProductionRow } from "@/lib/factory-production-row";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import type { Condition, WorkflowFile } from "@/types/workflow";
 import { dayOf, isoFromDay } from "./work-calendar";
@@ -65,9 +66,7 @@ export function projectScheduleDates(file: WorkflowFile, productionPhaseId?: str
   return { earliestStart, dueDate };
 }
 
-/** A Factory Production row that L5 added to L4. */
-export const isFactoryProductionRow = (condition: Condition) =>
-  /^factory-production(-\d+)?$/.test(condition.id ?? "");
+export { isFactoryProductionRow };
 
 /**
  * The Departments in the production Phase and their L4 release conditions

@@ -108,7 +108,7 @@ function isProjectCompleteNode(node: DomainNode) {
   );
 }
 
-function departmentIdentity(node: DomainNode) {
+export function departmentIdentity(node: DomainNode) {
   const title = node.title.trim();
   const stage = String(node.config.stage ?? "").trim();
   const stageIsNumber = /^(?:(?:chapter|department)\s*)?\d+$/i.test(stage);

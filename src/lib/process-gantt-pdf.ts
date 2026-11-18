@@ -7,6 +7,7 @@ import {
 } from "@/lib/gantt-bar-label";
 import { calendarTextHtml, taskCalendarBadges } from "@/lib/calendar-badges";
 import { isSalesDepartmentName } from "@/lib/department-label";
+import { FACTORY_PRODUCTION_RED, isFactoryProductionRow } from "@/lib/factory-production-row";
 import type { WorkflowFile } from "@/types/workflow";
 import {
   buildProcessTimeline,
@@ -146,7 +147,7 @@ export function processGanttPdfHtml(
                 : calendarTextHtml([
                     { kind: "department", text: endLabel, background: color, color: "#ffffff" },
                   ]);
-              const heading = `<span class="gantt-phase-tag" style="background:${color}">${escape(phaseTag)}</span><span class="gantt-title">${escape(task.title)}</span>${salesLabelOnly || !task.days ? "" : `<span class="gantt-task-duration">${escape(ganttDurationText(task.condition, true, schedule.workingDaysPerWeek).toUpperCase())}</span>`}`;
+              const heading = `<span class="gantt-phase-tag" style="background:${color}">${escape(phaseTag)}</span><span class="gantt-title"${isFactoryProductionRow(task.condition) ? ` data-pdf-factory-production style="color:${FACTORY_PRODUCTION_RED}"` : ""}>${escape(task.title)}</span>${salesLabelOnly || !task.days ? "" : `<span class="gantt-task-duration">${escape(ganttDurationText(task.condition, true, schedule.workingDaysPerWeek).toUpperCase())}</span>`}`;
               const corners = (index: number) =>
                 `border-radius:${index === 0 ? "6px" : "0"} ${index === segments.length - 1 ? "6px 6px" : "0 0"} ${index === 0 ? "6px" : "0"};`;
               const bars = segments

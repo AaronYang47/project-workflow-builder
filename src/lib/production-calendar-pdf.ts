@@ -10,6 +10,7 @@ import { calendarWorkSummary } from "@/lib/gantt-bar-label";
 import { calendarSummaryBadges, calendarTextHtml } from "@/lib/calendar-badges";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { escapeHtml as escape } from "@/lib/html";
+import { FACTORY_PRODUCTION_RED, isFactoryProductionRow } from "@/lib/factory-production-row";
 import { DAY_MS, isoFromDay as iso, monthYearFormat as monthName } from "@/lib/calendar-date";
 
 const weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -55,11 +56,24 @@ export function productionCalendarPageHtml(file: WorkflowFile): string[] {
         )
       : [],
   );
-  const departments = schedule.departments
+  // L5's Factory Production is its own red entry, apart from the Department it sits in.
+  const factoryTasks = schedule.tasks.filter((task) => isFactoryProductionRow(task.condition));
+  const departments = [
+    ...schedule.departments.map((department) => ({
+      ...department,
+      tasks: department.tasks.filter((task) => !isFactoryProductionRow(task.condition)),
+    })),
+    ...(factoryTasks.length
+      ? [{ name: "Factory Production", tasks: factoryTasks, factory: true }]
+      : []),
+  ]
     .filter((department) => department.tasks.some((task) => task.start !== undefined))
     .map((department) => ({
       ...department,
-      color: department.tasks.find((task) => task.start !== undefined)!.color,
+      color:
+        "factory" in department
+          ? FACTORY_PRODUCTION_RED
+          : department.tasks.find((task) => task.start !== undefined)!.color,
     }));
   const active = new Map<string, typeof departments>();
   for (const department of departments) {
@@ -122,7 +136,8 @@ export function productionCalendarPageHtml(file: WorkflowFile): string[] {
         );
         const from = Math.min(...scheduled.map((task) => task.start!)),
           to = Math.max(...scheduled.map((task) => task.end!));
-        return `<div class="pc-department"><i style="background:${department.color}"></i><strong>${escape(department.name.replace(/^Department\s+/i, ""))}</strong><span>${timeline.dateAt(from)} - ${timeline.dateAt(to - 1)}</span></div>`;
+        const factory = "factory" in department;
+        return `<div class="pc-department"${factory ? ` data-pc-factory-production style="border-color:${FACTORY_PRODUCTION_RED}"` : ""}><i style="background:${department.color}"></i><strong${factory ? ` style="color:${FACTORY_PRODUCTION_RED}"` : ""}>${escape(department.name.replace(/^Department\s+/i, ""))}</strong><span>${timeline.dateAt(from)} - ${timeline.dateAt(to - 1)}</span></div>`;
       })
       .join("");
     return `<div class="production-calendar-page" data-production-calendar-page="${sheet + 1}"><style>
