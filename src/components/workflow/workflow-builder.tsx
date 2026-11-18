@@ -17,7 +17,6 @@ import {
   canEditCollaborativeWorkflow,
   useCollaborationStore,
 } from "@/lib/collaboration/collaboration-store";
-import { INDEPENDENT_LAYER_PARAM } from "@/lib/collaboration/collaboration-route";
 import { collaborationManager } from "@/lib/collaboration/collaboration-manager";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
 import { useShallow } from "zustand/react/shallow";
@@ -246,7 +245,6 @@ export default function WorkflowBuilder() {
   }, []);
   useEffect(() => {
     if (!editControlReady || canEditWorkflow || !editorViewState) return;
-    if (new URLSearchParams(window.location.search).has(INDEPENDENT_LAYER_PARAM)) return;
     // Viewers follow the layer the editor broadcasts over the collaboration channel.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     applyEditorView(editorViewState);

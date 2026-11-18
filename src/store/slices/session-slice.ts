@@ -138,22 +138,18 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
           selection: { nodeIds: [] },
         };
       }),
-    applyCollaborativeFile: (file) => {
-      // Full snapshots also arrive on reconnect and room joins. Ignore an
-      // unchanged snapshot before migration can rewrite any local layout data.
-      const currentSnapshot = JSON.stringify(get().file);
-      if (JSON.stringify(file) === currentSnapshot) return;
-      const normalized = normalizeLoadedWorkflow(file);
-      if (JSON.stringify(normalized.file) === currentSnapshot) return;
-      set({
-        file: normalized.file,
-        past: [],
-        future: [],
-        dirty: true,
-        selection: { nodeIds: [] },
-        highLevelSelection: { nodeIds: [] },
-      });
-    },
+    applyCollaborativeFile: (file) =>
+      set(() => {
+        const normalized = normalizeLoadedWorkflow(file);
+        return {
+          file: normalized.file,
+          past: [],
+          future: [],
+          dirty: true,
+          selection: { nodeIds: [] },
+          highLevelSelection: { nodeIds: [] },
+        };
+      }),
     loadProject: (file, activeProjectId, workspaceOwnerId) =>
       set(() => {
         const normalized = normalizeLoadedWorkflow(file);
