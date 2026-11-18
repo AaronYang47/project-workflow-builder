@@ -1,7 +1,7 @@
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { buildProcessSchedule, schedulePredecessorCandidates } from "@/lib/process-schedule";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
-import type { WorkflowFile } from "@/types/workflow";
+import type { Condition, WorkflowFile } from "@/types/workflow";
 import { dayOf, isoFromDay } from "./work-calendar";
 import type { L4Start, SimProject } from "./types";
 
@@ -137,6 +137,85 @@ export function productionReleaseConditions(file: WorkflowFile, productionPhaseI
 export const NEW_FACTORY_PRODUCTION_ROW = "new:factory-production";
 const FACTORY_PRODUCTION_TITLE = /^factory production$/i;
 
+/** A Factory Production row that L5 added to L4. */
+export const isFactoryProductionRow = (condition: Condition) =>
+  /^factory-production(-\d+)?$/.test(condition.id ?? "");
+
+/**
+ * Keeps L4's Factory Production row in step with L5: the chosen Department has
+ * one, with L5's line days and start timing; any other is removed (none when
+ * no Department is chosen, or when another release condition is chosen).
+ * Returns the same file when it already matches.
+ */
+export function syncFactoryProductionRow(
+  file: WorkflowFile,
+  target: { nodeId: string; conditionId: string; start?: L4Start } | undefined,
+  days: number | undefined,
+  scenario: string,
+): WorkflowFile {
+  const wanted =
+    target &&
+    (target.conditionId === NEW_FACTORY_PRODUCTION_ROW ||
+      /^factory-production(-\d+)?$/.test(target.conditionId))
+      ? target
+      : undefined;
+  const node = wanted && file.graph.nodes.find((item) => item.id === wanted.nodeId);
+  const keep = node?.conditions.find(
+    (condition) =>
+      isFactoryProductionRow(condition) &&
+      (wanted!.conditionId === NEW_FACTORY_PRODUCTION_ROW || condition.id === wanted!.conditionId),
+  );
+  // Drop every other Factory Production row.
+  let next = file;
+  if (
+    file.graph.nodes.some((item) =>
+      item.conditions.some((condition) => isFactoryProductionRow(condition) && condition !== keep),
+    )
+  )
+    next = {
+      ...file,
+      graph: {
+        ...file.graph,
+        nodes: file.graph.nodes.map((item) =>
+          item.conditions.some(
+            (condition) => isFactoryProductionRow(condition) && condition !== keep,
+          )
+            ? {
+                ...item,
+                conditions: item.conditions.filter(
+                  (condition) => !isFactoryProductionRow(condition) || condition === keep,
+                ),
+              }
+            : item,
+        ),
+      },
+    };
+  if (!wanted || !node || days === undefined) return next;
+  if (keep) {
+    const start = wanted.start;
+    const matches =
+      keep.duration === days &&
+      keep.durationUnit === "days" &&
+      keep.simulated?.days === days &&
+      keep.simulated.managed === true &&
+      (!start ||
+        (start.nodeId
+          ? keep.predecessor?.nodeId === start.nodeId &&
+            keep.predecessor.conditionId === start.conditionId &&
+            (keep.predecessor.relation ?? "finish") === start.relation &&
+            (keep.predecessor.lagDays ?? 0) === start.lagDays
+          : !keep.predecessor && (keep.startOffsetDays ?? 0) === start.lagDays));
+    if (matches) return next;
+    return applySimulatedDays(next, { ...wanted, conditionId: keep.id! }, days, scenario);
+  }
+  return applySimulatedDays(
+    next,
+    { ...wanted, conditionId: NEW_FACTORY_PRODUCTION_ROW },
+    days,
+    scenario,
+  );
+}
+
 /** Days a project is on the line in L5: first module on through the last module off. */
 export function simulatedLineDays(result: { firstLoad?: string; productionEnd?: string }) {
   const start = dayOf(result.firstLoad ?? "");
@@ -196,7 +275,12 @@ export function applySimulatedDays(
                       ...condition,
                       duration: days,
                       durationUnit: "days" as const,
-                      simulated: { days, scenario, updatedAt: new Date().toISOString() },
+                      simulated: {
+                        days,
+                        scenario,
+                        updatedAt: new Date().toISOString(),
+                        ...(isFactoryProductionRow(condition) ? { managed: true } : {}),
+                      },
                       ...(!start
                         ? {}
                         : start.nodeId && start.conditionId

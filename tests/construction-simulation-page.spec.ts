@@ -786,27 +786,46 @@ test("L5 writes its line days into the chosen L4 release condition", async ({ pa
   await expect(card.locator("[data-l4-start-text]")).toContainText(
     /Starts 5 days after .* starts\./,
   );
+  // No button: L4's Factory Production row follows L5 by itself.
   const status = card.locator("[data-l4-target-status]");
-  await expect(status).toContainText(/L5: \d+ days on the line/);
-  const days = Number((await status.textContent())!.match(/L5: (\d+) days/)![1]);
-  await card.getByRole("button", { name: `Write ${days} days to L4` }).click();
-  await expect(page.locator("[data-sim-notice]")).toContainText(`${days} days written to L4`);
-  await expect(status).toContainText(`L4 has the L5 line time: ${days} days.`);
-  await expect(lag).toHaveValue("5");
+  await expect(status).toContainText(/L4 Factory Production follows L5: \d+ days on the line\./);
+  const days = Number((await status.textContent())!.match(/follows L5: (\d+) days/)![1]);
+  await expect(card.getByRole("button", { name: /Write .* to L4/ })).toHaveCount(0);
   await expect(card.getByLabel("Release condition")).toHaveValue("factory-production");
+  await expect(lag).toHaveValue("5");
 
   await page.getByRole("link", { name: "Open Process Overview" }).click();
-  await expect(
-    page.locator('[data-gantt-task="Factory Production"] [data-l5-simulated-days]'),
-  ).toHaveAttribute("data-l5-simulated-days", String(days));
-  await expect(page.locator(`[data-l5-simulated-days="${days}"]`)).toContainText(
-    `L5 · ${days} days on the line`,
-  );
-  // Old L5 data can be removed from a row; its duration stays.
   const row = page.locator('[data-gantt-task="Factory Production"]');
-  await row.getByRole("button", { name: "Remove L5 data from Factory Production" }).click();
-  await expect(row.locator("[data-l5-simulated-days]")).toHaveCount(0);
-  await expect(row).toContainText(/weeks|days/);
+  await expect(row.locator("[data-l5-simulated-days]")).toHaveAttribute(
+    "data-l5-simulated-days",
+    String(days),
+  );
+  await expect(row).toContainText(`L5 · ${days} days on the line · follows L5`);
+  // Managed by L5: no Edit or remove here.
+  await expect(row.getByRole("button", { name: /Edit timing|Remove L5 data/ })).toHaveCount(0);
+
+  // Choosing no Department in L5 takes the row out of L4.
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  await card.getByLabel("Department").selectOption("");
+  await expect(status).toContainText("Choose a Department to add a Factory Production row");
+  await page.waitForTimeout(1200);
+  await page.getByRole("link", { name: "Open Process Overview" }).click();
+  await expect(page.locator("[data-gantt-task]").first()).toBeVisible();
+  await expect(row).toHaveCount(0);
+
+  // An existing release condition takes a Write, and its L5 data can be removed in L4.
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  await card.getByLabel("Department").selectOption({ label: "Department Lifecycle Phase" });
+  await card.getByLabel("Release condition").selectOption({ index: 2 });
+  await expect(status).toContainText(/L5: \d+ days on the line/);
+  await card.getByRole("button", { name: `Write ${days} days to L4` }).click();
+  await expect(page.locator("[data-sim-notice]")).toContainText(`${days} days written to L4`);
+  await page.getByRole("link", { name: "Open Process Overview" }).click();
+  const tag = page.locator(`[data-l5-simulated-days="${days}"]`);
+  await expect(tag).toHaveCount(1);
+  await tag.getByRole("button", { name: /Remove L5 data from/ }).click();
+  await expect(tag).toHaveCount(0);
+  await expect(row).toHaveCount(0);
 });
 
 test("a big FOB project collected one at a time finishes; a stuck one still shows its line bar", async ({

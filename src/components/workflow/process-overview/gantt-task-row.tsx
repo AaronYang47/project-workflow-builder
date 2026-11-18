@@ -122,9 +122,13 @@ export function GanttTaskRow({
             >
               <span>
                 L5 · {task.condition.simulated.days} days on the line
-                {task.days === task.condition.simulated.days ? "" : " · duration changed since"}
+                {task.condition.simulated.managed
+                  ? " · follows L5"
+                  : task.days === task.condition.simulated.days
+                    ? ""
+                    : " · duration changed since"}
               </span>
-              {canEdit ? (
+              {canEdit && !task.condition.simulated.managed ? (
                 <button
                   type="button"
                   aria-label={`Remove L5 data from ${task.title}`}
@@ -145,7 +149,7 @@ export function GanttTaskRow({
               : "Set duration →"}
           </span>
         ) : null}
-        {canEdit ? (
+        {canEdit && !task.condition.simulated?.managed ? (
           <button
             type="button"
             aria-label={`Edit timing for ${task.title}`}

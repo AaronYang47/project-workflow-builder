@@ -4,7 +4,9 @@ export { optimizeScenario, scheduleNotes, scheduleScore } from "./optimize";
 export {
   applySimulatedDays,
   defaultProductionPhaseId,
+  isFactoryProductionRow,
   NEW_FACTORY_PRODUCTION_ROW,
+  syncFactoryProductionRow,
   fobPickupDate,
   productionPhaseOptions,
   productionReleaseConditions,

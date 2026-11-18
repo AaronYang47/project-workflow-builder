@@ -176,7 +176,13 @@ export interface Condition {
   expression?: string;
   description?: string;
   /** Set from L5: the simulated line time written into this condition's duration. */
-  simulated?: { days: number; scenario: string; updatedAt: string };
+  simulated?: {
+    days: number;
+    scenario: string;
+    updatedAt: string;
+    /** A Factory Production row L5 keeps in step (and removes when not chosen). */
+    managed?: boolean;
+  };
 }
 
 export interface DomainNode {

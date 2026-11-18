@@ -103,6 +103,11 @@ function L4TargetPicker({
     sameStart(start, condition.start);
   const setStart = (patch: Partial<L4Start>) =>
     target && start && onTarget({ ...target, start: { ...start, ...patch } });
+  // A Factory Production row follows L5 by itself; other rows take a Write.
+  const automatic =
+    condition !== undefined &&
+    (condition.conditionId === NEW_FACTORY_PRODUCTION_ROW ||
+      /^factory-production(-\d+)?$/.test(condition.conditionId));
   const afterKey = start?.nodeId ? JSON.stringify([start.nodeId, start.conditionId]) : "";
   return (
     <div className="col-span-2 grid grid-cols-2 gap-2" data-l4-target>
@@ -223,16 +228,18 @@ function L4TargetPicker({
           {!departments.length
             ? "No release conditions in this Phase in L4."
             : !condition
-              ? "Choose where L5's line days go in L4."
-              : lineDays === undefined
-                ? "This project doesn't finish on the line in this simulation."
-                : inSync
-                  ? `L4 has the L5 line time: ${lineDays} days.`
-                  : condition.conditionId === NEW_FACTORY_PRODUCTION_ROW
-                    ? `L5: ${lineDays} days on the line → a new “Factory Production” row in L4.`
+              ? "Choose a Department to add a Factory Production row to L4."
+              : automatic
+                ? lineDays === undefined
+                  ? "This project doesn't finish on the line in this simulation; L4 keeps the last line time."
+                  : `L4 Factory Production follows L5: ${lineDays} days on the line.`
+                : lineDays === undefined
+                  ? "This project doesn't finish on the line in this simulation."
+                  : inSync
+                    ? `L4 has the L5 line time: ${lineDays} days.`
                     : `L5: ${lineDays} days on the line · L4 now ${condition.days ? `${condition.days} days` : "no duration"}${sameStart(start, condition.start) ? "" : " · start timing changed"}.`}
         </span>
-        {condition && lineDays !== undefined && !inSync && onWrite ? (
+        {condition && !automatic && lineDays !== undefined && !inSync && onWrite ? (
           <button
             type="button"
             onClick={onWrite}

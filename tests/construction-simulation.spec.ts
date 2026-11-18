@@ -11,6 +11,7 @@ import {
   simulatedLineDays,
   optimizeScenario,
   scheduleNotes,
+  syncFactoryProductionRow,
   simProjectFromWorkflow,
   simulateScenario,
   type SimFactory,
@@ -564,4 +565,27 @@ test("a loading plan in blocks runs a splittable project in parts", () => {
     { projectId: "a", modules: 6 },
     { projectId: "b", modules: 6 },
   ]);
+});
+
+test("L4's Factory Production row follows L5 and goes away when not chosen", () => {
+  const file = createE2EWorkflow();
+  const department = productionReleaseConditions(file, "high-level-3")[0];
+  const target = { nodeId: department.nodeId, conditionId: NEW_FACTORY_PRODUCTION_ROW };
+  const rows = (current: typeof file) =>
+    current.graph.nodes.flatMap((node) =>
+      node.conditions.filter((condition) => condition.label === "Factory Production"),
+    );
+  const added = syncFactoryProductionRow(file, target, 62, "Plan A");
+  expect(rows(added)).toHaveLength(1);
+  expect(rows(added)[0]).toMatchObject({ duration: 62, simulated: { managed: true } });
+  // Already in step: nothing changes.
+  const following = { ...target, conditionId: "factory-production" };
+  expect(syncFactoryProductionRow(added, following, 62, "Plan A")).toBe(added);
+  expect(syncFactoryProductionRow(added, target, 62, "Plan A")).toBe(added);
+  // New line days update the same row.
+  expect(rows(syncFactoryProductionRow(added, following, 70, "Plan A"))[0].duration).toBe(70);
+  // No Department chosen, or another release condition chosen: the row is removed.
+  expect(rows(syncFactoryProductionRow(added, undefined, 62, "Plan A"))).toHaveLength(0);
+  const other = { nodeId: department.nodeId, conditionId: department.conditions[0].conditionId };
+  expect(rows(syncFactoryProductionRow(added, other, 62, "Plan A"))).toHaveLength(0);
 });

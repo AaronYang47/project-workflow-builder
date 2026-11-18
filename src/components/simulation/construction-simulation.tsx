@@ -26,7 +26,9 @@ import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   applySimulatedDays,
+  isFactoryProductionRow,
   NEW_FACTORY_PRODUCTION_ROW,
+  syncFactoryProductionRow,
   fobPickupDate,
   productionReleaseConditions,
   simulatedLineDays,
@@ -361,6 +363,69 @@ function SimulationWorkspace() {
     const row = result.projects.find((item) => item.projectId === project.id);
     return row ? simulatedLineDays(row) : undefined;
   };
+  // L5 → L4: each saved project's Factory Production row follows the simulation
+  // (its line days and start timing), and goes away when no Department is chosen.
+  const factoryRowChanges = useMemo(
+    () =>
+      draft.projects.flatMap((project) => {
+        if (project.source.kind !== "cloud") return [];
+        const file = project.source.projectId === currentId ? currentFile : files[project.id];
+        if (!file) return [];
+        const row = result.projects.find((item) => item.projectId === project.id);
+        const days = row ? simulatedLineDays(row) : undefined;
+        const scenarioName = draft.name || "Scenario";
+        const next = syncFactoryProductionRow(file, project.l4Target, days, scenarioName);
+        return next === file
+          ? []
+          : [
+              {
+                project,
+                file,
+                next,
+                days,
+                scenarioName,
+                current: project.source.projectId === currentId,
+              },
+            ];
+      }),
+    [draft.projects, draft.name, files, currentFile, currentId, result.projects],
+  );
+  useEffect(() => {
+    if (!factoryRowChanges.length) return;
+    const timer = window.setTimeout(() => {
+      for (const change of factoryRowChanges) {
+        const { project, file, next, days, scenarioName } = change;
+        const target = project.l4Target;
+        // A new row: point the project at the row it creates.
+        if (target?.conditionId === NEW_FACTORY_PRODUCTION_ROW) {
+          const id = next.graph.nodes
+            .find((item) => item.id === target.nodeId)
+            ?.conditions.find(isFactoryProductionRow)?.id;
+          if (id) updateProject(project.id, { l4Target: { ...target, conditionId: id } });
+        }
+        if (change.current) {
+          if (!canEditCollaborativeWorkflow()) continue;
+          const store = useWorkflowStore.getState();
+          for (const node of next.graph.nodes) {
+            const before = file.graph.nodes.find((item) => item.id === node.id);
+            if (before && before.conditions !== node.conditions)
+              store.updateNode(node.id, { conditions: node.conditions });
+          }
+        } else {
+          writeSavedProject(
+            project,
+            (latest) => syncFactoryProductionRow(latest, target, days, scenarioName),
+            {
+              saved: `${project.name}: Factory Production in L4 updated and saved.`,
+              failed: "could not update Factory Production in L4",
+            },
+          );
+        }
+      }
+    }, 800);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the wanted rows change
+  }, [factoryRowChanges]);
   /** L5 → L4: the simulated line days become the chosen release condition's duration. */
   const writeLineDaysToL4 = (project: SimProject, days: number) => {
     const target = project.l4Target;
