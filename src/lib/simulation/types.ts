@@ -93,7 +93,16 @@ export interface SimScenario {
   projects: SimProject[];
   /** Project ids in loading priority. The optimizer fills it. */
   priority?: string[];
+  /**
+   * Loading plan in blocks of modules, e.g. 6 of A, then 18 of B, then 6 of A.
+   * Auto schedule fills it when splitting projects helps. Modules it leaves
+   * out load afterwards in priority order.
+   */
+  sequence?: SimBlock[];
 }
+
+/** A run of one project's modules in the loading plan. */
+export type SimBlock = { projectId: string; modules: number };
 
 export type SimModuleOnLine = { projectId: string; module: number; progress: number };
 
@@ -152,6 +161,10 @@ export interface SimResult {
   projects: SimProjectResult[];
   /** Priority order used. */
   priority: string[];
+  /** The loading plan used, in blocks (one per project without a split plan). */
+  sequence: SimBlock[];
+  /** What actually went on the line, in runs: a project in two runs was split. */
+  loadRuns: SimBlock[];
   blockedDays: number;
   /** Working days with more than normalMax modules on the line. */
   tightDays: number;

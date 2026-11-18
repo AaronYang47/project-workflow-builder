@@ -21,8 +21,14 @@ test("L5 opens from the toolbar, simulates projects and saves a scenario", async
   await expect(page.locator("[data-sim-notice]")).toContainText(/Best order found/);
 
   await page.getByLabel("Scenario name").fill("Plan A");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator("[data-sim-notice]")).toContainText("Saved “Plan A”");
+  // No Save button: every change is saved automatically.
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-scenario-save-state]")).toHaveText(/Saved/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("construction-simulation:scenarios:v1") ?? ""),
+    )
+    .toContain("Plan A");
   await page.screenshot({
     path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5.png",
   });
@@ -361,9 +367,9 @@ test("scenarios are saved to and loaded from the account", async ({ page }) => {
 
   await page.getByRole("button", { name: "New", exact: true }).click();
   await page.getByLabel("Scenario name").fill("Plan B");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator("[data-sim-notice]")).toContainText("Saved “Plan B” to your account");
-  expect([...stored.values()].some((item) => item.name === "Plan B")).toBe(true);
+  // Saved to the account automatically.
+  await expect.poll(() => [...stored.values()].some((item) => item.name === "Plan B")).toBe(true);
+  await expect(page.locator("[data-scenario-save-state]")).toHaveText("Saved automatically");
 
   await page.getByRole("button", { name: "Delete scenario" }).click();
   await expect.poll(() => [...stored.values()].some((item) => item.name === "Plan B")).toBe(false);
@@ -796,6 +802,11 @@ test("L5 writes its line days into the chosen L4 release condition", async ({ pa
   await expect(page.locator(`[data-l5-simulated-days="${days}"]`)).toContainText(
     `L5 · ${days} days on the line`,
   );
+  // Old L5 data can be removed from a row; its duration stays.
+  const row = page.locator('[data-gantt-task="Factory Production"]');
+  await row.getByRole("button", { name: "Remove L5 data from Factory Production" }).click();
+  await expect(row.locator("[data-l5-simulated-days]")).toHaveCount(0);
+  await expect(row).toContainText(/weeks|days/);
 });
 
 test("a big FOB project collected one at a time finishes; a stuck one still shows its line bar", async ({
@@ -837,4 +848,53 @@ test("a big FOB project collected one at a time finishes; a stuck one still show
   await page.getByLabel("Saved scenarios").selectOption({ label: "Big 0" });
   await expect(row).toContainText("Does not finish · line stopped");
   await expect(row.locator('[data-sim-bar="line"][data-sim-bar-stopped="true"]')).toHaveCount(1);
+});
+
+test("Auto schedule splits a project to fit another in and explains it", async ({ page }) => {
+  const project = (id: string, patch: Record<string, unknown>) => ({
+    id,
+    name: id,
+    color: id === "Blue" ? "#2563eb" : "#16a34a",
+    source: { kind: "virtual" },
+    weeksPerModule: 4,
+    splittable: true,
+    delivery: { kind: "fob", pickupDate: "2027-08-25" },
+    ...patch,
+  });
+  await page.addInitScript(
+    (scenarios) =>
+      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify(scenarios)),
+    [
+      {
+        id: "split",
+        name: "Split",
+        factory: {
+          targetOnLine: 18,
+          normalMax: 19,
+          crowdedMax: 23,
+          yardCapacity: 50,
+          installCrews: 2,
+          calendar: {
+            startDate: "2027-01-01",
+            workWeek: "mon-thu",
+            holidayRegion: "CA-ON",
+            automaticShutdowns: true,
+            shutdowns: [],
+          },
+        },
+        projects: [
+          project("Blue", { modules: 30, earliestStart: "2027-08-25", dueDate: "2027-12-31" }),
+          project("Green", { modules: 12, earliestStart: "2027-09-15", dueDate: "2027-11-15" }),
+        ],
+      },
+    ],
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  await expect(page.locator('[data-sim-row="Green"]')).toContainText("late");
+  await page.getByRole("button", { name: "Auto schedule" }).click();
+  const notice = page.locator("[data-sim-notice]");
+  await expect(notice).toContainText("every project is on time");
+  await expect(notice).toContainText(/Split on the line: Blue ×\d+ → Green ×12 → Blue ×\d+\./);
+  await expect(page.locator('[data-sim-row="Green"]')).toContainText("On time");
 });

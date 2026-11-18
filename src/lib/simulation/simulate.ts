@@ -6,6 +6,7 @@ import type {
   SimProjectResult,
   SimResult,
   SimScenario,
+  SimBlock,
 } from "./types";
 
 /** Stop a run that can never finish (for example a yard smaller than a project). */
@@ -60,7 +61,11 @@ type ProjectState = {
  * are built, or once the site is ready), arrive after the transport days, and
  * are installed by a free crew.
  */
-export function simulateScenario(scenario: SimScenario, priority?: string[]): SimResult {
+export function simulateScenario(
+  scenario: SimScenario,
+  priority?: string[],
+  sequence?: SimBlock[],
+): SimResult {
   const { factory } = scenario;
   const factoryCalendar = workingDayTest(factory.calendar);
   const order = priority ?? scenario.priority ?? scenario.projects.map((project) => project.id);
@@ -99,6 +104,33 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
         (rank.get(left.project.id) ?? Infinity) - (rank.get(right.project.id) ?? Infinity),
     );
   const byId = new Map(states.map((state) => [state.project.id, state]));
+  // The loading plan: the given blocks (capped at each project's modules), then
+  // whatever they leave out, in priority order.
+  const blocks: { state: ProjectState; left: number }[] = [];
+  const planned = new Map<string, number>();
+  for (const block of sequence ?? scenario.sequence ?? []) {
+    const state = byId.get(block.projectId);
+    if (!state) continue;
+    const used = planned.get(block.projectId) ?? 0;
+    const take = Math.min(Math.max(0, Math.round(block.modules)), state.project.modules - used);
+    if (take <= 0) continue;
+    planned.set(block.projectId, used + take);
+    blocks.push({ state, left: take });
+  }
+  for (const state of states) {
+    const rest = state.project.modules - (planned.get(state.project.id) ?? 0);
+    if (rest > 0) blocks.push({ state, left: rest });
+  }
+  const usedSequence = blocks.map((block) => ({
+    projectId: block.state.project.id,
+    modules: block.left,
+  }));
+  const loadRuns: SimBlock[] = [];
+  /** Counts a loaded module against the first unfinished block of its project. */
+  const takeFromPlan = (state: ProjectState) => {
+    const block = blocks.find((item) => item.state === state && item.left > 0);
+    if (block) block.left -= 1;
+  };
   const warnings: string[] = [];
   const spacing = 1 / Math.max(1, factory.targetOnLine);
   const lineLimit = Math.max(1, factory.normalMax);
@@ -173,7 +205,8 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           const available = (state: ProjectState) =>
             state.start <= day && state.loaded < state.project.modules;
           if (locked && !available(locked)) locked = undefined;
-          const next = locked ?? states.find(available);
+          const next =
+            locked ?? blocks.find((block) => block.left > 0 && available(block.state))?.state;
           if (!next) break;
           // "Allow a tight line": this project's modules may go on closer
           // together, up to the physical maximum (23 by default).
@@ -184,6 +217,10 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           const newest = line.reduce<number>((low, item) => Math.min(low, item.progress), 1);
           if (line.length && newest < gap - EPSILON) break;
           if (!next.project.splittable) locked = next;
+          takeFromPlan(next);
+          const run = loadRuns.at(-1);
+          if (run?.projectId === next.project.id) run.modules += 1;
+          else loadRuns.push({ projectId: next.project.id, modules: 1 });
           next.loaded += 1;
           next.firstLoad ??= day;
           next.lastLoad = day;
@@ -437,6 +474,8 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
     days,
     projects: results,
     priority: states.map((state) => state.project.id),
+    sequence: usedSequence,
+    loadRuns,
     blockedDays,
     tightDays,
     peakOnLine,

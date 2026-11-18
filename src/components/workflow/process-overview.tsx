@@ -175,6 +175,7 @@ export function ProcessOverview() {
   const rowActions: GanttRowActions = {
     moveCondition,
     editTiming: (task) => setEditingTaskKey(task.key),
+    removeSimulated: (task) => updateTask(task, { simulated: undefined }),
     openCalendar: openTaskCalendar,
     closeCalendar: () => setTaskCalendar(null),
     placeTask: placeTaskAt,

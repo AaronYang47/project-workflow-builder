@@ -17,7 +17,6 @@ import {
   Factory,
   FileDown,
   FlaskConical,
-  Save,
   Sparkles,
   Trash2,
   X,
@@ -32,6 +31,7 @@ import {
   productionReleaseConditions,
   simulatedLineDays,
   optimizeScenario,
+  scheduleNotes,
   productionPhaseOptions,
   projectScheduleDates,
   scheduleScore,
@@ -256,10 +256,10 @@ function SimulationWorkspace() {
     [],
   );
   const savedDraft = scenarios.find((item) => item.id === draft.id);
-  const unsaved = JSON.stringify(savedDraft) !== JSON.stringify(draft);
 
+  // Changing the projects clears Auto schedule's order and split plan.
   const setProjects = (projects: SimProject[]) =>
-    setDraft((current) => ({ ...current, projects, priority: undefined }));
+    setDraft((current) => ({ ...current, projects, priority: undefined, sequence: undefined }));
   const updateProject = (id: string, patch: Partial<SimProject>) =>
     setProjects(
       draft.projects.map((project) => (project.id === id ? { ...project, ...patch } : project)),
@@ -429,22 +429,25 @@ function SimulationWorkspace() {
     }
   };
 
-  const save = async (asNew: boolean) => {
-    const scenario = asNew
-      ? { ...draft, id: `scenario-${Date.now().toString(36)}`, name: `${draft.name} (copy)` }
-      : draft;
-    const next = [scenario, ...scenarios.filter((item) => item.id !== scenario.id)];
-    setScenarios(next);
-    setDraft(scenario);
-    // A browser copy is kept as a backup when the cloud can't be reached.
-    saveScenarios(next);
-    try {
-      await saveCloudScenario(scenario);
-      setNotice(`Saved “${scenario.name}” to your account.`);
-    } catch {
-      setNotice(`Saved “${scenario.name}” in this browser only (the cloud is not reachable).`);
-    }
-  };
+  // Every change is saved: to this browser at once (a backup when offline),
+  // then to the account.
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "local">("saved");
+  const draftJson = JSON.stringify(draft);
+  useEffect(() => {
+    if (JSON.stringify(scenarios.find((item) => item.id === draft.id)) === draftJson) return;
+    const timer = window.setTimeout(() => {
+      const next = scenarios.some((item) => item.id === draft.id)
+        ? scenarios.map((item) => (item.id === draft.id ? draft : item))
+        : [draft, ...scenarios];
+      setScenarios(next);
+      saveScenarios(next);
+      setSaveState("saving");
+      void saveCloudScenario(draft)
+        .then(() => setSaveState("saved"))
+        .catch(() => setSaveState("local"));
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [draft, draftJson, scenarios]);
 
   return (
     <div
@@ -487,14 +490,14 @@ function SimulationWorkspace() {
             <div className="flex items-center gap-2">
               <select
                 aria-label="Saved scenarios"
-                value={savedDraft ? draft.id : ""}
+                value={draft.id}
                 onChange={(event) => {
                   const picked = scenarios.find((item) => item.id === event.target.value);
                   if (picked) setDraft(picked);
                 }}
                 className="min-h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
               >
-                {!savedDraft ? <option value="">Unsaved scenario</option> : null}
+                {!savedDraft ? <option value={draft.id}>{draft.name}</option> : null}
                 {scenarios.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -517,13 +520,14 @@ function SimulationWorkspace() {
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               className={inputClass}
             />
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => void save(false)} disabled={!unsaved}>
-                <Save className="size-3.5" /> Save
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => void save(true)}>
-                Save as new
-              </Button>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <p data-scenario-save-state className="mr-auto text-[11px] text-muted-foreground">
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "local"
+                    ? "Saved in this browser only (the cloud is not reachable)"
+                    : "Saved automatically"}
+              </p>
               {savedDraft ? (
                 <Button
                   size="sm"
@@ -535,6 +539,8 @@ function SimulationWorkspace() {
                     saveScenarios(next);
                     void deleteCloudScenario(draft.id).catch(() => undefined);
                     setNotice(`Deleted “${draft.name}”.`);
+                    // Show another scenario (or a fresh one) so the deleted one isn't saved again.
+                    setDraft(next[0] ?? newScenario("Scenario A", todayIso()));
                   }}
                 >
                   <Trash2 className="size-3.5" />
@@ -648,6 +654,31 @@ function SimulationWorkspace() {
                 <FlaskConical className="size-3.5" /> Add virtual
               </Button>
             </div>
+            {draft.sequence?.length ? (
+              <div
+                data-split-plan
+                className="flex flex-wrap items-center gap-1 rounded-md border border-dashed bg-muted/40 px-2 py-1 text-[11px]"
+              >
+                <span className="font-semibold">Split plan (Auto schedule):</span>
+                {draft.sequence.map((block, index) => {
+                  const project = draft.projects.find((item) => item.id === block.projectId);
+                  return (
+                    <span key={index} className="flex items-center gap-1">
+                      {index ? <span className="text-muted-foreground">→</span> : null}
+                      <i className="size-2 rounded-sm" style={{ background: project?.color }} />
+                      {project?.name ?? block.projectId} ×{block.modules}
+                    </span>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setDraft((current) => ({ ...current, sequence: undefined }))}
+                  className="ml-auto rounded px-1.5 font-semibold text-primary hover:bg-muted"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
             {picker.open ? (
               <div
                 role="dialog"
@@ -770,16 +801,26 @@ function SimulationWorkspace() {
           <Button
             size="sm"
             onClick={() => {
-              const best = optimizeScenario(simDraft);
+              const best = optimizeScenario({ ...simDraft, sequence: undefined });
               const byId = new Map(draft.projects.map((project) => [project.id, project]));
-              setProjects(best.priority.map((id) => byId.get(id)!).filter(Boolean));
+              // Keep the split plan only when it is more than one run per project.
+              const plan = best.sequence.length > draft.projects.length ? best.sequence : undefined;
+              setDraft((current) => ({
+                ...current,
+                projects: best.priority.map((id) => byId.get(id)!).filter(Boolean),
+                priority: undefined,
+                sequence: plan,
+              }));
               const late = best.projects.filter(
                 (project) => !project.finished || project.lateDays > 0,
               ).length;
               setNotice(
-                late
-                  ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
-                  : "Best order found: every project is on time.",
+                [
+                  late
+                    ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
+                    : "Best order found: every project is on time.",
+                  ...scheduleNotes(simDraft, best),
+                ].join(" "),
               );
             }}
             disabled={draft.projects.length < 1}

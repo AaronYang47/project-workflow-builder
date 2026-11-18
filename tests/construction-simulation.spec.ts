@@ -10,6 +10,7 @@ import {
   productionReleaseConditions,
   simulatedLineDays,
   optimizeScenario,
+  scheduleNotes,
   simProjectFromWorkflow,
   simulateScenario,
   type SimFactory,
@@ -480,4 +481,87 @@ test("L5 line days can go into a new Factory Production row in L4", () => {
   const after = productionReleaseConditions(next, "high-level-3")[0].conditions;
   expect(after.at(-1)).toMatchObject({ conditionId: "factory-production", days: 62 });
   expect(after.some((item) => item.conditionId === NEW_FACTORY_PRODUCTION_ROW)).toBe(false);
+});
+
+test("Auto schedule splits a project to fit another in, and says when splitting can't help", () => {
+  const calendar = {
+    startDate: "2027-01-01",
+    workWeek: "mon-thu" as const,
+    holidayRegion: "CA-ON" as const,
+    automaticShutdowns: true,
+    shutdowns: [],
+  };
+  const withCalendar = (projects: SimProject[]) =>
+    scenario(projects, { yardCapacity: 50, calendar, startDate: undefined });
+  const blue = (splittable: boolean) =>
+    project("blue", {
+      name: "Blue",
+      modules: 30,
+      earliestStart: "2027-08-25",
+      dueDate: "2027-12-31",
+      splittable,
+    });
+  const green = project("green", {
+    name: "Green",
+    modules: 12,
+    earliestStart: "2027-09-15",
+    dueDate: "2027-11-15",
+  });
+
+  // Blue can't be split: Green waits behind it and is late, though it could make it alone.
+  const locked = optimizeScenario(withCalendar([blue(false), green]));
+  expect(locked.projects.find((row) => row.projectId === "green")!.lateDays).toBeGreaterThan(0);
+  expect(scheduleNotes(withCalendar([blue(false), green]), locked).join(" ")).toContain(
+    'Tick "Can be split" there',
+  );
+
+  // Blue can be split: Green goes in between and both are on time.
+  const split = optimizeScenario(withCalendar([blue(true), green]));
+  expect(split.projects.every((row) => row.finished && row.lateDays === 0)).toBe(true);
+  expect(split.loadRuns.map((run) => run.projectId)).toEqual(["blue", "green", "blue"]);
+  expect(scheduleNotes(withCalendar([blue(true), green]), split).join(" ")).toMatch(
+    /Split on the line: Blue ×\d+ → Green ×12 → Blue ×\d+\./,
+  );
+
+  // Twelve 4-week modules can't be done by 6 Oct from 25 Aug, even alone.
+  const tight = withCalendar([
+    project("blue", {
+      name: "Blue",
+      modules: 18,
+      earliestStart: "2027-08-25",
+      dueDate: "2027-11-23",
+    }),
+    project("green", {
+      name: "Green",
+      modules: 12,
+      earliestStart: "2027-08-25",
+      dueDate: "2027-10-06",
+    }),
+  ]);
+  const notes = scheduleNotes(tight, optimizeScenario(tight)).join(" ");
+  expect(notes).toContain("Green can't be on time even with the line to itself");
+  expect(notes).toContain("Splitting won't help");
+});
+
+test("a loading plan in blocks runs a splittable project in parts", () => {
+  const projects = [project("a", { modules: 6, splittable: true }), project("b", { modules: 6 })];
+  const result = simulateScenario(
+    scenario(projects),
+    ["a", "b"],
+    [
+      { projectId: "a", modules: 2 },
+      { projectId: "b", modules: 6 },
+      { projectId: "a", modules: 4 },
+    ],
+  );
+  expect(result.loadRuns).toEqual([
+    { projectId: "a", modules: 2 },
+    { projectId: "b", modules: 6 },
+    { projectId: "a", modules: 4 },
+  ]);
+  // Without a plan, the order alone decides (one run each).
+  expect(simulateScenario(scenario(projects), ["a", "b"]).loadRuns).toEqual([
+    { projectId: "a", modules: 6 },
+    { projectId: "b", modules: 6 },
+  ]);
 });

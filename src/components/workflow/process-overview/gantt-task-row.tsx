@@ -27,6 +27,8 @@ type Timeline = ReturnType<typeof buildProcessTimeline>;
 export type GanttRowActions = {
   moveCondition: (fromNodeId: string, fromIndex: number, toNodeId: string, toIndex: number) => void;
   editTiming: (task: ScheduleTask) => void;
+  /** Removes the L5 line-time link (the duration stays). */
+  removeSimulated: (task: ScheduleTask) => void;
   openCalendar: (task: ScheduleTask, trigger: HTMLElement) => void;
   closeCalendar: () => void;
   placeTask: (taskKey: string, startDay: number) => void;
@@ -112,14 +114,27 @@ export function GanttTaskRow({
             <span
               data-l5-simulated-days={task.condition.simulated.days}
               title={`Written from L5 scenario “${task.condition.simulated.scenario}”`}
-              className={`mt-0.5 block w-fit rounded px-1 text-[9px] font-bold leading-[13px] ${
+              className={`mt-0.5 flex w-fit items-center gap-1 rounded px-1 text-[9px] font-bold leading-[13px] ${
                 task.days === task.condition.simulated.days
                   ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
                   : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
               }`}
             >
-              L5 · {task.condition.simulated.days} days on the line
-              {task.days === task.condition.simulated.days ? "" : " · duration changed since"}
+              <span>
+                L5 · {task.condition.simulated.days} days on the line
+                {task.days === task.condition.simulated.days ? "" : " · duration changed since"}
+              </span>
+              {canEdit ? (
+                <button
+                  type="button"
+                  aria-label={`Remove L5 data from ${task.title}`}
+                  title="Remove the L5 data from this release condition (its duration stays; use Edit to change it)"
+                  onClick={() => actions.removeSimulated(task)}
+                  className="-mr-0.5 flex size-4 items-center justify-center rounded hover:bg-foreground/10"
+                >
+                  ×
+                </button>
+              ) : null}
             </span>
           ) : null}
         </div>

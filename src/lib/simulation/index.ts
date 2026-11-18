@@ -1,6 +1,6 @@
 export * from "./types";
 export { simulateScenario } from "./simulate";
-export { optimizeScenario, scheduleScore } from "./optimize";
+export { optimizeScenario, scheduleNotes, scheduleScore } from "./optimize";
 export {
   applySimulatedDays,
   defaultProductionPhaseId,
