@@ -209,6 +209,7 @@ export function ProjectCard({
         l4Start && project.earliestStart < l4Start.date ? l4Start.date : project.earliestStart,
     },
     lineSlots,
+    delivery.kind === "fob" ? delivery.batchSize : undefined,
   );
   return (
     <article
@@ -445,7 +446,9 @@ export function ProjectCard({
             <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
               {delivery.pickupCustom
                 ? `Auto would be ${autoPickup}, when the last module comes off the line.`
-                : `Auto: when the last module comes off the line — line start + (${project.modules} modules + ${lineSlots} line places − 1) × ${project.weeksPerModule} weeks ÷ ${lineSlots}.`}
+                : delivery.batchSize
+                  ? `Auto: collecting ${delivery.batchSize} at a time starts when the first module comes off the line — line start + ${project.weeksPerModule} weeks.`
+                  : `Auto: when the last module comes off the line — line start + (${project.modules} modules + ${lineSlots} line places − 1) × ${project.weeksPerModule} weeks ÷ ${lineSlots}.`}
             </p>
           </div>
           <div className="col-span-2">

@@ -220,7 +220,11 @@ function SimulationWorkspace() {
               ...started,
               delivery: {
                 ...project.delivery,
-                pickupDate: fobPickupDate(started, draft.factory.targetOnLine),
+                pickupDate: fobPickupDate(
+                  started,
+                  draft.factory.targetOnLine,
+                  project.delivery.batchSize,
+                ),
               },
             }
           : started;

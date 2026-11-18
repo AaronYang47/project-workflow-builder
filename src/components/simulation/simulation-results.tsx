@@ -315,6 +315,10 @@ export function SimulationResults({
             const row = result.projects.find((item) => item.projectId === id);
             if (!project || !row) return null;
             const after = row.pickup ?? row.installStart;
+            // A run that stops early still shows how far the project got.
+            const lastDate = result.days.at(-1)?.date;
+            const lineEnd = row.productionEnd ?? (row.firstLoad ? lastDate : undefined);
+            const stopped = !row.productionEnd && Boolean(lineEnd);
             return (
               <div
                 key={id}
@@ -332,7 +336,9 @@ export function SimulationResults({
                       ? row.lateDays
                         ? `${row.lateDays}d late · ${formatDate(row.completion)}`
                         : `On time · ${formatDate(row.completion)}`
-                      : "Does not finish"}
+                      : stopped
+                        ? `Does not finish · line stopped ${formatDate(lineEnd)}`
+                        : "Does not finish"}
                   </p>
                   {row.lateDays && row.reasons.length ? (
                     <p
@@ -352,15 +358,22 @@ export function SimulationResults({
                       style={{ left: `${left(currentDate)}%` }}
                     />
                   ) : null}
-                  {row.firstLoad && row.productionEnd ? (
+                  {row.firstLoad && lineEnd ? (
                     <div
                       data-sim-bar="line"
-                      title={`On the line ${formatDate(row.firstLoad)} – ${formatDate(row.productionEnd)}`}
-                      className="absolute top-0.5 h-5 rounded"
+                      data-sim-bar-stopped={stopped ? "true" : undefined}
+                      title={
+                        stopped
+                          ? `On the line ${formatDate(row.firstLoad)} – stopped ${formatDate(lineEnd)}, not all modules built`
+                          : `On the line ${formatDate(row.firstLoad)} – ${formatDate(lineEnd)}`
+                      }
+                      className={`absolute top-0.5 h-5 rounded ${stopped ? "rounded-r-none border-r-4 border-red-600" : ""}`}
                       style={{
                         left: `${left(row.firstLoad)}%`,
-                        width: `${width(row.firstLoad, row.productionEnd)}%`,
-                        background: project.color,
+                        width: `${width(row.firstLoad, lineEnd)}%`,
+                        background: stopped
+                          ? `repeating-linear-gradient(135deg, ${project.color} 0 6px, transparent 6px 10px)`
+                          : project.color,
                       }}
                     />
                   ) : null}

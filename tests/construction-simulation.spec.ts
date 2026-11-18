@@ -252,6 +252,10 @@ test("a saved project brings its production Phase and FOB yard choice", () => {
   expect(fobPickupDate({ earliestStart: "2027-01-04", modules: 18, weeksPerModule: 4 })).toBe(
     "2027-02-27",
   );
+  // Collecting in batches can start with the first module off the line.
+  expect(
+    fobPickupDate({ earliestStart: "2027-01-04", modules: 200, weeksPerModule: 2 }, 18, 1),
+  ).toBe("2027-01-18");
   // Pipeline: (18 + 18 − 1) places × 4 weeks ÷ 18 ≈ 7.8 weeks; 36 modules: 53 places ≈ 11.8 weeks.
   expect(fobPickupDate({ earliestStart: "2027-01-04", modules: 36, weeksPerModule: 4 }, 18)).toBe(
     "2027-03-27",

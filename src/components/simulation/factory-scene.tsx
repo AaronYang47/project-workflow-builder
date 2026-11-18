@@ -1,11 +1,40 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { closureTag, type SimDay, type SimProject } from "@/lib/simulation";
 import type { DayOffPalette } from "@/lib/schedule-calendar";
 import { FactoryModuleInventory } from "./factory-module-inventory";
 
-const TRACK = { start: 52, end: 908, center: 126, height: 56 };
+const TRACK = { start: 52, center: 126, height: 56 };
+const BAY_ROW = 52;
+const IDEAL_BAY_PITCH = 76;
+
+/**
+ * Scene width and yard grid for the box it is drawn in: the scene widens to
+ * the box's shape (never narrower than 960), and the yard uses as many rows
+ * as keep each bay close to its usual size, so the box is filled both ways.
+ */
+export function sceneLayout(bayCount: number, shipments: number, aspect?: number) {
+  const bays = Math.max(1, bayCount);
+  let best:
+    { width: number; height: number; columns: number; rows: number; score: number } | undefined;
+  for (let rows = 1; rows <= bays; rows += 1) {
+    const columns = Math.ceil(bays / rows);
+    const roadY = 54 + rows * BAY_ROW;
+    const base = 226 + roadY + 50;
+    // Trucks wrap at the width; estimate with the widest guess first.
+    const width0 = Math.max(960, aspect ? base * aspect : 960);
+    const trucksPerRow = Math.max(8, Math.floor((width0 - 40) / 105));
+    const height = base + Math.max(1, Math.ceil(shipments / trucksPerRow)) * 58;
+    const width = Math.max(960, aspect ? height * aspect : 960);
+    const pitch = (width - 48) / columns;
+    if (pitch < 34) continue;
+    const score = Math.abs(Math.log(pitch / IDEAL_BAY_PITCH));
+    if (!best || score < best.score) best = { width, height, columns, rows, score };
+  }
+  best ??= { width: 960, height: 226 + 54 + 50 + 58, columns: bays, rows: 1, score: 0 };
+  return { width: best.width, columns: best.columns, rows: best.rows };
+}
 
 export function FactoryScene({
   day,
@@ -23,22 +52,37 @@ export function FactoryScene({
   yardCapacity: number;
 }) {
   const [zoom, setZoom] = useState(1);
+  // The box's width ÷ height, so the scene can widen to fill it.
+  const frame = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState<number>();
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) setAspect(Math.round((width / height) * 100) / 100);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const rollers = useId();
   const byId = new Map(projects.map((project) => [project.id, project]));
   const yard = Object.entries(day.yard).flatMap(([projectId, count]) =>
     Array.from({ length: count }, () => projectId),
   );
   const shipments = Object.entries(day.departures);
-  const trucksPerRow = 8;
   const pickedUp = new Set(day.pickedUp);
-  // One bay per yard space. Past 48 spaces the rows get more, narrower bays
-  // (at most four rows) so the scene keeps its height.
+  // One bay per yard space, laid out to fill the box.
   const bayCount = Math.max(yard.length, yardCapacity);
-  const bayColumns = Math.max(12, Math.ceil(bayCount / 4));
-  const bayPitch = 912 / bayColumns;
+  const layout = sceneLayout(bayCount, shipments.length, zoom === 1 ? aspect : undefined);
+  const W = layout.width;
+  const trackEnd = W - 52;
+  const trucksPerRow = Math.max(8, Math.floor((W - 40) / 105));
+  const bayColumns = layout.columns;
+  const bayPitch = (W - 48) / bayColumns;
   const bayWidth = bayPitch - 8;
   const bayFont = Math.min(16, Math.max(9, bayPitch * 0.24));
-  const roadY = 54 + Math.ceil(bayCount / bayColumns) * 52;
+  const roadY = 54 + layout.rows * BAY_ROW;
   const roadHeight = Math.max(1, Math.ceil(shipments.length / trucksPerRow)) * 58;
   const height = 226 + roadY + roadHeight + 50;
   const dayOffText = `DAY OFF · ${closureTag(day.closure).toUpperCase()}`;
@@ -76,11 +120,14 @@ export function FactoryScene({
           </button>
         </div>
       </div>
-      <div className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700">
+      <div
+        ref={frame}
+        className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700"
+      >
         <svg
           role="img"
           aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
-          viewBox={`0 0 960 ${height}`}
+          viewBox={`0 0 ${W} ${height}`}
           style={{ width: `${zoom * 100}%` }}
           className={`block select-none bg-slate-900 ${zoom === 1 ? "h-full" : ""}`}
           data-factory-scene
@@ -96,13 +143,13 @@ export function FactoryScene({
             <text x="28" y="33" fill="#e2e8f0" fontSize="20" fontWeight="600">
               Production line
             </text>
-            <text x="932" y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
+            <text x={W - 28} y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
               {day.line.length} modules
             </text>
             <rect
               x="28"
               y="78"
-              width="904"
+              width={W - 56}
               height="96"
               rx="10"
               fill={day.blocked ? "#421f29" : "#17283a"}
@@ -113,7 +160,7 @@ export function FactoryScene({
                 key={y}
                 x="36"
                 y={y - 4}
-                width="888"
+                width={W - 72}
                 height="8"
                 rx="3"
                 fill={`url(#${rollers})`}
@@ -122,7 +169,7 @@ export function FactoryScene({
             {day.line.map((item) => {
               const project = byId.get(item.projectId);
               const progress = Math.min(1, Math.max(0, item.progress));
-              const x = TRACK.start + progress * (TRACK.end - TRACK.start);
+              const x = TRACK.start + progress * (trackEnd - TRACK.start);
               return (
                 <g
                   key={`${item.projectId}-${item.module}`}
@@ -153,7 +200,10 @@ export function FactoryScene({
               Module entry
             </text>
             {!day.working ? (
-              <g data-scene-day-off={day.closure?.kind ?? "closed"} transform="translate(480 33)">
+              <g
+                data-scene-day-off={day.closure?.kind ?? "closed"}
+                transform={`translate(${W / 2} 33)`}
+              >
                 <rect
                   x={-dayOffWidth / 2}
                   y="-26"
@@ -173,7 +223,7 @@ export function FactoryScene({
                 </text>
               </g>
             ) : null}
-            <text x="932" y="205" textAnchor="end" fill="#94a3b8" fontSize="15">
+            <text x={W - 28} y="205" textAnchor="end" fill="#94a3b8" fontSize="15">
               Exit to yard →
             </text>
           </g>
@@ -181,7 +231,7 @@ export function FactoryScene({
             <text x="28" y="33" fill="#e2e8f0" fontSize="20" fontWeight="600">
               Yard
             </text>
-            <text x="932" y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
+            <text x={W - 28} y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
               {day.yardTotal} / {yardCapacity} occupied
             </text>
             {Array.from({ length: bayCount }, (_, index) => {
@@ -189,7 +239,7 @@ export function FactoryScene({
               return (
                 <g
                   key={index}
-                  transform={`translate(${28 + (index % bayColumns) * bayPitch} ${52 + Math.floor(index / bayColumns) * 52})`}
+                  transform={`translate(${28 + (index % bayColumns) * bayPitch} ${52 + Math.floor(index / bayColumns) * BAY_ROW})`}
                   data-scene-yard-module={yard[index]}
                   data-yard-bay={index + 1}
                 >
@@ -222,19 +272,19 @@ export function FactoryScene({
             <rect
               x="28"
               y={roadY}
-              width="904"
+              width={W - 56}
               height={roadHeight}
               rx="8"
               fill="#1e293b"
               stroke="#475569"
             />
-            <path d={`M44 ${roadY + 29} H916`} stroke="#64748b" strokeDasharray="12 10" />
+            <path d={`M44 ${roadY + 29} H${W - 44}`} stroke="#64748b" strokeDasharray="12 10" />
             {shipments.map(([projectId, count], index) => {
               const project = byId.get(projectId);
               const row = Math.floor(index / trucksPerRow);
               const rowCount = Math.min(trucksPerRow, shipments.length - row * trucksPerRow);
               const column = index % trucksPerRow;
-              const x = 920 - (rowCount - column) * 105;
+              const x = W - 40 - (rowCount - column) * 105;
               const y = roadY + row * 58;
               return (
                 <g

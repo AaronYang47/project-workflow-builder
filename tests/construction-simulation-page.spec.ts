@@ -720,6 +720,10 @@ test("factory days off show their Calendar type and the scene keeps its size", a
   const sceneBox = (await page.locator("[data-factory-scene]").boundingBox())!;
   const lastBay = (await page.locator('[data-yard-bay="50"]').boundingBox())!;
   expect(lastBay.x + lastBay.width).toBeLessThanOrEqual(sceneBox.x + sceneBox.width);
+  // The scene fills its box side to side as well as top to bottom.
+  const frameBox = (await page.locator("[data-factory-scene]").locator("xpath=..").boundingBox())!;
+  const drawn = await page.locator("[data-roller-track] rect").first().boundingBox();
+  expect(drawn!.width).toBeGreaterThan(frameBox.width * 0.9);
   await slider.fill("40");
   await expect(page.locator("[data-playback-date]")).toContainText("11 Oct 2027");
   await expect(page.locator("[data-playback-day-off]")).toHaveText(
@@ -776,4 +780,45 @@ test("L5 writes its line days into the chosen L4 release condition", async ({ pa
   await expect(page.locator(`[data-l5-simulated-days="${days}"]`)).toContainText(
     `L5 · ${days} days on the line`,
   );
+});
+
+test("a big FOB project collected one at a time finishes; a stuck one still shows its line bar", async ({
+  page,
+}) => {
+  const scenario = (batchSize: number) => ({
+    id: `big-${batchSize}`,
+    name: `Big ${batchSize}`,
+    factory: { targetOnLine: 18, normalMax: 19, crowdedMax: 23, yardCapacity: 50, installCrews: 2 },
+    projects: [
+      {
+        id: "big",
+        name: "Big project",
+        color: "#2563eb",
+        source: { kind: "virtual" },
+        modules: 200,
+        weeksPerModule: 2,
+        splittable: false,
+        earliestStart: "2027-08-25",
+        dueDate: "2028-12-31",
+        delivery: { kind: "fob", pickupDate: "2027-08-25", batchSize },
+      },
+    ],
+  });
+  await page.addInitScript(
+    (scenarios) =>
+      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify(scenarios)),
+    [scenario(1), scenario(0)],
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const row = page.locator('[data-sim-row="big"]');
+  await expect(row).toContainText("On time");
+  await expect(row.locator('[data-sim-bar="line"]')).toHaveCount(1);
+  await expect(page.locator("[data-fob-pickup]")).toContainText(
+    "starts when the first module comes off the line",
+  );
+
+  await page.getByLabel("Saved scenarios").selectOption({ label: "Big 0" });
+  await expect(row).toContainText("Does not finish · line stopped");
+  await expect(row.locator('[data-sim-bar="line"][data-sim-bar-stopped="true"]')).toHaveCount(1);
 });

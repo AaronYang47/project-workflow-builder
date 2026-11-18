@@ -38,9 +38,12 @@ export function defaultProductionPhaseId(file: WorkflowFile) {
 export function fobPickupDate(
   project: Pick<SimProject, "earliestStart" | "modules" | "weeksPerModule">,
   lineSlots = 18,
+  batchSize?: number,
 ) {
   const start = dayOf(project.earliestStart);
   if (start == null) return project.earliestStart;
+  // Collecting in batches starts once the first module is off the line.
+  if (batchSize && batchSize > 0) return isoFromDay(start + Math.round(project.weeksPerModule * 7));
   const slots = Math.max(1, Math.round(lineSlots));
   const modules = Math.max(1, Math.round(project.modules));
   const weeks = ((modules + slots - 1) * project.weeksPerModule) / slots;
