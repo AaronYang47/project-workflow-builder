@@ -610,6 +610,26 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
   await fit('input[aria-label="Simulation day"]');
   await noPageScroll();
 
+  const slider = page.getByRole("slider", { name: "Simulation day" });
+  const lastDay = Number(await slider.getAttribute("max"));
+  await slider.fill(String(Math.round(lastDay * 0.35)));
+  const cards = page.locator("[data-line-module]");
+  expect(await cards.count()).toBeGreaterThan(10);
+  const inventory = page.getByRole("region", { name: "Production modules" });
+  const list = inventory.locator("h3 + div");
+  const checkFullCard = async (card: typeof cards) => {
+    await card.scrollIntoViewIfNeeded();
+    const box = (await card.boundingBox())!;
+    const image = (await card.locator("svg").boundingBox())!;
+    const frame = (await list.boundingBox())!;
+    expect(image.y + image.height).toBeLessThan(box.y + box.height);
+    expect(image.y).toBeGreaterThanOrEqual(frame.y - 1);
+    expect(image.y + image.height).toBeLessThanOrEqual(frame.y + frame.height + 1);
+  };
+  await checkFullCard(cards.first());
+  await checkFullCard(cards.last());
+  await noPageScroll();
+
   await page.setViewportSize({ width: 390, height: 844 });
   await fit("[data-factory-scene]");
   await fit('input[aria-label="Simulation day"]');

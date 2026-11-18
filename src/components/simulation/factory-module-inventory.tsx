@@ -63,7 +63,7 @@ export function FactoryModuleInventory({
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
         <section aria-label="Production modules" className="flex min-h-0 min-w-0 flex-col">
           <h3 className="mb-1 text-[11px] font-bold">Production line · {line.length} modules</h3>
-          <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
+          <div className="grid min-h-0 auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
             {line.map((module) => {
               const project = byId.get(module.projectId);
               const progress = Math.min(100, Math.max(0, Math.round(module.progress * 100)));
@@ -115,7 +115,7 @@ export function FactoryModuleInventory({
           <h3 className="mb-1 text-[11px] font-bold">
             Yard · {day.yardTotal} / {yardCapacity} spaces occupied
           </h3>
-          <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
+          <div className="grid min-h-0 auto-rows-max grid-cols-[repeat(auto-fill,minmax(82px,1fr))] content-start gap-1 overflow-y-auto overscroll-contain">
             {yard.map((module, index) => {
               const project = byId.get(module.projectId);
               return (
