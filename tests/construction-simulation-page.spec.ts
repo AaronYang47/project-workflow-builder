@@ -767,16 +767,32 @@ test("L5 writes its line days into the chosen L4 release condition", async ({ pa
   const card = page.locator('[data-sim-project="cloud-p1"]');
   await expect(card.getByLabel("Release condition")).toBeDisabled();
   await card.getByLabel("Department").selectOption({ label: "Department Lifecycle Phase" });
-  // The second release condition of that Department.
-  await card.getByLabel("Release condition").selectOption({ index: 2 });
+  // It defaults to a new Factory Production row of its own.
+  await expect(card.getByLabel("Release condition")).toHaveValue("new:factory-production");
+  // Start 5 days after the Department's first release condition starts.
+  const startAfter = card.getByLabel("Starts after");
+  await startAfter.selectOption({ index: 1 });
+  await card.getByLabel("Counted from").selectOption("start");
+  const lag = card.getByLabel("Days after", { exact: true });
+  await lag.click();
+  await lag.press("ControlOrMeta+a");
+  await lag.pressSequentially("5");
+  await expect(card.locator("[data-l4-start-text]")).toContainText(
+    /Starts 5 days after .* starts\./,
+  );
   const status = card.locator("[data-l4-target-status]");
   await expect(status).toContainText(/L5: \d+ days on the line/);
   const days = Number((await status.textContent())!.match(/L5: (\d+) days/)![1]);
   await card.getByRole("button", { name: `Write ${days} days to L4` }).click();
   await expect(page.locator("[data-sim-notice]")).toContainText(`${days} days written to L4`);
   await expect(status).toContainText(`L4 has the L5 line time: ${days} days.`);
+  await expect(lag).toHaveValue("5");
+  await expect(card.getByLabel("Release condition")).toHaveValue("factory-production");
 
   await page.getByRole("link", { name: "Open Process Overview" }).click();
+  await expect(
+    page.locator('[data-gantt-task="Factory Production"] [data-l5-simulated-days]'),
+  ).toHaveAttribute("data-l5-simulated-days", String(days));
   await expect(page.locator(`[data-l5-simulated-days="${days}"]`)).toContainText(
     `L5 · ${days} days on the line`,
   );

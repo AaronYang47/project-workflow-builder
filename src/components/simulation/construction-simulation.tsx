@@ -27,6 +27,7 @@ import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   applySimulatedDays,
+  NEW_FACTORY_PRODUCTION_ROW,
   fobPickupDate,
   productionReleaseConditions,
   simulatedLineDays,
@@ -366,6 +367,12 @@ function SimulationWorkspace() {
     if (!target || project.source.kind !== "cloud") return;
     const scenarioName = draft.name || "Scenario";
     const change = (file: WorkflowFile) => applySimulatedDays(file, target, days, scenarioName);
+    // A new Factory Production row: point the project at the row it creates.
+    const follow = (next: WorkflowFile) => {
+      if (target.conditionId !== NEW_FACTORY_PRODUCTION_ROW) return;
+      const id = next.graph.nodes.find((item) => item.id === target.nodeId)?.conditions.at(-1)?.id;
+      if (id) updateProject(project.id, { l4Target: { ...target, conditionId: id } });
+    };
     if (project.source.projectId === currentId) {
       if (!canEditCollaborativeWorkflow()) {
         setNotice(
@@ -378,9 +385,12 @@ function SimulationWorkspace() {
       const node = next.graph.nodes.find((item) => item.id === target.nodeId);
       if (!node || next === store.file) return;
       store.updateNode(node.id, { conditions: node.conditions });
+      follow(next);
       setNotice(`${project.name}: ${days} days written to L4.`);
       return;
     }
+    const file = files[project.id];
+    if (file) follow(change(file));
     writeSavedProject(project, change, {
       saved: `${project.name}: ${days} days written to L4 and saved.`,
       failed: "could not write the days to L4",

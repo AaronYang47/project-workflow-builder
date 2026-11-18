@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Cloud, FlaskConical, RefreshCw, Trash2 } from "lucide-react";
-import { fobPickupDate, type SimDelivery, type SimProject } from "@/lib/simulation";
+import {
+  fobPickupDate,
+  NEW_FACTORY_PRODUCTION_ROW,
+  productionReleaseConditions,
+  type L4Start,
+  type SimDelivery,
+  type SimProject,
+} from "@/lib/simulation";
 import { DateInput, NumberInput } from "./draft-inputs";
 
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
@@ -74,14 +81,29 @@ function L4TargetPicker({
   onWrite,
 }: {
   departments: NonNullable<Parameters<typeof ProjectCard>[0]["releaseConditions"]>;
-  target?: { nodeId: string; conditionId: string };
+  target?: { nodeId: string; conditionId: string; start?: L4Start };
   lineDays?: number;
-  onTarget: (target: { nodeId: string; conditionId: string } | undefined) => void;
+  onTarget: (target: { nodeId: string; conditionId: string; start?: L4Start } | undefined) => void;
   onWrite?: () => void;
 }) {
   const department = departments.find((item) => item.nodeId === target?.nodeId);
   const condition = department?.conditions.find((item) => item.conditionId === target?.conditionId);
-  const inSync = condition && lineDays !== undefined && condition.days === lineDays;
+  // Start timing: what was set here, else what L4 has now.
+  const start = target?.start ?? condition?.start;
+  const sameStart = (left?: L4Start, right?: L4Start) =>
+    Boolean(left && right) &&
+    (left!.nodeId ?? "") === (right!.nodeId ?? "") &&
+    (left!.conditionId ?? "") === (right!.conditionId ?? "") &&
+    (left!.nodeId ? left!.relation === right!.relation : true) &&
+    left!.lagDays === right!.lagDays;
+  const inSync =
+    condition &&
+    lineDays !== undefined &&
+    condition.days === lineDays &&
+    sameStart(start, condition.start);
+  const setStart = (patch: Partial<L4Start>) =>
+    target && start && onTarget({ ...target, start: { ...start, ...patch } });
+  const afterKey = start?.nodeId ? JSON.stringify([start.nodeId, start.conditionId]) : "";
   return (
     <div className="col-span-2 grid grid-cols-2 gap-2" data-l4-target>
       <label className={labelClass}>
@@ -91,7 +113,11 @@ function L4TargetPicker({
           value={department?.nodeId ?? ""}
           onChange={(event) => {
             const next = departments.find((item) => item.nodeId === event.target.value);
-            const first = next?.conditions[0];
+            // Default to the Department's Factory Production row (or a new one).
+            const first =
+              next?.conditions.find((item) => /^factory production$/i.test(item.title)) ??
+              next?.conditions.find((item) => item.conditionId === NEW_FACTORY_PRODUCTION_ROW) ??
+              next?.conditions[0];
             onTarget(
               next && first ? { nodeId: next.nodeId, conditionId: first.conditionId } : undefined,
             );
@@ -130,6 +156,68 @@ function L4TargetPicker({
           ))}
         </select>
       </label>
+      {condition && start ? (
+        <div className="col-span-2 grid grid-cols-[1fr_auto_5rem] items-end gap-1.5" data-l4-start>
+          <label className={labelClass}>
+            Starts after
+            <select
+              aria-label="Starts after"
+              value={afterKey}
+              onChange={(event) => {
+                const [nodeId, conditionId] = event.target.value
+                  ? (JSON.parse(event.target.value) as [string, string])
+                  : [undefined, undefined];
+                setStart({ nodeId, conditionId, relation: nodeId ? start.relation : "start" });
+              }}
+              className={inputClass}
+            >
+              <option value="">Phase start</option>
+              {condition.after.map((item) => (
+                <option
+                  key={`${item.nodeId}:${item.conditionId}`}
+                  value={JSON.stringify([item.nodeId, item.conditionId])}
+                >
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={labelClass}>
+            <span className="sr-only">Counted from</span>
+            <select
+              aria-label="Counted from"
+              value={start.nodeId ? start.relation : "start"}
+              disabled={!start.nodeId}
+              onChange={(event) =>
+                setStart({ relation: event.target.value as L4Start["relation"] })
+              }
+              className={`${inputClass} disabled:opacity-50`}
+            >
+              <option value="start">starts</option>
+              <option value="finish">finishes</option>
+            </select>
+          </label>
+          <NumberField
+            label="Days after"
+            value={start.lagDays}
+            integer
+            onChange={(lagDays) => setStart({ lagDays })}
+          />
+          <p
+            className="col-span-3 text-[10px] leading-snug text-muted-foreground"
+            data-l4-start-text
+          >
+            {start.nodeId
+              ? `Starts ${start.lagDays ? `${start.lagDays} days after` : "when"} ${
+                  condition.after.find(
+                    (item) =>
+                      item.nodeId === start.nodeId && item.conditionId === start.conditionId,
+                  )?.label ?? "the chosen release condition"
+                } ${start.relation === "start" ? "starts" : "finishes"}.`
+              : `Starts ${start.lagDays ? `${start.lagDays} days after` : "when"} the Phase starts.`}
+          </p>
+        </div>
+      ) : null}
       <div className="col-span-2 flex flex-wrap items-center gap-2 text-[10px] leading-snug">
         <span className="min-w-0 flex-1 text-muted-foreground" data-l4-target-status>
           {!departments.length
@@ -140,7 +228,9 @@ function L4TargetPicker({
                 ? "This project doesn't finish on the line in this simulation."
                 : inSync
                   ? `L4 has the L5 line time: ${lineDays} days.`
-                  : `L5: ${lineDays} days on the line · L4 now ${condition.days ? `${condition.days} days` : "no duration"}.`}
+                  : condition.conditionId === NEW_FACTORY_PRODUCTION_ROW
+                    ? `L5: ${lineDays} days on the line → a new “Factory Production” row in L4.`
+                    : `L5: ${lineDays} days on the line · L4 now ${condition.days ? `${condition.days} days` : "no duration"}${sameStart(start, condition.start) ? "" : " · start timing changed"}.`}
         </span>
         {condition && lineDays !== undefined && !inSync && onWrite ? (
           <button
@@ -183,11 +273,7 @@ export function ProjectCard({
   /** Modules the line holds at its normal pace (the pipeline length). */
   lineSlots: number;
   /** Saved projects: Departments in the production Phase and their L4 release conditions. */
-  releaseConditions?: Array<{
-    nodeId: string;
-    department: string;
-    conditions: Array<{ conditionId: string; title: string; days?: number; simulated?: number }>;
-  }>;
+  releaseConditions?: ReturnType<typeof productionReleaseConditions>;
   /** Days this project is on the line in the simulation. */
   lineDays?: number;
   /** Writes lineDays into the chosen L4 release condition. */

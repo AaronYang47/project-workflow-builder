@@ -1,9 +1,9 @@
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
-import { buildProcessSchedule } from "@/lib/process-schedule";
+import { buildProcessSchedule, schedulePredecessorCandidates } from "@/lib/process-schedule";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import type { WorkflowFile } from "@/types/workflow";
 import { dayOf, isoFromDay } from "./work-calendar";
-import type { SimProject } from "./types";
+import type { L4Start, SimProject } from "./types";
 
 /** L1 Phases a project can choose as its factory production Phase, in order. */
 export function productionPhaseOptions(file: WorkflowFile) {
@@ -72,7 +72,16 @@ export function productionReleaseConditions(file: WorkflowFile, productionPhaseI
   const departments: Array<{
     nodeId: string;
     department: string;
-    conditions: Array<{ conditionId: string; title: string; days?: number; simulated?: number }>;
+    conditions: Array<{
+      conditionId: string;
+      title: string;
+      days?: number;
+      simulated?: number;
+      /** When it starts in L4 now. */
+      start: L4Start;
+      /** Release conditions it can follow (same Phase, no loops). */
+      after: Array<{ nodeId: string; conditionId: string; label: string }>;
+    }>;
   }> = [];
   if (index < 0) return departments;
   for (const task of schedule.tasks) {
@@ -91,10 +100,42 @@ export function productionReleaseConditions(file: WorkflowFile, productionPhaseI
       title: task.title,
       days: task.days,
       simulated: task.condition.simulated?.days,
+      start: task.condition.predecessor
+        ? {
+            nodeId: task.condition.predecessor.nodeId,
+            conditionId: task.condition.predecessor.conditionId,
+            relation: task.condition.predecessor.relation ?? "finish",
+            lagDays: task.condition.predecessor.lagDays ?? 0,
+          }
+        : { relation: "start", lagDays: task.condition.startOffsetDays ?? 0 },
+      after: schedulePredecessorCandidates(schedule.tasks, task).map((candidate) => ({
+        nodeId: candidate.nodeId,
+        conditionId: candidate.conditionId,
+        label: `${candidate.department || candidate.chapter} · ${candidate.title}`,
+      })),
+    });
+  }
+  // Each Department can take L5's line time as its own "Factory Production" row.
+  const phaseTasks = schedule.tasks.filter((task) => task.phaseIndex === index);
+  for (const department of departments) {
+    if (department.conditions.some((item) => FACTORY_PRODUCTION_TITLE.test(item.title))) continue;
+    department.conditions.push({
+      conditionId: NEW_FACTORY_PRODUCTION_ROW,
+      title: "+ Factory Production (new row)",
+      start: { relation: "start", lagDays: 0 },
+      after: phaseTasks.map((task) => ({
+        nodeId: task.nodeId,
+        conditionId: task.conditionId,
+        label: `${task.department || task.chapter} · ${task.title}`,
+      })),
     });
   }
   return departments;
 }
+
+/** Release condition id meaning "add a new Factory Production row". */
+export const NEW_FACTORY_PRODUCTION_ROW = "new:factory-production";
+const FACTORY_PRODUCTION_TITLE = /^factory production$/i;
 
 /** Days a project is on the line in L5: first module on through the last module off. */
 export function simulatedLineDays(result: { firstLoad?: string; productionEnd?: string }) {
@@ -109,10 +150,31 @@ export function simulatedLineDays(result: { firstLoad?: string; productionEnd?: 
  */
 export function applySimulatedDays(
   file: WorkflowFile,
-  target: { nodeId: string; conditionId: string },
+  target: { nodeId: string; conditionId: string; start?: L4Start },
   days: number,
   scenario: string,
 ): WorkflowFile {
+  const start = target.start;
+  if (target.conditionId === NEW_FACTORY_PRODUCTION_ROW) {
+    // A new "Factory Production" row at the end of the Department.
+    const node = file.graph.nodes.find((item) => item.id === target.nodeId);
+    if (!node) return file;
+    const ids = new Set(node.conditions.map((condition) => condition.id));
+    let id = "factory-production";
+    for (let n = 2; ids.has(id); n += 1) id = `factory-production-${n}`;
+    const added: WorkflowFile = {
+      ...file,
+      graph: {
+        ...file.graph,
+        nodes: file.graph.nodes.map((item) =>
+          item.id === node.id
+            ? { ...item, conditions: [...item.conditions, { id, label: "Factory Production" }] }
+            : item,
+        ),
+      },
+    };
+    return applySimulatedDays(added, { ...target, conditionId: id }, days, scenario);
+  }
   const schedule = buildProcessSchedule(file);
   const task = schedule.tasks.find(
     (item) => item.nodeId === target.nodeId && item.conditionId === target.conditionId,
@@ -135,6 +197,22 @@ export function applySimulatedDays(
                       duration: days,
                       durationUnit: "days" as const,
                       simulated: { days, scenario, updatedAt: new Date().toISOString() },
+                      ...(!start
+                        ? {}
+                        : start.nodeId && start.conditionId
+                          ? {
+                              predecessor: {
+                                nodeId: start.nodeId,
+                                conditionId: start.conditionId,
+                                relation: start.relation,
+                                lagDays: Math.max(0, Math.round(start.lagDays)),
+                              },
+                              startOffsetDays: undefined,
+                            }
+                          : {
+                              predecessor: undefined,
+                              startOffsetDays: Math.max(0, Math.round(start.lagDays)),
+                            }),
                     },
               ),
             },

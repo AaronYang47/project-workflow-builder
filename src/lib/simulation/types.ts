@@ -32,6 +32,17 @@ export type SimDelivery =
       install: SimInstall;
     };
 
+/**
+ * When an L4 release condition starts: a number of days after another
+ * condition starts or finishes, or after its Phase starts (no condition).
+ */
+export type L4Start = {
+  nodeId?: string;
+  conditionId?: string;
+  relation: "start" | "finish";
+  lagDays: number;
+};
+
 export interface SimProject {
   id: string;
   name: string;
@@ -45,7 +56,7 @@ export interface SimProject {
   /** L1 Phase used as factory production (cloud projects). */
   productionPhaseId?: string;
   /** Saved projects: the L4 release condition that receives the simulated line days. */
-  l4Target?: { nodeId: string; conditionId: string };
+  l4Target?: { nodeId: string; conditionId: string; start?: L4Start };
   /** Earliest date the first module may go on the line. */
   earliestStart: string;
   /** Customer's required date: pickup (FOB yard) or installation complete (site). */
