@@ -258,12 +258,31 @@ export function ProjectCard({
       </div>
 
       {delivery.kind === "fob" ? (
-        <div className="mt-2">
-          <DateField
-            label="Customer pickup date"
-            value={delivery.pickupDate}
-            onChange={(pickupDate) => onChange({ delivery: { ...delivery, pickupDate } })}
+        <div className="mt-2 grid grid-cols-2 gap-2" data-fob-pickup>
+          <div className="col-span-2">
+            <DateField
+              label="Earliest pickup date"
+              value={delivery.pickupDate}
+              onChange={(pickupDate) => onChange({ delivery: { ...delivery, pickupDate } })}
+            />
+          </div>
+          <NumberField
+            label="Customer collects every (modules)"
+            value={delivery.batchSize ?? 0}
+            integer
+            onChange={(batchSize) => onChange({ delivery: { ...delivery, batchSize } })}
           />
+          <NumberField
+            label="Days until the truck arrives"
+            value={delivery.pickupDelayDays ?? 0}
+            integer
+            onChange={(pickupDelayDays) => onChange({ delivery: { ...delivery, pickupDelayDays } })}
+          />
+          <p className="col-span-2 text-[10px] leading-snug text-muted-foreground">
+            {delivery.batchSize
+              ? `The customer collects ${delivery.batchSize} at a time once that many wait in the yard (the last batch takes what is left), ${delivery.pickupDelayDays ? `${delivery.pickupDelayDays} days after the batch is ready` : "the same day"}, from the earliest pickup date.`
+              : "0 = the customer collects everything at once, after the last module is built and from the earliest pickup date."}
+          </p>
         </div>
       ) : (
         <div className="mt-2 grid grid-cols-2 gap-2">

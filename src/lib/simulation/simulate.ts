@@ -39,6 +39,9 @@ type ProjectState = {
   isSiteWorking: (day: number) => boolean;
   blockedOnLine: number;
   slowedDays: number;
+  /** FOB yard: modules the customer has collected, and when the waiting batch became ready. */
+  collected: number;
+  batchReadyDay?: number;
   crewWaitDays: number;
 };
 
@@ -82,6 +85,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       arrivals: [],
       blockedOnLine: 0,
       slowedDays: 0,
+      collected: 0,
       crewWaitDays: 0,
       isSiteWorking: project.siteCalendar
         ? workingDayTest(project.siteCalendar).isWorking
@@ -98,9 +102,11 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
   const crews = Math.max(0, factory.installCrews);
 
   for (const state of states) {
-    if (state.project.modules > factory.yardCapacity && state.project.delivery.kind === "fob")
+    const fob = state.project.delivery.kind === "fob" ? state.project.delivery : undefined;
+    const waiting = fob?.batchSize ? fob.batchSize : state.project.modules;
+    if (fob && waiting > factory.yardCapacity)
       warnings.push(
-        `${state.project.name}: ${state.project.modules} modules wait for pickup but the yard holds ${factory.yardCapacity}; the line will stop.`,
+        `${state.project.name}: ${waiting} modules wait for pickup but the yard holds ${factory.yardCapacity}; the line will stop.`,
       );
   }
 
@@ -125,6 +131,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
     }
     const events: string[] = [];
     const built: Record<string, number> = {};
+    const pickedToday: string[] = [];
     const delivered: Record<string, number> = {};
     const working = factoryCalendar.isWorking(day);
     let blocked = false;
@@ -205,12 +212,31 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       const allBuilt = state.produced === state.project.modules;
       if (delivery.kind === "fob") {
         const pickupDay = dayOf(delivery.pickupDate) ?? Infinity;
-        if (state.pickup === undefined && allBuilt && day >= pickupDay) {
-          yardTotal -= state.inYard;
-          state.inYard = 0;
+        const batch = Math.max(0, Math.round(delivery.batchSize ?? 0));
+        // A batch is ready once enough modules wait (or the last few, once all are built).
+        const ready =
+          state.completion === undefined &&
+          day >= pickupDay &&
+          state.inYard > 0 &&
+          (batch ? state.inYard >= batch || allBuilt : allBuilt);
+        if (!ready) {
+          state.batchReadyDay = undefined;
+          continue;
+        }
+        state.batchReadyDay ??= day;
+        if (day < state.batchReadyDay + Math.max(0, delivery.pickupDelayDays ?? 0)) continue;
+        const taken = batch ? Math.min(batch, state.inYard) : state.inYard;
+        state.inYard -= taken;
+        yardTotal -= taken;
+        state.collected += taken;
+        state.batchReadyDay = undefined;
+        pickedToday.push(state.project.id);
+        events.push(
+          `${state.project.name}: customer collected ${taken} module${taken === 1 ? "" : "s"} from the FOB yard.`,
+        );
+        if (state.collected >= state.project.modules) {
           state.pickup = day;
           state.completion = day;
-          events.push(`${state.project.name}: picked up from the FOB yard.`);
         }
         continue;
       }
@@ -312,7 +338,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
             },
           ]),
       ),
-      pickedUp: states.filter((state) => state.pickup === day).map((state) => state.project.id),
+      pickedUp: pickedToday,
       built,
       delivered,
       installedDone: states

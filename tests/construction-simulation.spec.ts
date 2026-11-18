@@ -273,3 +273,40 @@ test("late projects say what held them up", () => {
   const crews = simulateScenario(scenario([site("A"), site("B")], { installCrews: 1 }), ["A", "B"]);
   expect(crews.projects[1].reasons.join(" ")).toMatch(/waited \d+ days for an install crew/);
 });
+
+test("an FOB customer can collect in batches after a few days", () => {
+  const result = simulateScenario(
+    scenario([
+      project("A", {
+        modules: 12,
+        delivery: { kind: "fob", pickupDate: "2027-01-04", batchSize: 4, pickupDelayDays: 2 },
+      }),
+    ]),
+  );
+  const pickupDays = result.days.filter((day) => day.pickedUp.includes("A"));
+  expect(pickupDays).toHaveLength(3);
+  // The yard never fills up with the whole project: it empties every few modules.
+  expect(Math.max(...result.days.map((day) => day.yardTotal))).toBeLessThan(12);
+  expect(result.projects[0].completion).toBe(pickupDays.at(-1)!.date);
+  // Each batch waits two days for the truck.
+  const firstReady = result.days.findIndex((day) => (day.yard.A ?? 0) >= 4);
+  const firstPickup = result.days.indexOf(pickupDays[0]);
+  expect(firstPickup - firstReady).toBe(2);
+});
+
+test("FOB batches are not collected before the earliest pickup date", () => {
+  const result = simulateScenario(
+    scenario(
+      [
+        project("A", {
+          modules: 8,
+          delivery: { kind: "fob", pickupDate: "2027-05-03", batchSize: 4 },
+        }),
+      ],
+      { yardCapacity: 20 },
+    ),
+  );
+  const pickups = result.days.filter((day) => day.pickedUp.includes("A"));
+  expect(pickups.length).toBeGreaterThan(0);
+  expect(pickups.every((day) => day.date >= "2027-05-03")).toBe(true);
+});

@@ -122,7 +122,6 @@ export function ProductionCalendar({
   return (
     <section aria-label="Production calendar" data-production-calendar className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <strong className="text-sm">Production calendar</strong>
         <span data-calendar-built>
           <Check className="mr-1 inline size-3.5 text-emerald-600" />
           {builtSoFar}/{totalModules} modules built

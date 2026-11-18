@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Cloud, Factory, FileDown, FlaskConical, Save, Sparkles, Trash2, X } from "lucide-react";
+import {
+  Cloud,
+  Factory,
+  FileDown,
+  FlaskConical,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
@@ -23,7 +34,7 @@ import { ProcessCalendarButton } from "@/components/workflow/process-calendar-se
 import type { WorkflowFile } from "@/types/workflow";
 import { listCloudProjects, loadCloudProject, type CloudProjectSummary } from "./cloud-projects";
 import { DateInput, NumberInput } from "./draft-inputs";
-import { FactoryPlayback } from "./factory-playback";
+import { CALENDAR_EVENT, FactoryPlayback } from "./factory-playback";
 import { ProjectCard } from "./project-card";
 import {
   deleteCloudScenario,
@@ -37,6 +48,7 @@ import {
 } from "./scenario-store";
 import { SimulationResults } from "./simulation-results";
 
+const INPUTS_KEY = "construction-simulation:inputs";
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
 
 /** L5 page: combine projects on the one factory line and simulate the schedule. */
@@ -90,6 +102,23 @@ function SimulationWorkspace() {
     projects: CloudProjectSummary[];
   }>({ open: false, loading: false, projects: [] });
   const [notice, setNotice] = useState("");
+  // Hiding the inputs is a per-browser preference.
+  const [inputsOpen, setInputsOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(INPUTS_KEY) !== "closed";
+    } catch {
+      return true;
+    }
+  });
+  const toggleInputs = () =>
+    setInputsOpen((open) => {
+      try {
+        window.localStorage.setItem(INPUTS_KEY, open ? "closed" : "open");
+      } catch {
+        // Not remembered in this browser.
+      }
+      return !open;
+    });
 
   // Load scenarios saved to the account; upload any that only this browser has.
   useEffect(() => {
@@ -136,7 +165,7 @@ function SimulationWorkspace() {
       const delivery =
         fresh.delivery.kind === project.delivery.kind
           ? project.delivery.kind === "fob"
-            ? { kind: "fob" as const, pickupDate: dates.dueDate ?? project.delivery.pickupDate }
+            ? { ...project.delivery, pickupDate: dates.dueDate ?? project.delivery.pickupDate }
             : project.delivery
           : fresh.delivery;
       updateProject(project.id, {
@@ -216,9 +245,13 @@ function SimulationWorkspace() {
   };
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[24rem_1fr] lg:overflow-hidden">
+    <div
+      data-inputs-open={inputsOpen}
+      className={`grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden ${inputsOpen ? "lg:grid-cols-[24rem_1fr]" : ""}`}
+    >
       <aside
         aria-label="Simulation inputs"
+        hidden={!inputsOpen}
         className="space-y-3 border-b bg-muted/20 p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r"
       >
         <section aria-label="Scenario" className="rounded-lg border bg-background p-3">
@@ -479,6 +512,20 @@ function SimulationWorkspace() {
 
       <section aria-label="Simulation results" className="min-w-0 space-y-3 p-3 lg:overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            aria-pressed={!inputsOpen}
+            aria-label={inputsOpen ? "Hide inputs" : "Show inputs"}
+            onClick={() => toggleInputs()}
+          >
+            {inputsOpen ? (
+              <PanelLeftClose className="size-4" />
+            ) : (
+              <PanelLeftOpen className="size-4" />
+            )}
+            {inputsOpen ? "Hide inputs" : "Show inputs"}
+          </Button>
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
           <Button
             onClick={() => {
@@ -500,6 +547,11 @@ function SimulationWorkspace() {
             variant="outline"
             disabled={!result.days.length}
             onClick={async () => {
+              // The calendar lives in a popup: open it to capture it, then close it.
+              const toggleCalendar = (open: boolean) =>
+                window.dispatchEvent(new CustomEvent(CALENDAR_EVENT, { detail: { open } }));
+              toggleCalendar(true);
+              await new Promise((resolve) => window.setTimeout(resolve, 400));
               const sections = [
                 document.querySelector<HTMLElement>("[data-simulation-results]"),
                 document.querySelector<HTMLElement>("[data-production-calendar]"),
@@ -510,6 +562,8 @@ function SimulationWorkspace() {
                 setNotice("PDF exported.");
               } catch (error) {
                 setNotice(error instanceof Error ? error.message : "Could not export the PDF.");
+              } finally {
+                toggleCalendar(false);
               }
             }}
           >
@@ -521,16 +575,20 @@ function SimulationWorkspace() {
             {notice}
           </p>
         ) : null}
-        {/* Summary, timeline and charts first; the factory playback and calendar below. */}
-        <SimulationResults result={result} projects={draft.projects} factory={draft.factory} />
-        {result.days.length ? (
-          <FactoryPlayback
-            key={`${draft.id}:${result.days.find((day) => day.line.length)?.date ?? ""}`}
-            result={result}
-            projects={draft.projects}
-            factory={draft.factory}
-          />
-        ) : null}
+        {/* Charts on the left, a compact factory playback beside them on wide screens. */}
+        <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <SimulationResults result={result} projects={draft.projects} factory={draft.factory} />
+          {result.days.length ? (
+            <div className="xl:sticky xl:top-0">
+              <FactoryPlayback
+                key={`${draft.id}:${result.days.find((day) => day.line.length)?.date ?? ""}`}
+                result={result}
+                projects={draft.projects}
+                factory={draft.factory}
+              />
+            </div>
+          ) : null}
+        </div>
         {scenarios.length > 1 ? <ScenarioComparison scenarios={scenarios} /> : null}
       </section>
     </div>

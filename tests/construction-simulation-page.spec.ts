@@ -160,21 +160,30 @@ test("typing into every L5 number and date box works like a normal form", async 
   await expect(box("Due date")).toHaveValue("2030-06-30");
 });
 
-test("the production calendar ticks off finished work and flags problems", async ({ page }) => {
+test("the production calendar opens as a glass popup, ticks off work and flags problems", async ({
+  page,
+}) => {
   await seedE2EWorkflow(page);
   await page.setViewportSize({ width: 1600, height: 1100 });
   await page.goto("/construction-simulation");
   await page.getByRole("button", { name: "Add virtual" }).click();
   const calendar = page.locator("[data-production-calendar]");
-  await expect(calendar).toBeVisible();
+  const openCalendar = () => page.getByRole("button", { name: "Production calendar" }).click();
+  const closeCalendar = () =>
+    page.getByRole("button", { name: "Close production calendar" }).click();
+  await expect(calendar).toHaveCount(0);
 
   await page.getByRole("button", { name: "Back to start" }).click();
+  await openCalendar();
+  await expect(page.locator("[data-production-calendar-dialog]")).toHaveClass(/liquid-glass-panel/);
   await expect(calendar.locator('[data-done="true"]')).toHaveCount(0);
+  await closeCalendar();
 
   await page.getByRole("button", { name: "Jump to end" }).click();
-  const doneDays = await calendar.locator('[data-done="true"]').count();
-  expect(doneDays).toBeGreaterThan(5);
+  await openCalendar();
+  expect(await calendar.locator('[data-done="true"]').count()).toBeGreaterThan(5);
   await expect(calendar.locator("[data-calendar-built]")).toContainText("30/30 modules built");
+  await closeCalendar();
 
   // A tiny yard stops the line, and the virtual project then misses its date.
   const yard = page.getByLabel("Yard holds (modules)", { exact: true });
@@ -182,6 +191,7 @@ test("the production calendar ticks off finished work and flags problems", async
   await yard.press("ControlOrMeta+a");
   await yard.pressSequentially("1");
   await page.getByRole("button", { name: "Jump to end" }).click();
+  await openCalendar();
   await expect(calendar.locator('[data-warning="true"]').first()).toBeVisible();
   await expect(calendar).toContainText(/warnings so far/);
 
@@ -189,12 +199,25 @@ test("the production calendar ticks off finished work and flags problems", async
   const day = calendar.locator('[data-done="true"]').first();
   const date = await day.getAttribute("data-calendar-day");
   await day.click();
-  await expect(page.locator("[data-playback-date]")).toContainText(
-    new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "2-digit", timeZone: "UTC" }),
-  );
-  await calendar.screenshot({
-    path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5-calendar.png",
-  });
+  await expect(page.locator("[data-production-calendar-dialog]")).toContainText(date!);
+});
+
+test("the inputs panel can be hidden and the choice is remembered", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const inputs = page.getByRole("complementary", { name: "Simulation inputs" });
+  await expect(inputs).toBeVisible();
+  await page.getByRole("button", { name: "Hide inputs" }).click();
+  await expect(inputs).toBeHidden();
+  // With the inputs hidden, the playback sits to the right of the charts.
+  const charts = await page.locator("[data-simulation-results]").boundingBox();
+  const playback = await page.locator("[data-factory-playback]").boundingBox();
+  expect(playback!.x).toBeGreaterThan(charts!.x + charts!.width - 1);
+  await page.reload();
+  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeHidden();
+  await page.getByRole("button", { name: "Show inputs" }).click();
+  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
 });
 
 test("modules and weeks set on L4 carry into L5", async ({ page }) => {
@@ -350,4 +373,24 @@ test("L5 exports a two-page PDF: results, then the production calendar", async (
   const pdf = (await readFile(path)).toString("latin1");
   expect((pdf.match(/\/Type\s*\/Page\b/g) || []).length).toBe(2);
   expect(pdf).toContain("L5 Construction Simulation");
+});
+
+test("FOB yard projects take a batch size and truck delay", async ({ page }) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  await page.getByRole("button", { name: "Add virtual" }).click();
+  const card = page.locator("[data-sim-project]").last();
+  const fob = card.locator("[data-fob-pickup]");
+  await expect(fob.getByLabel("Earliest pickup date")).toBeVisible();
+  const batch = fob.getByLabel("Customer collects every (modules)");
+  await batch.click();
+  await batch.press("ControlOrMeta+a");
+  await batch.pressSequentially("4");
+  const delay = fob.getByLabel("Days until the truck arrives");
+  await delay.click();
+  await delay.press("ControlOrMeta+a");
+  await delay.pressSequentially("2");
+  await expect(fob).toContainText("collects 4 at a time");
+  await expect(fob).toContainText("2 days after the batch is ready");
 });

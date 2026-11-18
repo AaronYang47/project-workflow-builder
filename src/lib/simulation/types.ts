@@ -11,7 +11,17 @@ export type SimInstall =
  * ready ("site-ready").
  */
 export type SimDelivery =
-  | { kind: "fob"; pickupDate: string }
+  | {
+      kind: "fob";
+      /** Earliest day the customer collects. */
+      pickupDate: string;
+      /** The customer collects each time this many modules wait in the yard
+       * (the last batch takes what is left). 0 or unset: everything at once,
+       * once all modules are built. */
+      batchSize?: number;
+      /** Days from a batch being ready until the customer's truck arrives. */
+      pickupDelayDays?: number;
+    }
   | {
       kind: "site";
       transport: "as-built" | "all-done" | "site-ready";

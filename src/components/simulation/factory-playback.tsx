@@ -1,12 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import {
+  CalendarDays,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  StepBack,
+  StepForward,
+  X,
+} from "lucide-react";
 import type { SimFactory, SimProject, SimResult } from "@/lib/simulation";
 import { FactoryScene } from "./factory-scene";
 import { ProductionCalendar } from "./production-calendar";
 
 const SPEEDS = [1, 3, 7, 15] as const;
+/** Window event that opens or closes the production calendar ({ open }). */
+export const CALENDAR_EVENT = "construction-simulation:calendar";
 const longDate = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
   day: "2-digit",
@@ -59,6 +71,14 @@ export function FactoryPlayback({
   const [requestedIndex, setDayIndex] = useState(firstProductionIndex);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(3);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  // The PDF export opens the calendar to capture it.
+  useEffect(() => {
+    const onRequest = (event: Event) =>
+      setCalendarOpen((event as CustomEvent<{ open: boolean }>).detail.open);
+    window.addEventListener(CALENDAR_EVENT, onRequest);
+    return () => window.removeEventListener(CALENDAR_EVENT, onRequest);
+  }, []);
   const index = Math.min(requestedIndex, last);
   const day = result.days[index];
   const stepMs = Math.round(1000 / speed);
@@ -193,7 +213,7 @@ export function FactoryPlayback({
         </div>
       </div>
 
-      <div className="grid gap-3 border-t bg-background/80 p-3 lg:grid-cols-[1fr_16rem]">
+      <div className="grid gap-3 border-t bg-background/80 p-3">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <ControlButton label="Back to start" onClick={() => setDayIndex(0)}>
@@ -242,6 +262,13 @@ export function FactoryPlayback({
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(true)}
+              className="flex h-9 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-bold hover:bg-muted"
+            >
+              <CalendarDays className="size-4" /> Production calendar
+            </button>
           </div>
           <input
             type="range"
@@ -315,17 +342,47 @@ export function FactoryPlayback({
           )}
         </div>
       </div>
-      <div className="border-t bg-background/80 p-3">
-        <ProductionCalendar
-          result={result}
-          projects={projects}
-          index={index}
-          onSelect={(position) => {
-            setPlaying(false);
-            setDayIndex(position);
-          }}
-        />
-      </div>
+      <Dialog.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[100]" />
+          <Dialog.Content
+            data-production-calendar-dialog
+            className="liquid-glass-panel fixed left-1/2 top-1/2 z-[101] flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] max-w-7xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none"
+          >
+            <div className="liquid-glass-header flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
+              <div>
+                <Dialog.Title className="flex items-center gap-2 text-sm font-bold">
+                  <CalendarDays className="size-4" /> Production calendar
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                  Ticks follow the playback day ({result.days[index]?.date}). Click a day to jump
+                  the factory there.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  aria-label="Close production calendar"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </button>
+              </Dialog.Close>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+              <ProductionCalendar
+                result={result}
+                projects={projects}
+                index={index}
+                onSelect={(position) => {
+                  setPlaying(false);
+                  setDayIndex(position);
+                }}
+              />
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </section>
   );
 }
