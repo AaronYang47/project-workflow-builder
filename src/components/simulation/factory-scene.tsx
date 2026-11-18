@@ -2,7 +2,6 @@
 
 import { useId, useState } from "react";
 import type { SimDay, SimProject } from "@/lib/simulation";
-import { FactoryAssemblyView } from "./factory-assembly-view";
 import { FactoryModuleInventory } from "./factory-module-inventory";
 
 const TRACK = { start: 52, end: 908, center: 126, height: 56 };
@@ -236,7 +235,6 @@ export function FactoryScene({
           </g>
         </svg>
       </div>
-      <FactoryAssemblyView day={day} projects={projects} stepMs={stepMs} />
       <FactoryModuleInventory day={day} projects={projects} yardCapacity={yardCapacity} />
     </div>
   );
