@@ -76,6 +76,17 @@ export function ProcessOverview() {
   );
   const axis = buildGanttAxis(schedule, timeline, handoff);
   const { total, ticks, gridBackground, minimumTimelineWidth } = axis;
+  // Project completion: the end of the last scheduled release condition.
+  const scheduledEnds = schedule.tasks.flatMap((task) =>
+    task.end === undefined ? [] : [timeline.toDisplayDay(task.end, "end")],
+  );
+  const completionDay = scheduledEnds.length ? Math.max(...scheduledEnds) : undefined;
+  const completionLabel =
+    completionDay === undefined
+      ? ""
+      : timeline.enabled
+        ? timeline.dateAt(completionDay - 1)
+        : axis.timeLabel(completionDay);
   const scroll = useGanttScroll(hydrated, [minimumTimelineWidth, createOpen, mobileGanttView]);
   const { boardRef: ganttBoardRef, beginPan, setScrollLeft } = scroll;
   const inboxCount = file.releaseConditionInbox?.length ?? 0;
@@ -359,6 +370,26 @@ export function ProcessOverview() {
                 className={`${mobileGanttView === "timeline" ? "block" : "hidden sm:block"} overflow-x-auto overscroll-x-contain data-[gantt-panning=true]:cursor-grabbing`}
               >
                 <div className="relative" style={{ minWidth: 168 + minimumTimelineWidth }}>
+                  {completionDay !== undefined ? (
+                    <div
+                      aria-hidden="true"
+                      className={`${ROW_GRID} pointer-events-none absolute inset-0 z-[15]`}
+                    >
+                      <div />
+                      <div className="relative">
+                        <div
+                          data-project-completion={completionLabel}
+                          title={`Project completion · ${completionLabel}`}
+                          className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-emerald-500"
+                          style={{ left: `${(completionDay / total) * 100}%` }}
+                        >
+                          <span className="absolute right-1 top-0.5 whitespace-nowrap rounded bg-emerald-600 px-1 text-[9px] font-bold leading-4 text-white">
+                            Project completion · {completionLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={`${ROW_GRID} border-b bg-muted/30 text-[10px] font-semibold`}>
                     <div className="sticky left-0 z-20 border-r bg-muted p-3">
                       Department / release condition

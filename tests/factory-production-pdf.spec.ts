@@ -106,3 +106,39 @@ test("High Level + Gantt PDF: Factory Production replaces the general red note i
   expect(notes.general).toBe(0);
   expect(notes.overlap).toBe(false);
 });
+
+test("the Gantt chart ends with a green Project completion line, on screen and in the PDF", async ({
+  page,
+}) => {
+  const file = withFactoryProduction();
+  // PDF: one line at the last finish, labelled with its date.
+  const html = processGanttPdfHtml(file, new Map());
+  const pdfDate = html.match(/data-project-completion="(\d{4}-\d{2}-\d{2})"/)?.[1];
+  expect(pdfDate).toBeTruthy();
+  expect(html).toContain(`Project completion · ${pdfDate}`);
+
+  // Screen: the same date, drawn at the right end of the last bar.
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/process-overview");
+  const line = page.locator("[data-project-completion]");
+  await expect(line).toHaveAttribute("data-project-completion", pdfDate!);
+  await expect(line).toContainText(`Project completion · ${pdfDate}`);
+  await expect(line).toHaveClass(/bg-emerald-500/);
+  const lineX = (await line.boundingBox())!.x;
+  const lastBarRight = await page
+    .locator("[data-gantt-task-key]")
+    .evaluateAll((bars) => Math.max(...bars.map((bar) => bar.getBoundingClientRect().right)));
+  expect(Math.abs(lineX + 1 - lastBarRight)).toBeLessThan(3);
+});

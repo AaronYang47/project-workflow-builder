@@ -68,6 +68,17 @@ export function processGanttPdfHtml(
           { length: Math.ceil((total - handoff.originDay) / unit) },
           (_, index) => handoff.originDay! + index * unit,
         ).filter((day) => day > 0 && day < total);
+  // Project completion: the end of the last scheduled release condition.
+  const scheduledEnds = schedule.tasks.flatMap((task) =>
+    task.end === undefined ? [] : [timeline.toDisplayDay(task.end, "end")],
+  );
+  const completionDay = scheduledEnds.length ? Math.max(...scheduledEnds) : undefined;
+  const completionLabel =
+    completionDay === undefined
+      ? ""
+      : timeline.enabled
+        ? timeline.dateAt(completionDay - 1)
+        : timeLabel(completionDay);
   const estimatedWeeks =
     handoff.elapsedDays === null
       ? null
@@ -79,6 +90,8 @@ export function processGanttPdfHtml(
     .gantt-day-one-overlay{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:${PDF_SCHEDULE_LABEL_WIDTH}px minmax(0,1fr);pointer-events:none}
     .gantt-day-one-track{position:relative}
     .gantt-day-one-line{position:absolute;top:0;bottom:0;border-left:2px solid #0f766e}
+    .gantt-completion-line{position:absolute;top:0;bottom:0;border-left:3px solid #16a34a}
+    .gantt-completion-label{position:absolute;top:2px;right:5px;white-space:nowrap;border-radius:4px;background:#16a34a;color:#fff;padding:2px 6px;font:800 13px/1.2 Arial,sans-serif}
     .gantt-divider-overlay{position:absolute;inset:0;z-index:1;display:grid;grid-template-columns:${PDF_SCHEDULE_LABEL_WIDTH}px minmax(0,1fr);pointer-events:none}
     .gantt-divider-track{position:relative}
     .gantt-divider{position:absolute;top:0;bottom:0;border-left:1px dashed rgba(100,116,139,.35)}
@@ -163,6 +176,7 @@ export function processGanttPdfHtml(
       )
       .join("")}
     ${dividers.length ? `<div class="gantt-divider-overlay" aria-hidden="true"><div></div><div class="gantt-divider-track">${dividers.map((day) => `<div class="gantt-divider" style="left:${(day / total) * 100}%"></div>`).join("")}</div></div>` : ""}
+    ${completionDay !== undefined ? `<div class="gantt-day-one-overlay" aria-hidden="true"><div></div><div class="gantt-day-one-track"><div class="gantt-completion-line" data-project-completion="${escape(completionLabel)}" style="left:${(completionDay / total) * 100}%"><span class="gantt-completion-label">Project completion · ${escape(completionLabel)}</span></div></div></div>` : ""}
     ${handoff.hasSalesDepartment && handoff.originDay !== null ? `<div class="gantt-day-one-overlay" aria-hidden="true"><div></div><div class="gantt-day-one-track"><div class="gantt-day-one-line" data-day-one-origin="${handoff.originDay}" style="left:${(handoff.originDay / total) * 100}%"></div></div></div>` : ""}
   </div>`;
 }
