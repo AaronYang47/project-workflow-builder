@@ -8,10 +8,12 @@ function HousingModule({
   color,
   number,
   finished = false,
+  onRollers = false,
 }: {
   color: string;
   number?: number;
   finished?: boolean;
+  onRollers?: boolean;
 }) {
   return (
     <g>
@@ -23,9 +25,10 @@ function HousingModule({
             : "/simulation-assets/module-building.png"
         }
         x="-85"
-        y="-115"
+        y={onRollers ? -84 : -115}
         width="170"
         height="130"
+        transform={onRollers ? "matrix(1 .43 0 1 0 0)" : undefined}
         preserveAspectRatio="xMidYMax meet"
       />
       <circle cx="0" cy="-8" r="15" fill={color} stroke="white" strokeWidth="2" />
@@ -57,6 +60,7 @@ export function FactoryScene({
   stepMs: number;
   yardCapacity: number;
 }) {
+  const [view, setView] = useState<"line" | "yard">("line");
   const [zoom, setZoom] = useState(1);
   const id = useId().replace(/:/g, "");
   const byId = new Map(projects.map((project) => [project.id, project]));
@@ -66,9 +70,34 @@ export function FactoryScene({
   // Keep the complete yard count visible without stacking buildings on top of one another.
   const columns = Math.max(4, Math.ceil(Math.sqrt(Math.max(yardCapacity, yard.length))));
   const yardScale = Math.min(0.58, 2.5 / columns);
+  const lineStart = { x: 566, y: 767 };
+  const lineEnd = { x: 1150, y: 1258 };
+  // The photograph shows a close-up of the line. Leave enough screen space for
+  // each visible underframe to read as a separate room-sized structure.
+  const shownLine: SimDay["line"] = [];
+  for (const lineModule of [...day.line].sort((a, b) => a.progress - b.progress)) {
+    const previous = shownLine.at(-1);
+    if (!previous || lineModule.progress - previous.progress >= 0.34) shownLine.push(lineModule);
+  }
   const traffic = Object.entries(day.inTransit).filter(([, count]) => count > 0);
   return (
     <div className="w-full">
+      <div role="group" aria-label="Factory view" className="mb-2 flex gap-1">
+        {(["line", "yard"] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={view === option}
+            onClick={() => {
+              setView(option);
+              setZoom(1);
+            }}
+            className="rounded-md px-3 py-2 text-xs text-white hover:bg-slate-800 aria-pressed:bg-slate-700"
+          >
+            {option === "line" ? "Assembly hall" : "Yard & shipping"}
+          </button>
+        ))}
+      </div>
       <div className="relative">
         <div className="absolute bottom-3 right-3 z-10 flex gap-1 rounded-lg bg-slate-950/85 p-1 text-white">
           <button
@@ -111,92 +140,115 @@ export function FactoryScene({
               <stop offset="1" stopColor="#0c1720" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <image href="/simulation-assets/factory-realistic.jpg" width="2560" height="1440" />
+          <image
+            href={
+              view === "line"
+                ? "/simulation-assets/assembly-hall.jpg"
+                : "/simulation-assets/factory-realistic.jpg"
+            }
+            width="2560"
+            height="1440"
+          />
           <rect width="2560" height="1440" fill={`url(#${id}-shade)`} />
-          {day.blocked ? (
-            <path d="M840 630 L1500 1000" stroke="#ef4444" strokeWidth="50" opacity="0.32" />
-          ) : null}
-          {[...day.line]
-            .sort((a, b) => a.progress - b.progress)
-            .map((item) => {
-              const scale = 0.7 + item.progress * 0.35;
-              return (
-                <g
-                  key={`${item.projectId}-${item.module}`}
-                  data-scene-line-module={item.projectId}
-                  style={{
-                    transform: `translate(${850 + item.progress * 650}px, ${635 + item.progress * 365}px)`,
-                    transition: `transform ${stepMs}ms linear`,
-                  }}
-                >
-                  <title>{`${byId.get(item.projectId)?.name} · module ${item.module} · ${Math.round(item.progress * 100)}%`}</title>
-                  <g transform={`scale(${scale})`}>
-                    <HousingModule
-                      color={byId.get(item.projectId)?.color ?? "#64748b"}
-                      number={item.module}
-                      finished={item.progress >= 0.85}
-                    />
-                  </g>
-                </g>
-              );
-            })}
-          {yard.map((item, index) => {
-            const column = index % columns;
-            const row = Math.floor(index / columns);
-            return (
-              <g
-                key={`${item.projectId}-${item.index}`}
-                data-scene-yard-module={item.projectId}
-                transform={`translate(${2070 + (column * 330) / columns - (row * 210) / columns} ${615 + (column * 110) / columns + (row * 185) / columns}) scale(${yardScale})`}
-              >
-                <title>{`${byId.get(item.projectId)?.name} · yard module ${item.index + 1}`}</title>
-                <HousingModule color={byId.get(item.projectId)?.color ?? "#64748b"} finished />
-              </g>
-            );
-          })}
-          {traffic.map(([projectId, count], index) => (
-            <g key={`${day.date}-${projectId}`} data-truck={projectId}>
-              <title>{`${byId.get(projectId)?.name} · ${count} modules in transit`}</title>
-              <animateTransform
-                attributeName="transform"
-                type="translate"
-                from="1630 1290"
-                to="2440 840"
-                dur={`${4 + index}s`}
-                repeatCount="indefinite"
-              />
-              <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
-            </g>
-          ))}
-          {day.pickedUp.map((projectId, index) => (
-            <g
-              key={projectId}
-              data-pickup={projectId}
-              transform={`translate(${1940 + (index % 3) * 140} ${1090 - (index % 3) * 78}) scale(.8)`}
-            >
-              <title>{`${byId.get(projectId)?.name} picked up`}</title>
-              <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
-            </g>
-          ))}
-          <g fontFamily="system-ui, sans-serif" fontSize="25" fontWeight="700" fill="white">
-            <rect
-              x="1810"
-              y="470"
-              width="590"
-              height="60"
-              rx="14"
-              fill={day.yardTotal >= yardCapacity ? "#991b1b" : "#14242ddd"}
+          {view === "line" && day.blocked ? (
+            <path
+              d={`M${lineStart.x} ${lineStart.y} L${lineEnd.x} ${lineEnd.y}`}
+              stroke="#ef4444"
+              strokeWidth="50"
+              opacity="0.32"
             />
-            <text x="1840" y="510">
-              FOB YARD · {day.yardTotal} / {yardCapacity}
-            </text>
-            <rect x="940" y="1090" width="360" height="58" rx="14" fill="#14242ddd" />
-            <text x="970" y="1128">
-              PRODUCTION LINE
-            </text>
-          </g>
+          ) : null}
+          {view === "line"
+            ? shownLine.map((item) => {
+                const scale = 1.25 + item.progress * 1.05;
+                return (
+                  <g
+                    key={`${item.projectId}-${item.module}`}
+                    data-scene-line-module={item.projectId}
+                    style={{
+                      transform: `translate(${lineStart.x + item.progress * (lineEnd.x - lineStart.x)}px, ${lineStart.y + item.progress * (lineEnd.y - lineStart.y)}px)`,
+                      transition: `transform ${stepMs}ms linear`,
+                    }}
+                  >
+                    <title>{`${byId.get(item.projectId)?.name} · module ${item.module} · ${Math.round(item.progress * 100)}%`}</title>
+                    <g transform={`scale(${scale})`}>
+                      <HousingModule
+                        color={byId.get(item.projectId)?.color ?? "#64748b"}
+                        number={item.module}
+                        finished={item.progress >= 0.85}
+                        onRollers
+                      />
+                    </g>
+                  </g>
+                );
+              })
+            : null}
+          {view === "yard"
+            ? yard.map((item, index) => {
+                const column = index % columns;
+                const row = Math.floor(index / columns);
+                return (
+                  <g
+                    key={`${item.projectId}-${item.index}`}
+                    data-scene-yard-module={item.projectId}
+                    transform={`translate(${2070 + (column * 330) / columns - (row * 210) / columns} ${615 + (column * 110) / columns + (row * 185) / columns}) scale(${yardScale})`}
+                  >
+                    <title>{`${byId.get(item.projectId)?.name} · yard module ${item.index + 1}`}</title>
+                    <HousingModule color={byId.get(item.projectId)?.color ?? "#64748b"} finished />
+                  </g>
+                );
+              })
+            : null}
+          {view === "yard"
+            ? traffic.map(([projectId, count], index) => (
+                <g key={`${day.date}-${projectId}`} data-truck={projectId}>
+                  <title>{`${byId.get(projectId)?.name} · ${count} modules in transit`}</title>
+                  <animateTransform
+                    attributeName="transform"
+                    type="translate"
+                    from="1630 1290"
+                    to="2440 840"
+                    dur={`${4 + index}s`}
+                    repeatCount="indefinite"
+                  />
+                  <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
+                </g>
+              ))
+            : null}
+          {view === "yard"
+            ? day.pickedUp.map((projectId, index) => (
+                <g
+                  key={projectId}
+                  data-pickup={projectId}
+                  transform={`translate(${1940 + (index % 3) * 140} ${1090 - (index % 3) * 78}) scale(.8)`}
+                >
+                  <title>{`${byId.get(projectId)?.name} picked up`}</title>
+                  <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
+                </g>
+              ))
+            : null}
+          {view === "yard" ? (
+            <g fontFamily="system-ui, sans-serif" fontSize="25" fontWeight="700" fill="white">
+              <rect
+                x="1810"
+                y="470"
+                width="590"
+                height="60"
+                rx="14"
+                fill={day.yardTotal >= yardCapacity ? "#991b1b" : "#14242ddd"}
+              />
+              <text x="1840" y="510">
+                FOB YARD · {day.yardTotal} / {yardCapacity}
+              </text>
+            </g>
+          ) : null}
         </svg>
       </div>
+      {view === "line" && shownLine.length < day.line.length ? (
+        <p className="px-3 pt-2 text-xs text-slate-300">
+          Assembly close-up · {shownLine.length} of {day.line.length} modules shown
+        </p>
+      ) : null}
       <FactoryModuleInventory day={day} projects={projects} yardCapacity={yardCapacity} />
     </div>
   );

@@ -192,13 +192,8 @@ export function FactoryPlayback({
             </button>
           </div>
         ) : null}
-        <FactoryScene
-          day={day}
-          projects={projects}
-          stepMs={playing ? stepMs : 250}
-          yardCapacity={factory.yardCapacity}
-        />
-        <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1.5">
+
+        <div className="mb-2 flex flex-wrap gap-1.5">
           {projects.map((project) => (
             <span
               key={project.id}
@@ -209,6 +204,12 @@ export function FactoryPlayback({
             </span>
           ))}
         </div>
+        <FactoryScene
+          day={day}
+          projects={projects}
+          stepMs={playing ? stepMs : 250}
+          yardCapacity={factory.yardCapacity}
+        />
       </div>
 
       <div className="sticky bottom-0 z-20 grid gap-3 border-t bg-background/95 p-3 backdrop-blur">

@@ -40,10 +40,20 @@ test("the factory plays day by day: modules move along the line into the yard", 
   await page.goto("/construction-simulation");
   const playback = page.locator("[data-factory-playback]");
   await expect(playback).toBeVisible();
-  const background = await page.request.get("/simulation-assets/factory-realistic.jpg");
+  const background = await page.request.get("/simulation-assets/assembly-hall.jpg");
   expect(background.ok()).toBe(true);
   expect(background.headers()["content-type"]).toContain("image/jpeg");
   const scene = page.locator("[data-factory-scene]");
+  await expect(scene.locator("image").first()).toHaveAttribute(
+    "href",
+    "/simulation-assets/assembly-hall.jpg",
+  );
+  await page.getByRole("button", { name: "Yard & shipping" }).click();
+  await expect(scene.locator("image").first()).toHaveAttribute(
+    "href",
+    "/simulation-assets/factory-realistic.jpg",
+  );
+  await page.getByRole("button", { name: "Assembly hall" }).click();
   const initialView = await scene.getAttribute("viewBox");
   await page.getByRole("button", { name: "Zoom in factory" }).click();
   await expect(scene).not.toHaveAttribute("viewBox", initialView!);
