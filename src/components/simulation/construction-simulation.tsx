@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Cloud,
-  Factory,
-  FileDown,
-  FlaskConical,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Save,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { Cloud, Factory, FileDown, FlaskConical, Save, Sparkles, Trash2, X } from "lucide-react";
 import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +32,7 @@ import type { WorkflowFile } from "@/types/workflow";
 import { listCloudProjects, loadCloudProject, type CloudProjectSummary } from "./cloud-projects";
 import { DateInput, NumberInput } from "./draft-inputs";
 import { CALENDAR_EVENT, FactoryPlayback } from "./factory-playback";
+import { DayActivity } from "./day-activity";
 import { ProjectCard } from "./project-card";
 import {
   deleteCloudScenario,
@@ -48,7 +46,6 @@ import {
 } from "./scenario-store";
 import { SimulationResults } from "./simulation-results";
 
-const INPUTS_KEY = "construction-simulation:inputs";
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
 
 /** L5 page: combine projects on the one factory line and simulate the schedule. */
@@ -102,23 +99,8 @@ function SimulationWorkspace() {
     projects: CloudProjectSummary[];
   }>({ open: false, loading: false, projects: [] });
   const [notice, setNotice] = useState("");
-  // Hiding the inputs is a per-browser preference.
-  const [inputsOpen, setInputsOpen] = useState(() => {
-    try {
-      return window.localStorage.getItem(INPUTS_KEY) !== "closed";
-    } catch {
-      return true;
-    }
-  });
-  const toggleInputs = () =>
-    setInputsOpen((open) => {
-      try {
-        window.localStorage.setItem(INPUTS_KEY, open ? "closed" : "open");
-      } catch {
-        // Not remembered in this browser.
-      }
-      return !open;
-    });
+  // The toolbar's left-panel button hides the inputs, as it hides the node library on L1/L2.
+  const inputsOpen = useWorkflowStore((state) => state.leftOpen);
 
   // Load scenarios saved to the account; upload any that only this browser has.
   useEffect(() => {
@@ -186,6 +168,27 @@ function SimulationWorkspace() {
   };
 
   const result = useMemo(() => simulateScenario(draft), [draft]);
+  // One playback day shared by the factory, the charts, the timeline and Today.
+  // It starts on the first production day and resets when the scenario changes.
+  const firstProductionIndex = Math.max(
+    0,
+    result.days.findIndex((day) => day.line.length > 0),
+  );
+  const playbackKey = `${draft.id}:${result.days[firstProductionIndex]?.date ?? ""}`;
+  const [playback, setPlayback] = useState({ key: playbackKey, index: firstProductionIndex });
+  if (playback.key !== playbackKey) setPlayback({ key: playbackKey, index: firstProductionIndex });
+  const playIndex = Math.min(
+    playback.key === playbackKey ? playback.index : firstProductionIndex,
+    Math.max(0, result.days.length - 1),
+  );
+  const setPlayIndex = useCallback<Dispatch<SetStateAction<number>>>(
+    (next) =>
+      setPlayback((current) => ({
+        key: current.key,
+        index: typeof next === "function" ? next(current.index) : next,
+      })),
+    [],
+  );
   const savedDraft = scenarios.find((item) => item.id === draft.id);
   const unsaved = JSON.stringify(savedDraft) !== JSON.stringify(draft);
 
@@ -512,20 +515,6 @@ function SimulationWorkspace() {
 
       <section aria-label="Simulation results" className="min-w-0 space-y-3 p-3 lg:overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            aria-pressed={!inputsOpen}
-            aria-label={inputsOpen ? "Hide inputs" : "Show inputs"}
-            onClick={() => toggleInputs()}
-          >
-            {inputsOpen ? (
-              <PanelLeftClose className="size-4" />
-            ) : (
-              <PanelLeftOpen className="size-4" />
-            )}
-            {inputsOpen ? "Hide inputs" : "Show inputs"}
-          </Button>
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
           <Button
             onClick={() => {
@@ -577,14 +566,25 @@ function SimulationWorkspace() {
         ) : null}
         {/* Charts on the left, a compact factory playback beside them on wide screens. */}
         <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_26rem]">
-          <SimulationResults result={result} projects={draft.projects} factory={draft.factory} />
+          <div className="min-w-0 space-y-3">
+            <SimulationResults
+              result={result}
+              projects={draft.projects}
+              factory={draft.factory}
+              currentIndex={playIndex}
+              onSelectDay={setPlayIndex}
+            />
+            <DayActivity result={result} projects={draft.projects} index={playIndex} />
+          </div>
           {result.days.length ? (
             <div className="xl:sticky xl:top-0">
               <FactoryPlayback
-                key={`${draft.id}:${result.days.find((day) => day.line.length)?.date ?? ""}`}
+                key={playbackKey}
                 result={result}
                 projects={draft.projects}
                 factory={draft.factory}
+                index={playIndex}
+                setIndex={setPlayIndex}
               />
             </div>
           ) : null}

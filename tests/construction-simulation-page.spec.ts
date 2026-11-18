@@ -202,22 +202,22 @@ test("the production calendar opens as a glass popup, ticks off work and flags p
   await expect(page.locator("[data-production-calendar-dialog]")).toContainText(date!);
 });
 
-test("the inputs panel can be hidden and the choice is remembered", async ({ page }) => {
+test("the toolbar's left-panel button hides the inputs, like on L1 and L2", async ({ page }) => {
   await seedE2EWorkflow(page);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto("/construction-simulation");
   const inputs = page.getByRole("complementary", { name: "Simulation inputs" });
+  const toggle = page.getByRole("button", { name: "Toggle inputs" });
   await expect(inputs).toBeVisible();
-  await page.getByRole("button", { name: "Hide inputs" }).click();
+  await expect(page.getByRole("button", { name: "Hide inputs" })).toHaveCount(0);
+  await toggle.click();
   await expect(inputs).toBeHidden();
   // With the inputs hidden, the playback sits to the right of the charts.
   const charts = await page.locator("[data-simulation-results]").boundingBox();
   const playback = await page.locator("[data-factory-playback]").boundingBox();
   expect(playback!.x).toBeGreaterThan(charts!.x + charts!.width - 1);
-  await page.reload();
-  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeHidden();
-  await page.getByRole("button", { name: "Show inputs" }).click();
-  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
+  await toggle.click();
+  await expect(inputs).toBeVisible();
 });
 
 test("modules and weeks set on L4 carry into L5", async ({ page }) => {
@@ -393,4 +393,39 @@ test("FOB yard projects take a batch size and truck delay", async ({ page }) => 
   await delay.pressSequentially("2");
   await expect(fob).toContainText("collects 4 at a time");
   await expect(fob).toContainText("2 days after the batch is ready");
+});
+
+test("the charts and timeline follow the playback day, and clicking a chart jumps there", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  await page.getByRole("button", { name: "Add virtual" }).click();
+  const lineChart = page.locator('[data-daily-chart="Modules on the line each day"]');
+  const label = lineChart.locator("[data-chart-current]");
+  const playhead = lineChart.locator("[data-chart-playhead]");
+  const leftOf = async () =>
+    Number((await playhead.getAttribute("style"))!.match(/left: ([\d.]+)%/)![1]);
+
+  await page.getByRole("button", { name: "Back to start" }).click();
+  expect(await leftOf()).toBe(0);
+  const startLabel = await label.textContent();
+  await page.getByRole("button", { name: "Jump to end" }).click();
+  expect(await leftOf()).toBe(100);
+  await expect(label).not.toHaveText(startLabel!);
+  await expect(page.locator("[data-timeline-playhead]").first()).toBeVisible();
+  await expect(page.locator("[data-timeline-playhead-label]")).toBeVisible();
+
+  // Clicking the middle of the chart moves the factory there.
+  const box = (await lineChart.locator(".cursor-crosshair").boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const middle = await leftOf();
+  expect(middle).toBeGreaterThan(40);
+  expect(middle).toBeLessThan(60);
+  const date = (await label.textContent())!.split(" · ")[0];
+  await expect(page.locator("[data-playback-date]")).toContainText(date.slice(0, 6));
+
+  // The Today card follows too.
+  await expect(page.locator("[data-day-activity]")).toBeVisible();
 });

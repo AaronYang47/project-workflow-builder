@@ -633,7 +633,10 @@ export function TopToolbar({
         >
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </ToolButton>
-        <ToolButton label="Toggle node library" onClick={() => store.togglePanel("left")}>
+        <ToolButton
+          label={pageLayer === "L5" ? "Toggle inputs" : "Toggle node library"}
+          onClick={() => store.togglePanel("left")}
+        >
           <PanelLeftClose className="size-4" />
         </ToolButton>
         <ToolButton label="Toggle inspector" onClick={() => store.togglePanel("right")}>

@@ -29,16 +29,32 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ba
   );
 }
 
-/** A day-by-day count drawn as a filled line, with reference levels. */
+const monthFormat = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  year: "2-digit",
+  timeZone: "UTC",
+});
+
+/**
+ * A day-by-day count drawn as a filled line, with reference levels, month
+ * ticks along the bottom and the playback day marked with its date and value.
+ * Clicking the chart moves the playback to that day.
+ */
 function DailyChart({
   title,
   values,
+  dates,
+  currentIndex,
+  onSelect,
   levels,
   max,
   color,
 }: {
   title: string;
   values: number[];
+  dates: string[];
+  currentIndex: number;
+  onSelect: (index: number) => void;
   levels: { value: number; label: string; color: string }[];
   max: number;
   color: string;
@@ -47,10 +63,30 @@ function DailyChart({
   const top = Math.max(max, ...values, 1);
   const y = (value: number) => 100 - (value / top) * 100;
   const points = values.map((value, index) => `${index},${y(value)}`).join(" ");
+  const x = (index: number) => (index / width) * 100;
+  const current = Math.min(Math.max(0, currentIndex), values.length - 1);
+  const months = dates.flatMap((date, index) =>
+    index > 0 && date.endsWith("-01")
+      ? [{ index, label: monthFormat.format(new Date(`${date}T00:00:00Z`)) }]
+      : [],
+  );
+  const step = Math.max(1, Math.ceil(months.length / 8));
   return (
-    <figure className="rounded-lg border bg-background p-3">
-      <figcaption className="mb-2 text-xs font-bold">{title}</figcaption>
-      <div className="relative h-28">
+    <figure className="rounded-lg border bg-background p-3" data-daily-chart={title}>
+      <figcaption className="mb-2 flex items-center justify-between gap-2 text-xs font-bold">
+        <span>{title}</span>
+        <span data-chart-current className="font-mono text-[11px] font-semibold" style={{ color }}>
+          {shortDate.format(new Date(`${dates[current]}T00:00:00Z`))} · {values[current]}
+        </span>
+      </figcaption>
+      <div
+        className="relative h-40 cursor-crosshair"
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+          onSelect(Math.round(ratio * width));
+        }}
+      >
         <svg
           viewBox={`0 0 ${width} 100`}
           preserveAspectRatio="none"
@@ -77,16 +113,51 @@ function DailyChart({
               vectorEffect="non-scaling-stroke"
             />
           ))}
+          {months.map((month) => (
+            <line
+              key={month.index}
+              x1={month.index}
+              x2={month.index}
+              y1={0}
+              y2={100}
+              stroke="currentColor"
+              strokeOpacity={0.12}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
         </svg>
         {levels.map((level) => (
           <span
             key={level.label}
-            className="absolute right-0 -translate-y-full px-1 text-[10px] font-semibold"
+            className="pointer-events-none absolute right-0 translate-y-0.5 px-1 text-[10px] font-semibold"
             style={{ top: `${y(level.value)}%`, color: level.color }}
           >
             {level.label}
           </span>
         ))}
+        {/* Playback day */}
+        <div
+          data-chart-playhead
+          className="pointer-events-none absolute inset-y-0 w-0.5 bg-primary"
+          style={{ left: `${x(current)}%`, transition: "left 120ms linear" }}
+        />
+        <div
+          className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background"
+          style={{ left: `${x(current)}%`, top: `${y(values[current])}%`, background: color }}
+        />
+      </div>
+      <div className="relative mt-1 h-4 text-[10px] text-muted-foreground">
+        {months
+          .filter((_, position) => position % step === 0)
+          .map((month) => (
+            <span
+              key={month.index}
+              className="absolute -translate-x-1/2 whitespace-nowrap"
+              style={{ left: `${x(month.index)}%` }}
+            >
+              {month.label}
+            </span>
+          ))}
       </div>
     </figure>
   );
@@ -97,11 +168,18 @@ export function SimulationResults({
   result,
   projects,
   factory,
+  currentIndex = 0,
+  onSelectDay = () => {},
 }: {
   result: SimResult;
   projects: SimProject[];
   factory: SimFactory;
+  /** Playback day, marked on the charts and the timeline. */
+  currentIndex?: number;
+  onSelectDay?: (index: number) => void;
 }) {
+  const dates = result.days.map((day) => day.date);
+  const currentDate = dates[Math.min(currentIndex, dates.length - 1)];
   const byId = new Map(projects.map((project) => [project.id, project]));
   const late = result.projects.filter((project) => project.lateDays > 0);
   const firstDay = dayNumber(result.days[0]?.date);
@@ -177,16 +255,30 @@ export function SimulationResults({
             <i className="inline-block h-3 w-0.5 bg-red-500" /> Due date
           </span>
         </div>
-        <div className="relative h-5 border-b text-[10px] text-muted-foreground">
-          {months.map((month) => (
-            <span
-              key={month.label}
-              className="absolute -translate-x-1/2"
-              style={{ left: `${month.left}%` }}
-            >
-              {month.label}
-            </span>
-          ))}
+        <div className="grid grid-cols-[9rem_1fr] gap-2 border-b">
+          <span />
+          <div className="relative h-5 text-[10px] text-muted-foreground">
+            {months
+              .filter((_, position) => position % Math.max(1, Math.ceil(months.length / 10)) === 0)
+              .map((month) => (
+                <span
+                  key={month.label}
+                  className="absolute -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${month.left}%` }}
+                >
+                  {month.label}
+                </span>
+              ))}
+            {currentDate ? (
+              <span
+                data-timeline-playhead-label
+                className="absolute -top-0.5 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-primary px-1 font-semibold text-primary-foreground"
+                style={{ left: `${left(currentDate)}%` }}
+              >
+                {formatDate(currentDate)}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="divide-y">
           {result.priority.map((id) => {
@@ -224,6 +316,13 @@ export function SimulationResults({
                   ) : null}
                 </div>
                 <div className="relative h-6">
+                  {currentDate ? (
+                    <div
+                      data-timeline-playhead
+                      className="pointer-events-none absolute -inset-y-2 z-10 w-0.5 bg-primary/70"
+                      style={{ left: `${left(currentDate)}%` }}
+                    />
+                  ) : null}
                   {row.firstLoad && row.productionEnd ? (
                     <div
                       data-sim-bar="line"
@@ -276,6 +375,9 @@ export function SimulationResults({
       <div className="grid gap-3 lg:grid-cols-2">
         <DailyChart
           title="Modules on the line each day"
+          dates={dates}
+          currentIndex={currentIndex}
+          onSelect={onSelectDay}
           values={result.days.map((day) => day.line.length)}
           max={factory.crowdedMax}
           color="#2563eb"
@@ -294,6 +396,9 @@ export function SimulationResults({
         />
         <DailyChart
           title="Modules waiting in the yard"
+          dates={dates}
+          currentIndex={currentIndex}
+          onSelect={onSelectDay}
           values={result.days.map((day) => day.yardTotal)}
           max={factory.yardCapacity}
           color="#d97706"
