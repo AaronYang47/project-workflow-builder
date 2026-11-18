@@ -6,6 +6,7 @@ import { migrateWorkflowFile } from "@/lib/workflow-migration";
 import { syncFinalCloseCompletion } from "@/lib/fob-yard";
 import {
   demoteExtraHighLevelTerminals,
+  repairPhaseSavedAsFinalClose,
   isDefaultHighLevelProcess,
   isLegacyDefaultHighLevelFamily,
   synchronizeLinkedWorkflowOrder,
@@ -211,7 +212,10 @@ export function removePhaseSelfLinks(file: WorkflowFile) {
 export function normalizeLoadedWorkflow(loaded: WorkflowFile) {
   const file = syncFinalCloseCompletion(
     loaded.highLevel
-      ? { ...loaded, highLevel: demoteExtraHighLevelTerminals(loaded.highLevel) }
+      ? {
+          ...loaded,
+          highLevel: demoteExtraHighLevelTerminals(repairPhaseSavedAsFinalClose(loaded.highLevel)),
+        }
       : loaded,
   );
   if (isDefaultHighLevelProcess(file.highLevel) || isLegacyDefaultHighLevelFamily(file.highLevel)) {

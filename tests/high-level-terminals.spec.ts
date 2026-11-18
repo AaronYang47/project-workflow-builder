@@ -5,6 +5,7 @@ import { buildProcessSchedule } from "../src/lib/process-schedule";
 import { buildProcessMap } from "../src/lib/release-conditions-workspace-model";
 import {
   demoteExtraHighLevelTerminals,
+  repairPhaseSavedAsFinalClose,
   synchronizeLinkedWorkflowOrder,
 } from "../src/lib/high-level-workflow";
 import { createProjectWorkflow } from "../src/lib/project-template";
@@ -43,6 +44,32 @@ test("extra Final Close nodes become Phases; the named or rightmost one stays", 
   ).toBe("fc");
   const single = demoteExtraHighLevelTerminals(repaired);
   expect(single).toBe(repaired);
+});
+
+test("a lone PHASE 4 saved as Final Close becomes a Phase connected to a new Final Close", () => {
+  const file = phaseSavedAsFinalClose();
+  const highLevel = {
+    ...file.highLevel!,
+    graph: {
+      ...file.highLevel!.graph,
+      nodes: file
+        .highLevel!.graph.nodes.filter((node) => node.id !== "fc")
+        .map((node) => (node.id === "p4" ? { ...node, fobYard: true } : node)),
+    },
+  };
+  const repaired = repairPhaseSavedAsFinalClose(highLevel);
+  const p4 = repaired.graph.nodes.find((node) => node.id === "p4")!;
+  expect(p4.type).toBe("phase");
+  expect(p4.fobYard).toBeUndefined();
+  const finalClose = repaired.graph.nodes.filter((node) => node.type === "end");
+  expect(finalClose).toHaveLength(1);
+  expect(finalClose[0]).toMatchObject({ title: "FINAL CLOSE", fobYard: true });
+  expect(repaired.graph.edges).toContainEqual(
+    expect.objectContaining({ source: "p4", target: finalClose[0].id }),
+  );
+  expect(repaired.layout.nodes[finalClose[0].id].x).toBeGreaterThan(repaired.layout.nodes.p4.x);
+  // A real Final Close is left alone.
+  expect(repairPhaseSavedAsFinalClose(repaired)).toBe(repaired);
 });
 
 test("a Phase saved as Final Close gets both handles and connects to Final Close", async ({

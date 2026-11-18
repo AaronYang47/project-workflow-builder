@@ -5,6 +5,63 @@
  */
 import type { HighLevelEdge, HighLevelNode, HighLevelWorkflow } from "@/types/workflow";
 
+/** A Final Close renamed as a Phase (for example "PHASE 4"): it should be a Phase. */
+export function isPhaseSavedAsFinalClose(node: HighLevelNode) {
+  const title = node.title.trim();
+  return node.type === "end" && !/final\s*close/i.test(title) && /^phase\b/i.test(title);
+}
+
+/**
+ * Turns Final Close nodes named like a Phase back into Phases so they get both
+ * connection points. When that leaves no Final Close, one is added to the right
+ * of the last of them, connected from it and keeping its FOB yard settings.
+ */
+export function repairPhaseSavedAsFinalClose(highLevel: HighLevelWorkflow): HighLevelWorkflow {
+  const wrong = highLevel.graph.nodes.filter(isPhaseSavedAsFinalClose);
+  if (!wrong.length) return highLevel;
+  const nodes = highLevel.graph.nodes.map((node) =>
+    isPhaseSavedAsFinalClose(node)
+      ? { ...node, type: "phase" as const, fobYard: undefined, fobYardSkipPhaseIds: undefined }
+      : node,
+  );
+  if (nodes.some((node) => node.type === "end")) {
+    return { ...highLevel, graph: { ...highLevel.graph, nodes } };
+  }
+  const x = (id: string) => highLevel.layout.nodes[id]?.x ?? 0;
+  const last = [...wrong].sort((a, b) => x(b.id) - x(a.id))[0];
+  const position = highLevel.layout.nodes[last.id] ?? { x: 0, y: 220 };
+  const finalClose: HighLevelNode = {
+    id: `high-level-end-${last.id}`,
+    type: "end",
+    title: "FINAL CLOSE",
+    description: "High-level process completion",
+    code: "",
+    ...(last.fobYard ? { fobYard: true } : {}),
+    ...(last.fobYardSkipPhaseIds ? { fobYardSkipPhaseIds: last.fobYardSkipPhaseIds } : {}),
+  };
+  return {
+    ...highLevel,
+    graph: {
+      nodes: [...nodes, finalClose],
+      edges: [
+        ...highLevel.graph.edges,
+        {
+          id: `high-level-edge-${last.id}-${finalClose.id}`,
+          source: last.id,
+          target: finalClose.id,
+        },
+      ],
+    },
+    layout: {
+      ...highLevel.layout,
+      nodes: {
+        ...highLevel.layout.nodes,
+        [finalClose.id]: { nodeId: finalClose.id, x: position.x + 352, y: position.y },
+      },
+    },
+  };
+}
+
 /**
  * L1 allows exactly one Start and one Final Close. Extra copies (for example a
  * Final Close dragged in and renamed "Phase 4") lose a connection point, so

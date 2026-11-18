@@ -6,6 +6,7 @@ import { syncFinalCloseCompletion } from "@/lib/fob-yard";
 import {
   autoArrangeHighLevel,
   createHighLevelNode,
+  isPhaseSavedAsFinalClose,
   reorderLinkedWorkflowNodes,
   reorderLinkedWorkflowGate,
   setLinkedWorkflowGateMember,
@@ -121,9 +122,17 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
       if (type === "primaryGate") return "";
       // Only one Start and one Final Close; another copy is added as a Phase so
       // it keeps both connection points.
+      // A Phase saved as Final Close (e.g. "PHASE 4") gives way: it turns back
+      // into a Phase and the dropped node becomes the real Final Close.
+      const phasesSavedAsFinalClose =
+        type === "end"
+          ? (get().file.highLevel?.graph.nodes ?? []).filter(isPhaseSavedAsFinalClose)
+          : [];
       if (
         (type === "start" || type === "end") &&
-        get().file.highLevel?.graph.nodes.some((node) => node.type === type)
+        get().file.highLevel?.graph.nodes.some(
+          (node) => node.type === type && !phasesSavedAsFinalClose.includes(node),
+        )
       )
         type = "phase";
       const id = `high-level-${type}-${crypto.randomUUID().slice(0, 8)}`;
@@ -139,7 +148,22 @@ export function createHighLevelSlice(set: StoreSet, get: StoreGet): HighLevelSli
             ...state.file,
             highLevel: {
               ...highLevel,
-              graph: { ...highLevel.graph, nodes: [...highLevel.graph.nodes, node] },
+              graph: {
+                ...highLevel.graph,
+                nodes: [
+                  ...highLevel.graph.nodes.map((existing) =>
+                    type === "end" && isPhaseSavedAsFinalClose(existing)
+                      ? {
+                          ...existing,
+                          type: "phase" as const,
+                          fobYard: undefined,
+                          fobYardSkipPhaseIds: undefined,
+                        }
+                      : existing,
+                  ),
+                  node,
+                ],
+              },
               layout: {
                 ...highLevel.layout,
                 nodes: {

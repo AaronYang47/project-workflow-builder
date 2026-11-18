@@ -55,8 +55,9 @@ test("the factory plays day by day: modules move along the line into the yard", 
   const max = Number(await slider.getAttribute("max"));
   expect(max).toBeGreaterThan(20);
 
-  // About a third of the way in, the line is busy.
-  await slider.fill(String(Math.round(max * 0.3)));
+  // Two weeks after the first module goes on, the line is busy.
+  const first = Number(await slider.inputValue());
+  await slider.fill(String(first + 14));
   await expect(page.locator("[data-line-module]").first()).toBeVisible();
   const onLine = Number(await page.locator("[data-playback-on-line]").textContent());
   expect(onLine).toBeGreaterThan(0);
@@ -68,9 +69,11 @@ test("the factory plays day by day: modules move along the line into the yard", 
   await expect(scene.locator("[data-scene-line-module]")).toHaveCount(onLine);
   await expect(page.locator("[data-line-module] image")).toHaveCount(onLine);
   await expect(
-    page.locator('[data-line-module] image[href="/simulation-assets/module-building.png"]').first(),
+    page
+      .locator('[data-line-module] image[href="/simulation-assets/module-building.webp"]')
+      .first(),
   ).toBeVisible();
-  expect((await page.request.get("/simulation-assets/module-building.png")).ok()).toBe(true);
+  expect((await page.request.get("/simulation-assets/module-building.webp")).ok()).toBe(true);
 
   await page.waitForTimeout(400);
   await playback.screenshot({
@@ -407,17 +410,15 @@ test("FOB yard projects take a batch size and truck delay", async ({ page }) => 
   await page.getByRole("button", { name: "Add virtual" }).click();
   const card = page.locator("[data-sim-project]").last();
   const fob = card.locator("[data-fob-pickup]");
-  await expect(fob.getByLabel("Earliest pickup date")).toBeVisible();
+  // Virtual project: 12 modules × 4 weeks after today's line start.
+  await expect(fob.getByLabel("Earliest pickup date")).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(fob.getByText("12 modules × 4 weeks per module")).toBeVisible();
   const batch = fob.getByLabel("Customer collects every (modules)");
   await batch.click();
   await batch.press("ControlOrMeta+a");
   await batch.pressSequentially("4");
-  const delay = fob.getByLabel("Days until the truck arrives");
-  await delay.click();
-  await delay.press("ControlOrMeta+a");
-  await delay.pressSequentially("2");
   await expect(fob).toContainText("collects 4 at a time");
-  await expect(fob).toContainText("2 days after the batch is ready");
+  await expect(fob.getByLabel("Days until the truck arrives")).toHaveCount(0);
 });
 
 test("the charts and timeline follow the playback day, and clicking a chart jumps there", async ({

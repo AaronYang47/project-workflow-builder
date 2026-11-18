@@ -41,7 +41,6 @@ type ProjectState = {
   slowedDays: number;
   /** FOB yard: modules the customer has collected, and when the waiting batch became ready. */
   collected: number;
-  batchReadyDay?: number;
   crewWaitDays: number;
 };
 
@@ -222,17 +221,11 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           day >= pickupDay &&
           state.inYard > 0 &&
           (batch ? state.inYard >= batch || allBuilt : allBuilt);
-        if (!ready) {
-          state.batchReadyDay = undefined;
-          continue;
-        }
-        state.batchReadyDay ??= day;
-        if (day < state.batchReadyDay + Math.max(0, delivery.pickupDelayDays ?? 0)) continue;
+        if (!ready) continue;
         const taken = batch ? Math.min(batch, state.inYard) : state.inYard;
         state.inYard -= taken;
         yardTotal -= taken;
         state.collected += taken;
-        state.batchReadyDay = undefined;
         pickedToday.push(state.project.id);
         departures[state.project.id] = taken;
         events.push(

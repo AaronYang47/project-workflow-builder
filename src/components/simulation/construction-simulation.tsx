@@ -26,6 +26,7 @@ import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
+  fobPickupDate,
   optimizeScenario,
   productionPhaseOptions,
   projectScheduleDates,
@@ -200,7 +201,15 @@ function SimulationWorkspace() {
       ...draft,
       projects: draft.projects.map((project) => {
         const l4 = l4Starts.get(project.id)?.date;
-        return l4 && project.earliestStart < l4 ? { ...project, earliestStart: l4 } : project;
+        const earliestStart = l4 && project.earliestStart < l4 ? l4 : project.earliestStart;
+        const started = { ...project, earliestStart };
+        // FOB pickup follows the line start: modules × weeks per module later.
+        return project.delivery.kind === "fob"
+          ? {
+              ...started,
+              delivery: { ...project.delivery, pickupDate: fobPickupDate(started) },
+            }
+          : started;
       }),
     }),
     [draft, l4Starts],
@@ -596,10 +605,13 @@ function SimulationWorkspace() {
               const best = optimizeScenario(simDraft);
               const byId = new Map(draft.projects.map((project) => [project.id, project]));
               setProjects(best.priority.map((id) => byId.get(id)!).filter(Boolean));
+              const late = best.projects.filter(
+                (project) => !project.finished || project.lateDays > 0,
+              ).length;
               setNotice(
-                best.projects.every((project) => project.finished) && best.makespanEnd
-                  ? `Best order found · all projects finish by ${best.makespanEnd}.`
-                  : "Best order found · some projects remain unfinished.",
+                late
+                  ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
+                  : "Best order found: every project is on time.",
               );
             }}
             disabled={draft.projects.length < 1}

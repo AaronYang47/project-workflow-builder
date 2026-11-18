@@ -3,6 +3,7 @@ export { simulateScenario } from "./simulate";
 export { optimizeScenario, scheduleScore } from "./optimize";
 export {
   defaultProductionPhaseId,
+  fobPickupDate,
   productionPhaseOptions,
   projectScheduleDates,
   simProjectFromWorkflow,

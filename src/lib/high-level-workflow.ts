@@ -16,6 +16,8 @@ export {
   demoteExtraHighLevelTerminals,
   fobYardSkip,
   fobYardSkipPhaseIds,
+  isPhaseSavedAsFinalClose,
+  repairPhaseSavedAsFinalClose,
 } from "@/lib/high-level-terminals";
 
 function conditionNumber(title: string) {

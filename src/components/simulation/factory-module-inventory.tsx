@@ -8,8 +8,8 @@ function ModuleThumbnail({ finished }: { finished: boolean }) {
       <image
         href={
           finished
-            ? "/simulation-assets/module-finished.png"
-            : "/simulation-assets/module-building.png"
+            ? "/simulation-assets/module-finished.webp"
+            : "/simulation-assets/module-building.webp"
         }
         width="400"
         height="300"

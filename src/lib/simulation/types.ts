@@ -19,8 +19,6 @@ export type SimDelivery =
        * (the last batch takes what is left). 0 or unset: everything at once,
        * once all modules are built. */
       batchSize?: number;
-      /** Days from a batch being ready until the customer's truck arrives. */
-      pickupDelayDays?: number;
     }
   | {
       kind: "site";

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Cloud, FlaskConical, RefreshCw, Trash2 } from "lucide-react";
-import type { SimDelivery, SimProject } from "@/lib/simulation";
+import { fobPickupDate, type SimDelivery, type SimProject } from "@/lib/simulation";
 import { DateInput, NumberInput } from "./draft-inputs";
 
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
@@ -277,28 +277,36 @@ export function ProjectCard({
 
       {delivery.kind === "fob" ? (
         <div className="mt-2 grid grid-cols-2 gap-2" data-fob-pickup>
+          <div className="col-span-2" data-fob-earliest-pickup>
+            <span className={labelClass}>Earliest pickup date</span>
+            <output
+              aria-label="Earliest pickup date"
+              className="mt-1 flex min-h-9 w-full items-center rounded-md border bg-muted/60 px-2.5 text-sm font-semibold"
+            >
+              {fobPickupDate({
+                ...project,
+                earliestStart:
+                  l4Start && project.earliestStart < l4Start.date
+                    ? l4Start.date
+                    : project.earliestStart,
+              })}
+            </output>
+            <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+              Auto: line start + {project.modules} modules × {project.weeksPerModule} weeks per
+              module.
+            </p>
+          </div>
           <div className="col-span-2">
-            <DateField
-              label="Earliest pickup date"
-              value={delivery.pickupDate}
-              onChange={(pickupDate) => onChange({ delivery: { ...delivery, pickupDate } })}
+            <NumberField
+              label="Customer collects every (modules)"
+              value={delivery.batchSize ?? 0}
+              integer
+              onChange={(batchSize) => onChange({ delivery: { ...delivery, batchSize } })}
             />
           </div>
-          <NumberField
-            label="Customer collects every (modules)"
-            value={delivery.batchSize ?? 0}
-            integer
-            onChange={(batchSize) => onChange({ delivery: { ...delivery, batchSize } })}
-          />
-          <NumberField
-            label="Days until the truck arrives"
-            value={delivery.pickupDelayDays ?? 0}
-            integer
-            onChange={(pickupDelayDays) => onChange({ delivery: { ...delivery, pickupDelayDays } })}
-          />
           <p className="col-span-2 text-[10px] leading-snug text-muted-foreground">
             {delivery.batchSize
-              ? `The customer collects ${delivery.batchSize} at a time once that many wait in the yard (the last batch takes what is left), ${delivery.pickupDelayDays ? `${delivery.pickupDelayDays} days after the batch is ready` : "the same day"}, from the earliest pickup date.`
+              ? `The customer collects ${delivery.batchSize} at a time once that many wait in the yard (the last batch takes what is left), from the earliest pickup date.`
               : "0 = the customer collects everything at once, after the last module is built and from the earliest pickup date."}
           </p>
         </div>

@@ -14,14 +14,27 @@ export function productionPhaseOptions(file: WorkflowFile) {
     .map((phase) => ({ id: phase.id, title: phase.title, description: phase.description }));
 }
 
-/** The Phase named Construction or Production, else the last Phase before Final Close. */
+/**
+ * The CONSTRUCTION Phase (not PRE- or POST-CONSTRUCTION), else a Production
+ * Phase, else the last Phase before Final Close.
+ */
 export function defaultProductionPhaseId(file: WorkflowFile) {
   const options = productionPhaseOptions(file);
+  const label = (phase: (typeof options)[number]) => `${phase.title} ${phase.description ?? ""}`;
   return (
-    options.find((phase) =>
-      /construction|production/i.test(`${phase.title} ${phase.description}`),
-    ) ?? options.at(-1)
+    options.find((phase) => /(?<![a-z-])construction\b/i.test(label(phase))) ??
+    options.find((phase) => /production/i.test(label(phase))) ??
+    options.at(-1)
   )?.id;
+}
+
+/** FOB earliest pickup: line start + modules × weeks per module. */
+export function fobPickupDate(
+  project: Pick<SimProject, "earliestStart" | "modules" | "weeksPerModule">,
+) {
+  const start = dayOf(project.earliestStart);
+  if (start == null) return project.earliestStart;
+  return isoFromDay(start + Math.round(project.modules * project.weeksPerModule * 7));
 }
 
 /**
@@ -59,19 +72,21 @@ export function simProjectFromWorkflow(
   );
   const earliestStart = dates.earliestStart ?? today;
   const dueDate = dates.dueDate ?? isoFromDay((dayOf(earliestStart) ?? dayOf(today) ?? 0) + 7 * 16);
+  const modules = file.factoryProduction?.modules || 18;
+  const weeksPerModule = file.factoryProduction?.weeksPerModule || 4;
   return {
     id: `cloud-${cloudId}`,
     name: file.graph.metadata.name?.trim() || "Project",
     color: PROJECT_COLORS[index % PROJECT_COLORS.length],
     source: { kind: "cloud", projectId: cloudId },
-    modules: file.factoryProduction?.modules || 18,
-    weeksPerModule: file.factoryProduction?.weeksPerModule || 4,
+    modules,
+    weeksPerModule,
     splittable: false,
     productionPhaseId,
     earliestStart,
     dueDate,
     delivery: fobYard
-      ? { kind: "fob", pickupDate: earliestStart }
+      ? { kind: "fob", pickupDate: fobPickupDate({ earliestStart, modules, weeksPerModule }) }
       : {
           kind: "site",
           transport: "as-built",
@@ -95,6 +110,9 @@ export function virtualSimProject(index: number, today: string): SimProject {
     splittable: true,
     earliestStart: today,
     dueDate: isoFromDay(start + 7 * 12),
-    delivery: { kind: "fob", pickupDate: today },
+    delivery: {
+      kind: "fob",
+      pickupDate: fobPickupDate({ earliestStart: today, modules: 12, weeksPerModule: 4 }),
+    },
   };
 }

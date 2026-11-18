@@ -2,6 +2,7 @@ import { expect, test } from "playwright/test";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import {
   defaultProductionPhaseId,
+  fobPickupDate,
   optimizeScenario,
   simProjectFromWorkflow,
   simulateScenario,
@@ -199,27 +200,25 @@ test("the time axis uses the earliest eligible project date over a legacy factor
   expect(result.projects.find((row) => row.projectId === "earlier")?.firstLoad).toBe("2027-01-11");
 });
 
-test("the optimizer finishes the scenario earlier and ranks by finish date instead of due date", () => {
+test("the optimizer puts due dates first so fewer projects are late", () => {
   const projects = [
-    project("slow", { modules: 18, weeksPerModule: 8, dueDate: "2027-01-01" }),
-    project("fast", { modules: 6, weeksPerModule: 1, dueDate: "2028-01-01" }),
+    project("relaxed", { modules: 18, dueDate: "2027-12-01" }),
+    project("tight", { modules: 6, dueDate: "2027-02-20" }),
   ];
-  const baseline = simulateScenario(scenario(projects));
+  const naive = simulateScenario(scenario(projects), ["relaxed", "tight"]);
+  const lateness = (result: ReturnType<typeof simulateScenario>) =>
+    result.projects.reduce((sum, item) => sum + item.lateDays, 0);
+  expect(lateness(naive)).toBeGreaterThan(0);
   const best = optimizeScenario(scenario(projects));
-  expect(Date.parse(best.makespanEnd!)).toBeLessThan(Date.parse(baseline.makespanEnd!));
-  expect(best.priority[0]).toBe("fast");
-  const changedDeadlines = projects.map((item, index) => ({
-    ...item,
-    dueDate: projects[1 - index].dueDate,
-  }));
-  expect(optimizeScenario(scenario(changedDeadlines)).priority).toEqual(best.priority);
+  expect(best.priority[0]).toBe("tight");
+  expect(lateness(best)).toBeLessThan(lateness(naive));
 });
 
 test("a saved project brings its production Phase and FOB yard choice", () => {
   const file = createProjectWorkflow("Lakeside");
   file.highLevel!.graph.nodes = [
     { id: "p1", type: "start", title: "PHASE 1", description: "QUALIFICATION" },
-    { id: "p2", type: "phase", title: "PHASE 2", description: "PRE-DESIGN" },
+    { id: "p2", type: "phase", title: "PHASE 2", description: "PRE-CONSTRUCTION" },
     { id: "p3", type: "phase", title: "PHASE 3", description: "CONSTRUCTION" },
     { id: "fc", type: "end", title: "Final Close", description: "", fobYard: true },
   ];
@@ -237,6 +236,17 @@ test("a saved project brings its production Phase and FOB yard choice", () => {
     source: { kind: "cloud", projectId: "abc" },
   });
   expect(sim.delivery.kind).toBe("fob");
+  // Earliest pickup = line start + modules × weeks per module.
+  expect(sim.delivery).toMatchObject({
+    pickupDate: fobPickupDate({
+      earliestStart: sim.earliestStart,
+      modules: sim.modules,
+      weeksPerModule: sim.weeksPerModule,
+    }),
+  });
+  expect(fobPickupDate({ earliestStart: "2027-01-04", modules: 18, weeksPerModule: 4 })).toBe(
+    "2028-05-22",
+  );
 });
 
 test("a yard too small for an FOB project stops the run early with a clear warning", () => {
@@ -289,12 +299,12 @@ test("projects report what held them up", () => {
   expect(crews.projects[1].reasons.join(" ")).toMatch(/waited \d+ days for an install crew/);
 });
 
-test("an FOB customer can collect in batches after a few days", () => {
+test("an FOB customer can collect in batches", () => {
   const result = simulateScenario(
     scenario([
       project("A", {
         modules: 12,
-        delivery: { kind: "fob", pickupDate: "2027-01-04", batchSize: 4, pickupDelayDays: 2 },
+        delivery: { kind: "fob", pickupDate: "2027-01-04", batchSize: 4 },
       }),
     ]),
   );
@@ -303,10 +313,11 @@ test("an FOB customer can collect in batches after a few days", () => {
   // The yard never fills up with the whole project: it empties every few modules.
   expect(Math.max(...result.days.map((day) => day.yardTotal))).toBeLessThan(12);
   expect(result.projects[0].completion).toBe(pickupDays.at(-1)!.date);
-  // Each batch waits two days for the truck.
-  const firstReady = result.days.findIndex((day) => (day.yard.A ?? 0) >= 4);
-  const firstPickup = result.days.indexOf(pickupDays[0]);
-  expect(firstPickup - firstReady).toBe(2);
+  // A batch leaves the day it is ready.
+  const firstReady = result.days.findIndex(
+    (day) => (day.yard.A ?? 0) >= 4 || day.pickedUp.includes("A"),
+  );
+  expect(result.days.indexOf(pickupDays[0])).toBe(firstReady);
 });
 
 test("FOB batches are not collected before the earliest pickup date", () => {
