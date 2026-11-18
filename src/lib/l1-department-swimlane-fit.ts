@@ -358,10 +358,14 @@ export function fitSwimlaneLayout(
   }
   // The production note is pinned to the card bottom so the card keeps its
   // height; the duration moves up by the note's height instead.
-  container.querySelectorAll<HTMLElement>("[data-phase-actual-production-time]").forEach((note) => {
-    const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
-    if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
-  });
+  container
+    .querySelectorAll<HTMLElement>(
+      "[data-phase-actual-production-time],[data-phase-factory-production]",
+    )
+    .forEach((note) => {
+      const duration = note.parentElement!.querySelector<HTMLElement>(".phase-duration");
+      if (duration) duration.style.transform = `translateY(-${note.offsetHeight}px)`;
+    });
   // Labels stay on the same line as their bars: after the bar when it fits,
   // otherwise before the task's first segment. A label that fits on neither
   // side shrinks onto the roomier side instead of wrapping to a second line.

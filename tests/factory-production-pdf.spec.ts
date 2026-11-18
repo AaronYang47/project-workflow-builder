@@ -70,6 +70,15 @@ test("High Level + Gantt PDF: Factory Production replaces the general red note i
             department: Array.from(
               root.querySelectorAll("[data-department-factory-production]"),
             ).map((element) => element.textContent),
+            // The note sits under the duration, not on top of it.
+            overlap: Array.from(root.querySelectorAll("[data-phase-factory-production]")).some(
+              (note) => {
+                const duration = note.parentElement!.querySelector(".phase-duration")!;
+                return (
+                  duration.getBoundingClientRect().bottom > note.getBoundingClientRect().top + 0.5
+                );
+              },
+            ),
             general: root.querySelectorAll(
               "[data-phase-actual-production-time],[data-department-actual-production-time]",
             ).length,
@@ -95,4 +104,5 @@ test("High Level + Gantt PDF: Factory Production replaces the general red note i
   expect(notes.phase).toEqual([["Factory Production · 40 days", "rgb(220, 38, 38)"]]);
   expect(notes.department).toEqual(["Factory Production · 40 days"]);
   expect(notes.general).toBe(0);
+  expect(notes.overlap).toBe(false);
 });
