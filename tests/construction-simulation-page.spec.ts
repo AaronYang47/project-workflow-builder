@@ -42,9 +42,13 @@ test("the factory plays day by day: modules move along the line into the yard", 
   await expect(playback).toBeVisible();
   const scene = page.locator("[data-factory-scene]");
   await expect(scene.locator("[data-roller-track]")).toBeVisible();
-  await page.getByRole("button", { name: "Yard & shipping" }).click();
   await expect(scene.locator("[data-yard-floor-plan]")).toBeVisible();
-  await page.getByRole("button", { name: "Assembly hall" }).click();
+  const assembly = page.locator("[data-factory-assembly-view]");
+  await expect(assembly.locator("image").first()).toHaveAttribute(
+    "href",
+    "/simulation-assets/assembly-hall.jpg",
+  );
+  expect((await page.request.get("/simulation-assets/assembly-hall.jpg")).ok()).toBe(true);
   await page.getByRole("button", { name: "Zoom in factory" }).click();
   await expect(scene).toHaveCSS("width", /px$/);
   await expect(scene).toHaveAttribute("style", "width: 150%;");
@@ -67,6 +71,7 @@ test("the factory plays day by day: modules move along the line into the yard", 
   const yardCount = Number(await page.locator("[data-inventory-yard-count]").textContent());
   await expect(page.locator("[data-yard-module]")).toHaveCount(yardCount);
   await expect(scene.locator("[data-scene-line-module]")).toHaveCount(onLine);
+  await expect(assembly.locator("[data-assembly-line-module]").first()).toBeVisible();
 
   await page.waitForTimeout(400);
   await playback.screenshot({
@@ -578,5 +583,6 @@ test("factory inventory counts each finished module waiting in the yard", async 
   await expect(page.locator("[data-inventory-yard-count]")).toHaveText("4");
   await expect(page.locator("[data-inventory-factory-count]")).toHaveText("4");
   await expect(page.locator("[data-yard-module]")).toHaveCount(4);
+  await expect(page.locator("[data-scene-yard-module]")).toHaveCount(4);
   await expect(page.locator("[data-line-module]")).toHaveCount(0);
 });
