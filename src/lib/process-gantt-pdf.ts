@@ -90,8 +90,8 @@ export function processGanttPdfHtml(
     .gantt-day-one-overlay{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:${PDF_SCHEDULE_LABEL_WIDTH}px minmax(0,1fr);pointer-events:none}
     .gantt-day-one-track{position:relative}
     .gantt-day-one-line{position:absolute;top:0;bottom:0;border-left:2px solid #0f766e}
-    .gantt-completion-line{position:absolute;top:0;bottom:0;border-left:3px solid #16a34a}
-    .gantt-completion-label{position:absolute;top:2px;right:5px;white-space:nowrap;border-radius:4px;background:#16a34a;color:#fff;padding:2px 6px;font:800 13px/1.2 Arial,sans-serif}
+    .gantt-completion-line{position:absolute;top:0;bottom:0;border-left:8px solid #16a34a;margin-left:-4px}
+    .gantt-completion-label{position:absolute;top:4px;right:10px;white-space:nowrap;border-radius:6px;background:#16a34a;color:#fff;padding:4px 10px;font:800 24px/1.2 Arial,sans-serif}
     .gantt-divider-overlay{position:absolute;inset:0;z-index:1;display:grid;grid-template-columns:${PDF_SCHEDULE_LABEL_WIDTH}px minmax(0,1fr);pointer-events:none}
     .gantt-divider-track{position:relative}
     .gantt-divider{position:absolute;top:0;bottom:0;border-left:1px dashed rgba(100,116,139,.35)}
