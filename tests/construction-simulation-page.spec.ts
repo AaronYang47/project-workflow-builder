@@ -61,6 +61,16 @@ test("the factory plays day by day: modules move along the line into the yard", 
   const onLine = Number(await page.locator("[data-playback-on-line]").textContent());
   expect(onLine).toBeGreaterThan(0);
   expect(onLine).toBeLessThanOrEqual(19);
+  await expect(page.locator("[data-line-module]")).toHaveCount(onLine);
+  await expect(page.locator("[data-inventory-line-count]")).toHaveText(String(onLine));
+  const yardCount = Number(await page.locator("[data-inventory-yard-count]").textContent());
+  await expect(page.locator("[data-yard-module]")).toHaveCount(yardCount);
+  for (const asset of ["module-building.png", "module-finished.png", "truck.png"]) {
+    const response = await page.request.get("/simulation-assets/" + asset);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()["content-type"]).toContain("image/png");
+  }
+
   await page.waitForTimeout(400);
   await playback.screenshot({
     path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5-anim-1.png",
@@ -74,6 +84,14 @@ test("the factory plays day by day: modules move along the line into the yard", 
   expect(await page.locator("[data-playback-date]").textContent()).not.toBe(before);
 
   await slider.fill(String(Math.round(max * 0.65)));
+  const laterLine = Number(await page.locator("[data-playback-on-line]").textContent());
+  const laterYard = Number(await page.locator("[data-inventory-yard-count]").textContent());
+  await expect(page.locator("[data-line-module]")).toHaveCount(laterLine);
+  await expect(page.locator("[data-yard-module]")).toHaveCount(laterYard);
+  await expect(page.locator("[data-inventory-factory-count]")).toHaveText(
+    String(laterLine + laterYard),
+  );
+
   await page.waitForTimeout(400);
   await playback.screenshot({
     path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5-anim-2.png",

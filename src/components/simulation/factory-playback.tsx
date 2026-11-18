@@ -171,7 +171,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative flex min-h-[260px] flex-1 items-center bg-slate-950 p-2">
+      <div className="relative min-h-[260px] flex-1 bg-slate-950 p-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle
@@ -211,7 +211,7 @@ export function FactoryPlayback({
         </div>
       </div>
 
-      <div className="grid gap-3 border-t bg-background/80 p-3">
+      <div className="sticky bottom-0 z-20 grid gap-3 border-t bg-background/95 p-3 backdrop-blur">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <ControlButton label="Back to start" onClick={() => setDayIndex(0)}>
