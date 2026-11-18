@@ -1,35 +1,19 @@
-# L5 Construction Simulation · 美术素材清单（即梦 AI）
+# L5 factory scene
 
-现在页面用程序画的方块做占位。按下面的清单在即梦里生成图片，放进
-`public/simulation-assets/`（文件名照表格），再告诉我，我把它们接进动画。
+The playback uses `public/simulation-assets/factory-realistic.jpg`, generated with
+Dreamina Seedream 5.0 Pro at 2560 × 1440. The image provides the factory shell,
+roller bed, yard and road. Modules and trucks are rendered separately from the
+simulation's current day, so the picture follows the schedule and project colours.
+The factory controls allow 1×–2.5× zoom.
 
-## 统一风格（每条提示词前面都加这一段）
+The image is an illustrative factory, not a survey of an actual facility.
 
-> 等距视角（isometric，2:1，斜 45 度俯视），扁平卡通游戏美术风格，干净的线条，柔和的光影，
-> 明亮的工业配色，单个物体居中，**透明背景 PNG**，无文字，无水印，无阴影投在背景上。
+- Canvas: https://jimeng.jianying.com/ai-tool/ai-canvas/91dd3020-9d16-450a-878a-93f39b8be044
+- Node: `node_r84dy2xx3w`
+- Resource: `5ca15936-5fa6-4930-8565-d2e54e38dd23`
+- Generation: `73481541-d814-4378-a85a-f33cc3cd6648`
 
-- 视角必须一致：物体的长边沿画面 **右下方向**（和现在动画里的生产线方向一样）。
-- 尺寸：按表格给的像素生成；要比例一致，宁可大不要小。
-- 颜色：模块用 **白色/浅灰** 生成，程序会按项目颜色上色；其他物体按提示词的颜色。
-
-## 素材表
-
-| 文件名 | 尺寸 (px) | 用途 | 即梦提示词（接在统一风格后面） |
-|---|---|---|---|
-| `factory-floor.png` | 1600×900 | 工厂地面加后墙 | 一个长方形的现代预制房屋工厂厂房内部，只有两面后墙和浅灰色环氧地坪，地面上有黄色安全线，顶部敞开，看得到整个地面，没有设备 |
-| `line-track.png` | 1200×300 | 生产线轨道 | 一条长长的工厂地面移动生产线轨道，深灰色钢轨和滚轮，两侧有黄色安全护栏，空轨道，没有货物 |
-| `module.png` | 256×200 | 一个模块房屋（会被上色） | 一个白色的模块化房屋箱体（集装箱大小），有窗户开口和门洞，外墙为白色，木框架隐约可见，正在建造中 |
-| `module-done.png` | 256×200 | 完工模块 | 一个完工的白色模块化房屋箱体，外面包着白色防水膜，窗户已安装 |
-| `yard-pad.png` | 600×450 | FOB 堆场地面 | 室外的砂石堆场地面，地上画着整齐的停放格子线，四周有橙白色的交通锥 |
-| `truck-flatbed.png` | 400×220 | 我们自己的运输车 | 一辆黄色车头的平板半挂卡车，挂车是空的平板 |
-| `truck-customer.png` | 400×220 | 客户来提货的车 | 一辆蓝色车头的低平板半挂卡车，空挂车，车头有一个小旗子 |
-| `crane.png` | 320×360 | 工地吊装 | 一台橙色的履带式吊车，吊臂抬起，吊钩上什么都没有 |
-| `site-lot.png` | 600×450 | 工地 | 一块平整的住宅工地，有混凝土基础和几根地脚螺栓，周围有绿色围挡和一棵小树 |
-| `crew.png` | 160×160 | 安装队 | 三个穿荧光背心戴白色安全帽的建筑工人，站在一起 |
-| `road.png` | 1600×200 | 出厂道路 | 一段直的深灰色沥青道路，中间有黄色虚线，路边有窄草带 |
-
-## 交付方式
-
-1. 生成后挑最满意的一张，确认背景是透明的（不是白色）。
-2. 按表格文件名保存，全部放进 `public/simulation-assets/`。
-3. 告诉我已经放好。我会把占位方块换成这些图，并检查大小和角度是否对齐。
+Background coordinates in `factory-scene.tsx` place moving modules on the roller
+bed and yard modules in a capacity-dependent grid. Replacing this image requires
+recalibrating those coordinates. The background is served locally so playback
+and PDF capture do not depend on Dreamina at runtime.

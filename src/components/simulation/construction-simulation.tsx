@@ -637,7 +637,7 @@ function SimulationWorkspace() {
         ) : null}
         {/* Charts on the left, a compact factory playback beside them on wide screens. */}
         {/* Fills the page: the charts take up any height left over. */}
-        <div className="grid flex-1 items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="grid flex-1 items-stretch gap-3 2xl:grid-cols-[minmax(0,1fr)_minmax(34rem,1.2fr)]">
           <div className="flex min-w-0 flex-col gap-3">
             <SimulationResults
               result={result}

@@ -1,94 +1,80 @@
 "use client";
 
+import { useId, useState } from "react";
 import type { SimDay, SimProject } from "@/lib/simulation";
-import { boxFaces, iso, points, shade, tile } from "./iso";
 
-/** World layout, in floor units. */
-const LINE = { x: 2, y: 3.2, length: 24, width: 2.8 };
-const MODULE = { length: 1.05, width: 2.4, height: 1.3 };
-const YARD = { x: 28, y: 0.4, columns: 5, rows: 3, slotX: 1.35, slotY: 2.8 };
-const ROAD = { y: 10.2, width: 2.2, from: -2, to: 46 };
-const FLOOR = { length: 35.5, width: 9.4 };
-
-const bounds = (() => {
-  const corners = [
-    iso(ROAD.from, 0, 4),
-    iso(ROAD.to, 0, 4),
-    iso(ROAD.from, ROAD.y + ROAD.width),
-    iso(ROAD.to, ROAD.y + ROAD.width),
-    iso(0, 0, 4),
-  ];
-  const xs = corners.map((corner) => corner.x);
-  const ys = corners.map((corner) => corner.y);
-  return {
-    x: Math.min(...xs) - 10,
-    y: Math.min(...ys) - 10,
-    width: Math.max(...xs) - Math.min(...xs) + 20,
-    height: Math.max(...ys) - Math.min(...ys) + 20,
-  };
-})();
-
-function ModuleBox({ color, faded = false }: { color: string; faded?: boolean }) {
-  const faces = boxFaces(MODULE.length, MODULE.width, MODULE.height);
-  return (
-    <g opacity={faded ? 0.55 : 1}>
-      <polygon points={faces.left} fill={shade(color, -0.35)} />
-      <polygon points={faces.right} fill={shade(color, -0.15)} />
-      <polygon
-        points={faces.top}
-        fill={shade(color, 0.2)}
-        stroke={shade(color, -0.4)}
-        strokeWidth={0.6}
-      />
-    </g>
-  );
-}
-
-function Truck({ color, loaded, label }: { color: string; loaded: boolean; label?: string }) {
-  const cab = boxFaces(1.4, 1.8, 1.4);
-  const bed = boxFaces(4.2, 1.8, 0.35);
-  const cargo = boxFaces(3.6, 1.6, 1.1);
-  const offset = (x: number, y: number, z: number) => {
-    const p = iso(x, y, z);
-    return `translate(${p.x} ${p.y})`;
-  };
+/** Coordinates follow the roller bed and yard in the Dreamina background plate. */
+function HousingModule({ color, number }: { color: string; number?: number }) {
   return (
     <g>
-      <g transform={offset(0, 0, 0)}>
-        <polygon points={bed.left} fill="#334155" />
-        <polygon points={bed.right} fill="#475569" />
-        <polygon points={bed.top} fill="#64748b" />
-      </g>
-      {loaded ? (
-        <g transform={offset(0.3, 0.1, 0.35)}>
-          <polygon points={cargo.left} fill={shade(color, -0.35)} />
-          <polygon points={cargo.right} fill={shade(color, -0.15)} />
-          <polygon points={cargo.top} fill={shade(color, 0.2)} />
+      <ellipse cx="0" cy="6" rx="75" ry="13" fill="#101820" opacity="0.28" />
+      <path d="M-70 -28 L-15 -58 L70 -10 L15 20 Z" fill="#dce1df" stroke="#626f75" />
+      <path d="M-70 -28 L15 20 L15 -24 L-70 -72 Z" fill="#f1eee5" stroke="#7a8586" />
+      <path d="M15 20 L70 -10 L70 -54 L15 -24 Z" fill="#b6c0c0" stroke="#647277" />
+      <path d="M-70 -72 L-15 -102 L70 -54 L15 -24 Z" fill="#e7e9e4" stroke="#889493" />
+      <path d="M-70 -70 L15 -22 L15 -14 L-70 -62 Z" fill={color} />
+      <path d="M15 -22 L70 -52 L70 -44 L15 -14 Z" fill={color} opacity="0.8" />
+      {[-54, -26].map((x) => (
+        <g key={x} transform={`translate(${x} ${x * 0.565 - 2})`}>
+          <path
+            d="M0 -36 L20 -25 L20 -6 L0 -17 Z"
+            fill="#293e4b"
+            stroke="#9aa7ad"
+            strokeWidth="2"
+          />
+          <path d="M2 -34 L18 -25 L2 -19 Z" fill="#a7c6d0" opacity="0.65" />
         </g>
-      ) : null}
-      <g transform={offset(4.2, 0, 0)}>
-        <polygon points={cab.left} fill="#b45309" />
-        <polygon points={cab.right} fill="#d97706" />
-        <polygon points={cab.top} fill="#fbbf24" />
-      </g>
-      {label ? (
-        <text
-          {...iso(2.5, 0, 2.6)}
-          textAnchor="middle"
-          className="fill-foreground text-[13px] font-bold"
-        >
-          {label}
+      ))}
+      <path d="M35 7 L35 -22 L49 -30 L49 -1 Z" fill="#52646c" stroke="#d2d8d6" strokeWidth="2" />
+      <path
+        d="M-65 -76 L-12 -104 M-40 -62 L13 -91 M-14 -47 L39 -76 M12 -32 L65 -61"
+        stroke="#bac3c1"
+        strokeWidth="1.5"
+      />
+      {number !== undefined ? (
+        <text x="-5" y="-49" textAnchor="middle" fontSize="15" fontWeight="700" fill="#34434a">
+          {number}
         </text>
       ) : null}
     </g>
   );
 }
 
-/**
- * The factory on one simulated day: the moving line with its modules, the
- * yard, and trucks heading to sites or collecting from the FOB yard.
- * Modules glide to their next position over `stepMs`.
- */
+function TransportTruck({ color }: { color: string }) {
+  return (
+    <g>
+      <ellipse cx="0" cy="17" rx="116" ry="24" fill="#101820" opacity="0.3" />
+      <path d="M-115 5 L30 -76 L81 -47 L-65 34 Z" fill="#505b61" stroke="#273138" strokeWidth="4" />
+      {[-70, -42, 66, 86].map((x) => (
+        <ellipse
+          key={x}
+          cx={x}
+          cy={-x * 0.56 + 3}
+          rx="9"
+          ry="15"
+          fill="#172025"
+          stroke="#69747a"
+          strokeWidth="3"
+        />
+      ))}
+      <g transform="translate(-16 -15) scale(.85)">
+        <HousingModule color={color} />
+      </g>
+      <path d="M67 -30 L110 -54 L110 -97 L67 -74 Z" fill="#c29235" stroke="#695a39" />
+      <path d="M67 -74 L110 -97 L84 -112 L42 -89 Z" fill="#edc66a" stroke="#695a39" />
+      <path d="M42 -89 L67 -74 L67 -30 L42 -44 Z" fill="#e2b04b" stroke="#695a39" />
+      <path
+        d="M71 -75 L105 -94 L105 -76 L71 -57 Z"
+        fill="#284653"
+        stroke="#bdc9c8"
+        strokeWidth="2"
+      />
+      <path d="M46 -84 L62 -75 L62 -58 L46 -67 Z" fill="#365461" />
+      <path d="M72 -40 L105 -58" stroke="#eee5cd" strokeWidth="5" />
+    </g>
+  );
+}
+
 export function FactoryScene({
   day,
   projects,
@@ -100,225 +86,143 @@ export function FactoryScene({
   stepMs: number;
   yardCapacity: number;
 }) {
-  const colorOf = new Map(projects.map((project) => [project.id, project.color]));
-  const nameOf = new Map(projects.map((project) => [project.id, project.name]));
-  const perDay = new Map(
-    projects.map((project) => [
-      project.id,
-      project.delivery.kind === "site" ? Math.max(1, project.delivery.modulesPerDay) : 1,
-    ]),
+  const [zoom, setZoom] = useState(1);
+  const id = useId().replace(/:/g, "");
+  const byId = new Map(projects.map((project) => [project.id, project]));
+  const yard = Object.entries(day.yard).flatMap(([projectId, count]) =>
+    Array.from({ length: count }, (_, index) => ({ projectId, index })),
   );
-
-  const yardModules = Object.entries(day.yard).flatMap(([projectId, count]) =>
-    Array.from({ length: count }, () => projectId),
-  );
-  const slotsPerLayer = YARD.columns * YARD.rows;
-  const yardSlots = Math.max(yardCapacity, yardModules.length);
-  const trucks = Object.entries(day.inTransit).flatMap(([projectId, count]) =>
-    Array.from(
-      { length: Math.min(3, Math.ceil(count / (perDay.get(projectId) ?? 1))) },
-      () => projectId,
-    ),
-  );
-
-  const lineModules = [...day.line].sort((a, b) => a.progress - b.progress);
-
+  // Keep the complete yard count visible without stacking buildings on top of one another.
+  const columns = Math.max(4, Math.ceil(Math.sqrt(Math.max(yardCapacity, yard.length))));
+  const yardScale = Math.min(0.58, 2.5 / columns);
+  const traffic = Object.entries(day.inTransit).filter(([, count]) => count > 0);
   return (
-    <svg
-      role="img"
-      aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
-      viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
-      className="mx-auto h-full max-h-[640px] w-full select-none"
-      data-factory-scene
-    >
-      {/* Back walls and floor */}
-      <polygon
-        points={points([
-          [0, 0, 0],
-          [FLOOR.length, 0, 0],
-          [FLOOR.length, 0, 3.2],
-          [0, 0, 3.2],
-        ])}
-        fill="#cbd5e1"
-        opacity={0.55}
-      />
-      <polygon
-        points={points([
-          [0, 0, 0],
-          [0, FLOOR.width, 0],
-          [0, FLOOR.width, 3.2],
-          [0, 0, 3.2],
-        ])}
-        fill="#94a3b8"
-        opacity={0.55}
-      />
-      <polygon points={tile(0, 0, FLOOR.length, FLOOR.width)} fill="#e2e8f0" stroke="#94a3b8" />
-      {Array.from({ length: Math.floor(FLOOR.length / 2) }, (_, index) => (
-        <polygon key={index} points={tile(index * 2, 0, 0.04, FLOOR.width, 0.01)} fill="#cbd5e1" />
-      ))}
-
-      {/* The line */}
-      <polygon
-        points={tile(LINE.x - 0.3, LINE.y - 0.2, LINE.length + 0.6, LINE.width + 0.4, 0.02)}
-        fill="#475569"
-      />
-      <polygon
-        points={tile(LINE.x, LINE.y, LINE.length, LINE.width, 0.05)}
-        fill={day.blocked ? "#7f1d1d" : "#334155"}
-      />
-      {Array.from({ length: 24 }, (_, index) => (
-        <polygon
-          key={index}
-          points={tile(LINE.x + index, LINE.y, 0.08, LINE.width, 0.06)}
-          fill="#64748b"
-        />
-      ))}
-
-      {lineModules.map((item) => {
-        const position = iso(
-          LINE.x + item.progress * (LINE.length - MODULE.length),
-          LINE.y + 0.2,
-          0.06,
-        );
-        return (
-          <g
-            key={`${item.projectId}#${item.module}`}
-            data-line-module={item.projectId}
-            style={{
-              transform: `translate(${position.x}px, ${position.y}px)`,
-              transition: `transform ${stepMs}ms linear`,
-            }}
-          >
-            <title>{`${nameOf.get(item.projectId)} · module ${item.module} · ${Math.round(item.progress * 100)}%`}</title>
-            <ModuleBox color={colorOf.get(item.projectId) ?? "#64748b"} />
-          </g>
-        );
-      })}
-
-      {/* Line labels, in front of the modules */}
-      <text
-        {...iso(LINE.x - 0.4, LINE.y + LINE.width + 2.2)}
-        className="fill-slate-600 text-[15px] font-bold"
+    <div className="relative w-full">
+      <div className="absolute bottom-3 right-3 z-10 flex gap-1 rounded-lg bg-slate-950/85 p-1 text-white">
+        <button
+          type="button"
+          aria-label="Zoom out factory"
+          disabled={zoom === 1}
+          onClick={() => setZoom(Math.max(1, zoom - 0.5))}
+          className="size-9 rounded hover:bg-white/20 disabled:opacity-40"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          aria-label="Reset factory zoom"
+          onClick={() => setZoom(1)}
+          className="px-2 text-xs"
+        >
+          {zoom}×
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom in factory"
+          disabled={zoom === 2.5}
+          onClick={() => setZoom(Math.min(2.5, zoom + 0.5))}
+          className="size-9 rounded hover:bg-white/20 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+      <svg
+        role="img"
+        aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
+        viewBox={`${(2560 - 2560 / zoom) * 0.6} ${(1440 - 1440 / zoom) * 0.6} ${2560 / zoom} ${1440 / zoom}`}
+        className="mx-auto w-full select-none rounded-lg"
+        data-factory-scene
       >
-        LINE START
-      </text>
-      <text
-        {...iso(LINE.x + LINE.length - 1, LINE.y + LINE.width + 2.2)}
-        className="fill-slate-600 text-[15px] font-bold"
-      >
-        LINE END → YARD
-      </text>
-
-      {/* Yard */}
-      <polygon
-        points={tile(
-          YARD.x - 0.3,
-          0.1,
-          YARD.columns * YARD.slotX + 0.4,
-          YARD.rows * YARD.slotY + 0.6,
-          0.02,
-        )}
-        fill={day.yardTotal >= yardCapacity ? "#fecaca" : "#fef3c7"}
-        stroke="#d97706"
-        strokeDasharray="4 3"
-      />
-      {Array.from({ length: Math.min(slotsPerLayer, yardSlots) }, (_, index) => {
-        const column = index % YARD.columns;
-        const row = Math.floor(index / YARD.columns);
-        return (
-          <polygon
-            key={index}
-            points={tile(
-              YARD.x + column * YARD.slotX,
-              YARD.y + row * YARD.slotY,
-              MODULE.length,
-              MODULE.width,
-              0.03,
-            )}
-            fill="none"
-            stroke="#f59e0b"
-            strokeWidth={0.6}
-            opacity={0.6}
-          />
-        );
-      })}
-      {yardModules
-        .map((projectId, index) => {
-          const layer = Math.floor(index / slotsPerLayer);
-          const slot = index % slotsPerLayer;
-          return {
-            projectId,
-            index,
-            x: YARD.x + (slot % YARD.columns) * YARD.slotX,
-            y: YARD.y + Math.floor(slot / YARD.columns) * YARD.slotY,
-            z: layer * MODULE.height,
-          };
-        })
-        .sort((a, b) => a.z - b.z || a.x + a.y - (b.x + b.y))
-        .map((item) => {
-          const position = iso(item.x, item.y, item.z);
+        <defs>
+          <linearGradient id={`${id}-shade`} x2="0" y2="1">
+            <stop stopColor="#0c1720" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#0c1720" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <image href="/simulation-assets/factory-realistic.jpg" width="2560" height="1440" />
+        <rect width="2560" height="1440" fill={`url(#${id}-shade)`} />
+        {day.blocked ? (
+          <path d="M840 630 L1500 1000" stroke="#ef4444" strokeWidth="50" opacity="0.32" />
+        ) : null}
+        {[...day.line]
+          .sort((a, b) => a.progress - b.progress)
+          .map((item) => {
+            const scale = 0.7 + item.progress * 0.35;
+            return (
+              <g
+                key={`${item.projectId}-${item.module}`}
+                data-line-module={item.projectId}
+                style={{
+                  transform: `translate(${850 + item.progress * 650}px, ${635 + item.progress * 365}px)`,
+                  transition: `transform ${stepMs}ms linear`,
+                }}
+              >
+                <title>{`${byId.get(item.projectId)?.name} · module ${item.module} · ${Math.round(item.progress * 100)}%`}</title>
+                <g transform={`scale(${scale})`}>
+                  <HousingModule
+                    color={byId.get(item.projectId)?.color ?? "#64748b"}
+                    number={item.module}
+                  />
+                </g>
+              </g>
+            );
+          })}
+        {yard.map((item, index) => {
+          const column = index % columns;
+          const row = Math.floor(index / columns);
           return (
             <g
-              key={`yard-${item.index}`}
+              key={`${item.projectId}-${item.index}`}
               data-yard-module={item.projectId}
-              transform={`translate(${position.x} ${position.y})`}
+              transform={`translate(${2070 + (column * 330) / columns - (row * 210) / columns} ${615 + (column * 110) / columns + (row * 185) / columns}) scale(${yardScale})`}
             >
-              <ModuleBox color={colorOf.get(item.projectId) ?? "#64748b"} />
+              <title>{`${byId.get(item.projectId)?.name} · yard module ${item.index + 1}`}</title>
+              <HousingModule color={byId.get(item.projectId)?.color ?? "#64748b"} />
             </g>
           );
         })}
-      <text {...iso(YARD.x + 2, -1.2, 3.4)} className="fill-amber-700 text-[16px] font-black">
-        FOB YARD {day.yardTotal}/{yardCapacity}
-      </text>
-
-      {/* Road out of the factory */}
-      <polygon points={tile(ROAD.from, ROAD.y, ROAD.to - ROAD.from, ROAD.width)} fill="#1f2937" />
-      <polygon
-        points={tile(ROAD.from, ROAD.y + ROAD.width / 2 - 0.05, ROAD.to - ROAD.from, 0.1, 0.01)}
-        fill="#facc15"
-        opacity={0.7}
-      />
-      <text
-        {...iso(ROAD.to - 3, ROAD.y + ROAD.width + 1.6)}
-        className="fill-slate-600 text-[15px] font-bold"
-      >
-        TO SITES →
-      </text>
-
-      {trucks.map((projectId, index) => {
-        const start = iso(32 + index * 5.5, ROAD.y + 0.2);
-        const end = iso(ROAD.to - 5, ROAD.y + 0.2);
-        return (
-          <g key={`truck-${projectId}-${index}`} data-truck={projectId}>
+        {traffic.map(([projectId, count], index) => (
+          <g key={`${day.date}-${projectId}`} data-truck={projectId}>
+            <title>{`${byId.get(projectId)?.name} · ${count} modules in transit`}</title>
             <animateTransform
               attributeName="transform"
               type="translate"
-              from={`${start.x} ${start.y}`}
-              to={`${end.x} ${end.y}`}
-              dur={`${2.5 + index * 0.6}s`}
+              from="1630 1290"
+              to="2440 840"
+              dur={`${4 + index}s`}
               repeatCount="indefinite"
             />
-            <Truck color={colorOf.get(projectId) ?? "#64748b"} loaded />
+            <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
           </g>
-        );
-      })}
-
-      {day.pickedUp.map((projectId, index) => {
-        const position = iso(YARD.x - 1 + index * 5, ROAD.y + 0.2);
-        return (
+        ))}
+        {day.pickedUp.map((projectId, index) => (
           <g
-            key={`pickup-${projectId}`}
+            key={projectId}
             data-pickup={projectId}
-            transform={`translate(${position.x} ${position.y})`}
+            transform={`translate(${1940 + (index % 3) * 140} ${1090 - (index % 3) * 78}) scale(.8)`}
           >
-            <Truck
-              color={colorOf.get(projectId) ?? "#64748b"}
-              loaded
-              label={`${nameOf.get(projectId)} picked up`}
-            />
+            <title>{`${byId.get(projectId)?.name} picked up`}</title>
+            <TransportTruck color={byId.get(projectId)?.color ?? "#64748b"} />
           </g>
-        );
-      })}
-    </svg>
+        ))}
+        <g fontFamily="system-ui, sans-serif" fontSize="25" fontWeight="700" fill="white">
+          <rect
+            x="1810"
+            y="470"
+            width="590"
+            height="60"
+            rx="14"
+            fill={day.yardTotal >= yardCapacity ? "#991b1b" : "#14242ddd"}
+          />
+          <text x="1840" y="510">
+            FOB YARD · {day.yardTotal} / {yardCapacity}
+          </text>
+          <rect x="940" y="1090" width="360" height="58" rx="14" fill="#14242ddd" />
+          <text x="970" y="1128">
+            PRODUCTION LINE
+          </text>
+        </g>
+      </svg>
+    </div>
   );
 }

@@ -171,7 +171,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative flex min-h-[260px] flex-1 items-center px-2 pt-2">
+      <div className="relative flex min-h-[260px] flex-1 items-center bg-slate-950 p-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle
