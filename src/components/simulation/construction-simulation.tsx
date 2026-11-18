@@ -9,7 +9,18 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Cloud, Factory, FileDown, FlaskConical, Save, Sparkles, Trash2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Factory,
+  FileDown,
+  FlaskConical,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
@@ -101,6 +112,7 @@ function SimulationWorkspace() {
   const [notice, setNotice] = useState("");
   // The toolbar's left-panel button hides the inputs, as it hides the node library on L1/L2.
   const inputsOpen = useWorkflowStore((state) => state.leftOpen);
+  const togglePanel = useWorkflowStore((state) => state.togglePanel);
 
   // Load scenarios saved to the account; upload any that only this browser has.
   useEffect(() => {
@@ -250,268 +262,294 @@ function SimulationWorkspace() {
   return (
     <div
       data-inputs-open={inputsOpen}
-      className={`grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden ${inputsOpen ? "lg:grid-cols-[24rem_1fr]" : ""}`}
+      className={`relative grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden ${inputsOpen ? "lg:grid-cols-[24rem_1fr]" : ""}`}
     >
-      <aside
-        aria-label="Simulation inputs"
-        hidden={!inputsOpen}
-        className="space-y-3 border-b bg-muted/20 p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r"
-      >
-        <section aria-label="Scenario" className="rounded-lg border bg-background p-3">
-          <div className="flex items-center gap-2">
-            <select
-              aria-label="Saved scenarios"
-              value={savedDraft ? draft.id : ""}
-              onChange={(event) => {
-                const picked = scenarios.find((item) => item.id === event.target.value);
-                if (picked) setDraft(picked);
-              }}
-              className="min-h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
-            >
-              {!savedDraft ? <option value="">Unsaved scenario</option> : null}
-              {scenarios.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDraft(newScenario(`Scenario ${scenarios.length + 1}`, todayIso()))}
-            >
-              New
-            </Button>
-          </div>
-          <input
-            aria-label="Scenario name"
-            value={draft.name}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            className={inputClass}
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void save(false)} disabled={!unsaved}>
-              <Save className="size-3.5" /> Save
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => void save(true)}>
-              Save as new
-            </Button>
-            {savedDraft ? (
+      {/* Same edge toggle as the node library on L1/L2. */}
+      {inputsOpen ? null : (
+        <button
+          type="button"
+          onClick={() => togglePanel("left")}
+          className="panel-edge-toggle left-0 z-30 rounded-l-none border-l-0"
+          aria-label="Open simulation inputs"
+          title="Show inputs"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      )}
+      <div hidden={!inputsOpen} className="relative min-h-0">
+        <aside
+          aria-label="Simulation inputs"
+          className="h-full space-y-3 border-b bg-muted/20 p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r"
+        >
+          <section aria-label="Scenario" className="rounded-lg border bg-background p-3">
+            <div className="flex items-center gap-2">
+              <select
+                aria-label="Saved scenarios"
+                value={savedDraft ? draft.id : ""}
+                onChange={(event) => {
+                  const picked = scenarios.find((item) => item.id === event.target.value);
+                  if (picked) setDraft(picked);
+                }}
+                className="min-h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
+              >
+                {!savedDraft ? <option value="">Unsaved scenario</option> : null}
+                {scenarios.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
               <Button
                 size="sm"
-                variant="ghost"
-                aria-label="Delete scenario"
-                onClick={() => {
-                  const next = scenarios.filter((item) => item.id !== draft.id);
-                  setScenarios(next);
-                  saveScenarios(next);
-                  void deleteCloudScenario(draft.id).catch(() => undefined);
-                  setNotice(`Deleted “${draft.name}”.`);
-                }}
+                variant="outline"
+                onClick={() =>
+                  setDraft(newScenario(`Scenario ${scenarios.length + 1}`, todayIso()))
+                }
               >
-                <Trash2 className="size-3.5" />
+                New
               </Button>
-            ) : null}
-          </div>
-        </section>
-
-        <section aria-label="Factory" className="rounded-lg border bg-background p-3">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold">
-            <Factory className="size-4" /> Factory
-          </h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            One line, about {draft.factory.targetOnLine} modules on it, never more than{" "}
-            {draft.factory.normalMax} when scheduling. It moves at the pace of its slowest module.
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <label className="block text-[11px] font-semibold text-muted-foreground">
-              Simulation start
-              <DateInput
-                label="Simulation start"
-                value={draft.factory.startDate}
-                onCommit={(startDate) => updateFactory({ startDate })}
-                className={inputClass}
-              />
-            </label>
-            <label className="block text-[11px] font-semibold text-muted-foreground">
-              Yard holds (modules)
-              <NumberInput
-                label="Yard holds (modules)"
-                value={draft.factory.yardCapacity}
-                min={1}
-                integer
-                onCommit={(yardCapacity) => updateFactory({ yardCapacity })}
-                className={inputClass}
-              />
-            </label>
-            <label className="block text-[11px] font-semibold text-muted-foreground">
-              Install crews
-              <NumberInput
-                label="Install crews"
-                value={draft.factory.installCrews}
-                min={0}
-                integer
-                onCommit={(installCrews) => updateFactory({ installCrews })}
-                className={inputClass}
-              />
-            </label>
-          </div>
-          <fieldset className="mt-2 space-y-1 text-xs">
-            <legend className="text-[11px] font-semibold text-muted-foreground">
-              Factory calendar
-            </legend>
-            {(
-              [
-                ["workWeek", "Work Monday–Thursday (Friday–Sunday off)"],
-                ["holidayRegion", "Ontario statutory holidays off"],
-                ["automaticShutdowns", "Summer and winter shutdowns"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={
-                    key === "workWeek"
-                      ? calendar.workWeek === "mon-thu"
-                      : key === "holidayRegion"
-                        ? calendar.holidayRegion === "CA-ON"
-                        : calendar.automaticShutdowns === true
-                  }
-                  onChange={(event) => {
-                    const on = event.target.checked;
-                    const next = { ...calendar };
-                    if (key === "workWeek") {
-                      if (on) next.workWeek = "mon-thu";
-                      else delete next.workWeek;
-                    } else if (key === "holidayRegion") {
-                      if (on) next.holidayRegion = "CA-ON";
-                      else delete next.holidayRegion;
-                    } else next.automaticShutdowns = on;
-                    updateFactory({ calendar: next });
+            </div>
+            <input
+              aria-label="Scenario name"
+              value={draft.name}
+              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              className={inputClass}
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => void save(false)} disabled={!unsaved}>
+                <Save className="size-3.5" /> Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void save(true)}>
+                Save as new
+              </Button>
+              {savedDraft ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Delete scenario"
+                  onClick={() => {
+                    const next = scenarios.filter((item) => item.id !== draft.id);
+                    setScenarios(next);
+                    saveScenarios(next);
+                    void deleteCloudScenario(draft.id).catch(() => undefined);
+                    setNotice(`Deleted “${draft.name}”.`);
                   }}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              ) : null}
+            </div>
+          </section>
+
+          <section aria-label="Factory" className="rounded-lg border bg-background p-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-bold">
+              <Factory className="size-4" /> Factory
+            </h2>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              One line, about {draft.factory.targetOnLine} modules on it, never more than{" "}
+              {draft.factory.normalMax} when scheduling. It moves at the pace of its slowest module.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground">
+                Simulation start
+                <DateInput
+                  label="Simulation start"
+                  value={draft.factory.startDate}
+                  onCommit={(startDate) => updateFactory({ startDate })}
+                  className={inputClass}
                 />
-                {label}
               </label>
-            ))}
-            <div className="pt-1 text-xs">
-              <ProcessCalendarButton
-                mode="factory"
-                value={{ ...calendar, startDate: draft.factory.startDate }}
-                canEdit
-                workingDays={result.days.length}
-                onSave={(saved) =>
-                  saved &&
-                  updateFactory({
-                    calendar: { ...saved, startDate: draft.factory.startDate },
-                    startDate: saved.startDate || draft.factory.startDate,
-                  })
+              <label className="block text-[11px] font-semibold text-muted-foreground">
+                Yard holds (modules)
+                <NumberInput
+                  label="Yard holds (modules)"
+                  value={draft.factory.yardCapacity}
+                  min={1}
+                  integer
+                  onCommit={(yardCapacity) => updateFactory({ yardCapacity })}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block text-[11px] font-semibold text-muted-foreground">
+                Install crews
+                <NumberInput
+                  label="Install crews"
+                  value={draft.factory.installCrews}
+                  min={0}
+                  integer
+                  onCommit={(installCrews) => updateFactory({ installCrews })}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+            <fieldset className="mt-2 space-y-1 text-xs">
+              <legend className="text-[11px] font-semibold text-muted-foreground">
+                Factory calendar
+              </legend>
+              {(
+                [
+                  ["workWeek", "Work Monday–Thursday (Friday–Sunday off)"],
+                  ["holidayRegion", "Ontario statutory holidays off"],
+                  ["automaticShutdowns", "Summer and winter shutdowns"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={
+                      key === "workWeek"
+                        ? calendar.workWeek === "mon-thu"
+                        : key === "holidayRegion"
+                          ? calendar.holidayRegion === "CA-ON"
+                          : calendar.automaticShutdowns === true
+                    }
+                    onChange={(event) => {
+                      const on = event.target.checked;
+                      const next = { ...calendar };
+                      if (key === "workWeek") {
+                        if (on) next.workWeek = "mon-thu";
+                        else delete next.workWeek;
+                      } else if (key === "holidayRegion") {
+                        if (on) next.holidayRegion = "CA-ON";
+                        else delete next.holidayRegion;
+                      } else next.automaticShutdowns = on;
+                      updateFactory({ calendar: next });
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
+              <div className="pt-1 text-xs">
+                <ProcessCalendarButton
+                  mode="factory"
+                  value={{ ...calendar, startDate: draft.factory.startDate }}
+                  canEdit
+                  workingDays={result.days.length}
+                  onSave={(saved) =>
+                    saved &&
+                    updateFactory({
+                      calendar: { ...saved, startDate: draft.factory.startDate },
+                      startDate: saved.startDate || draft.factory.startDate,
+                    })
+                  }
+                />
+              </div>
+            </fieldset>
+          </section>
+
+          <section aria-label="Projects" className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="mr-auto text-sm font-bold">Projects · loading order</h2>
+              <Button size="sm" variant="outline" onClick={() => void openPicker()}>
+                <Cloud className="size-3.5" /> Add saved
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setProjects([
+                    ...draft.projects,
+                    virtualSimProject(draft.projects.length, draft.factory.startDate),
+                  ])
+                }
+              >
+                <FlaskConical className="size-3.5" /> Add virtual
+              </Button>
+            </div>
+            {picker.open ? (
+              <div
+                role="dialog"
+                aria-label="Saved projects"
+                className="rounded-lg border bg-background p-2"
+              >
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs">Saved projects</strong>
+                  <button
+                    type="button"
+                    aria-label="Close saved projects"
+                    onClick={() => setPicker({ ...picker, open: false })}
+                    className="rounded p-1 hover:bg-muted"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                {picker.loading ? (
+                  <p className="p-2 text-xs text-muted-foreground">Loading…</p>
+                ) : picker.error ? (
+                  <p className="p-2 text-xs text-red-600">{picker.error}</p>
+                ) : (
+                  <ul className="max-h-56 overflow-y-auto">
+                    {picker.projects.map((item) => {
+                      const added = draft.projects.some(
+                        (project) => project.id === `cloud-${item.id}`,
+                      );
+                      return (
+                        <li key={item.id} className="flex items-center gap-2 px-1 py-1 text-xs">
+                          <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={added}
+                            onClick={() => void addCloudProject(item)}
+                          >
+                            {added ? "Added" : "Add"}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                    {!picker.projects.length ? (
+                      <li className="p-2 text-xs text-muted-foreground">No saved projects yet.</li>
+                    ) : null}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+            {draft.projects.map((project, index) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                position={index}
+                count={draft.projects.length}
+                phaseOptions={
+                  files[project.id] ? productionPhaseOptions(files[project.id]) : undefined
+                }
+                lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
+                onChange={(patch) => updateProject(project.id, patch)}
+                onPhaseChange={(productionPhaseId) => {
+                  const dates = projectScheduleDates(files[project.id], productionPhaseId);
+                  updateProject(project.id, {
+                    productionPhaseId,
+                    ...(dates.earliestStart ? { earliestStart: dates.earliestStart } : {}),
+                  });
+                }}
+                onMove={(direction) => {
+                  const next = [...draft.projects];
+                  const [moved] = next.splice(index, 1);
+                  next.splice(index + direction, 0, moved);
+                  setProjects(next);
+                }}
+                onRemove={() =>
+                  setProjects(draft.projects.filter((item) => item.id !== project.id))
+                }
+                onRefresh={
+                  project.source.kind === "cloud"
+                    ? () => void refreshFromL4(project, index)
+                    : undefined
                 }
               />
-            </div>
-          </fieldset>
-        </section>
-
-        <section aria-label="Projects" className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="mr-auto text-sm font-bold">Projects · loading order</h2>
-            <Button size="sm" variant="outline" onClick={() => void openPicker()}>
-              <Cloud className="size-3.5" /> Add saved
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setProjects([
-                  ...draft.projects,
-                  virtualSimProject(draft.projects.length, draft.factory.startDate),
-                ])
-              }
-            >
-              <FlaskConical className="size-3.5" /> Add virtual
-            </Button>
-          </div>
-          {picker.open ? (
-            <div
-              role="dialog"
-              aria-label="Saved projects"
-              className="rounded-lg border bg-background p-2"
-            >
-              <div className="flex items-center justify-between">
-                <strong className="text-xs">Saved projects</strong>
-                <button
-                  type="button"
-                  aria-label="Close saved projects"
-                  onClick={() => setPicker({ ...picker, open: false })}
-                  className="rounded p-1 hover:bg-muted"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-              {picker.loading ? (
-                <p className="p-2 text-xs text-muted-foreground">Loading…</p>
-              ) : picker.error ? (
-                <p className="p-2 text-xs text-red-600">{picker.error}</p>
-              ) : (
-                <ul className="max-h-56 overflow-y-auto">
-                  {picker.projects.map((item) => {
-                    const added = draft.projects.some(
-                      (project) => project.id === `cloud-${item.id}`,
-                    );
-                    return (
-                      <li key={item.id} className="flex items-center gap-2 px-1 py-1 text-xs">
-                        <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={added}
-                          onClick={() => void addCloudProject(item)}
-                        >
-                          {added ? "Added" : "Add"}
-                        </Button>
-                      </li>
-                    );
-                  })}
-                  {!picker.projects.length ? (
-                    <li className="p-2 text-xs text-muted-foreground">No saved projects yet.</li>
-                  ) : null}
-                </ul>
-              )}
-            </div>
-          ) : null}
-          {draft.projects.map((project, index) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              position={index}
-              count={draft.projects.length}
-              phaseOptions={
-                files[project.id] ? productionPhaseOptions(files[project.id]) : undefined
-              }
-              lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
-              onChange={(patch) => updateProject(project.id, patch)}
-              onPhaseChange={(productionPhaseId) => {
-                const dates = projectScheduleDates(files[project.id], productionPhaseId);
-                updateProject(project.id, {
-                  productionPhaseId,
-                  ...(dates.earliestStart ? { earliestStart: dates.earliestStart } : {}),
-                });
-              }}
-              onMove={(direction) => {
-                const next = [...draft.projects];
-                const [moved] = next.splice(index, 1);
-                next.splice(index + direction, 0, moved);
-                setProjects(next);
-              }}
-              onRemove={() => setProjects(draft.projects.filter((item) => item.id !== project.id))}
-              onRefresh={
-                project.source.kind === "cloud"
-                  ? () => void refreshFromL4(project, index)
-                  : undefined
-              }
-            />
-          ))}
-        </section>
-      </aside>
+            ))}
+          </section>
+        </aside>
+        <button
+          type="button"
+          onClick={() => togglePanel("left")}
+          className="panel-edge-toggle -right-3 z-30"
+          aria-label="Collapse simulation inputs"
+          title="Hide inputs"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      </div>
 
       <section aria-label="Simulation results" className="min-w-0 space-y-3 p-3 lg:overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2">

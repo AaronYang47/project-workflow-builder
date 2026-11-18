@@ -202,21 +202,22 @@ test("the production calendar opens as a glass popup, ticks off work and flags p
   await expect(page.locator("[data-production-calendar-dialog]")).toContainText(date!);
 });
 
-test("the toolbar's left-panel button hides the inputs, like on L1 and L2", async ({ page }) => {
+test("the inputs collapse with the same edge toggle as L1 and L2", async ({ page }) => {
   await seedE2EWorkflow(page);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto("/construction-simulation");
   const inputs = page.getByRole("complementary", { name: "Simulation inputs" });
-  const toggle = page.getByRole("button", { name: "Toggle inputs" });
   await expect(inputs).toBeVisible();
-  await expect(page.getByRole("button", { name: "Hide inputs" })).toHaveCount(0);
-  await toggle.click();
+  // No panel buttons in the toolbar on L5.
+  await expect(page.getByRole("button", { name: "Toggle inputs" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Toggle node library" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Collapse simulation inputs" }).click();
   await expect(inputs).toBeHidden();
   // With the inputs hidden, the playback sits to the right of the charts.
   const charts = await page.locator("[data-simulation-results]").boundingBox();
   const playback = await page.locator("[data-factory-playback]").boundingBox();
   expect(playback!.x).toBeGreaterThan(charts!.x + charts!.width - 1);
-  await toggle.click();
+  await page.getByRole("button", { name: "Open simulation inputs" }).click();
   await expect(inputs).toBeVisible();
 });
 
