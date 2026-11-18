@@ -30,6 +30,8 @@ import {
   simulatedLineDays,
   optimizeScenario,
   scheduleNotes,
+  suggestFixes,
+  type ScheduleFix,
   productionPhaseOptions,
   projectScheduleDates,
   scheduleScore,
@@ -234,6 +236,13 @@ function SimulationWorkspace() {
     [draft, l4Starts],
   );
   const result = useMemo(() => simulateScenario(simDraft), [simDraft]);
+  // Late projects get a plain reason in the Warnings (without Auto schedule).
+  const explained = useMemo(() => {
+    const notes = scheduleNotes(simDraft, result).filter(
+      (note) => !note.startsWith("Split on the line"),
+    );
+    return notes.length ? { ...result, warnings: [...result.warnings, ...notes] } : result;
+  }, [simDraft, result]);
   // One playback day shared by the factory, the charts, the timeline and Today.
   // It starts on the first production day and resets when the scenario changes.
   const firstProductionIndex = Math.max(
@@ -416,6 +425,41 @@ function SimulationWorkspace() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the wanted rows change
   }, [factoryRowChanges]);
+  /**
+   * Auto schedule: the best order (and split plan), with plain reasons for any
+   * late project and the fixes it tried. A fix applies its change and runs again.
+   */
+  const [fixes, setFixes] = useState<{ projects: string; items: ScheduleFix[] }>();
+  const runAutoSchedule = (fix?: ScheduleFix) => {
+    const patch = (project: SimProject) =>
+      fix && project.id === fix.projectId ? { ...project, ...fix.patch } : project;
+    const sim = { ...simDraft, sequence: undefined, projects: simDraft.projects.map(patch) };
+    const best = optimizeScenario(sim);
+    const byId = new Map(draft.projects.map((project) => [project.id, patch(project)]));
+    // Keep the split plan only when it is more than one run per project.
+    const plan = best.sequence.length > draft.projects.length ? best.sequence : undefined;
+    const projects = best.priority.map((id) => byId.get(id)!).filter(Boolean);
+    setDraft((current) => ({ ...current, projects, priority: undefined, sequence: plan }));
+    const late = best.projects.filter(
+      (project) => !project.finished || project.lateDays > 0,
+    ).length;
+    setNotice(
+      [
+        fix ? `Applied: ${fix.title}.` : "",
+        late
+          ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
+          : "Best order found: every project is on time.",
+        ...scheduleNotes(sim, best),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+    setFixes(
+      late ? { projects: JSON.stringify(projects), items: suggestFixes(sim, best) } : undefined,
+    );
+  };
+  // Fixes belong to the projects they were worked out for.
+  const shownFixes = fixes && fixes.projects === JSON.stringify(draft.projects) ? fixes.items : [];
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
   const calendarStart = result.days[0]?.date ?? todayIso();
@@ -747,33 +791,7 @@ function SimulationWorkspace() {
       >
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
-          <Button
-            size="sm"
-            onClick={() => {
-              const best = optimizeScenario({ ...simDraft, sequence: undefined });
-              const byId = new Map(draft.projects.map((project) => [project.id, project]));
-              // Keep the split plan only when it is more than one run per project.
-              const plan = best.sequence.length > draft.projects.length ? best.sequence : undefined;
-              setDraft((current) => ({
-                ...current,
-                projects: best.priority.map((id) => byId.get(id)!).filter(Boolean),
-                priority: undefined,
-                sequence: plan,
-              }));
-              const late = best.projects.filter(
-                (project) => !project.finished || project.lateDays > 0,
-              ).length;
-              setNotice(
-                [
-                  late
-                    ? `Best order found, but ${late} project${late === 1 ? " is" : "s are"} still late.`
-                    : "Best order found: every project is on time.",
-                  ...scheduleNotes(simDraft, best),
-                ].join(" "),
-              );
-            }}
-            disabled={draft.projects.length < 1}
-          >
+          <Button size="sm" onClick={() => runAutoSchedule()} disabled={draft.projects.length < 1}>
             <Sparkles className="size-4" /> Auto schedule
           </Button>
           {scenarios.length > 1 ? (
@@ -818,6 +836,27 @@ function SimulationWorkspace() {
             {notice}
           </p>
         ) : null}
+        {shownFixes.length ? (
+          <section
+            aria-label="Suggested fixes"
+            data-suggested-fixes
+            className="shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs"
+          >
+            <p className="mb-1 font-bold">Suggested fixes (each checked with Auto schedule)</p>
+            <ul className="space-y-1">
+              {shownFixes.map((item) => (
+                <li key={item.title} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 flex-1">
+                    <strong>{item.title}</strong> → {item.outcome}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => runAutoSchedule(item)}>
+                    Apply
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <div
           className={`grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-2 ${result.days.length ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]" : ""}`}
         >
@@ -825,7 +864,7 @@ function SimulationWorkspace() {
             className={`min-h-0 min-w-0 flex-col gap-2 ${compactView === "results" || !result.days.length ? "flex" : "hidden"} xl:flex`}
           >
             <SimulationResults
-              result={result}
+              result={explained}
               projects={draft.projects}
               factory={draft.factory}
               currentIndex={playIndex}

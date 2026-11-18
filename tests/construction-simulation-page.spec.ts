@@ -902,3 +902,81 @@ test("Auto schedule splits a project to fit another in and explains it", async (
   await expect(notice).toContainText(/Split on the line: Blue ×\d+ → Green ×12 → Blue ×\d+\./);
   await expect(page.locator('[data-sim-row="Green"]')).toContainText("On time");
 });
+
+test("Auto schedule suggests fixes when the line is too full, and Apply uses one", async ({
+  page,
+}) => {
+  const project = (id: string, patch: Record<string, unknown>) => ({
+    id,
+    name: id,
+    color: id === "27001" ? "#2563eb" : "#16a34a",
+    source: { kind: "virtual" },
+    splittable: true,
+    delivery: { kind: "fob", pickupDate: "2027-08-25", batchSize: 2 },
+    ...patch,
+  });
+  await page.addInitScript(
+    (scenarios) => {
+      if (sessionStorage.getItem("seeded")) return;
+      sessionStorage.setItem("seeded", "1");
+      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify(scenarios));
+    },
+    [
+      {
+        id: "full",
+        name: "Full line",
+        factory: {
+          targetOnLine: 18,
+          normalMax: 19,
+          crowdedMax: 23,
+          yardCapacity: 24,
+          installCrews: 2,
+          calendar: {
+            startDate: "2027-01-01",
+            workWeek: "mon-thu",
+            holidayRegion: "CA-ON",
+            automaticShutdowns: true,
+            shutdowns: [],
+          },
+        },
+        projects: [
+          project("Virtual 2", {
+            modules: 60,
+            weeksPerModule: 4,
+            earliestStart: "2027-08-25",
+            dueDate: "2028-04-01",
+          }),
+          project("27001", {
+            modules: 200,
+            weeksPerModule: 2,
+            earliestStart: "2027-08-26",
+            dueDate: "2028-05-30",
+          }),
+        ],
+      },
+    ],
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const row = page.locator('[data-sim-row="27001"]');
+  await expect(row).toContainText("late");
+  await page.getByRole("button", { name: "Auto schedule" }).click();
+  const fixes = page.getByRole("region", { name: "Suggested fixes" });
+  await expect(fixes).toContainText("Allow a tight line for 27001");
+  await expect(fixes).toContainText("modules fit before the due date");
+  await expect(fixes).toContainText("move the due date to");
+  await fixes
+    .getByRole("listitem")
+    .filter({ hasText: "Allow a tight line for 27001" })
+    .getByRole("button", { name: "Apply" })
+    .click();
+  await expect(page.locator("[data-sim-notice]")).toContainText(
+    "Applied: Allow a tight line for 27001.",
+  );
+  await expect(page.locator("[data-sim-notice]")).toContainText("every project is on time");
+  await expect(row).toContainText("On time");
+  await expect(fixes).toHaveCount(0);
+  await expect(
+    page.locator('[data-sim-project="27001"]').getByLabel(/Allow a tight line/),
+  ).toBeChecked();
+});

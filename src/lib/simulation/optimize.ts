@@ -183,9 +183,133 @@ export function scheduleNotes(scenario: SimScenario, result: SimResult): string[
       notes.push(
         locked.length
           ? `${project.name} could be on time alone (${alone.completion}); it waits behind ${locked.map((item) => item.name).join(", ")}. Tick "Can be split" there so Auto schedule can fit it in between.`
-          : `${project.name} could be on time alone (${alone.completion}), but the line can't fit everyone's due dates.`,
+          : lineFullNote(project, alone.completion, row.firstLoad, runs, name),
       );
     }
   }
   return notes;
+}
+
+/** Why a project is late when it could make it alone: the one line is busy with others first. */
+function lineFullNote(
+  project: SimScenario["projects"][number],
+  aloneFinish: string | undefined,
+  firstLoad: string | undefined,
+  runs: SimBlock[],
+  name: Map<string, string>,
+) {
+  const projectName = project.name;
+  const dueDate = project.dueDate;
+  const self = project.id;
+  const firstRun = runs.findIndex((run) => run.projectId === self);
+  const ahead = [
+    ...new Set(runs.slice(0, firstRun < 0 ? runs.length : firstRun).map((run) => run.projectId)),
+  ].map((id) => name.get(id) ?? id);
+  return `${projectName} could finish by ${aloneFinish} on its own, but there is one line and its entrance takes one module at a time: ${
+    ahead.length
+      ? `${ahead.join(", ")} ${ahead.length === 1 ? "goes" : "go"} on first, so it starts ${firstLoad ?? "late"}`
+      : "other projects share it"
+  }. "Can be split" lets projects share the line but adds no places on it, so together they can't all make their dates (due ${dueDate}). Try Auto schedule, "Allow a tight line", fewer weeks per module, or a later due date.`;
+}
+
+/** A change Auto schedule tried that helps a late project, ready to apply. */
+export type ScheduleFix = {
+  projectId: string;
+  /** What to change, e.g. "Allow a tight line". */
+  title: string;
+  /** What happens then, e.g. "27001 finishes 2028-05-20 (on time)". */
+  outcome: string;
+  patch: Partial<SimScenario["projects"][number]>;
+  /** Every project on time after the change (with Auto schedule's order). */
+  allOnTime: boolean;
+};
+
+const lateCount = (result: SimResult) =>
+  result.projects.filter((row) => !row.finished || row.lateDays > 0).length;
+
+/**
+ * For each late project (up to three), tries the changes that can help when the
+ * line is simply too full: a tight line, fewer weeks per module, fewer modules,
+ * or a later due date. Each is checked with Auto schedule; only changes that
+ * make the project on time or less late are returned, best first.
+ */
+export function suggestFixes(
+  scenario: SimScenario,
+  best = optimizeScenario(scenario),
+): ScheduleFix[] {
+  const fixes: ScheduleFix[] = [];
+  const late = best.projects.filter((row) => !row.finished || row.lateDays > 0).slice(0, 3);
+  for (const row of late) {
+    const project = scenario.projects.find((item) => item.id === row.projectId);
+    if (!project) continue;
+    const tryPatch = (patch: Partial<typeof project>) => {
+      const changed = {
+        ...scenario,
+        sequence: undefined,
+        projects: scenario.projects.map((item) =>
+          item.id === project.id ? { ...item, ...patch } : item,
+        ),
+      };
+      const result = optimizeScenario(changed);
+      return { result, own: result.projects.find((item) => item.projectId === project.id)! };
+    };
+    const describe = (own: SimResult["projects"][number]) =>
+      own.finished
+        ? own.lateDays
+          ? `${project.name} finishes ${own.completion} (${own.lateDays} days late instead of ${row.lateDays})`
+          : `${project.name} finishes ${own.completion} (on time)`
+        : `${project.name} still doesn't finish`;
+    const add = (title: string, patch: Partial<typeof project>) => {
+      const { result, own } = tryPatch(patch);
+      const better = own.finished && (!row.finished || own.lateDays < row.lateDays);
+      if (better)
+        fixes.push({
+          projectId: project.id,
+          title,
+          outcome: describe(own) + (lateCount(result) ? "" : "; every project on time"),
+          patch,
+          allOnTime: lateCount(result) === 0,
+        });
+    };
+    if (!project.allowTight) add(`Allow a tight line for ${project.name}`, { allowTight: true });
+
+    // Fewest changes to weeks per module that put it on time.
+    const onTimeWith = (patch: Partial<typeof project>) => {
+      const own = tryPatch(patch).own;
+      return own.finished && own.lateDays === 0;
+    };
+    const lowest = Math.max(0.5, Math.round(project.weeksPerModule * 0.5 * 2) / 2);
+    if (onTimeWith({ weeksPerModule: lowest })) {
+      let ok = lowest;
+      let bad = project.weeksPerModule;
+      while (bad - ok > 0.1) {
+        const mid = Math.round(((ok + bad) / 2) * 10) / 10;
+        if (mid === ok || mid === bad) break;
+        if (onTimeWith({ weeksPerModule: mid })) ok = mid;
+        else bad = mid;
+      }
+      add(`${project.name}: ${ok} weeks per module (now ${project.weeksPerModule})`, {
+        weeksPerModule: ok,
+      });
+    }
+
+    // How many modules fit before the due date.
+    if (project.modules > 1 && onTimeWith({ modules: 1 })) {
+      let ok = 1;
+      let bad = project.modules;
+      while (bad - ok > 1) {
+        const mid = Math.floor((ok + bad) / 2);
+        if (onTimeWith({ modules: mid })) ok = mid;
+        else bad = mid;
+      }
+      add(`${project.name}: ${ok} of ${project.modules} modules fit before the due date`, {
+        modules: ok,
+      });
+    }
+
+    // The due date it can make with Auto schedule's order.
+    if (row.finished && row.completion)
+      add(`${project.name}: move the due date to ${row.completion}`, { dueDate: row.completion });
+  }
+  return fixes.sort((left, right) => Number(right.allOnTime) - Number(left.allOnTime));
 }

@@ -1,6 +1,12 @@
 export * from "./types";
 export { simulateScenario } from "./simulate";
-export { optimizeScenario, scheduleNotes, scheduleScore } from "./optimize";
+export {
+  optimizeScenario,
+  scheduleNotes,
+  scheduleScore,
+  suggestFixes,
+  type ScheduleFix,
+} from "./optimize";
 export {
   defaultProductionPhaseId,
   isFactoryProductionRow,

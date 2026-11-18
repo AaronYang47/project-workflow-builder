@@ -9,6 +9,7 @@ import {
   simulatedLineDays,
   optimizeScenario,
   scheduleNotes,
+  suggestFixes,
   syncFactoryProductionRow,
   simProjectFromWorkflow,
   simulateScenario,
@@ -515,4 +516,61 @@ test("L5 only adds a Factory Production row below the chosen L4 release conditio
       (item) => item.conditionId,
     ),
   ).not.toContain("factory-production");
+});
+
+test("two splittable projects on one line: the late one is told the line is full", () => {
+  const calendar = {
+    startDate: "2027-01-01",
+    workWeek: "mon-thu" as const,
+    holidayRegion: "CA-ON" as const,
+    automaticShutdowns: true,
+    shutdowns: [],
+  };
+  const projects = [
+    project("green", {
+      name: "Virtual project 2",
+      modules: 60,
+      weeksPerModule: 4,
+      earliestStart: "2027-08-25",
+      dueDate: "2028-04-01",
+      splittable: true,
+      delivery: { kind: "fob", pickupDate: "2027-08-25", batchSize: 2 },
+    }),
+    project("blue", {
+      name: "27001",
+      modules: 200,
+      weeksPerModule: 2,
+      earliestStart: "2027-08-26",
+      dueDate: "2028-05-30",
+      splittable: true,
+      delivery: { kind: "fob", pickupDate: "2027-08-25", batchSize: 2 },
+    }),
+  ];
+  const sc = scenario(projects, { yardCapacity: 24, calendar, startDate: undefined });
+  const result = simulateScenario(sc, ["green", "blue"]);
+  const blue = result.projects.find((row) => row.projectId === "blue")!;
+  expect(blue.lateDays).toBeGreaterThan(0);
+  // It only goes on once the other project's modules are all on the line.
+  expect(blue.firstLoad! > "2027-11-01").toBe(true);
+  const note = scheduleNotes(sc, result).join(" ");
+  expect(note).toContain("27001 could finish by");
+  expect(note).toContain("Virtual project 2 goes on first, so it starts");
+  expect(note).toContain('"Can be split" lets projects share the line but adds no places on it');
+});
+
+test("suggested fixes are checked with Auto schedule before they are offered", () => {
+  const projects = [project("tight", { name: "Tight", modules: 18, dueDate: "2027-02-10" })];
+  const sc = scenario(projects);
+  const fixes = suggestFixes(sc);
+  expect(fixes.length).toBeGreaterThan(0);
+  for (const fix of fixes) {
+    const changed = optimizeScenario({
+      ...sc,
+      projects: projects.map((item) => ({ ...item, ...fix.patch })),
+    });
+    const row = changed.projects[0];
+    expect(row.lateDays).toBeLessThan(simulateScenario(sc).projects[0].lateDays);
+    if (fix.allOnTime) expect(row.lateDays).toBe(0);
+  }
+  expect(fixes.map((fix) => fix.title).join(" ")).toContain("move the due date to");
 });
