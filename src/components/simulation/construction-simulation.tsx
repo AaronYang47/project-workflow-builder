@@ -1,5 +1,6 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   useCallback,
   useEffect,
@@ -110,6 +111,8 @@ function SimulationWorkspace() {
     projects: CloudProjectSummary[];
   }>({ open: false, loading: false, projects: [] });
   const [notice, setNotice] = useState("");
+  const [compactView, setCompactView] = useState<"factory" | "results" | "inputs">("factory");
+  const [compareOpen, setCompareOpen] = useState(false);
   // The toolbar's left-panel button hides the inputs, as it hides the node library on L1/L2.
   const inputsOpen = useWorkflowStore((state) => state.leftOpen);
   const togglePanel = useWorkflowStore((state) => state.togglePanel);
@@ -286,24 +289,39 @@ function SimulationWorkspace() {
   return (
     <div
       data-inputs-open={inputsOpen}
-      className={`relative grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden ${inputsOpen ? "lg:grid-cols-[24rem_1fr]" : ""}`}
+      className={`relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden xl:grid-rows-[minmax(0,1fr)] ${inputsOpen ? "xl:grid-cols-[clamp(17rem,21vw,24rem)_minmax(0,1fr)]" : "xl:grid-cols-[minmax(0,1fr)]"}`}
     >
-      {/* Same edge toggle as the node library on L1/L2. */}
+      <nav aria-label="Simulation view" className="flex gap-1 border-b p-1 xl:hidden">
+        {(["factory", "results", "inputs"] as const).map((view) => (
+          <Button
+            key={view}
+            size="sm"
+            variant={compactView === view ? "default" : "ghost"}
+            aria-pressed={compactView === view}
+            onClick={() => setCompactView(view)}
+            className="flex-1 capitalize"
+          >
+            {view}
+          </Button>
+        ))}
+      </nav>
       {inputsOpen ? null : (
         <button
           type="button"
           onClick={() => togglePanel("left")}
-          className="panel-edge-toggle left-0 z-30 rounded-l-none border-l-0"
+          className="panel-edge-toggle left-0 z-30 hidden rounded-l-none border-l-0 xl:flex"
           aria-label="Open simulation inputs"
           title="Show inputs"
         >
           <ChevronRight className="size-4" />
         </button>
       )}
-      <div hidden={!inputsOpen} className="relative min-h-0">
+      <div
+        className={`relative min-h-0 min-w-0 ${compactView === "inputs" ? "block" : "hidden"} ${inputsOpen ? "xl:block" : "xl:hidden"}`}
+      >
         <aside
           aria-label="Simulation inputs"
-          className="h-full space-y-3 border-b bg-muted/20 p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r"
+          className="h-full space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-2 xl:border-r"
         >
           <section aria-label="Scenario" className="rounded-lg border bg-background p-3">
             <div className="flex items-center gap-2">
@@ -558,7 +576,7 @@ function SimulationWorkspace() {
         <button
           type="button"
           onClick={() => togglePanel("left")}
-          className="panel-edge-toggle -right-3 z-30"
+          className="panel-edge-toggle -right-3 z-30 hidden xl:flex"
           aria-label="Collapse simulation inputs"
           title="Hide inputs"
         >
@@ -568,11 +586,12 @@ function SimulationWorkspace() {
 
       <section
         aria-label="Simulation results"
-        className="flex min-w-0 flex-col gap-3 p-3 lg:overflow-y-auto"
+        className={`min-h-0 min-w-0 flex-col gap-2 overflow-hidden p-2 ${compactView === "inputs" ? "hidden" : "flex"} xl:flex`}
       >
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
           <Button
+            size="sm"
             onClick={() => {
               const best = optimizeScenario(simDraft);
               const byId = new Map(draft.projects.map((project) => [project.id, project]));
@@ -587,7 +606,13 @@ function SimulationWorkspace() {
           >
             <Sparkles className="size-4" /> Auto schedule
           </Button>
+          {scenarios.length > 1 ? (
+            <Button size="sm" variant="outline" onClick={() => setCompareOpen(true)}>
+              Compare
+            </Button>
+          ) : null}
           <Button
+            size="sm"
             variant="outline"
             disabled={!result.days.length}
             onClick={async () => {
@@ -615,14 +640,20 @@ function SimulationWorkspace() {
           </Button>
         </div>
         {notice ? (
-          <p role="status" data-sim-notice className="rounded-md bg-muted px-3 py-2 text-xs">
+          <p
+            role="status"
+            data-sim-notice
+            className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs"
+          >
             {notice}
           </p>
         ) : null}
-        {/* Charts on the left, a compact factory playback beside them on wide screens. */}
-        {/* Fills the page: the charts take up any height left over. */}
-        <div className="grid flex-1 items-stretch gap-3 2xl:grid-cols-[minmax(0,1fr)_minmax(34rem,1.2fr)]">
-          <div className="flex min-w-0 flex-col gap-3">
+        <div
+          className={`grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-2 ${result.days.length ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]" : ""}`}
+        >
+          <div
+            className={`min-h-0 min-w-0 flex-col gap-2 ${compactView === "results" || !result.days.length ? "flex" : "hidden"} xl:flex`}
+          >
             <SimulationResults
               result={result}
               projects={draft.projects}
@@ -633,7 +664,9 @@ function SimulationWorkspace() {
             <DayActivity result={result} projects={draft.projects} index={playIndex} />
           </div>
           {result.days.length ? (
-            <div className="flex min-h-0 flex-col">
+            <div
+              className={`min-h-0 min-w-0 flex-col ${compactView === "factory" ? "flex" : "hidden"} xl:flex`}
+            >
               <FactoryPlayback
                 key={playbackKey}
                 result={result}
@@ -645,7 +678,26 @@ function SimulationWorkspace() {
             </div>
           ) : null}
         </div>
-        {scenarios.length > 1 ? <ScenarioComparison scenarios={scenarios} /> : null}
+        <Dialog.Root open={compareOpen} onOpenChange={setCompareOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[100]" />
+            <Dialog.Content className="liquid-glass-panel fixed left-1/2 top-1/2 z-[101] max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border p-3">
+              <div className="flex items-center justify-between px-2">
+                <Dialog.Title className="text-sm font-bold">Compare saved scenarios</Dialog.Title>
+                <Dialog.Description className="sr-only">
+                  Completion dates and late projects for saved scenarios.
+                </Dialog.Description>
+                <Dialog.Close
+                  aria-label="Close comparison"
+                  className="rounded-md p-2 hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </Dialog.Close>
+              </div>
+              <ScenarioComparison scenarios={scenarios} />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </section>
     </div>
   );
@@ -665,7 +717,6 @@ function ScenarioComparison({ scenarios }: { scenarios: SimScenario[] }) {
   });
   return (
     <section aria-label="Compare scenarios" className="rounded-lg border bg-background p-3">
-      <h3 className="text-xs font-bold">Compare saved scenarios</h3>
       <table className="mt-2 w-full text-left text-xs">
         <thead className="text-[10px] uppercase text-muted-foreground">
           <tr>

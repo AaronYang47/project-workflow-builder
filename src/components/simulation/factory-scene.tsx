@@ -39,8 +39,8 @@ export function FactoryScene({
   const height = 226 + roadY + roadHeight + 50;
 
   return (
-    <div className="w-full">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5">
+      <div className="flex shrink-0 items-center justify-end">
         <div className="flex items-center rounded-md border border-slate-700 text-white">
           <button
             type="button"
@@ -70,13 +70,13 @@ export function FactoryScene({
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-700">
+      <div className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700">
         <svg
           role="img"
           aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
           viewBox={`0 0 960 ${height}`}
           style={{ width: `${zoom * 100}%` }}
-          className="block min-w-[620px] select-none bg-slate-900"
+          className={`block select-none bg-slate-900 ${zoom === 1 ? "h-full" : ""}`}
           data-factory-scene
         >
           <defs>

@@ -581,3 +581,48 @@ test("factory inventory counts each finished module waiting in the yard", async 
   await expect(page.locator("[data-scene-yard-module]")).toHaveCount(4);
   await expect(page.locator("[data-line-module]")).toHaveCount(0);
 });
+
+test("the dashboard and playback stay within the viewport on desktop and phone", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto("/construction-simulation");
+
+  const fit = async (selector: string) => {
+    const item = page.locator(selector).first();
+    await expect(item).toBeVisible();
+    const box = (await item.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.height).toBeGreaterThan(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  };
+  const noPageScroll = async () => {
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+      page.viewportSize()!.height,
+    );
+  };
+
+  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
+  await fit("[data-simulation-results]");
+  await fit("[data-day-activity]");
+  await fit("[data-factory-playback]");
+  await fit('input[aria-label="Simulation day"]');
+  await noPageScroll();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fit("[data-factory-scene]");
+  await fit('input[aria-label="Simulation day"]');
+  await page
+    .getByRole("navigation", { name: "Simulation view" })
+    .getByRole("button", { name: "Results" })
+    .click();
+  await fit("[data-simulation-results]");
+  await fit("[data-day-activity]");
+  await page
+    .getByRole("navigation", { name: "Simulation view" })
+    .getByRole("button", { name: "Inputs" })
+    .click();
+  await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
+  await noPageScroll();
+});

@@ -16,12 +16,12 @@ const formatDate = (date?: string) =>
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "bad" | "good" }) {
   return (
-    <div className="rounded-lg border bg-background px-3 py-2">
+    <div className="rounded-lg border bg-background px-2 py-1.5">
       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
       <p
-        className={`mt-0.5 text-lg font-bold ${tone === "bad" ? "text-red-600" : tone === "good" ? "text-emerald-600" : ""}`}
+        className={`mt-0.5 text-sm font-bold ${tone === "bad" ? "text-red-600" : tone === "good" ? "text-emerald-600" : ""}`}
       >
         {value}
       </p>
@@ -76,7 +76,10 @@ function DailyChart({
   );
   const step = Math.max(1, Math.ceil(months.length / 5));
   return (
-    <figure className="flex flex-col rounded-lg border bg-background p-3" data-daily-chart={title}>
+    <figure
+      className="flex min-h-0 flex-col rounded-lg border bg-background p-2"
+      data-daily-chart={title}
+    >
       <figcaption className="mb-2 flex items-center justify-between gap-2 text-xs font-bold">
         <span>{title}</span>
         <span data-chart-current className="font-mono text-[11px] font-semibold" style={{ color }}>
@@ -84,7 +87,7 @@ function DailyChart({
         </span>
       </figcaption>
       <div
-        className="relative min-h-40 flex-1 cursor-crosshair"
+        className="relative min-h-0 flex-1 cursor-crosshair"
         onClick={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
           const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
@@ -237,8 +240,8 @@ export function SimulationResults({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4" data-simulation-results>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" data-simulation-results>
+      <div className="grid shrink-0 grid-cols-4 gap-1.5">
         <Stat label="All done" value={formatDate(result.makespanEnd)} />
         <Stat
           label="Late projects"
@@ -253,8 +256,11 @@ export function SimulationResults({
         />
       </div>
 
-      <section aria-label="Project timeline" className="rounded-lg border bg-background p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold text-muted-foreground">
+      <section
+        aria-label="Project timeline"
+        className="flex min-h-0 shrink-0 flex-col rounded-lg border bg-background p-2"
+      >
+        <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-semibold text-muted-foreground">
           <span className="text-xs font-bold text-foreground">Timeline</span>
           <span className="flex items-center gap-1">
             <i className="inline-block h-2.5 w-4 rounded-sm bg-slate-500" /> On the line
@@ -300,7 +306,10 @@ export function SimulationResults({
             ) : null}
           </div>
         </div>
-        <div className="divide-y">
+        <div
+          data-simulation-export-expand
+          className="max-h-[clamp(2.65rem,12dvh,8rem)] divide-y overflow-y-auto overscroll-contain"
+        >
           {result.priority.map((id) => {
             const project = byId.get(id);
             const row = result.projects.find((item) => item.projectId === id);
@@ -310,7 +319,7 @@ export function SimulationResults({
               <div
                 key={id}
                 data-sim-row={id}
-                className="grid grid-cols-[9rem_1fr] items-center gap-2 py-2"
+                className="grid grid-cols-[9rem_1fr] items-center gap-2 py-1"
               >
                 <div className="min-w-0">
                   <p className="truncate text-xs font-bold" title={project.name}>
@@ -392,7 +401,7 @@ export function SimulationResults({
         </div>
       </section>
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
+      <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-[minmax(0,1fr)] gap-2">
         <DailyChart
           title="Modules on the line each day"
           dates={dates}
@@ -435,12 +444,15 @@ export function SimulationResults({
       {result.warnings.length ? (
         <section
           aria-label="Warnings"
-          className="rounded-lg border border-red-500/30 bg-red-500/5 p-3"
+          className="flex shrink-0 flex-col rounded-lg border border-red-500/30 bg-red-500/5 p-2"
         >
           <h3 className="flex items-center gap-1.5 text-xs font-bold text-red-600">
             <AlertTriangle className="size-4" /> Warnings
           </h3>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs">
+          <ul
+            data-simulation-export-expand
+            className="mt-1 max-h-10 list-disc space-y-0.5 overflow-y-auto overscroll-contain pl-5 text-xs"
+          >
             {result.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}

@@ -46,20 +46,18 @@ export function DayActivity({
     <section
       aria-label="Today"
       data-day-activity
-      className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-2"
+      className="grid shrink-0 grid-cols-2 gap-2 rounded-lg border bg-background p-2"
     >
       <div className="space-y-1.5">
         <p className="text-xs font-bold">
           Events up to {day.date}
-          <span className="ml-2 font-normal text-muted-foreground">
-            newest first · scroll for earlier
-          </span>
+          <span className="ml-2 font-normal text-muted-foreground">newest first</span>
         </p>
         <ol
           ref={list}
           aria-label="Events"
           data-event-list
-          className="scroll-thin max-h-48 space-y-0.5 overflow-y-auto pr-1 text-[11px]"
+          className="scroll-thin max-h-[clamp(2.5rem,8dvh,5rem)] space-y-0.5 overflow-y-auto pr-1 text-[11px]"
         >
           {rows.length ? (
             rows.map((item, position) => (
@@ -81,7 +79,10 @@ export function DayActivity({
           )}
         </ol>
       </div>
-      <div aria-label="Sites" className="space-y-1.5">
+      <div
+        aria-label="Sites"
+        className="max-h-[clamp(3.75rem,11dvh,6.125rem)] space-y-1.5 overflow-y-auto overscroll-contain"
+      >
         <p className="text-xs font-bold">Sites</p>
         {Object.entries(day.sites).length ? (
           Object.entries(day.sites).map(([projectId, site]) => {

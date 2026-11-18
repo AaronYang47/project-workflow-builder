@@ -45,7 +45,7 @@ function ControlButton({
       title={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex size-9 items-center justify-center rounded-md border bg-background hover:bg-muted disabled:opacity-40"
+      className="flex size-8 items-center justify-center rounded-md border bg-background hover:bg-muted disabled:opacity-40"
     >
       {children}
     </button>
@@ -120,9 +120,9 @@ export function FactoryPlayback({
     <section
       aria-label="Factory playback"
       data-factory-playback
-      className="flex flex-1 flex-col overflow-hidden rounded-xl border bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-background/80 px-3 py-2 backdrop-blur">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b bg-background/80 px-2 py-1.5 backdrop-blur">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Day {index + 1} of {result.days.length}
@@ -171,7 +171,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative min-h-[260px] flex-1 bg-slate-950 p-2">
+      <div className="relative order-last flex min-h-0 flex-1 flex-col bg-slate-950 p-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle
@@ -193,7 +193,7 @@ export function FactoryPlayback({
           </div>
         ) : null}
 
-        <div className="mb-2 flex flex-wrap gap-1.5">
+        <div className="mb-1 flex max-h-10 shrink-0 flex-wrap gap-1 overflow-y-auto">
           {projects.map((project) => (
             <span
               key={project.id}
@@ -212,8 +212,8 @@ export function FactoryPlayback({
         />
       </div>
 
-      <div className="sticky bottom-0 z-20 grid gap-3 border-t bg-background/95 p-3 backdrop-blur">
-        <div className="space-y-2">
+      <div className="grid shrink-0 gap-1 border-b bg-background/95 p-2 backdrop-blur">
+        <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <ControlButton label="Back to start" onClick={() => setDayIndex(0)}>
               <SkipBack className="size-4" />
@@ -232,7 +232,7 @@ export function FactoryPlayback({
                 if (!playing && index >= last) setDayIndex(0);
                 setPlaying(!playing);
               }}
-              className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground"
+              className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground"
             >
               {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
               {playing ? "Pause" : "Play"}
@@ -264,7 +264,7 @@ export function FactoryPlayback({
             <button
               type="button"
               onClick={() => setCalendarOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-bold hover:bg-muted"
+              className="flex h-8 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-bold hover:bg-muted"
             >
               <CalendarDays className="size-4" /> Production calendar
             </button>
