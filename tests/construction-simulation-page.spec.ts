@@ -661,3 +661,50 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
   await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
   await noPageScroll();
 });
+
+test("read-only simulation can open workflow layers and a repeated snapshot stays saved", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const room = `simulation-viewer-${Date.now()}`;
+  await page.goto(`/construction-simulation?room=${room}&editor=remote-editor`);
+
+  await expect(page.getByRole("textbox", { name: "Version", exact: true })).toBeDisabled();
+  await expect(page.locator('[title="All changes saved"]')).toBeVisible();
+  await page.evaluate(
+    ({ room, key }) => {
+      const workflow = JSON.parse(localStorage.getItem(key)!).state.file;
+      const channel = new BroadcastChannel(`workflow-collab-${room}`);
+      channel.postMessage({
+        type: "SYNC_FULL_STATE",
+        senderId: "remote-editor",
+        file: workflow,
+        view: { layer: "L1", page: "process-overview" },
+        timestamp: Date.now(),
+      });
+      channel.close();
+    },
+    { room, key: WORKFLOW_STORAGE_KEY },
+  );
+
+  await page.getByRole("button", { name: "Auto schedule" }).click();
+  await expect(page.locator("[data-sim-notice]")).toContainText("Best order found");
+  await expect(page.locator('[title="All changes saved"]')).toBeVisible();
+  const layers = page.getByRole("navigation", { name: "Workflow layers" });
+  for (const name of [
+    "L1 · Process",
+    "L2 · Department Workflow",
+    "Open Release Conditions Workspace",
+    "Open Process Overview",
+  ]) {
+    await expect(layers.getByRole("link", { name, exact: true })).toBeEnabled();
+  }
+  await layers.getByRole("link", { name: "L2 · Department Workflow" }).click();
+  await expect(page).toHaveURL(/\?[^#]*browseLayer=1/);
+  await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("textbox", { name: "Version", exact: true })).toBeDisabled();
+});

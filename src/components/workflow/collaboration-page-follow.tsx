@@ -10,6 +10,7 @@ import { collaborationManager } from "@/lib/collaboration/collaboration-manager"
 import {
   collaborativePageFromPath,
   COLLABORATIVE_PATHS,
+  INDEPENDENT_LAYER_PARAM,
 } from "@/lib/collaboration/collaboration-route";
 
 /** Lives in the root layout so follow mode survives switching workspaces. */
@@ -39,12 +40,13 @@ export function CollaborationPageFollow() {
       !collaborativePageFromPath(pathname)
     )
       return;
+    const query = new URLSearchParams(window.location.search);
+    if (query.has(INDEPENDENT_LAYER_PARAM)) return;
     // Missing page means the canvas for older clients. Never navigate to a
     // peer-supplied URL: only the three known workspace routes are accepted.
     const page = editorViewState.page || "workflow";
     const target = COLLABORATIVE_PATHS[page];
     if (!target || (pathname.replace(/\/$/, "") || "/") === target) return;
-    const query = new URLSearchParams(window.location.search);
     query.set("room", roomId);
     if (editorPeerId) query.set("editor", editorPeerId);
     router.replace(`${target}?${query.toString()}`, { scroll: false });

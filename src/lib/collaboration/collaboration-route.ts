@@ -14,3 +14,6 @@ export function collaborativePageFromPath(
     (key) => COLLABORATIVE_PATHS[key] === normalized,
   );
 }
+
+/** A viewer who explicitly opens a layer from L5 can inspect it independently. */
+export const INDEPENDENT_LAYER_PARAM = "browseLayer";

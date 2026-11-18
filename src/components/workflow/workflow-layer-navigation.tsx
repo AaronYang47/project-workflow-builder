@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { INDEPENDENT_LAYER_PARAM } from "@/lib/collaboration/collaboration-route";
 import {
   canEditCollaborativeWorkflow,
   useCollaborationStore,
@@ -41,6 +42,7 @@ export function WorkflowLayerNavigation({
   const room = useCollaborationStore((state) => state.roomId);
   const editor = useCollaborationStore((state) => state.editorPeerId);
   const canEdit = useCollaborationStore(canEditCollaborativeWorkflow);
+  const browseFromSimulation = currentLayer === "L5" && !canEdit;
   return (
     <nav
       aria-label="Workflow layers"
@@ -58,6 +60,7 @@ export function WorkflowLayerNavigation({
             query.set("room", room);
             if (editor) query.set("editor", editor);
           }
+          if (browseFromSimulation && layer.id !== "L5") query.set(INDEPENDENT_LAYER_PARAM, "1");
           if (layer.id === "L1" || layer.id === "L2") query.set("layer", layer.id);
           const href = `${layer.path}${query.size ? `?${query}` : ""}`;
           // L5 is a desktop page: hidden on phones, its long name only on wide screens.
@@ -65,7 +68,7 @@ export function WorkflowLayerNavigation({
           const style = `${isL5 ? "max-sm:hidden" : ""} flex h-7 items-center whitespace-nowrap rounded px-2 text-[11px] font-semibold ${currentLayer === layer.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`;
           const shortClass = isL5 ? "2xl:hidden" : "xl:hidden";
           const longClass = isL5 ? "hidden 2xl:inline" : "hidden xl:inline";
-          return canEdit ? (
+          return canEdit || browseFromSimulation ? (
             <Link
               key={layer.id}
               href={href}
