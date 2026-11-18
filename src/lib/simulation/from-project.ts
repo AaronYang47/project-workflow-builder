@@ -62,6 +62,84 @@ export function projectScheduleDates(file: WorkflowFile, productionPhaseId?: str
   return { earliestStart, dueDate };
 }
 
+/** The Departments in the production Phase and their L4 release conditions. */
+export function productionReleaseConditions(file: WorkflowFile, productionPhaseId?: string) {
+  const schedule = buildProcessSchedule(file);
+  const index = schedule.phases.findIndex((phase) => phase.id === productionPhaseId);
+  const departments: Array<{
+    nodeId: string;
+    department: string;
+    conditions: Array<{ conditionId: string; title: string; days?: number; simulated?: number }>;
+  }> = [];
+  if (index < 0) return departments;
+  for (const task of schedule.tasks) {
+    if (task.phaseIndex !== index) continue;
+    let department = departments.find((item) => item.nodeId === task.nodeId);
+    if (!department) {
+      department = {
+        nodeId: task.nodeId,
+        department: task.department || task.chapter,
+        conditions: [],
+      };
+      departments.push(department);
+    }
+    department.conditions.push({
+      conditionId: task.conditionId,
+      title: task.title,
+      days: task.days,
+      simulated: task.condition.simulated?.days,
+    });
+  }
+  return departments;
+}
+
+/** Days a project is on the line in L5: first module on through the last module off. */
+export function simulatedLineDays(result: { firstLoad?: string; productionEnd?: string }) {
+  const start = dayOf(result.firstLoad ?? "");
+  const end = dayOf(result.productionEnd ?? "");
+  return start == null || end == null || end < start ? undefined : end - start + 1;
+}
+
+/**
+ * Writes the simulated line days into an L4 release condition's duration
+ * (L4 durations are elapsed days, days off included) and notes where they came from.
+ */
+export function applySimulatedDays(
+  file: WorkflowFile,
+  target: { nodeId: string; conditionId: string },
+  days: number,
+  scenario: string,
+): WorkflowFile {
+  const schedule = buildProcessSchedule(file);
+  const task = schedule.tasks.find(
+    (item) => item.nodeId === target.nodeId && item.conditionId === target.conditionId,
+  );
+  if (!task) return file;
+  return {
+    ...file,
+    graph: {
+      ...file.graph,
+      nodes: file.graph.nodes.map((node) =>
+        node.id !== task.nodeId
+          ? node
+          : {
+              ...node,
+              conditions: node.conditions.map((condition, index) =>
+                index !== task.conditionIndex
+                  ? condition
+                  : {
+                      ...condition,
+                      duration: days,
+                      durationUnit: "days" as const,
+                      simulated: { days, scenario, updatedAt: new Date().toISOString() },
+                    },
+              ),
+            },
+      ),
+    },
+  };
+}
+
 const PROJECT_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
 
 /**

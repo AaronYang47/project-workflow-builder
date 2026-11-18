@@ -26,7 +26,10 @@ import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
+  applySimulatedDays,
   fobPickupDate,
+  productionReleaseConditions,
+  simulatedLineDays,
   optimizeScenario,
   productionPhaseOptions,
   projectScheduleDates,
@@ -316,23 +319,68 @@ function SimulationWorkspace() {
       setNotice(`${project.name}: ${label} in L1 Final Close; L2–L4 follow.`);
       return;
     }
+    writeSavedProject(project, (latest) => setFinalCloseFobYard(latest, fob), {
+      saved: `${project.name}: ${label} saved to its L1 Final Close; L2–L4 follow.`,
+      failed: "could not save FOB yard to the project",
+    });
+  };
+  /**
+   * Changes a saved project that isn't open in the editor: shows the change at
+   * once, then applies it to the latest saved copy and saves that.
+   */
+  const writeSavedProject = (
+    project: SimProject,
+    change: (file: WorkflowFile) => WorkflowFile,
+    messages: { saved: string; failed: string },
+  ) => {
+    if (project.source.kind !== "cloud") return;
     const id = project.source.projectId;
-    setFiles((current) => ({ ...current, [project.id]: setFinalCloseFobYard(file, fob) }));
+    const before = files[project.id];
+    if (before) setFiles((current) => ({ ...current, [project.id]: change(before) }));
     void loadCloudProject(id)
       .then((latest) => {
-        const next = setFinalCloseFobYard(latest, fob);
+        const next = change(latest);
         return saveCloudProject(id, next).then(() => {
           setFiles((current) => ({ ...current, [project.id]: next }));
-          setNotice(`${project.name}: ${label} saved to its L1 Final Close; L2–L4 follow.`);
+          setNotice(messages.saved);
         });
       })
       .catch((error: unknown) => {
-        // Put the saved project's own choice back; the sync above follows it.
-        setFiles((current) => ({ ...current, [project.id]: file }));
+        if (before) setFiles((current) => ({ ...current, [project.id]: before }));
         setNotice(
-          `${project.name}: could not save FOB yard to the project (${error instanceof Error ? error.message : "error"}).`,
+          `${project.name}: ${messages.failed} (${error instanceof Error ? error.message : "error"}).`,
         );
       });
+  };
+  const lineDaysFor = (project: SimProject) => {
+    const row = result.projects.find((item) => item.projectId === project.id);
+    return row ? simulatedLineDays(row) : undefined;
+  };
+  /** L5 → L4: the simulated line days become the chosen release condition's duration. */
+  const writeLineDaysToL4 = (project: SimProject, days: number) => {
+    const target = project.l4Target;
+    if (!target || project.source.kind !== "cloud") return;
+    const scenarioName = draft.name || "Scenario";
+    const change = (file: WorkflowFile) => applySimulatedDays(file, target, days, scenarioName);
+    if (project.source.projectId === currentId) {
+      if (!canEditCollaborativeWorkflow()) {
+        setNotice(
+          `${project.name}: you don't have edit control of this project, so L4 can't change.`,
+        );
+        return;
+      }
+      const store = useWorkflowStore.getState();
+      const next = change(store.file);
+      const node = next.graph.nodes.find((item) => item.id === target.nodeId);
+      if (!node || next === store.file) return;
+      store.updateNode(node.id, { conditions: node.conditions });
+      setNotice(`${project.name}: ${days} days written to L4.`);
+      return;
+    }
+    writeSavedProject(project, change, {
+      saved: `${project.name}: ${days} days written to L4 and saved.`,
+      failed: "could not write the days to L4",
+    });
   };
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
@@ -645,6 +693,16 @@ function SimulationWorkspace() {
                 }
                 l4Start={l4Starts.get(project.id)}
                 lineSlots={draft.factory.targetOnLine}
+                releaseConditions={
+                  fileOf(project)
+                    ? productionReleaseConditions(fileOf(project)!, project.productionPhaseId)
+                    : undefined
+                }
+                lineDays={lineDaysFor(project)}
+                onWriteL4={() => {
+                  const days = lineDaysFor(project);
+                  if (days !== undefined) writeLineDaysToL4(project, days);
+                }}
                 lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
                 onChange={(patch) => {
                   const { delivery, ...rest } = patch;

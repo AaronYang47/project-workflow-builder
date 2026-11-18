@@ -44,6 +44,8 @@ export interface SimProject {
   splittable: boolean;
   /** L1 Phase used as factory production (cloud projects). */
   productionPhaseId?: string;
+  /** Saved projects: the L4 release condition that receives the simulated line days. */
+  l4Target?: { nodeId: string; conditionId: string };
   /** Earliest date the first module may go on the line. */
   earliestStart: string;
   /** Customer's required date: pickup (FOB yard) or installation complete (site). */

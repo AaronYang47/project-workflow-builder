@@ -31,8 +31,14 @@ export function FactoryScene({
   const shipments = Object.entries(day.departures);
   const trucksPerRow = 8;
   const pickedUp = new Set(day.pickedUp);
-  const bayCount = Math.max(yard.length, Math.min(yardCapacity, 24));
-  const roadY = 54 + Math.ceil(bayCount / 12) * 52;
+  // One bay per yard space. Past 48 spaces the rows get more, narrower bays
+  // (at most four rows) so the scene keeps its height.
+  const bayCount = Math.max(yard.length, yardCapacity);
+  const bayColumns = Math.max(12, Math.ceil(bayCount / 4));
+  const bayPitch = 912 / bayColumns;
+  const bayWidth = bayPitch - 8;
+  const bayFont = Math.min(16, Math.max(9, bayPitch * 0.24));
+  const roadY = 54 + Math.ceil(bayCount / bayColumns) * 52;
   const roadHeight = Math.max(1, Math.ceil(shipments.length / trucksPerRow)) * 58;
   const height = 226 + roadY + roadHeight + 50;
   const dayOffText = `DAY OFF · ${closureTag(day.closure).toUpperCase()}`;
@@ -183,14 +189,15 @@ export function FactoryScene({
               return (
                 <g
                   key={index}
-                  transform={`translate(${28 + (index % 12) * 76} ${52 + Math.floor(index / 12) * 52})`}
+                  transform={`translate(${28 + (index % bayColumns) * bayPitch} ${52 + Math.floor(index / bayColumns) * 52})`}
                   data-scene-yard-module={yard[index]}
+                  data-yard-bay={index + 1}
                 >
                   <title>
                     {project ? `Bay ${index + 1} · ${project.name}` : `Bay ${index + 1} · empty`}
                   </title>
                   <rect
-                    width="68"
+                    width={bayWidth}
                     height="43"
                     rx="5"
                     fill={project?.color ?? "#17283a"}
@@ -198,11 +205,11 @@ export function FactoryScene({
                     strokeDasharray={project ? undefined : "4 4"}
                   />
                   <text
-                    x="34"
+                    x={bayWidth / 2}
                     y="27"
                     textAnchor="middle"
                     fill={project ? "#fff" : "#94a3b8"}
-                    fontSize="16"
+                    fontSize={bayFont}
                     paintOrder="stroke"
                     stroke={project ? "#0f172a" : undefined}
                     strokeWidth="2"

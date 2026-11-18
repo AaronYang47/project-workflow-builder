@@ -108,6 +108,20 @@ export function GanttTaskRow({
           <span className="line-clamp-2 break-words text-[11px] font-medium leading-[14px]">
             {task.title}
           </span>
+          {task.condition.simulated ? (
+            <span
+              data-l5-simulated-days={task.condition.simulated.days}
+              title={`Written from L5 scenario “${task.condition.simulated.scenario}”`}
+              className={`mt-0.5 block w-fit rounded px-1 text-[9px] font-bold leading-[13px] ${
+                task.days === task.condition.simulated.days
+                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                  : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              L5 · {task.condition.simulated.days} days on the line
+              {task.days === task.condition.simulated.days ? "" : " · duration changed since"}
+            </span>
+          ) : null}
         </div>
         {!isSalesDepartmentName(task.department) ? (
           <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">

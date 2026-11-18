@@ -175,6 +175,8 @@ export interface Condition {
   unassignedDocumentFields?: Record<string, string | number | boolean>;
   expression?: string;
   description?: string;
+  /** Set from L5: the simulated line time written into this condition's duration. */
+  simulated?: { days: number; scenario: string; updatedAt: string };
 }
 
 export interface DomainNode {

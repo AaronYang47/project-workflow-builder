@@ -65,6 +65,97 @@ const SITE_DEFAULT: Extract<SimDelivery, { kind: "site" }> = {
   install: { mode: "rate", modulesPerDay: 4, finishDays: 5 },
 };
 
+/** Department and release condition in L4 that take the simulated line days. */
+function L4TargetPicker({
+  departments,
+  target,
+  lineDays,
+  onTarget,
+  onWrite,
+}: {
+  departments: NonNullable<Parameters<typeof ProjectCard>[0]["releaseConditions"]>;
+  target?: { nodeId: string; conditionId: string };
+  lineDays?: number;
+  onTarget: (target: { nodeId: string; conditionId: string } | undefined) => void;
+  onWrite?: () => void;
+}) {
+  const department = departments.find((item) => item.nodeId === target?.nodeId);
+  const condition = department?.conditions.find((item) => item.conditionId === target?.conditionId);
+  const inSync = condition && lineDays !== undefined && condition.days === lineDays;
+  return (
+    <div className="col-span-2 grid grid-cols-2 gap-2" data-l4-target>
+      <label className={labelClass}>
+        Department
+        <select
+          aria-label="Department"
+          value={department?.nodeId ?? ""}
+          onChange={(event) => {
+            const next = departments.find((item) => item.nodeId === event.target.value);
+            const first = next?.conditions[0];
+            onTarget(
+              next && first ? { nodeId: next.nodeId, conditionId: first.conditionId } : undefined,
+            );
+          }}
+          className={inputClass}
+        >
+          <option value="">Choose…</option>
+          {departments.map((item) => (
+            <option key={item.nodeId} value={item.nodeId}>
+              {item.department}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={labelClass}>
+        Release condition
+        <select
+          aria-label="Release condition"
+          value={condition?.conditionId ?? ""}
+          disabled={!department}
+          onChange={(event) =>
+            department &&
+            onTarget(
+              event.target.value
+                ? { nodeId: department.nodeId, conditionId: event.target.value }
+                : undefined,
+            )
+          }
+          className={`${inputClass} disabled:opacity-50`}
+        >
+          <option value="">Choose…</option>
+          {department?.conditions.map((item) => (
+            <option key={item.conditionId} value={item.conditionId}>
+              {item.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="col-span-2 flex flex-wrap items-center gap-2 text-[10px] leading-snug">
+        <span className="min-w-0 flex-1 text-muted-foreground" data-l4-target-status>
+          {!departments.length
+            ? "No release conditions in this Phase in L4."
+            : !condition
+              ? "Choose where L5's line days go in L4."
+              : lineDays === undefined
+                ? "This project doesn't finish on the line in this simulation."
+                : inSync
+                  ? `L4 has the L5 line time: ${lineDays} days.`
+                  : `L5: ${lineDays} days on the line · L4 now ${condition.days ? `${condition.days} days` : "no duration"}.`}
+        </span>
+        {condition && lineDays !== undefined && !inSync && onWrite ? (
+          <button
+            type="button"
+            onClick={onWrite}
+            className="rounded-md bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground"
+          >
+            Write {lineDays} days to L4
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** Inputs for one project in the simulation. */
 export function ProjectCard({
   project,
@@ -73,6 +164,9 @@ export function ProjectCard({
   phaseOptions,
   l4Start,
   lineSlots,
+  releaseConditions,
+  lineDays,
+  onWriteL4,
   lateDays,
   onChange,
   onPhaseChange,
@@ -88,6 +182,16 @@ export function ProjectCard({
   l4Start?: { date: string; phase: string };
   /** Modules the line holds at its normal pace (the pipeline length). */
   lineSlots: number;
+  /** Saved projects: Departments in the production Phase and their L4 release conditions. */
+  releaseConditions?: Array<{
+    nodeId: string;
+    department: string;
+    conditions: Array<{ conditionId: string; title: string; days?: number; simulated?: number }>;
+  }>;
+  /** Days this project is on the line in the simulation. */
+  lineDays?: number;
+  /** Writes lineDays into the chosen L4 release condition. */
+  onWriteL4?: () => void;
   lateDays?: number;
   onChange: (patch: Partial<SimProject>) => void;
   onPhaseChange: (phaseId: string) => void;
@@ -214,6 +318,15 @@ export function ProjectCard({
               ))}
             </select>
           </label>
+        ) : null}
+        {releaseConditions ? (
+          <L4TargetPicker
+            departments={releaseConditions}
+            target={project.l4Target}
+            lineDays={lineDays}
+            onTarget={(l4Target) => onChange({ l4Target })}
+            onWrite={onWriteL4}
+          />
         ) : null}
         <DateField
           label="Earliest line start"

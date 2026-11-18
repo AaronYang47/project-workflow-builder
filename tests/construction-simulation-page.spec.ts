@@ -587,6 +587,7 @@ test("factory inventory counts each finished module waiting in the yard", async 
   await expect(page.locator("[data-inventory-factory-count]")).toHaveText("4");
   await expect(page.locator("[data-yard-module]")).toHaveCount(4);
   await expect(page.locator("[data-scene-yard-module]")).toHaveCount(4);
+  await expect(page.locator("[data-yard-bay]")).toHaveCount(24);
   await expect(page.locator("[data-line-module]")).toHaveCount(0);
   await expect(page.locator("[data-truck-departure]")).toHaveCount(0);
   await page.getByRole("button", { name: "Jump to end" }).click();
@@ -682,7 +683,7 @@ test("factory days off show their Calendar type and the scene keeps its size", a
             targetOnLine: 18,
             normalMax: 19,
             crowdedMax: 23,
-            yardCapacity: 24,
+            yardCapacity: 50,
             installCrews: 2,
             calendar: {
               startDate: "2027-09-01",
@@ -714,6 +715,11 @@ test("factory days off show their Calendar type and the scene keeps its size", a
   const slider = page.getByRole("slider", { name: "Simulation day" });
   await expect(slider).toBeVisible();
   // Day 0 is 2027-09-01, so Thanksgiving (Mon 11 Oct 2027) is day 40.
+  // One bay per yard space, all inside the scene.
+  await expect(page.locator("[data-yard-bay]")).toHaveCount(50);
+  const sceneBox = (await page.locator("[data-factory-scene]").boundingBox())!;
+  const lastBay = (await page.locator('[data-yard-bay="50"]').boundingBox())!;
+  expect(lastBay.x + lastBay.width).toBeLessThanOrEqual(sceneBox.x + sceneBox.width);
   await slider.fill("40");
   await expect(page.locator("[data-playback-date]")).toContainText("11 Oct 2027");
   await expect(page.locator("[data-playback-day-off]")).toHaveText(
@@ -735,4 +741,39 @@ test("factory days off show their Calendar type and the scene keeps its size", a
   const cards = page.locator("[data-line-module]");
   await cards.last().scrollIntoViewIfNeeded();
   await expect(cards.last()).toBeInViewport();
+});
+
+test("L5 writes its line days into the chosen L4 release condition", async ({ page }) => {
+  const file = createE2EWorkflow();
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false, activeProjectId: "p1" },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/process-overview");
+  await page.getByRole("link", { name: "Open Construction Simulation" }).click();
+  const card = page.locator('[data-sim-project="cloud-p1"]');
+  await expect(card.getByLabel("Release condition")).toBeDisabled();
+  await card.getByLabel("Department").selectOption({ label: "Department Lifecycle Phase" });
+  // The second release condition of that Department.
+  await card.getByLabel("Release condition").selectOption({ index: 2 });
+  const status = card.locator("[data-l4-target-status]");
+  await expect(status).toContainText(/L5: \d+ days on the line/);
+  const days = Number((await status.textContent())!.match(/L5: (\d+) days/)![1]);
+  await card.getByRole("button", { name: `Write ${days} days to L4` }).click();
+  await expect(page.locator("[data-sim-notice]")).toContainText(`${days} days written to L4`);
+  await expect(status).toContainText(`L4 has the L5 line time: ${days} days.`);
+
+  await page.getByRole("link", { name: "Open Process Overview" }).click();
+  await expect(page.locator(`[data-l5-simulated-days="${days}"]`)).toContainText(
+    `L5 · ${days} days on the line`,
+  );
 });

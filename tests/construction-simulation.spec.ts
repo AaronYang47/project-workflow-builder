@@ -1,8 +1,13 @@
 import { expect, test } from "playwright/test";
 import { createProjectWorkflow } from "../src/lib/project-template";
+import { buildProcessSchedule } from "../src/lib/process-schedule";
+import { createE2EWorkflow } from "./support/e2e-workflow";
 import {
   defaultProductionPhaseId,
+  applySimulatedDays,
   fobPickupDate,
+  productionReleaseConditions,
+  simulatedLineDays,
   optimizeScenario,
   simProjectFromWorkflow,
   simulateScenario,
@@ -363,4 +368,35 @@ test("a stuck yard names the project and the rule holding it", () => {
   const stuck = result.warnings.find((warning) => warning.startsWith("Line stuck"))!;
   expect(stuck).toContain("Big (24 in the yard; shipping starts only when all 108 are built)");
   expect(stuck).toContain("Enlarge the yard");
+});
+
+test("L5 line days are written into the chosen L4 release condition", () => {
+  const file = createE2EWorkflow();
+  const departments = productionReleaseConditions(file, "high-level-3");
+  const target = {
+    nodeId: departments[0].nodeId,
+    conditionId: departments[0].conditions[1].conditionId,
+  };
+  expect(departments[0].nodeId).toBe("production-readiness");
+  expect(simulatedLineDays({ firstLoad: "2027-01-04", productionEnd: "2027-02-27" })).toBe(55);
+  expect(simulatedLineDays({ firstLoad: "2027-01-04" })).toBeUndefined();
+  const next = applySimulatedDays(file, target, 55, "Plan A");
+  const task = buildProcessSchedule(next).tasks.find(
+    (item) => item.nodeId === target.nodeId && item.conditionId === target.conditionId,
+  )!;
+  expect(task.days).toBe(55);
+  expect(task.condition).toMatchObject({
+    duration: 55,
+    durationUnit: "days",
+    simulated: { days: 55, scenario: "Plan A" },
+  });
+  expect(productionReleaseConditions(next, "high-level-3")[0].conditions[1]).toMatchObject({
+    days: 55,
+    simulated: 55,
+  });
+  // Other release conditions are untouched; an unknown target changes nothing.
+  expect(next.graph.nodes.find((node) => node.id === target.nodeId)!.conditions[0]).toEqual(
+    file.graph.nodes.find((node) => node.id === target.nodeId)!.conditions[0],
+  );
+  expect(applySimulatedDays(file, { nodeId: "x", conditionId: "y" }, 5, "A")).toBe(file);
 });
