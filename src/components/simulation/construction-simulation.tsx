@@ -551,7 +551,10 @@ function SimulationWorkspace() {
         </button>
       </div>
 
-      <section aria-label="Simulation results" className="min-w-0 space-y-3 p-3 lg:overflow-y-auto">
+      <section
+        aria-label="Simulation results"
+        className="flex min-w-0 flex-col gap-3 p-3 lg:overflow-y-auto"
+      >
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
           <Button
@@ -603,8 +606,9 @@ function SimulationWorkspace() {
           </p>
         ) : null}
         {/* Charts on the left, a compact factory playback beside them on wide screens. */}
-        <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_26rem]">
-          <div className="min-w-0 space-y-3">
+        {/* Fills the page: the charts take up any height left over. */}
+        <div className="grid flex-1 items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <div className="flex min-w-0 flex-col gap-3">
             <SimulationResults
               result={result}
               projects={draft.projects}
@@ -615,7 +619,7 @@ function SimulationWorkspace() {
             <DayActivity result={result} projects={draft.projects} index={playIndex} />
           </div>
           {result.days.length ? (
-            <div className="xl:sticky xl:top-0">
+            <div className="flex min-h-0 flex-col">
               <FactoryPlayback
                 key={playbackKey}
                 result={result}

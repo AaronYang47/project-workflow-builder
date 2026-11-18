@@ -1,6 +1,24 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { SimProject, SimResult } from "@/lib/simulation";
+
+type EventRow = { event: string; from: string; to: string; count: number };
+
+/** Every event up to `index`, newest first; repeats on consecutive event days merge into one row. */
+export function eventRows(result: SimResult, index: number): EventRow[] {
+  const rows: EventRow[] = [];
+  for (const day of result.days.slice(0, index + 1)) {
+    for (const event of day.events) {
+      const last = rows.at(-1);
+      if (last && last.event === event) {
+        last.to = day.date;
+        last.count += 1;
+      } else rows.push({ event, from: day.date, to: day.date, count: 1 });
+    }
+  }
+  return rows.reverse();
+}
 
 /**
  * "Today" on the playback day: the latest events and each site's delivery
@@ -16,13 +34,14 @@ export function DayActivity({
   index: number;
 }) {
   const day = result.days[Math.min(index, result.days.length - 1)];
+  const list = useRef<HTMLOListElement>(null);
+  // The newest event is at the top: bring it back into view as the day moves.
+  useEffect(() => {
+    list.current?.scrollTo({ top: 0 });
+  }, [index]);
   if (!day) return null;
   const nameOf = new Map(projects.map((project) => [project.id, project]));
-  const recentEvents = result.days
-    .slice(0, index + 1)
-    .flatMap((item) => item.events.map((event) => ({ date: item.date, event })))
-    .slice(-8)
-    .reverse();
+  const rows = eventRows(result, index);
   return (
     <section
       aria-label="Today"
@@ -30,18 +49,31 @@ export function DayActivity({
       className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-2"
     >
       <div className="space-y-1.5">
-        <p className="text-xs font-bold">Events up to {day.date}</p>
-        <ol aria-label="Events" className="space-y-0.5 text-[11px]">
-          {recentEvents.length ? (
-            recentEvents.map((item, position) => (
+        <p className="text-xs font-bold">
+          Events up to {day.date}
+          <span className="ml-2 font-normal text-muted-foreground">
+            newest first · scroll for earlier
+          </span>
+        </p>
+        <ol
+          ref={list}
+          aria-label="Events"
+          data-event-list
+          className="scroll-thin max-h-48 space-y-0.5 overflow-y-auto pr-1 text-[11px]"
+        >
+          {rows.length ? (
+            rows.map((item, position) => (
               <li
-                key={`${item.date}-${item.event}-${position}`}
+                key={`${item.from}-${item.event}-${position}`}
                 className={position === 0 ? "font-semibold" : "text-muted-foreground"}
               >
                 <span className="mr-2 font-mono text-[10px] text-muted-foreground">
-                  {item.date}
+                  {item.count > 1 ? `${item.from} – ${item.to}` : item.from}
                 </span>
                 {item.event}
+                {item.count > 1 ? (
+                  <span className="ml-1 rounded bg-muted px-1 text-[10px]">×{item.count}</span>
+                ) : null}
               </li>
             ))
           ) : (

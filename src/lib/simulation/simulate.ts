@@ -351,8 +351,24 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       day > firstDay && days.at(-2) !== undefined && yardTotal < (days.at(-2)?.yardTotal ?? 0);
     stuckDays = blocked && !yardMoved ? stuckDays + 1 : working ? 0 : stuckDays;
     if (stuckDays >= 30) {
+      const waiting = states
+        .filter((state) => state.inYard > 0)
+        .map((state) => {
+          const delivery = state.project.delivery;
+          const rule =
+            delivery.kind === "fob"
+              ? delivery.batchSize
+                ? `FOB yard: collected ${delivery.batchSize} at a time from ${delivery.pickupDate}`
+                : `FOB yard: collected only when all ${state.project.modules} are built, from ${delivery.pickupDate}`
+              : delivery.transport === "all-done"
+                ? `shipping starts only when all ${state.project.modules} are built`
+                : delivery.transport === "site-ready"
+                  ? `shipping waits for the site ready date ${delivery.siteReadyDate ?? ""}`.trim()
+                  : "shipping is waiting";
+          return `${state.project.name} (${state.inYard} in the yard; ${rule})`;
+        });
       warnings.push(
-        "Line stuck: the yard is full and nothing can leave (an FOB project needs more yard space than there is, or its pickup is far away). Stopped the simulation.",
+        `Line stuck: the yard (${factory.yardCapacity}) is full and nothing can leave — ${waiting.join("; ")}. Enlarge the yard, let the customer collect in batches, or ship as modules are built. Stopped the simulation.`,
       );
       break;
     }

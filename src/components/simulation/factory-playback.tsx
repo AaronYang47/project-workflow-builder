@@ -120,7 +120,7 @@ export function FactoryPlayback({
     <section
       aria-label="Factory playback"
       data-factory-playback
-      className="overflow-hidden rounded-xl border bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"
+      className="flex flex-1 flex-col overflow-hidden rounded-xl border bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-background/80 px-3 py-2 backdrop-blur">
         <div>
@@ -171,7 +171,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative px-2 pt-2">
+      <div className="relative flex min-h-[260px] flex-1 items-center px-2 pt-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle

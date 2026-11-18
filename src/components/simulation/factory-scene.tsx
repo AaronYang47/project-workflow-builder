@@ -128,7 +128,7 @@ export function FactoryScene({
       role="img"
       aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
       viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
-      className="mx-auto h-auto max-h-[300px] w-full select-none"
+      className="mx-auto h-full max-h-[640px] w-full select-none"
       data-factory-scene
     >
       {/* Back walls and floor */}

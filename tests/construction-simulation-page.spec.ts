@@ -430,3 +430,27 @@ test("the charts and timeline follow the playback day, and clicking a chart jump
   // The Today card follows too.
   await expect(page.locator("[data-day-activity]")).toBeVisible();
 });
+
+test("the event list scrolls, keeps the newest on top and merges repeats; columns line up", async ({
+  page,
+}) => {
+  await seedE2EWorkflow(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  await page.getByRole("button", { name: "Add virtual" }).click();
+  const yard = page.getByLabel("Yard holds (modules)", { exact: true });
+  await yard.click();
+  await yard.press("ControlOrMeta+a");
+  await yard.pressSequentially("1");
+  await page.getByRole("button", { name: "Collapse simulation inputs" }).click();
+  await page.getByRole("button", { name: "Jump to end" }).click();
+  const list = page.locator("[data-event-list]");
+  await expect(list).toHaveCSS("overflow-y", "auto");
+  await expect(list.locator("li").first()).toHaveClass(/font-semibold/);
+  // Days in a row of "Line stopped" become one row with a count.
+  await expect(list).toContainText("×");
+  // The factory column reaches as far down as the charts column.
+  const left = (await page.locator("[data-day-activity]").boundingBox())!;
+  const right = (await page.locator("[data-factory-playback]").boundingBox())!;
+  expect(Math.abs(left.y + left.height - (right.y + right.height))).toBeLessThan(4);
+});

@@ -72,7 +72,7 @@ function DailyChart({
   );
   const step = Math.max(1, Math.ceil(months.length / 8));
   return (
-    <figure className="rounded-lg border bg-background p-3" data-daily-chart={title}>
+    <figure className="flex flex-col rounded-lg border bg-background p-3" data-daily-chart={title}>
       <figcaption className="mb-2 flex items-center justify-between gap-2 text-xs font-bold">
         <span>{title}</span>
         <span data-chart-current className="font-mono text-[11px] font-semibold" style={{ color }}>
@@ -80,7 +80,7 @@ function DailyChart({
         </span>
       </figcaption>
       <div
-        className="relative h-40 cursor-crosshair"
+        className="relative min-h-40 flex-1 cursor-crosshair"
         onClick={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
           const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
@@ -222,7 +222,7 @@ export function SimulationResults({
   }
 
   return (
-    <div className="space-y-4" data-simulation-results>
+    <div className="flex flex-1 flex-col gap-4" data-simulation-results>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Stat label="All done" value={formatDate(result.makespanEnd)} />
         <Stat
@@ -259,7 +259,12 @@ export function SimulationResults({
           <span />
           <div className="relative h-5 text-[10px] text-muted-foreground">
             {months
-              .filter((_, position) => position % Math.max(1, Math.ceil(months.length / 10)) === 0)
+              .filter(
+                (month, position) =>
+                  position % Math.max(1, Math.ceil(months.length / 10)) === 0 &&
+                  // Make room for the playback date marker.
+                  !(currentDate && Math.abs(month.left - left(currentDate)) < 7),
+              )
               .map((month) => (
                 <span
                   key={month.label}
@@ -372,7 +377,7 @@ export function SimulationResults({
         </div>
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
         <DailyChart
           title="Modules on the line each day"
           dates={dates}

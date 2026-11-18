@@ -310,3 +310,27 @@ test("FOB batches are not collected before the earliest pickup date", () => {
   expect(pickups.length).toBeGreaterThan(0);
   expect(pickups.every((day) => day.date >= "2027-05-03")).toBe(true);
 });
+
+test("a stuck yard names the project and the rule holding it", () => {
+  const result = simulateScenario(
+    scenario(
+      [
+        project("Big", {
+          modules: 108,
+          weeksPerModule: 2,
+          delivery: {
+            kind: "site",
+            transport: "all-done",
+            transportDays: 1,
+            modulesPerDay: 4,
+            install: { mode: "rate", modulesPerDay: 4, finishDays: 5 },
+          },
+        }),
+      ],
+      { yardCapacity: 24 },
+    ),
+  );
+  const stuck = result.warnings.find((warning) => warning.startsWith("Line stuck"))!;
+  expect(stuck).toContain("Big (24 in the yard; shipping starts only when all 108 are built)");
+  expect(stuck).toContain("Enlarge the yard");
+});
