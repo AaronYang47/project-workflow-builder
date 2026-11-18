@@ -18,7 +18,6 @@ import {
   FileDown,
   FlaskConical,
   Sparkles,
-  Trash2,
   X,
 } from "lucide-react";
 import { AuthGate } from "@/components/workflow/auth-gate";
@@ -59,7 +58,6 @@ import { CALENDAR_EVENT, FactoryPlayback } from "./factory-playback";
 import { DayActivity } from "./day-activity";
 import { ProjectCard } from "./project-card";
 import {
-  deleteCloudScenario,
   fetchCloudScenarios,
   loadScenarios,
   mergeScenarios,
@@ -139,12 +137,15 @@ function SimulationWorkspace() {
         setScenarios(merged);
         saveScenarios(merged);
         for (const scenario of localOnly) void saveCloudScenario(scenario).catch(() => undefined);
+        // A browser with nothing saved yet opens the account's latest scenario.
+        if (!initial.saved.length && merged.length)
+          setDraft((current) => (current === initial.draft ? merged[0] : current));
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initial]);
 
   // Saved projects in a reopened scenario: load them again in the background,
   // so their Production Phase list and L4 dates are available.
@@ -254,7 +255,6 @@ function SimulationWorkspace() {
       })),
     [],
   );
-  const savedDraft = scenarios.find((item) => item.id === draft.id);
 
   // Changing the projects clears Auto schedule's order and split plan.
   const setProjects = (projects: SimProject[]) =>
@@ -451,7 +451,6 @@ function SimulationWorkspace() {
 
   // Every change is saved: to this browser at once (a backup when offline),
   // then to the account.
-  const [saveState, setSaveState] = useState<"saving" | "saved" | "local">("saved");
   const draftJson = JSON.stringify(draft);
   useEffect(() => {
     if (JSON.stringify(scenarios.find((item) => item.id === draft.id)) === draftJson) return;
@@ -461,10 +460,7 @@ function SimulationWorkspace() {
         : [draft, ...scenarios];
       setScenarios(next);
       saveScenarios(next);
-      setSaveState("saving");
-      void saveCloudScenario(draft)
-        .then(() => setSaveState("saved"))
-        .catch(() => setSaveState("local"));
+      void saveCloudScenario(draft).catch(() => undefined);
     }, 700);
     return () => window.clearTimeout(timer);
   }, [draft, draftJson, scenarios]);
@@ -506,69 +502,6 @@ function SimulationWorkspace() {
           aria-label="Simulation inputs"
           className="h-full space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-2 xl:border-r"
         >
-          <section aria-label="Scenario" className="rounded-lg border bg-background p-3">
-            <div className="flex items-center gap-2">
-              <select
-                aria-label="Saved scenarios"
-                value={draft.id}
-                onChange={(event) => {
-                  const picked = scenarios.find((item) => item.id === event.target.value);
-                  if (picked) setDraft(picked);
-                }}
-                className="min-h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
-              >
-                {!savedDraft ? <option value={draft.id}>{draft.name}</option> : null}
-                {scenarios.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setDraft(newScenario(`Scenario ${scenarios.length + 1}`, todayIso()))
-                }
-              >
-                New
-              </Button>
-            </div>
-            <input
-              aria-label="Scenario name"
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              className={inputClass}
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <p data-scenario-save-state className="mr-auto text-[11px] text-muted-foreground">
-                {saveState === "saving"
-                  ? "Saving…"
-                  : saveState === "local"
-                    ? "Saved in this browser only (the cloud is not reachable)"
-                    : "Saved automatically"}
-              </p>
-              {savedDraft ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Delete scenario"
-                  onClick={() => {
-                    const next = scenarios.filter((item) => item.id !== draft.id);
-                    setScenarios(next);
-                    saveScenarios(next);
-                    void deleteCloudScenario(draft.id).catch(() => undefined);
-                    setNotice(`Deleted “${draft.name}”.`);
-                    // Show another scenario (or a fresh one) so the deleted one isn't saved again.
-                    setDraft(next[0] ?? newScenario("Scenario A", todayIso()));
-                  }}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              ) : null}
-            </div>
-          </section>
-
           <section aria-label="Factory" className="rounded-lg border bg-background p-3">
             <h2 className="flex items-center gap-1.5 text-sm font-bold">
               <Factory className="size-4" /> Factory

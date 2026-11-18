@@ -20,21 +20,25 @@ test("L5 opens from the toolbar, simulates projects and saves a scenario", async
   await page.getByRole("button", { name: "Auto schedule" }).click();
   await expect(page.locator("[data-sim-notice]")).toContainText(/Best order found/);
 
-  await page.getByLabel("Scenario name").fill("Plan A");
-  // No Save button: every change is saved automatically.
+  // No scenario box: what is typed in is saved automatically.
+  await expect(page.getByRole("region", { name: "Scenario" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
-  await expect(page.locator("[data-scenario-save-state]")).toHaveText(/Saved/);
   await expect
     .poll(() =>
-      page.evaluate(() => localStorage.getItem("construction-simulation:scenarios:v1") ?? ""),
+      page.evaluate(
+        () =>
+          (
+            JSON.parse(localStorage.getItem("construction-simulation:scenarios:v1") ?? "[]") as {
+              projects: unknown[];
+            }[]
+          )[0]?.projects.length,
+      ),
     )
-    .toContain("Plan A");
+    .toBe(3);
   await page.screenshot({
     path: "/private/tmp/claude-501/-Users-aaronyanf-Desktop-Project-Workflow-Builder/478ea515-b380-447c-914e-93aa2d7d44b4/scratchpad/l5.png",
   });
   await page.reload();
-  await expect(page.getByLabel("Saved scenarios")).toHaveValue(/scenario-/);
-  await expect(page.getByLabel("Scenario name")).toHaveValue("Plan A");
   await expect(page.locator("[data-sim-project]")).toHaveCount(3);
 });
 
@@ -359,21 +363,13 @@ test("scenarios are saved to and loaded from the account", async ({ page }) => {
   });
   await seedE2EWorkflow(page);
   await page.goto("/construction-simulation");
-  const picker = page.getByLabel("Saved scenarios");
-  await expect(picker.locator("option", { hasText: "Cloud plan" })).toHaveCount(1);
-  await expect(picker.locator("option", { hasText: "Browser plan" })).toHaveCount(1);
-  // The browser-only scenario is uploaded.
+  // The browser-only scenario is uploaded, and changes are saved to the account.
   await expect.poll(() => stored.has("local-1")).toBe(true);
-
-  await page.getByRole("button", { name: "New", exact: true }).click();
-  await page.getByLabel("Scenario name").fill("Plan B");
-  // Saved to the account automatically.
-  await expect.poll(() => [...stored.values()].some((item) => item.name === "Plan B")).toBe(true);
-  await expect(page.locator("[data-scenario-save-state]")).toHaveText("Saved automatically");
-
-  await page.getByRole("button", { name: "Delete scenario" }).click();
-  await expect.poll(() => [...stored.values()].some((item) => item.name === "Plan B")).toBe(false);
-  expect(calls.some((call) => call.startsWith("DELETE"))).toBe(true);
+  await page.getByRole("button", { name: "Add virtual" }).click();
+  await expect
+    .poll(() => (stored.get("local-1") as unknown as { projects: unknown[] }).projects.length)
+    .toBe(1);
+  expect(calls.some((call) => call.startsWith("PUT"))).toBe(true);
 });
 
 test("the factory calendar can customise single years", async ({ page }) => {
@@ -831,9 +827,12 @@ test("a big FOB project collected one at a time finishes; a stuck one still show
     ],
   });
   await page.addInitScript(
-    (scenarios) =>
-      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify(scenarios)),
-    [scenario(1), scenario(0)],
+    (scenarios) => {
+      if (sessionStorage.getItem("seeded")) return;
+      sessionStorage.setItem("seeded", "1");
+      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify(scenarios));
+    },
+    [scenario(1)],
   );
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto("/construction-simulation");
@@ -844,7 +843,13 @@ test("a big FOB project collected one at a time finishes; a stuck one still show
     "starts when the first module comes off the line",
   );
 
-  await page.getByLabel("Saved scenarios").selectOption({ label: "Big 0" });
+  // The same project collected all at once gets stuck behind a full yard.
+  await page.evaluate(
+    (scenario) =>
+      localStorage.setItem("construction-simulation:scenarios:v1", JSON.stringify([scenario])),
+    scenario(0),
+  );
+  await page.reload();
   await expect(row).toContainText("Does not finish · line stopped");
   await expect(row.locator('[data-sim-bar="line"][data-sim-bar-stopped="true"]')).toHaveCount(1);
 });
