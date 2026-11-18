@@ -3,6 +3,9 @@ import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
+// Live collaboration goes through public Nostr relays, which sometimes rate-limit or drop a connection; retry instead of failing the run on the relay.
+test.describe.configure({ retries: 2 });
+
 for (const route of ["process-overview", "release-conditions"]) {
   test(`viewer sees RC drag previews, cancel and final drop in ${route}`, async ({
     context,

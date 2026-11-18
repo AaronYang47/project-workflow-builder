@@ -20,8 +20,9 @@ const better = (left: readonly number[], right: readonly number[]) => {
 
 /**
  * Finds a loading priority that keeps projects on time first and then
- * finishes everything earliest. Starts from the earliest due date first and
- * keeps swapping two projects while that improves the result.
+ * finishes everything earliest. Starts from the earliest due date first, then
+ * keeps swapping two projects or moving one to another place in the queue
+ * while that improves the result.
  */
 export function optimizeScenario(scenario: SimScenario): SimResult {
   let order = [...scenario.projects]
@@ -33,22 +34,33 @@ export function optimizeScenario(scenario: SimScenario): SimResult {
     .map((project) => project.id);
   let best = simulateScenario(scenario, order);
   let bestScore = scheduleScore(best);
+  const consider = (candidate: string[]) => {
+    const result = simulateScenario(scenario, candidate);
+    const score = scheduleScore(result);
+    if (!better(score, bestScore)) return false;
+    order = candidate;
+    best = result;
+    bestScore = score;
+    return true;
+  };
   for (let round = 0; round < 20; round += 1) {
     let improved = false;
-    for (let left = 0; left < order.length; left += 1) {
+    // Swap two projects.
+    for (let left = 0; left < order.length; left += 1)
       for (let right = left + 1; right < order.length; right += 1) {
         const candidate = [...order];
         [candidate[left], candidate[right]] = [candidate[right], candidate[left]];
-        const result = simulateScenario(scenario, candidate);
-        const score = scheduleScore(result);
-        if (better(score, bestScore)) {
-          order = candidate;
-          best = result;
-          bestScore = score;
-          improved = true;
-        }
+        improved = consider(candidate) || improved;
       }
-    }
+    // Move one project to another place in the queue.
+    for (let from = 0; from < order.length; from += 1)
+      for (let to = 0; to < order.length; to += 1) {
+        if (to === from || to === from - 1) continue;
+        const candidate = [...order];
+        const [moved] = candidate.splice(from, 1);
+        candidate.splice(to > from ? to - 1 : to, 0, moved);
+        improved = consider(candidate) || improved;
+      }
     if (!improved) break;
   }
   return best;

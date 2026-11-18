@@ -40,6 +40,8 @@ export interface SimProject {
   delivery: SimDelivery;
   /** Working days for site installation; the factory calendar when unset. */
   siteCalendar?: ScheduleCalendar;
+  /** Let this project's modules go on closer together, up to crowdedMax (warned). */
+  allowTight?: boolean;
 }
 
 export interface SimFactory {
@@ -83,10 +85,18 @@ export interface SimDay {
   /** Modules on their way to a site, by project. */
   inTransit: Record<string, number>;
   installing: string[];
+  /** More than normalMax modules on the line. */
+  tight: boolean;
   /** Site projects: modules delivered and installed so far. */
   sites: Record<string, { arrived: number; installed: number; modules: number }>;
   /** FOB yard projects collected today. */
   pickedUp: string[];
+  /** Modules that came off the line today, by project. */
+  built: Record<string, number>;
+  /** Modules that arrived at their site today, by project. */
+  delivered: Record<string, number>;
+  /** Site projects whose installation finished today. */
+  installedDone: string[];
   events: string[];
 }
 
@@ -102,6 +112,8 @@ export type SimProjectResult = {
   completion?: string;
   /** Days after the due date (0 when on time). */
   lateDays: number;
+  /** What held the project up, largest first (shown for late projects). */
+  reasons: string[];
   finished: boolean;
 };
 
@@ -111,6 +123,8 @@ export interface SimResult {
   /** Priority order used. */
   priority: string[];
   blockedDays: number;
+  /** Working days with more than normalMax modules on the line. */
+  tightDays: number;
   /** Most modules on the line on any day. */
   peakOnLine: number;
   /** Last completion date. */

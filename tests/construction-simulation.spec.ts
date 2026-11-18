@@ -221,3 +221,55 @@ test("a saved project brings its production Phase and FOB yard choice", () => {
   });
   expect(sim.delivery.kind).toBe("fob");
 });
+
+test("a yard too small for an FOB project stops the run early with a clear warning", () => {
+  const result = simulateScenario(
+    scenario(
+      [project("big", { modules: 6, delivery: { kind: "fob", pickupDate: "2027-02-01" } })],
+      { yardCapacity: 2 },
+    ),
+  );
+  expect(result.days.length).toBeLessThan(200);
+  expect(result.warnings.join(" ")).toContain("Line stuck");
+  expect(result.projects[0].finished).toBe(false);
+});
+
+test("a project may allow a tight line, up to 23 modules, which is counted and warned", () => {
+  const normal = simulateScenario(scenario([project("A", { modules: 40 })]));
+  expect(normal.peakOnLine).toBeLessThanOrEqual(19);
+  expect(normal.tightDays).toBe(0);
+  const tight = simulateScenario(scenario([project("A", { modules: 40, allowTight: true })]));
+  expect(tight.peakOnLine).toBeGreaterThan(19);
+  expect(tight.peakOnLine).toBeLessThanOrEqual(23);
+  expect(tight.tightDays).toBeGreaterThan(0);
+  expect(tight.days.some((day) => day.tight)).toBe(true);
+  expect(tight.warnings.join(" ")).toContain("tight");
+});
+
+test("late projects say what held them up", () => {
+  const result = simulateScenario(
+    scenario([
+      project("relaxed", { modules: 18, dueDate: "2027-12-01" }),
+      project("tight", { modules: 6, dueDate: "2027-02-20" }),
+    ]),
+    ["relaxed", "tight"],
+  );
+  const late = result.projects.find((row) => row.projectId === "tight")!;
+  expect(late.lateDays).toBeGreaterThan(0);
+  expect(late.reasons[0]).toMatch(/waited \d+ working days for the line/);
+  expect(result.warnings.join(" ")).toContain("waited");
+
+  const site = (id: string): SimProject =>
+    project(id, {
+      modules: 4,
+      delivery: {
+        kind: "site",
+        transport: "all-done",
+        transportDays: 0,
+        modulesPerDay: 4,
+        install: { mode: "total", days: 20 },
+      },
+    });
+  const crews = simulateScenario(scenario([site("A"), site("B")], { installCrews: 1 }), ["A", "B"]);
+  expect(crews.projects[1].reasons.join(" ")).toMatch(/waited \d+ days for an install crew/);
+});

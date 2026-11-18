@@ -541,6 +541,8 @@ export interface WorkflowFile {
   /** Conditions drafted before they are assigned to an L2 chapter. */
   releaseConditionInbox?: Condition[];
   calendar?: ScheduleCalendar;
+  /** Factory line inputs for the L5 Construction Simulation. */
+  factoryProduction?: { modules?: number; weeksPerModule?: number };
   highLevel?: HighLevelWorkflow;
   execution?: ExecutionLayer;
   operations?: import("@/types/project-operations").ProjectOperations;

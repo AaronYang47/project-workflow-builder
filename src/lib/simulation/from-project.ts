@@ -43,8 +43,8 @@ const PROJECT_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "
 
 /**
  * A simulation project from a saved project: FOB yard comes from Final Close,
- * dates from its L4 schedule. Module count and weeks per module aren't in the
- * project, so they start at a typical line load for the user to correct.
+ * dates from its L4 schedule, modules and weeks per module from its
+ * L4 Factory line inputs; without them they start at a typical line load.
  */
 export function simProjectFromWorkflow(
   file: WorkflowFile,
@@ -64,8 +64,8 @@ export function simProjectFromWorkflow(
     name: file.graph.metadata.name?.trim() || "Project",
     color: PROJECT_COLORS[index % PROJECT_COLORS.length],
     source: { kind: "cloud", projectId: cloudId },
-    modules: 18,
-    weeksPerModule: 4,
+    modules: file.factoryProduction?.modules || 18,
+    weeksPerModule: file.factoryProduction?.weeksPerModule || 4,
     splittable: false,
     productionPhaseId,
     earliestStart,

@@ -213,6 +213,15 @@ export function SimulationResults({
                         : `On time · ${formatDate(row.completion)}`
                       : "Does not finish"}
                   </p>
+                  {row.lateDays && row.reasons.length ? (
+                    <p
+                      data-sim-reasons
+                      title={row.reasons.join("\n")}
+                      className="truncate text-[10px] text-red-600/80"
+                    >
+                      {row.reasons[0]}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="relative h-6">
                   {row.firstLoad && row.productionEnd ? (

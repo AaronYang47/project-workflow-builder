@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Cloud, FlaskConical, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Cloud, FlaskConical, RefreshCw, Trash2 } from "lucide-react";
 import type { SimDelivery, SimProject } from "@/lib/simulation";
+import { DateInput, NumberInput } from "./draft-inputs";
 
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
 const labelClass = "block text-[11px] font-semibold text-muted-foreground";
@@ -11,24 +12,26 @@ function NumberField({
   value,
   min = 0,
   step = 1,
+  integer = false,
   onChange,
 }: {
   label: string;
   value: number;
   min?: number;
   step?: number;
+  integer?: boolean;
   onChange: (value: number) => void;
 }) {
   return (
     <label className={labelClass}>
       {label}
-      <input
-        type="number"
-        aria-label={label}
+      <NumberInput
+        label={label}
+        value={value}
         min={min}
         step={step}
-        value={Number.isFinite(value) ? value : ""}
-        onChange={(event) => onChange(Math.max(min, Number(event.target.value) || 0))}
+        integer={integer}
+        onCommit={onChange}
         className={inputClass}
       />
     </label>
@@ -47,13 +50,7 @@ function DateField({
   return (
     <label className={labelClass}>
       {label}
-      <input
-        type="date"
-        aria-label={label}
-        value={value}
-        onChange={(event) => event.target.value && onChange(event.target.value)}
-        className={inputClass}
-      />
+      <DateInput label={label} value={value} onCommit={onChange} className={inputClass} />
     </label>
   );
 }
@@ -77,6 +74,7 @@ export function ProjectCard({
   onPhaseChange,
   onMove,
   onRemove,
+  onRefresh,
 }: {
   project: SimProject;
   position: number;
@@ -87,6 +85,8 @@ export function ProjectCard({
   onPhaseChange: (phaseId: string) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
+  /** Saved projects: re-read dates and inputs from the project's L4. */
+  onRefresh?: () => void;
 }) {
   const delivery = project.delivery;
   const name = project.name || "Project";
@@ -140,6 +140,17 @@ export function ProjectCard({
         >
           <ArrowDown className="size-4" />
         </button>
+        {onRefresh ? (
+          <button
+            type="button"
+            aria-label={`Refresh ${name} from L4`}
+            title="Refresh dates and inputs from this project's L4"
+            onClick={onRefresh}
+            className="rounded p-1 hover:bg-muted"
+          >
+            <RefreshCw className="size-4" />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label={`Remove ${name}`}
@@ -159,7 +170,9 @@ export function ProjectCard({
         <NumberField
           label="Modules"
           value={project.modules}
-          onChange={(modules) => onChange({ modules: Math.round(modules) })}
+          min={1}
+          integer
+          onChange={(modules) => onChange({ modules })}
         />
         <NumberField
           label="Weeks per module"
@@ -205,6 +218,14 @@ export function ProjectCard({
           onChange={(event) => onChange({ splittable: event.target.checked })}
         />
         Can be split (other projects may go on the line in between)
+      </label>
+      <label className="mt-1 flex items-center gap-2 text-xs font-semibold">
+        <input
+          type="checkbox"
+          checked={project.allowTight === true}
+          onChange={(event) => onChange({ allowTight: event.target.checked })}
+        />
+        Allow a tight line (up to 23 modules, flagged red)
       </label>
 
       <div

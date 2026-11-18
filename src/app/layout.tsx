@@ -3,6 +3,7 @@ import { IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ActivityTracker } from "@/components/activity-tracker";
 import { PwaServiceWorker } from "@/components/pwa-service-worker";
+import { StaleBuildReload } from "@/components/stale-build-reload";
 import { CollaborationPageFollow } from "@/components/workflow/collaboration-page-follow";
 import { RemoteReleaseConditionDrag } from "@/components/workflow/remote-release-condition-drag";
 import "./globals.css";
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <RemoteReleaseConditionDrag />
         </ThemeProvider>
         <PwaServiceWorker />
+        <StaleBuildReload />
         <ActivityTracker />
       </body>
     </html>

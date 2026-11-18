@@ -1,6 +1,9 @@
 import { expect, test } from "playwright/test";
 import { seedE2EWorkflow } from "./support/e2e-workflow";
 
+// Live collaboration goes through public Nostr relays, which sometimes rate-limit or drop a connection; retry instead of failing the run on the relay.
+test.describe.configure({ retries: 2 });
+
 test("a new computer can explicitly recover control from an offline editor", async ({ page }) => {
   await seedE2EWorkflow(page);
   await page.goto(`/?room=offline-editor-${Date.now()}&editor=old-computer`);

@@ -55,3 +55,38 @@ export function saveScenarios(scenarios: SimScenario[]) {
     return false;
   }
 }
+
+async function cloudRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    ...init,
+  });
+  const body = (await response.json().catch(() => ({}))) as T & { error?: string };
+  if (!response.ok) throw new Error(body.error || "Cloud request failed.");
+  return body;
+}
+
+/** Scenarios saved to the signed-in user's account. */
+export async function fetchCloudScenarios() {
+  const { scenarios } = await cloudRequest<{ scenarios: SimScenario[] }>(
+    "/api/simulation-scenarios",
+  );
+  return scenarios.filter((item) => item && typeof item.id === "string");
+}
+
+export const saveCloudScenario = (scenario: SimScenario) =>
+  cloudRequest("/api/simulation-scenarios", {
+    method: "PUT",
+    body: JSON.stringify({ scenario }),
+  });
+
+export const deleteCloudScenario = (id: string) =>
+  cloudRequest(`/api/simulation-scenarios/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+/** Cloud scenarios win; scenarios only in this browser are kept (and uploaded by the caller). */
+export function mergeScenarios(cloud: SimScenario[], local: SimScenario[]) {
+  const cloudIds = new Set(cloud.map((item) => item.id));
+  const localOnly = local.filter((item) => !cloudIds.has(item.id));
+  return { merged: [...cloud, ...localOnly], localOnly };
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
 import type { SimFactory, SimProject, SimResult } from "@/lib/simulation";
 import { FactoryScene } from "./factory-scene";
+import { ProductionCalendar } from "./production-calendar";
 
 const SPEEDS = [1, 3, 7, 15] as const;
 const longDate = new Intl.DateTimeFormat("en-GB", {
@@ -140,6 +141,14 @@ export function FactoryPlayback({
         {day.blocked ? (
           <span className="animate-pulse rounded bg-red-600 px-2 py-1 text-[11px] font-black text-white">
             LINE STOPPED · YARD FULL
+          </span>
+        ) : null}
+        {day.tight ? (
+          <span
+            data-playback-tight
+            className="rounded bg-red-600/90 px-2 py-1 text-[11px] font-black text-white"
+          >
+            TIGHT LINE · {day.line.length} MODULES
           </span>
         ) : null}
       </div>
@@ -305,6 +314,17 @@ export function FactoryPlayback({
             </p>
           )}
         </div>
+      </div>
+      <div className="border-t bg-background/80 p-3">
+        <ProductionCalendar
+          result={result}
+          projects={projects}
+          index={index}
+          onSelect={(position) => {
+            setPlaying(false);
+            setDayIndex(position);
+          }}
+        />
       </div>
     </section>
   );

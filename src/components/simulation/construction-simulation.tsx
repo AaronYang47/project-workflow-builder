@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Cloud, Factory, FlaskConical, Save, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Cloud, Factory, FileDown, FlaskConical, Save, Sparkles, Trash2, X } from "lucide-react";
 import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,22 @@ import {
 } from "@/lib/simulation";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { ProcessCalendarButton } from "@/components/workflow/process-calendar-settings";
 import type { WorkflowFile } from "@/types/workflow";
 import { listCloudProjects, loadCloudProject, type CloudProjectSummary } from "./cloud-projects";
+import { DateInput, NumberInput } from "./draft-inputs";
 import { FactoryPlayback } from "./factory-playback";
 import { ProjectCard } from "./project-card";
-import { loadScenarios, newScenario, saveScenarios, todayIso } from "./scenario-store";
+import {
+  deleteCloudScenario,
+  fetchCloudScenarios,
+  loadScenarios,
+  mergeScenarios,
+  newScenario,
+  saveCloudScenario,
+  saveScenarios,
+  todayIso,
+} from "./scenario-store";
 import { SimulationResults } from "./simulation-results";
 
 const inputClass = "mt-1 block min-h-9 w-full rounded-md border bg-background px-2.5 text-sm";
@@ -80,6 +91,71 @@ function SimulationWorkspace() {
   }>({ open: false, loading: false, projects: [] });
   const [notice, setNotice] = useState("");
 
+  // Load scenarios saved to the account; upload any that only this browser has.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCloudScenarios()
+      .then((cloud) => {
+        if (cancelled) return;
+        const { merged, localOnly } = mergeScenarios(cloud, loadScenarios());
+        setScenarios(merged);
+        saveScenarios(merged);
+        for (const scenario of localOnly) void saveCloudScenario(scenario).catch(() => undefined);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Saved projects in a reopened scenario: load them again in the background,
+  // so their Production Phase list and L4 dates are available.
+  const requested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const project of draft.projects) {
+      if (project.source.kind !== "cloud" || files[project.id]) continue;
+      if (requested.current.has(project.id)) continue;
+      requested.current.add(project.id);
+      const id = project.source.projectId;
+      void loadCloudProject(id)
+        .then((file) => setFiles((current) => ({ ...current, [project.id]: file })))
+        .catch(() => undefined);
+    }
+  }, [draft.projects, files]);
+
+  /** Re-reads a saved project's L4 dates, FOB yard choice and factory line inputs. */
+  const refreshFromL4 = async (project: SimProject, index: number) => {
+    if (project.source.kind !== "cloud") return;
+    const id = project.source.projectId;
+    try {
+      const file = id === currentId ? currentFile : await loadCloudProject(id);
+      setFiles((current) => ({ ...current, [project.id]: file }));
+      const fresh = simProjectFromWorkflow(file, id, index, todayIso());
+      const phaseId = project.productionPhaseId ?? fresh.productionPhaseId;
+      const dates = projectScheduleDates(file, phaseId);
+      const delivery =
+        fresh.delivery.kind === project.delivery.kind
+          ? project.delivery.kind === "fob"
+            ? { kind: "fob" as const, pickupDate: dates.dueDate ?? project.delivery.pickupDate }
+            : project.delivery
+          : fresh.delivery;
+      updateProject(project.id, {
+        productionPhaseId: phaseId,
+        earliestStart: dates.earliestStart ?? project.earliestStart,
+        dueDate: dates.dueDate ?? project.dueDate,
+        ...(file.factoryProduction?.modules ? { modules: file.factoryProduction.modules } : {}),
+        ...(file.factoryProduction?.weeksPerModule
+          ? { weeksPerModule: file.factoryProduction.weeksPerModule }
+          : {}),
+        delivery,
+        siteCalendar: file.calendar,
+      });
+      setNotice(`${project.name} refreshed from its L4 schedule.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not reload that project.");
+    }
+  };
+
   const result = useMemo(() => simulateScenario(draft), [draft]);
   const savedDraft = scenarios.find((item) => item.id === draft.id);
   const unsaved = JSON.stringify(savedDraft) !== JSON.stringify(draft);
@@ -122,18 +198,21 @@ function SimulationWorkspace() {
     }
   };
 
-  const save = (asNew: boolean) => {
+  const save = async (asNew: boolean) => {
     const scenario = asNew
       ? { ...draft, id: `scenario-${Date.now().toString(36)}`, name: `${draft.name} (copy)` }
       : draft;
     const next = [scenario, ...scenarios.filter((item) => item.id !== scenario.id)];
     setScenarios(next);
     setDraft(scenario);
-    setNotice(
-      saveScenarios(next)
-        ? `Saved “${scenario.name}” in this browser.`
-        : "This browser would not save the scenario.",
-    );
+    // A browser copy is kept as a backup when the cloud can't be reached.
+    saveScenarios(next);
+    try {
+      await saveCloudScenario(scenario);
+      setNotice(`Saved “${scenario.name}” to your account.`);
+    } catch {
+      setNotice(`Saved “${scenario.name}” in this browser only (the cloud is not reachable).`);
+    }
   };
 
   return (
@@ -175,10 +254,10 @@ function SimulationWorkspace() {
             className={inputClass}
           />
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => save(false)} disabled={!unsaved}>
+            <Button size="sm" onClick={() => void save(false)} disabled={!unsaved}>
               <Save className="size-3.5" /> Save
             </Button>
-            <Button size="sm" variant="outline" onClick={() => save(true)}>
+            <Button size="sm" variant="outline" onClick={() => void save(true)}>
               Save as new
             </Button>
             {savedDraft ? (
@@ -190,6 +269,7 @@ function SimulationWorkspace() {
                   const next = scenarios.filter((item) => item.id !== draft.id);
                   setScenarios(next);
                   saveScenarios(next);
+                  void deleteCloudScenario(draft.id).catch(() => undefined);
                   setNotice(`Deleted “${draft.name}”.`);
                 }}
               >
@@ -210,39 +290,32 @@ function SimulationWorkspace() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <label className="block text-[11px] font-semibold text-muted-foreground">
               Simulation start
-              <input
-                type="date"
-                aria-label="Simulation start"
+              <DateInput
+                label="Simulation start"
                 value={draft.factory.startDate}
-                onChange={(event) =>
-                  event.target.value && updateFactory({ startDate: event.target.value })
-                }
+                onCommit={(startDate) => updateFactory({ startDate })}
                 className={inputClass}
               />
             </label>
             <label className="block text-[11px] font-semibold text-muted-foreground">
               Yard holds (modules)
-              <input
-                type="number"
-                min={1}
-                aria-label="Yard holds (modules)"
+              <NumberInput
+                label="Yard holds (modules)"
                 value={draft.factory.yardCapacity}
-                onChange={(event) =>
-                  updateFactory({ yardCapacity: Math.max(1, Number(event.target.value) || 1) })
-                }
+                min={1}
+                integer
+                onCommit={(yardCapacity) => updateFactory({ yardCapacity })}
                 className={inputClass}
               />
             </label>
             <label className="block text-[11px] font-semibold text-muted-foreground">
               Install crews
-              <input
-                type="number"
-                min={0}
-                aria-label="Install crews"
+              <NumberInput
+                label="Install crews"
                 value={draft.factory.installCrews}
-                onChange={(event) =>
-                  updateFactory({ installCrews: Math.max(0, Number(event.target.value) || 0) })
-                }
+                min={0}
+                integer
+                onCommit={(installCrews) => updateFactory({ installCrews })}
                 className={inputClass}
               />
             </label>
@@ -284,6 +357,21 @@ function SimulationWorkspace() {
                 {label}
               </label>
             ))}
+            <div className="pt-1 text-xs">
+              <ProcessCalendarButton
+                mode="factory"
+                value={{ ...calendar, startDate: draft.factory.startDate }}
+                canEdit
+                workingDays={result.days.length}
+                onSave={(saved) =>
+                  saved &&
+                  updateFactory({
+                    calendar: { ...saved, startDate: draft.factory.startDate },
+                    startDate: saved.startDate || draft.factory.startDate,
+                  })
+                }
+              />
+            </div>
           </fieldset>
         </section>
 
@@ -379,6 +467,11 @@ function SimulationWorkspace() {
                 setProjects(next);
               }}
               onRemove={() => setProjects(draft.projects.filter((item) => item.id !== project.id))}
+              onRefresh={
+                project.source.kind === "cloud"
+                  ? () => void refreshFromL4(project, index)
+                  : undefined
+              }
             />
           ))}
         </section>
@@ -403,12 +496,33 @@ function SimulationWorkspace() {
           >
             <Sparkles className="size-4" /> Auto schedule
           </Button>
+          <Button
+            variant="outline"
+            disabled={!result.days.length}
+            onClick={async () => {
+              const sections = [
+                document.querySelector<HTMLElement>("[data-simulation-results]"),
+                document.querySelector<HTMLElement>("[data-production-calendar]"),
+              ].filter((item): item is HTMLElement => Boolean(item));
+              try {
+                const { exportSimulationPdf } = await import("./export-simulation-pdf");
+                await exportSimulationPdf(draft.name, sections);
+                setNotice("PDF exported.");
+              } catch (error) {
+                setNotice(error instanceof Error ? error.message : "Could not export the PDF.");
+              }
+            }}
+          >
+            <FileDown className="size-4" /> Export PDF
+          </Button>
         </div>
         {notice ? (
           <p role="status" data-sim-notice className="rounded-md bg-muted px-3 py-2 text-xs">
             {notice}
           </p>
         ) : null}
+        {/* Summary, timeline and charts first; the factory playback and calendar below. */}
+        <SimulationResults result={result} projects={draft.projects} factory={draft.factory} />
         {result.days.length ? (
           <FactoryPlayback
             key={`${draft.id}:${result.days.find((day) => day.line.length)?.date ?? ""}`}
@@ -417,7 +531,6 @@ function SimulationWorkspace() {
             factory={draft.factory}
           />
         ) : null}
-        <SimulationResults result={result} projects={draft.projects} factory={draft.factory} />
         {scenarios.length > 1 ? <ScenarioComparison scenarios={scenarios} /> : null}
       </section>
     </div>

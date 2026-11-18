@@ -2,6 +2,7 @@ import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { sequentialExecutionBlocker } from "../src/lib/workflow-progress";
+import { validateWorkflow } from "../src/lib/validation";
 import { useWorkflowStore } from "../src/store/workflow-store";
 import { WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
@@ -95,4 +96,15 @@ test("clicking a blocked condition on L2 shows the popup", async ({ page }) => {
   await page.getByRole("button", { name: "Got it" }).click();
   // Still unticked.
   await expect(second.getByRole("button", { name: "Check release condition 1" })).toBeVisible();
+});
+
+test("ticks made out of order before the rule are flagged in validation, not removed", () => {
+  const file = fixture();
+  file.graph.nodes[1].conditions[0].checked = true;
+  const issue = validateWorkflow(file).find((item) => item.code === "OUT_OF_ORDER_TICKS");
+  expect(issue?.nodeId).toBe("second");
+  expect(issue?.message).toContain("Department Sales");
+  expect(file.graph.nodes[1].conditions[0].checked).toBe(true);
+  file.graph.nodes[0].conditions[0].checked = true;
+  expect(validateWorkflow(file).some((item) => item.code === "OUT_OF_ORDER_TICKS")).toBe(false);
 });

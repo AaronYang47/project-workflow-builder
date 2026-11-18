@@ -147,6 +147,14 @@ the store with a selector (`useWorkflowStore((s) => s.x)` or `useShallow`);
 | L1 swimlane PDF data / post-layout fitting | `src/lib/l1-department-swimlane-model.ts` / `l1-department-swimlane-fit.ts` |
 | Release Conditions page pieces | `release-conditions/inbox-panel.tsx`, `process-map-panel.tsx`, `use-process-selection.ts` |
 | Time-based UI (presence, "x min ago") | `useCurrentTime` (never `Date.now()` during render) |
+| FOB yard: skipped Phases, bypass lines, run without them | `src/lib/high-level-terminals.ts`, `src/lib/fob-yard.ts` (`applyFobYardSkip`) |
+| Progress along the real route (FOB yard aware) | `getFileProgress` in `src/lib/workflow-progress.ts` |
+| May a department be ticked yet? | `sequentialExecutionBlocker` in `src/lib/workflow-progress.ts`; UI popup via `blockIfOutOfSequence` in `src/store/sequence-guard.ts` |
+| L5 factory simulation (line, yard, shipping, crews) | `src/lib/simulation/` (`simulateScenario`, `optimizeScenario`, `simProjectFromWorkflow`) |
+| L5 page pieces | `src/components/simulation/` (inputs, results, playback, production calendar, PDF) |
+| Number/date boxes that allow free typing | `NumberInput` / `DateInput` in `src/components/simulation/draft-inputs.tsx` |
+| Reload an old page after a new deploy | `StaleBuildReload` in `src/components/stale-build-reload.tsx` |
+| Old L2 nodes from earlier versions | `src/lib/retired-nodes.ts` |
 
 ## 6. Commands
 
@@ -163,10 +171,14 @@ npm run build        # static export to out/
 
 Tracked here so it is fixed deliberately, not by accident:
 
-- **Tests**: the full suite passes (250). Two tests are skipped on purpose:
+- **Tests**: the full suite passes (301). Two tests are skipped on purpose:
   `cloud-save-refresh` and `account-session-browser` need a dev server without
   `NEXT_PUBLIC_AUTH_BYPASS=1` (real sign-in and cloud API). The collaboration
-  tests use public relays and can time out when those are slow.
+  tests use public relays and can time out when those are slow; they retry
+  twice (`test.describe.configure({ retries: 2 })`).
+- **L5 scenarios** are saved to D1 (`simulation_scenarios`, migration 0005) with
+  a browser copy as backup. Apply the migration to the remote database before
+  deploying code that uses it.
 - **Formatting**: Prettier 3.9.10 (`.prettierrc.json`, width 100). Run
   `npm run format` before committing. Long Tailwind class strings and
   template literals stay on one line; Prettier does not split strings.

@@ -207,7 +207,7 @@ export interface ProjectOperations {
     leadId: string;
     projectNumber: string;
     lifecycleState: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   qualification: QualificationQuestion[];
   clientPath: {
@@ -220,7 +220,7 @@ export interface ProjectOperations {
     fundingMaturity?: string;
     classifiedAt?: string;
     classifiedBy?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   commercial: {
     currency: string;
@@ -240,20 +240,20 @@ export interface ProjectOperations {
       releasedBy?: string;
       approverRole?: ApprovalRole | "";
       reasons: string[];
-      [key: string]: any;
+      [key: string]: unknown;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  approvals: { requests: ApprovalRequest[]; [key: string]: any };
+  approvals: { requests: ApprovalRequest[]; [key: string]: unknown };
   designBoundary: DesignBoundary;
-  siteReadiness: { gates: SecondaryGate[]; [key: string]: any };
+  siteReadiness: { gates: SecondaryGate[]; [key: string]: unknown };
   estimating: {
     inputs: Record<string, number | string>;
     assemblies: EstimateAssembly[];
     calculatedClassDAmount: number;
     versions: EstimateVersion[];
     convergenceTasks: ConvergenceTask[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   warranty: {
     dayZeroDate: string;
@@ -262,7 +262,7 @@ export interface ProjectOperations {
     owner: string;
     triggerEvidence: string;
     followUps: WarrantyFollowUp[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   production: {
     factoryWeeklyCapacityHours: number;
@@ -270,21 +270,21 @@ export interface ProjectOperations {
     procurementUnlocked: boolean;
     productionStartAuthorized: boolean;
     activities: ProductionActivity[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   timeBudget: {
     budgetHours: number;
     warningThresholdPercent: number;
     criticalThresholdPercent: number;
     entries: TimeEntry[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   bim: {
     gpfPattern: string;
     objects: BimObjectResponsibility[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  spec: Record<string, any>;
+  spec: Record<string, unknown>;
   audit: Array<Record<string, unknown>>;
-  [key: string]: any;
+  [key: string]: unknown;
 }

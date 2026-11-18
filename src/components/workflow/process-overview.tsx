@@ -7,6 +7,7 @@ import { AuthGate } from "./auth-gate";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
 import { GanttTaskCalendar, type TaskCalendarValue } from "./gantt-task-calendar";
 import { ProcessCalendarButton } from "./process-calendar-settings";
+import { FactoryProductionButton } from "./process-overview/factory-production-button";
 import {
   CreateConditionPanel,
   EMPTY_CONDITION_DRAFT,
@@ -274,6 +275,13 @@ export function ProcessOverview() {
                   onSave={(calendar) => {
                     if (canEdit) commit((current) => ({ ...current, calendar }));
                   }}
+                />
+                <FactoryProductionButton
+                  value={file.factoryProduction}
+                  canEdit={canEdit}
+                  onSave={(factoryProduction) =>
+                    commit((current) => ({ ...current, factoryProduction }))
+                  }
                 />
                 <span className="rounded-lg border bg-primary/10 px-3 py-2 font-semibold">
                   {elapsedSummary}

@@ -37,6 +37,9 @@ type ProjectState = {
   installLeft?: number;
   completion?: number;
   isSiteWorking: (day: number) => boolean;
+  blockedOnLine: number;
+  slowedDays: number;
+  crewWaitDays: number;
 };
 
 /**
@@ -77,6 +80,9 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       arrived: 0,
       installed: 0,
       arrivals: [],
+      blockedOnLine: 0,
+      slowedDays: 0,
+      crewWaitDays: 0,
       isSiteWorking: project.siteCalendar
         ? workingDayTest(project.siteCalendar).isWorking
         : factoryCalendar.isWorking,
@@ -102,13 +108,14 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
   let yardTotal = 0;
   let locked: ProjectState | undefined;
   let blockedDays = 0;
+  let tightDays = 0;
+  // Working days in a row the line has been stopped with nothing leaving the yard.
+  let stuckDays = 0;
   let peakOnLine = 0;
   const installing = new Set<string>();
   const days: SimDay[] = [];
-  const firstDay = Math.min(
-    dayOf(factory.startDate) ?? Infinity,
-    ...states.map((state) => state.start),
-  );
+  // The factory runs from its start date; earlier project dates just mean "ready now".
+  const firstDay = dayOf(factory.startDate) ?? Math.min(...states.map((state) => state.start));
   const done = () => states.every((state) => state.completion !== undefined);
 
   for (let day = firstDay; Number.isFinite(day) && !done(); day += 1) {
@@ -117,6 +124,8 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       break;
     }
     const events: string[] = [];
+    const built: Record<string, number> = {};
+    const delivered: Record<string, number> = {};
     const working = factoryCalendar.isWorking(day);
     let blocked = false;
     let paceDays = 0;
@@ -136,6 +145,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
             .map((item) => ({ ...item, progress: item.progress + step }))
             .filter((item) => item.progress < 1 - EPSILON);
           for (const item of leaving) {
+            built[item.projectId] = (built[item.projectId] ?? 0) + 1;
             const state = byId.get(item.projectId)!;
             state.produced += 1;
             state.inYard += 1;
@@ -151,14 +161,19 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       // 2. New modules join at the start, spaced like a full line.
       if (!blocked) {
         for (;;) {
-          if (line.length >= lineLimit) break;
-          const newest = line.reduce<number>((low, item) => Math.min(low, item.progress), 1);
-          if (line.length && newest < spacing - EPSILON) break;
           const available = (state: ProjectState) =>
             state.start <= day && state.loaded < state.project.modules;
           if (locked && !available(locked)) locked = undefined;
           const next = locked ?? states.find(available);
           if (!next) break;
+          // "Allow a tight line": this project's modules may go on closer
+          // together, up to the physical maximum (23 by default).
+          const tight = next.project.allowTight === true;
+          const limit = tight ? Math.max(lineLimit, factory.crowdedMax) : lineLimit;
+          const gap = tight ? 1 / Math.max(1, factory.crowdedMax) : spacing;
+          if (line.length >= limit) break;
+          const newest = line.reduce<number>((low, item) => Math.min(low, item.progress), 1);
+          if (line.length && newest < gap - EPSILON) break;
           if (!next.project.splittable) locked = next;
           next.loaded += 1;
           next.firstLoad ??= day;
@@ -167,11 +182,19 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           line.push({
             projectId: next.project.id,
             module: next.loaded,
-            progress: line.length ? newest - spacing : 0,
+            progress: line.length ? newest - gap : 0,
             lineDays: next.lineDays,
           });
           if (next.loaded === 1) events.push(`${next.project.name}: first module on the line.`);
         }
+      }
+      if (line.length > factory.normalMax) tightDays += 1;
+      // Why projects run late: count the days each one was held up.
+      for (const state of states) {
+        const onLine = line.some((item) => item.projectId === state.project.id);
+        if (!onLine) continue;
+        if (blocked) state.blockedOnLine += 1;
+        else if (paceDays > state.lineDays) state.slowedDays += 1;
       }
       peakOnLine = Math.max(peakOnLine, line.length);
     }
@@ -205,7 +228,10 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
         state.arrivals.push({ day: day + Math.max(0, delivery.transportDays), count });
       }
       for (const arrival of state.arrivals) {
-        if (arrival.day === day) state.arrived += arrival.count;
+        if (arrival.day === day) {
+          state.arrived += arrival.count;
+          delivered[state.project.id] = (delivered[state.project.id] ?? 0) + arrival.count;
+        }
       }
     }
 
@@ -221,6 +247,8 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           install.mode === "total"
             ? state.arrived === state.project.modules
             : state.arrived > state.installed;
+        if (canStart && installing.size >= crews && state.isSiteWorking(day))
+          state.crewWaitDays += 1;
         if (!canStart || installing.size >= crews || !state.isSiteWorking(day)) continue;
         state.installStart = day;
         installing.add(state.project.id);
@@ -285,10 +313,47 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
           ]),
       ),
       pickedUp: states.filter((state) => state.pickup === day).map((state) => state.project.id),
+      built,
+      delivered,
+      installedDone: states
+        .filter((state) => state.installEnd === day)
+        .map((state) => state.project.id),
       events,
+      tight: line.length > factory.normalMax,
     });
+    const yardMoved =
+      day > firstDay && days.at(-2) !== undefined && yardTotal < (days.at(-2)?.yardTotal ?? 0);
+    stuckDays = blocked && !yardMoved ? stuckDays + 1 : working ? 0 : stuckDays;
+    if (stuckDays >= 30) {
+      warnings.push(
+        "Line stuck: the yard is full and nothing can leave (an FOB project needs more yard space than there is, or its pickup is far away). Stopped the simulation.",
+      );
+      break;
+    }
     for (const id of finishedToday) installing.delete(id);
   }
+
+  /** Plain reasons a project was held up, largest first; only non-zero ones. */
+  const lateReasons = (state: ProjectState) => {
+    let waitedForLine = 0;
+    const until = state.firstLoad ?? firstDay + days.length;
+    for (let day = Math.max(state.start, firstDay); day < until; day += 1)
+      if (factoryCalendar.isWorking(day)) waitedForLine += 1;
+    return (
+      [
+        [waitedForLine, `waited ${waitedForLine} working days for the line (other projects first)`],
+        [state.slowedDays, `line ran at a slower project's pace for ${state.slowedDays} days`],
+        [
+          state.blockedOnLine,
+          `line stopped ${state.blockedOnLine} days with its modules on it (yard full)`,
+        ],
+        [state.crewWaitDays, `waited ${state.crewWaitDays} days for an install crew`],
+      ] as const
+    )
+      .filter(([days]) => days > 0)
+      .sort((left, right) => right[0] - left[0])
+      .map(([, text]) => text);
+  };
 
   const results: SimProjectResult[] = states.map((state) => {
     const iso = (day?: number) => (day === undefined ? undefined : isoFromDay(day));
@@ -307,14 +372,22 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
       completion: iso(state.completion),
       lateDays,
       finished: state.completion !== undefined,
+      reasons: lateReasons(state),
     };
   });
   for (const result of results) {
     const name = byId.get(result.projectId)!.project.name;
     if (!result.finished) warnings.push(`${name}: does not finish.`);
-    else if (result.lateDays > 0) warnings.push(`${name}: ${result.lateDays} days late.`);
+    else if (result.lateDays > 0)
+      warnings.push(
+        `${name}: ${result.lateDays} days late${result.reasons.length ? ` — ${result.reasons.join("; ")}` : ""}.`,
+      );
   }
   if (blockedDays) warnings.push(`The line stopped ${blockedDays} days because the yard was full.`);
+  if (tightDays)
+    warnings.push(
+      `The line was tight (more than ${factory.normalMax} modules) on ${tightDays} working days.`,
+    );
   const completions = states.flatMap((state) =>
     state.completion === undefined ? [] : [state.completion],
   );
@@ -323,6 +396,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
     projects: results,
     priority: states.map((state) => state.project.id),
     blockedDays,
+    tightDays,
     peakOnLine,
     makespanEnd: completions.length ? isoFromDay(Math.max(...completions)) : undefined,
     warnings,

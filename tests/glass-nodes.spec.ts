@@ -4,6 +4,9 @@ import { expect, test, type Page } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
+// Reads computed backdrop styles that can lag under a fully loaded parallel run.
+test.describe.configure({ retries: 1 });
+
 const outputDir = join(process.cwd(), "tmp", "glass-visual-qa");
 const storageKey = WORKFLOW_STORAGE_KEY;
 

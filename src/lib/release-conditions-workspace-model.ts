@@ -181,10 +181,13 @@ export function titleFromFileName(fileName: string) {
   const name = fileName.split(/[\\/]/).pop() || fileName;
   return name.replace(/\.[^.]+$/, "").trim() || name;
 }
+/** "PHASE 3 · CONSTRUCTION": the step's name, with its description when it has one. */
 export function processStepName(group: ProcessMapGroup) {
+  const title = group.title.trim();
   const description = group.description.trim();
-  if (description) return description;
-  return group.title.replace(/^phase\s*\d+$/i, "Phase").trim() || group.title;
+  if (!description || description.toLowerCase() === title.toLowerCase()) return title;
+  if (!title) return description;
+  return `${title} · ${description}`;
 }
 export function chapterPhaseId(chapter: DomainNode, file: WorkflowFile) {
   const nodeById = new Map(file.graph.nodes.map((node) => [node.id, node]));

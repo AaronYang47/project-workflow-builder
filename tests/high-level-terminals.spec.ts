@@ -113,7 +113,18 @@ test("an L2 card linked to Final Close is moved out of the Phase 4 frame", () =>
   file.highLevel!.graph.edges = [{ id: "e", source: "p4", target: "fc" }];
   const repaired = synchronizeLinkedWorkflowOrder(file);
   expect(repaired.layout.nodes.site.parentId).toBe("frame-p4");
-  expect(repaired.layout.nodes.complete.parentId).toBeUndefined();
+  // It gets its own frame named after Final Close.
+  expect(repaired.layout.nodes.complete.parentId).toBe("phase-fc");
+  expect(repaired.graph.nodes.find((node) => node.id === "phase-fc")?.title).toBe("Final Close");
+  const own = repaired.layout.nodes["phase-fc"];
+  expect(own.x).toBeLessThan(repaired.layout.nodes.complete.x);
+  expect(own.x + own.width).toBeGreaterThan(
+    repaired.layout.nodes.complete.x + repaired.layout.nodes.complete.width,
+  );
+  // Running it again changes nothing.
+  expect(
+    synchronizeLinkedWorkflowOrder(repaired).graph.nodes.filter((n) => n.type === "phase"),
+  ).toHaveLength(2);
   const box = repaired.layout.nodes["frame-p4"];
   expect(box.x + box.width).toBeLessThanOrEqual(repaired.layout.nodes.complete.x);
 

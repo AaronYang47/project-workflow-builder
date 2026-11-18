@@ -20,6 +20,8 @@ type CalendarSettingsProps = {
   canEdit: boolean;
   workingDays: number;
   onSave: (value: ScheduleCalendar | undefined) => void;
+  /** "factory": the L5 factory calendar; its start date is the simulation start. */
+  mode?: "project" | "factory";
 };
 
 export function ProcessCalendarButton(props: CalendarSettingsProps) {
@@ -29,7 +31,7 @@ export function ProcessCalendarButton(props: CalendarSettingsProps) {
       <Dialog.Trigger asChild>
         <button
           type="button"
-          aria-label="Calendar"
+          aria-label={props.mode === "factory" ? "Factory calendar years" : "Calendar"}
           title={
             props.value
               ? `Calendar · Technical handoff ${props.value.startDate}`
@@ -38,7 +40,7 @@ export function ProcessCalendarButton(props: CalendarSettingsProps) {
           className="inline-flex items-center gap-1.5 rounded-lg border bg-panel px-3 py-2 font-semibold hover:bg-muted"
         >
           <CalendarDays className="size-3.5" />
-          Calendar
+          {props.mode === "factory" ? "Customize years…" : "Calendar"}
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -51,7 +53,9 @@ export function ProcessCalendarButton(props: CalendarSettingsProps) {
                 Calendar
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-muted-foreground">
-                Set the start date, annual shutdowns, working week and statutory holidays.
+                {props.mode === "factory"
+                  ? "Factory working days: annual shutdowns (including one-off years), working week and statutory holidays."
+                  : "Set the start date, annual shutdowns, working week and statutory holidays."}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
@@ -85,7 +89,9 @@ export function ProcessCalendarSettings({
   canEdit,
   workingDays,
   onSave,
+  mode = "project",
 }: CalendarSettingsProps) {
+  const startLabel = mode === "factory" ? "Simulation start" : "Technical handoff date";
   const [startDate, setStartDate] = useState(value?.startDate ?? "");
   const shutdowns = value?.shutdowns ?? [];
   const [shutdownOverrides, setShutdownOverrides] = useState<Record<string, ShutdownOverride>>(
@@ -148,7 +154,7 @@ export function ProcessCalendarSettings({
         event.preventDefault();
         if (!canEdit) return;
         if (calendarDateDay(startDate) === null) {
-          setError("Choose a valid Technical handoff date.");
+          setError(`Choose a valid ${startLabel}.`);
           return;
         }
         if (
@@ -181,19 +187,19 @@ export function ProcessCalendarSettings({
       }}
     >
       <p className="mt-1 text-xs text-muted-foreground">
-        The start date is Technical handoff (M1). Total task durations include all days off: 1 week
-        = 7 calendar days. Grey days are deducted to show actual working days; task durations do not
-        expand.{" "}
+        {mode === "factory"
+          ? "The factory line only moves on working days. "
+          : "The start date is Technical handoff (M1). Total task durations include all days off: 1 week = 7 calendar days. Grey days are deducted to show actual working days; task durations do not expand. "}
         {fourDayWeek
           ? "Work Monday–Thursday; Friday–Sunday are non-working days."
           : "No weekly days off selected."}
       </p>
       <fieldset disabled={!canEdit} className="mt-4 space-y-3 disabled:opacity-60">
         <label className="block max-w-xs text-xs font-semibold">
-          Technical handoff date
+          {startLabel}
           <input
             type="date"
-            aria-label="Technical handoff date"
+            aria-label={startLabel}
             value={startDate}
             onChange={(event) => {
               setStartDate(event.target.value);

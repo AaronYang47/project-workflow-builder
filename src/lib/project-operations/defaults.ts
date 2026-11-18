@@ -264,6 +264,12 @@ export function createDefaultProjectOperations(
   };
 }
 
+/** A JSON object read from a saved file, or {} for anything else. */
+const record = (input: unknown): Record<string, unknown> =>
+  input && typeof input === "object" && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : {};
+
 export function normalizeProjectOperations(
   raw: ProjectOperations | undefined,
   name = "",
@@ -271,9 +277,9 @@ export function normalizeProjectOperations(
 ): ProjectOperations {
   // Saved files can contain older partial shapes. Treat this boundary as
   // untrusted JSON and rebuild every controlled branch from the defaults.
-  const value = (raw || {}) as any;
+  const value = record(raw);
   const defaults = createDefaultProjectOperations(name, legacyJobNumber);
-  const rawIdentity = value.identity || {};
+  const rawIdentity = record(value.identity);
   const projectNumber =
     text(rawIdentity.projectNumber) ||
     (canonicalProjectNumber(legacyJobNumber) ? text(legacyJobNumber) : "");
@@ -293,14 +299,16 @@ export function normalizeProjectOperations(
           : ""),
     lifecycleState: text(rawIdentity.lifecycleState) || (projectNumber ? "Project" : "Client"),
   };
-  const rawClientPath = value.clientPath || {};
-  const rawCommercial = value.commercial || {};
-  const rawPaymentRelease = rawCommercial.paymentRelease || {};
-  const rawEstimating = value.estimating || {};
-  const rawWarranty = value.warranty || {};
-  const rawProduction = value.production || {};
-  const rawTimeBudget = value.timeBudget || {};
-  const rawBim = value.bim || {};
+  const rawClientPath = record(value.clientPath);
+  const rawCommercial = record(value.commercial);
+  const rawPaymentRelease = record(rawCommercial.paymentRelease);
+  const rawEstimating = record(value.estimating);
+  const rawWarranty = record(value.warranty);
+  const rawProduction = record(value.production);
+  const rawTimeBudget = record(value.timeBudget);
+  const rawBim = record(value.bim);
+  const rawApprovals = record(value.approvals);
+  const rawSiteReadiness = record(value.siteReadiness);
 
   return {
     ...defaults,
@@ -342,18 +350,18 @@ export function normalizeProjectOperations(
     },
     approvals: {
       ...(defaults.approvals || {}),
-      ...(value.approvals || {}),
-      requests: Array.isArray(value.approvals?.requests) ? value.approvals.requests : [],
+      ...rawApprovals,
+      requests: Array.isArray(rawApprovals.requests) ? rawApprovals.requests : [],
     },
     designBoundary: {
       ...defaults.designBoundary,
-      ...(value.designBoundary || {}),
+      ...record(value.designBoundary),
     },
     siteReadiness: {
       ...(defaults.siteReadiness || {}),
-      ...(value.siteReadiness || {}),
-      gates: Array.isArray(value.siteReadiness?.gates)
-        ? value.siteReadiness.gates
+      ...rawSiteReadiness,
+      gates: Array.isArray(rawSiteReadiness.gates)
+        ? rawSiteReadiness.gates
         : defaults.siteReadiness.gates,
     },
     estimating: {
@@ -398,7 +406,9 @@ export function normalizeProjectOperations(
       ...rawBim,
       objects: Array.isArray(rawBim.objects) ? rawBim.objects : [],
     },
-    spec: value.spec || {},
+    spec: record(value.spec),
     audit: Array.isArray(value.audit) ? value.audit : [],
-  } as ProjectOperations;
+    // Rebuilt from untrusted saved JSON: every controlled branch above has its
+    // shape restored; list items are kept as saved.
+  } as unknown as ProjectOperations;
 }

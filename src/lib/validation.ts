@@ -9,6 +9,7 @@ import { readPath } from "@/lib/object-path";
 import { getProfabForm } from "@/lib/profab-forms";
 import { RELEASE_CONDITION_INBOX_ID } from "@/lib/release-condition-inbox";
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
+import { sequentialExecutionBlocker } from "@/lib/workflow-progress";
 
 const requiredFields: Partial<Record<DomainNode["type"], string[]>> = {
   document: ["title"],
@@ -340,6 +341,23 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
         code: "CYCLE",
         message: "The workflow contains a cycle while cycles are disallowed",
       });
+  }
+  // Ticks made before the department-order rule existed: flag them, keep them.
+  for (const node of nodes) {
+    if (node.type !== "general" && node.type !== "projectStart") continue;
+    const ticked = node.conditions.filter(
+      (condition) => condition.checked && condition.id !== "project-id-required",
+    );
+    if (!ticked.length) continue;
+    const blocker = sequentialExecutionBlocker(file, node.id);
+    if (!blocker) continue;
+    issues.push({
+      id: `out-of-order-ticks-${node.id}`,
+      severity: "warning",
+      code: "OUT_OF_ORDER_TICKS",
+      message: `${node.title}: ${ticked.length} release condition${ticked.length === 1 ? " is" : "s are"} ticked before the previous department is finished. ${blocker}`,
+      nodeId: node.id,
+    });
   }
   return issues;
 }
