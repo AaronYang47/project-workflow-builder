@@ -29,6 +29,7 @@ import { createDefaultTerminalConditions } from "@/lib/create-domain-node";
 const stageByType: Record<WorkflowNodeType, string> = {
   general: "Department",
   projectStart: "Project",
+  qualification: "Qualification",
   start: "Start",
   end: "End",
   phase: "Phase",
@@ -56,6 +57,7 @@ const stageByType: Record<WorkflowNodeType, string> = {
 const iconByType: Record<WorkflowNodeType, string> = {
   general: "activity",
   projectStart: "building",
+  qualification: "check",
   start: "flag",
   end: "check",
   phase: "box",
@@ -82,6 +84,7 @@ const iconByType: Record<WorkflowNodeType, string> = {
 };
 const preservedTypes = new Set<WorkflowNodeType>([
   "projectStart",
+  "qualification",
   "phase",
   ...REFERENCE_NODE_TYPES,
 ]);

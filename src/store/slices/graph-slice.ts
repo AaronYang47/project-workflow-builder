@@ -117,11 +117,60 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         };
       }),
     addNode: (type, position, parentId) => {
+      /**
+       * A Qualification step goes at the far left of the flow: to the left of
+       * Project Start, outside any Phase frame, connected into it.
+       */
+      const placeQualificationFirst = (id: string) => {
+        const file = get().file;
+        const start = file.graph.nodes.find((node) => node.type === "projectStart");
+        if (!start || file.graph.edges.some((edge) => edge.target === start.id)) return;
+        let x = 0;
+        let y = 0;
+        for (
+          let layout: (typeof file.layout.nodes)[string] | undefined = file.layout.nodes[start.id];
+          layout;
+        ) {
+          x += layout.x;
+          y += layout.y;
+          layout = layout.parentId ? file.layout.nodes[layout.parentId] : undefined;
+        }
+        const own = file.layout.nodes[id];
+        const width = own?.width ?? 1000;
+        get().commitTransient((current) => {
+          current.layout.nodes[id] = {
+            ...current.layout.nodes[id],
+            nodeId: id,
+            x: x - width - 160,
+            y,
+            parentId: undefined,
+          };
+          return addOrReplaceEdge(current, {
+            id: `edge-${crypto.randomUUID().slice(0, 8)}`,
+            source: id,
+            target: start.id,
+            sourceHandle: "out",
+            targetHandle: "in",
+            type: "normal",
+            label: "",
+            lineStyle: "solid",
+            arrowStyle: "closed",
+            customFields: {},
+          });
+        });
+      };
       // These are canonical/retired lifecycle surfaces, not user-addable
       // palette nodes. Keep the guard for stale drag/command events from
       // older sessions after their palette entries have been removed.
       if (type === "approvalMatrix" || type === "responsibilityLane") {
         return "";
+      }
+      if (type === "qualification") {
+        const existing = get().file.graph.nodes.find((node) => node.type === "qualification");
+        if (existing) {
+          set({ selection: { nodeIds: [existing.id] } });
+          return existing.id;
+        }
       }
       if (type === "projectStart") {
         const existing = get().file.graph.nodes.find((node) => node.type === "projectStart");
@@ -154,6 +203,7 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         // node measurement loop when adding Gate / Decision Module cards.
         selection: { nodeIds: [] },
       }));
+      if (type === "qualification") placeQualificationFirst(id);
       if (
         typeof window !== "undefined" &&
         type !== "phase" &&
@@ -561,11 +611,16 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
       set({ selection: { nodeIds: [] } });
     },
     addEdge: (edge) => {
-      if (get().file.graph.nodes.find((node) => node.id === edge.target)?.type === "projectStart") {
+      const nodes = get().file.graph.nodes;
+      if (
+        nodes.find((node) => node.id === edge.target)?.type === "projectStart" &&
+        nodes.find((node) => node.id === edge.source)?.type !== "qualification"
+      ) {
         set({
           deleteBlocked: {
             title: "Invalid connection",
-            message: "Project Start must be the first node.",
+            message:
+              "Project Start must be the first node (only Qualification may come before it).",
             items: ["Connect from Project Start to the next node instead."],
           },
         });

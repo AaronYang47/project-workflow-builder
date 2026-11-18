@@ -117,30 +117,24 @@ export function ConditionEditor({
             className="min-h-14 resize-y bg-background/75 text-xs"
           />
         </div>
-        {condition.id === "project-id-required" ? (
-          <p className="rounded-md border bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
-            Checked automatically when the five-digit Job Number is entered.
-          </p>
-        ) : (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={condition.required !== false}
-            aria-label={`Release condition ${conditionIndex + 1} required`}
-            disabled={condition.locked}
-            onClick={() => updateCondition({ required: condition.required === false })}
-            className={`flex h-9 w-full items-center rounded-md border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${condition.required !== false ? "border-primary/40 bg-primary/10 text-primary" : "bg-background/75 text-muted-foreground"}`}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={condition.required !== false}
+          aria-label={`Release condition ${conditionIndex + 1} required`}
+          disabled={condition.locked}
+          onClick={() => updateCondition({ required: condition.required === false })}
+          className={`flex h-9 w-full items-center rounded-md border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${condition.required !== false ? "border-primary/40 bg-primary/10 text-primary" : "bg-background/75 text-muted-foreground"}`}
+        >
+          <span
+            className={`mr-2 h-4 w-7 rounded-full p-0.5 ${condition.required !== false ? "bg-primary" : "bg-muted-foreground/35"}`}
           >
             <span
-              className={`mr-2 h-4 w-7 rounded-full p-0.5 ${condition.required !== false ? "bg-primary" : "bg-muted-foreground/35"}`}
-            >
-              <span
-                className={`block size-3 rounded-full bg-white transition ${condition.required !== false ? "translate-x-3" : ""}`}
-              />
-            </span>
-            {condition.required !== false ? "Required" : "Optional"}
-          </button>
-        )}
+              className={`block size-3 rounded-full bg-white transition ${condition.required !== false ? "translate-x-3" : ""}`}
+            />
+          </span>
+          {condition.required !== false ? "Required" : "Optional"}
+        </button>
       </div>
     </section>
   );

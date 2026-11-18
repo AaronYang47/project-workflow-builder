@@ -22,6 +22,20 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
   const def = getNodeDefinition(type);
   const gate = type === "gate";
   const projectStart = type === "projectStart";
+  if (type === "qualification")
+    return {
+      id,
+      type,
+      title: "Qualification",
+      description: "Client, GC and plans check before the project starts.",
+      color: def.color,
+      metadata: {},
+      conditions: [],
+      documents: [],
+      criteria: [],
+      customFields: {},
+      config: { qualification: {} },
+    };
   const matrixKind = matrixKindForNode({ type });
   return {
     id,

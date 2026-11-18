@@ -35,7 +35,11 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
       nodeId: projectStarts[0]?.id,
     });
   for (const projectStart of projectStarts) {
-    if (edges.some((edge) => edge.target === projectStart.id))
+    // Only a Qualification step may come before Project Start.
+    const qualificationIds = new Set(
+      nodes.filter((node) => node.type === "qualification").map((node) => node.id),
+    );
+    if (edges.some((edge) => edge.target === projectStart.id && !qualificationIds.has(edge.source)))
       issues.push({
         id: `project-start-incoming-${projectStart.id}`,
         severity: "error",

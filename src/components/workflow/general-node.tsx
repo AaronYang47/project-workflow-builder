@@ -363,7 +363,6 @@ export function GeneralNode({
                   );
                   const hasL3Forms = conditionHasL3Forms(condition, node);
                   const toggleCondition = () => {
-                    if (condition.id === "project-id-required") return;
                     if (!checked && blockIfOutOfSequence(node.id)) return;
                     if (!checked && hasL3Forms) {
                       openDepartmentL3(node.id);
@@ -435,13 +434,11 @@ export function GeneralNode({
                         type="button"
                         aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                         title={
-                          condition.id === "project-id-required"
-                            ? "Automatically checked when a complete Job Number is entered"
-                            : checked
-                              ? "Uncheck this release condition"
-                              : "Mark this release condition complete"
+                          checked
+                            ? "Uncheck this release condition"
+                            : "Mark this release condition complete"
                         }
-                        disabled={condition.id === "project-id-required" || (hasL3Forms && checked)}
+                        disabled={hasL3Forms && checked}
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded border",

@@ -78,7 +78,13 @@ export function useCanvasConnections({
         return false;
       }
       const target = nodes.find((node) => node.id === connection.target);
-      if (!target || target.type === "phase" || target.type === "projectStart") {
+      const source = nodes.find((node) => node.id === connection.source);
+      // Only a Qualification step may lead into Project Start.
+      if (
+        !target ||
+        target.type === "phase" ||
+        (target.type === "projectStart" && source?.type !== "qualification")
+      ) {
         return false;
       }
       return true;

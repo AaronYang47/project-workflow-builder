@@ -30,6 +30,7 @@ import type { WorkflowNodeType } from "@/types/workflow";
 // Surfaces in the node palette (left-side panel). These are the "primary"
 // node types users can drag or double-click to add.
 export const PALETTE_NODE_TYPES = [
+  "qualification",
   "projectStart",
   "general",
   "gate",
@@ -48,6 +49,15 @@ export interface NodeDefinition {
 }
 
 export const NODE_CATALOG: NodeDefinition[] = [
+  {
+    type: "qualification",
+    label: "Qualification",
+    description: "Client, GC and plans check before the project starts",
+    icon: ClipboardCheck,
+    color: "#2563a9",
+    category: "Flow",
+    defaultSize: { width: 1000, height: 370 },
+  },
   {
     type: "projectStart",
     label: "Project Start",

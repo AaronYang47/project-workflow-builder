@@ -5,6 +5,7 @@ import type { NodeProps } from "@xyflow/react";
 import { useNodeScrollContainment } from "@/lib/use-node-scroll-containment";
 import { GateNode } from "./gate-node";
 import { GeneralNode } from "./general-node";
+import { QualificationNode } from "./qualification-node";
 import type { WorkflowFlowNode } from "./node-utils";
 
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
@@ -57,6 +58,8 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
   const inner =
     node.type === "gate" ? (
       <GateNode node={node} selected={selected} phaseColor={data.phaseColor} />
+    ) : node.type === "qualification" ? (
+      <QualificationNode node={node} selected={selected} />
     ) : (
       <GeneralNode
         node={node}

@@ -475,7 +475,7 @@ export function ExecutionView({
                 <span>{l3Title}</span>
               </h1>
 
-              {currentCondition && currentCondition.id !== "project-id-required" ? (
+              {currentCondition ? (
                 <button
                   type="button"
                   aria-label={
@@ -603,16 +603,12 @@ export function ExecutionView({
                 <span
                   role="checkbox"
                   aria-checked={Boolean(isPassed)}
-                  aria-disabled={condition.id === "project-id-required" || hasL3Forms}
+                  aria-disabled={hasL3Forms}
                   title={
-                    condition.id === "project-id-required"
-                      ? "Automatically checked when a complete Job Number is entered"
-                      : isPassed
-                        ? "Click to uncheck condition"
-                        : "Click to mark condition complete"
+                    isPassed ? "Click to uncheck condition" : "Click to mark condition complete"
                   }
                   onClick={(e) => {
-                    if (condition.id === "project-id-required" || hasL3Forms) return;
+                    if (hasL3Forms) return;
                     e.stopPropagation();
                     const nextChecked = !isPassed;
                     const updatedConditions = (node.conditions || []).map((c, i) =>

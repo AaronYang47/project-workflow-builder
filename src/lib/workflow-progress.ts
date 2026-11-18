@@ -8,7 +8,7 @@ import type {
   WorkflowFile,
 } from "@/types/workflow";
 import { REFERENCE_NODE_TYPES } from "@/types/workflow";
-import { BUILDING_PATTERN, MODULE_PATTERN, PROJECT_ID_PATTERN } from "@/lib/project-id";
+import { BUILDING_PATTERN, MODULE_PATTERN } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
 import type { ExecutionItem } from "@/types/workflow";
@@ -142,12 +142,9 @@ export function conditionIsSatisfied(
   executionItems?: ExecutionItem[],
   operations?: ProjectOperations,
 ) {
-  // The Job Number reminder is informational for release, but its checkmark
-  // always reflects whether a complete five-digit number has been entered.
-  if (condition.id === "project-id-required") {
-    const source = computedConditionSource(node, projectStart);
-    return PROJECT_ID_PATTERN.test(String(source.customFields.projectId || ""));
-  }
+  // The Job Number reminder is informational for release and ticked by hand:
+  // entering a Job Number no longer forces it on.
+  if (condition.id === "project-id-required") return condition.checked === true;
   if (condition.linkedExecutionItemId) {
     const linkedItem = executionItems?.find((item) => item.id === condition.linkedExecutionItemId);
     return Boolean(

@@ -24,6 +24,7 @@ export const NODE_TYPES = [
   "jobNumbering",
   "businessRules",
   "terminal",
+  "qualification",
 ] as const;
 export type WorkflowNodeType = (typeof NODE_TYPES)[number];
 

@@ -18,16 +18,19 @@ test("missing Job Number and unchecked legacy condition do not block the chapter
   ];
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(false);
   expect(nodeReleaseReady(node, node, [], undefined)).toBe(true);
-  node.conditions[0].checked = true;
+  // Entering a Job Number doesn't tick it; it is ticked by hand.
+  node.customFields.projectId = "27001";
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(false);
-  node.customFields.projectId = "L-27-001";
+  node.conditions[0].checked = true;
   expect(conditionIsSatisfied(node.conditions[0], node)).toBe(true);
   expect(syncProjectNameIdentity("PROF Address 1 St 1 Su", "27001")).toBe(
     "27001 PROF Address 1 St 1 Su",
   );
 });
 
-test("Job Number condition is automatic and missing number does not block", async ({ page }) => {
+test("Job Number condition is ticked by hand and a missing number does not block", async ({
+  page,
+}) => {
   const file = createProjectWorkflow("No Job Number");
   const start = createDomainNode("projectStart", "start");
   start.conditions[0].required = true; // A previously saved project.
@@ -49,14 +52,16 @@ test("Job Number condition is automatic and missing number does not block", asyn
   const card = page.locator('[data-id="start"]');
   await expect(card.getByText("Job Number not set. You can add it later.")).toBeVisible();
   await expect(card).toContainText("Ready");
-  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeDisabled();
-  await card.getByRole("textbox", { name: "Job Number (5 digits)" }).fill("2700");
-  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeDisabled();
+  // A full Job Number no longer ticks it.
   await card.getByRole("textbox", { name: "Job Number (5 digits)" }).fill("27001");
   await expect(card.getByText("Job Number not set. You can add it later.")).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeDisabled();
-  await card.getByRole("textbox", { name: "Job Number (5 digits)" }).fill("");
-  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeDisabled();
+  const check = card.getByRole("button", { name: "Check release condition 1" });
+  await expect(check).toBeEnabled();
+  // It can be ticked and unticked by hand.
+  await check.click();
+  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeVisible();
+  await card.getByRole("button", { name: "Uncheck release condition 1" }).click();
+  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeVisible();
 });
 
 test("a cloud project can be created without a Job Number", async ({ page }) => {

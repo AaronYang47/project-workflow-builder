@@ -29,6 +29,13 @@ export function getAdaptiveNodeSize(
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "phase")
     return { width: current?.width || 720, height: current?.height || 420 };
+  if (node.type === "qualification") {
+    const fallback = getNodeDefinition(node.type).defaultSize;
+    return {
+      width: Math.max(current?.width || 0, fallback.width),
+      height: Math.max(current?.height || 0, fallback.height),
+    };
+  }
   if (node.type === "projectStart") {
     const fallback = getNodeDefinition(node.type).defaultSize;
     const headerWidth = estimateNodeHeaderWidth(node);

@@ -34,6 +34,9 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
   const hasProjectStart = useWorkflowStore((state) =>
     state.file.graph.nodes.some((node) => node.type === "projectStart"),
   );
+  const hasQualification = useWorkflowStore((state) =>
+    state.file.graph.nodes.some((node) => node.type === "qualification"),
+  );
   const conditionCount = useWorkflowStore(
     (state) =>
       (state.file.releaseConditionInbox?.length ?? 0) +
@@ -71,7 +74,10 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
       <div className="scroll-thin min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-5">
         {catalog.map((item) => {
           const Icon = item.icon;
-          const disabled = !highLevelMode && item.type === "projectStart" && hasProjectStart;
+          const disabled =
+            !highLevelMode &&
+            ((item.type === "projectStart" && hasProjectStart) ||
+              (item.type === "qualification" && hasQualification));
           return (
             <button
               type="button"
