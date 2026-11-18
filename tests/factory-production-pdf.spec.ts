@@ -46,7 +46,7 @@ test("the PDF calendar shows Factory Production as its own red entry", () => {
   expect(productionCalendarPageHtml(plain).join("")).not.toContain("data-pc-factory-production");
 });
 
-test("High Level + Gantt PDF: Factory Production replaces the general red note in its boxes", async ({
+test("High Level + Gantt PDF: with L5 data, no general red note; Factory Production only in its Department box", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -101,7 +101,8 @@ test("High Level + Gantt PDF: Factory Production replaces the general red note i
     department: string[];
     general: number;
   };
-  expect(notes.phase).toEqual([["Factory Production · 40 days", "rgb(220, 38, 38)"]]);
+  // The Phase box shows only its total time (which includes Factory Production).
+  expect(notes.phase).toEqual([]);
   expect(notes.department).toEqual(["Factory Production · 40 days"]);
   expect(notes.general).toBe(0);
   expect(notes.overlap).toBe(false);

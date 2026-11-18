@@ -171,17 +171,15 @@ export async function exportL1DepartmentSwimlanePdf(
                   "",
                 )}</div>${partial ? '<span class="phase-duration-note">Partial estimate</span>' : ""}`
             : '<span class="phase-duration-pending">Duration not set</span>';
-      // With L5's Factory Production row in this Phase, it replaces the general note.
-      const factoryRow = tasks.find((task) => isFactoryProductionRow(task.condition));
-      const actualProductionNote = !options.gantt
-        ? ""
-        : factoryRow
-          ? `<span class="phase-actual-production-note" data-phase-factory-production>${escapeHtml(factoryProductionNote(factoryRow.days))}</span>`
-          : !hasFactoryProduction &&
-              countedTasks.length &&
-              tasks.some((task) => isProductionDepartmentName(task.department))
-            ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
-            : "";
+      // With L5 data the Phase duration already includes Factory Production, so the
+      // box shows just that total; the general note stays only without L5 data.
+      const actualProductionNote =
+        options.gantt &&
+        !hasFactoryProduction &&
+        countedTasks.length &&
+        tasks.some((task) => isProductionDepartmentName(task.department))
+          ? '<span class="phase-actual-production-note" data-phase-actual-production-time>+ Actual Production Time [Average Time Per Module is 2 Weeks]</span>'
+          : "";
       return `<div class="phase-card" data-pdf-phase-id="${escapeHtml(phase.node.id)}" style="--phase-color:${phase.color};--phase-tint:${rgba(phase.color, 0.09)};">
       <div class="phase-meta"><span>${escapeHtml(phase.node.title || `PHASE ${index + 1}`)}</span><span class="phase-involvement">${departmentCount} ${departmentCount === 1 ? "Department" : "Departments"} Involved</span></div>
       <div class="phase-title">${escapeHtml(title)}</div>

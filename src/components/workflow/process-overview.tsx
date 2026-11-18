@@ -383,7 +383,7 @@ export function ProcessOverview() {
                           className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-emerald-500"
                           style={{ left: `${(completionDay / total) * 100}%` }}
                         >
-                          <span className="absolute right-1 top-0.5 whitespace-nowrap rounded bg-emerald-600 px-1 text-[9px] font-bold leading-4 text-white">
+                          <span className="absolute right-1 top-[86px] whitespace-nowrap rounded bg-emerald-600 px-1 text-[9px] font-bold leading-4 text-white">
                             Project completion · {completionLabel}
                           </span>
                         </div>
