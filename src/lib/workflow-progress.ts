@@ -58,11 +58,21 @@ function conditionL3FormState(condition: Condition, node: DomainNode) {
       }
     }),
   ];
+  // Forms listed by the specification mirror the condition's own tick; files
+  // attached in L3 carry their own ticks.
+  const attached = documents.filter(
+    (document) => !String(document.id ?? "").startsWith("specified-form-"),
+  );
+  const attachedRequired = attached.filter((document) => document.required !== false);
   return {
     hasForms: documents.length > 0,
     requiredComplete: documents
       .filter((document) => document.required !== false)
       .every((document) => document.checked === true),
+    /** Every required attached file is ticked (and there is at least one). */
+    attachedComplete:
+      attachedRequired.length > 0 &&
+      attachedRequired.every((document) => document.checked === true),
   };
 }
 
@@ -143,8 +153,11 @@ export function conditionIsSatisfied(
   operations?: ProjectOperations,
 ) {
   // The Job Number reminder is informational for release and ticked by hand:
-  // entering a Job Number no longer forces it on.
-  if (condition.id === "project-id-required") return condition.checked === true;
+  // entering a Job Number no longer forces it on (its files can tick it).
+  if (condition.id === "project-id-required") {
+    const forms = conditionL3FormState(condition, node);
+    return condition.checked === true || forms.attachedComplete;
+  }
   if (condition.linkedExecutionItemId) {
     const linkedItem = executionItems?.find((item) => item.id === condition.linkedExecutionItemId);
     return Boolean(
@@ -160,7 +173,8 @@ export function conditionIsSatisfied(
   }
   const l3Forms = conditionL3FormState(condition, node);
   if (l3Forms.hasForms) {
-    return condition.checked === true && l3Forms.requiredComplete;
+    // Ticking every required file in L3 / Release Conditions ticks the condition.
+    return l3Forms.requiredComplete && (condition.checked === true || l3Forms.attachedComplete);
   }
   const source = computedConditionSource(node, projectStart);
   if (condition.id === "paid-building-required") {

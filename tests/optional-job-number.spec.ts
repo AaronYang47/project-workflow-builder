@@ -108,3 +108,28 @@ test("a cloud project can be created without a Job Number", async ({ page }) => 
   await expect.poll(() => saved?.projectNumber).toBe("");
   expect(saved?.name).toBe("PROF Test Street 1 St 1 Su");
 });
+
+test("ticking every required file of a release condition ticks the condition", () => {
+  const node = createDomainNode("general", "sales");
+  node.conditions = [{ id: "nda", label: "NDA & EDAT", required: true }];
+  const files = (checked: boolean[]) =>
+    JSON.stringify(
+      checked.map((value, index) => ({
+        id: `doc-${index}`,
+        title: `File ${index + 1}`,
+        required: true,
+        checked: value,
+      })),
+    );
+  node.customFields["customerDocuments::release-condition::nda"] = files([true, false]);
+  expect(conditionIsSatisfied(node.conditions[0], node)).toBe(false);
+  node.customFields["customerDocuments::release-condition::nda"] = files([true, true]);
+  expect(conditionIsSatisfied(node.conditions[0], node)).toBe(true);
+
+  // The Job Number condition: its own files tick it too.
+  const start = createDomainNode("projectStart", "start");
+  start.customFields["customerDocuments::release-condition::project-id-required"] = files([false]);
+  expect(conditionIsSatisfied(start.conditions[0], start)).toBe(false);
+  start.customFields["customerDocuments::release-condition::project-id-required"] = files([true]);
+  expect(conditionIsSatisfied(start.conditions[0], start)).toBe(true);
+});
