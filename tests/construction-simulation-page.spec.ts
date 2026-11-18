@@ -980,3 +980,49 @@ test("Auto schedule suggests fixes when the line is too full, and Apply uses one
     page.locator('[data-sim-project="27001"]').getByLabel(/Allow a tight line/),
   ).toBeChecked();
 });
+
+test("Earliest line start follows the production schedule: the Factory Production row's L4 start", async ({
+  page,
+}) => {
+  const file = createE2EWorkflow();
+  file.calendar = { startDate: "2027-01-04", shutdowns: [] };
+  // Give every release condition a length so L4 has dates for each row.
+  file.graph.nodes = file.graph.nodes.map((node) => ({
+    ...node,
+    conditions: node.conditions.map((condition) => ({
+      ...condition,
+      duration: 5,
+      durationUnit: "days" as const,
+    })),
+  }));
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false, activeProjectId: "p1" },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const card = page.locator('[data-sim-project="cloud-p1"]');
+  const start = card.getByLabel("Earliest line start", { exact: true });
+  const hint = card.locator("[data-l4-start-limit]");
+  await expect(hint).toContainText("Choose a Department above to follow the production schedule");
+  const phaseStart = (await start.getAttribute("min"))!;
+
+  await card.getByLabel("Department").selectOption({ label: "Department Lifecycle Phase" });
+  await card.getByLabel("Add below").selectOption({ index: 1 });
+  await expect(hint).toContainText(
+    "Earliest line start follows the production schedule: L4's Factory Production row starts",
+  );
+  await expect(hint).toContainText("finishes)");
+  const factoryStart = (await start.getAttribute("min"))!;
+  expect(factoryStart > phaseStart).toBe(true);
+  // The box moves up to that date by itself.
+  await expect(start).toHaveValue(factoryStart);
+});

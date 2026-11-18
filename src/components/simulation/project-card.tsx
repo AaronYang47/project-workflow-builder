@@ -239,7 +239,7 @@ export function ProjectCard({
   count: number;
   phaseOptions?: { id: string; title: string; description: string }[];
   /** Saved projects: the L4 date the production Phase starts; the line can't start earlier. */
-  l4Start?: { date: string; phase: string };
+  l4Start?: { date: string; phase: string; factory?: { reason: string } };
   /** Modules the line holds at its normal pace (the pipeline length). */
   lineSlots: number;
   /** Saved projects: Departments in the production Phase and their L4 release conditions. */
@@ -398,9 +398,13 @@ export function ProjectCard({
             data-l4-start-limit
             className={`col-span-2 text-[10px] leading-snug ${project.earliestStart < l4Start.date ? "font-semibold text-red-600" : "text-muted-foreground"}`}
           >
-            {project.earliestStart < l4Start.date
-              ? `Before L4 allows: the simulation uses ${l4Start.date}, when ${l4Start.phase} starts in L4.`
-              : `L4: ${l4Start.phase} starts ${l4Start.date} — earlier dates can't be chosen.`}
+            {l4Start.factory
+              ? project.earliestStart < l4Start.date
+                ? `Too early: production can't start before ${l4Start.date}, when L4's Factory Production row starts (${l4Start.factory.reason}). The simulation uses ${l4Start.date}.`
+                : `Earliest line start follows the production schedule: L4's Factory Production row starts ${l4Start.date} (${l4Start.factory.reason}); earlier dates can't be chosen.`
+              : project.earliestStart < l4Start.date
+                ? `Too early: the simulation uses ${l4Start.date}, when ${l4Start.phase} starts in L4. Choose a Department above to start from Factory Production instead.`
+                : `Earliest line start: ${l4Start.phase} starts ${l4Start.date} in L4 — earlier dates can't be chosen. Choose a Department above to follow the production schedule (Factory Production) instead.`}
           </p>
         ) : null}
       </div>

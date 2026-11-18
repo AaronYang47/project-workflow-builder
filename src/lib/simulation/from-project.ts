@@ -218,6 +218,38 @@ export function syncFactoryProductionRow(
   return changed ? { ...file, graph: { ...file.graph, nodes } } : file;
 }
 
+/**
+ * Earliest line start from the production schedule: the L4 date the Factory
+ * Production row starts (after the chosen release condition, by its timing).
+ * Undefined when no release condition is chosen or L4 has no Calendar dates.
+ */
+export function factoryProductionStart(
+  file: WorkflowFile,
+  target: { nodeId: string; conditionId: string; start?: L4Start } | undefined,
+) {
+  if (!target) return undefined;
+  // The row's start doesn't depend on its length, so any length will do.
+  const withRow = syncFactoryProductionRow(file, target, 1, "");
+  const schedule = buildProcessSchedule(withRow);
+  const timeline = buildProcessTimeline(withRow, schedule);
+  const task = schedule.tasks.find(
+    (item) => item.nodeId === target.nodeId && isFactoryProductionRow(item.condition),
+  );
+  if (!timeline.enabled || task?.start === undefined) return undefined;
+  const date = timeline.dateAt(timeline.toDisplayDay(task.start));
+  if (!date) return undefined;
+  const start = target.start ?? defaultFactoryStart(target);
+  const after = start.conditionId
+    ? schedule.tasks.find(
+        (item) => item.nodeId === start.nodeId && item.conditionId === start.conditionId,
+      )?.title
+    : undefined;
+  const reason = after
+    ? `${start.lagDays ? `${start.lagDays} days after` : "when"} ${after} ${start.relation === "start" ? "starts" : "finishes"}`
+    : `${start.lagDays ? `${start.lagDays} days after` : "when"} the Phase starts`;
+  return { date, reason };
+}
+
 const PROJECT_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
 
 /**

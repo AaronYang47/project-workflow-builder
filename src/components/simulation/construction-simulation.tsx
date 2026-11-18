@@ -25,6 +25,7 @@ import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   syncFactoryProductionRow,
+  factoryProductionStart,
   fobPickupDate,
   productionReleaseConditions,
   simulatedLineDays,
@@ -194,10 +195,23 @@ function SimulationWorkspace() {
   // Saved projects can't start on the line before their production Phase
   // starts in L4.
   const l4Starts = useMemo(() => {
-    const starts = new Map<string, { date: string; phase: string }>();
+    const starts = new Map<string, { date: string; phase: string; factory?: { reason: string } }>();
     for (const project of draft.projects) {
-      const file = files[project.id];
+      const file =
+        project.source.kind === "cloud" && project.source.projectId === currentId
+          ? currentFile
+          : files[project.id];
       if (!file || !project.productionPhaseId) continue;
+      // With a Factory Production row chosen, production can't start before that row does.
+      const factory = factoryProductionStart(file, project.l4Target);
+      if (factory) {
+        starts.set(project.id, {
+          date: factory.date,
+          phase: "Factory Production",
+          factory: { reason: factory.reason },
+        });
+        continue;
+      }
       const date = projectScheduleDates(file, project.productionPhaseId).earliestStart;
       const phase = productionPhaseOptions(file).find(
         (option) => option.id === project.productionPhaseId,
@@ -209,7 +223,7 @@ function SimulationWorkspace() {
         });
     }
     return starts;
-  }, [draft.projects, files]);
+  }, [draft.projects, files, currentFile, currentId]);
   const simDraft = useMemo(
     () => ({
       ...draft,
@@ -306,6 +320,22 @@ function SimulationWorkspace() {
     return fob === undefined ? project : switchDelivery(project, file, fob);
   });
   if (synced.some((project, index) => project !== draft.projects[index])) setProjects(synced);
+  // Production schedule → line start: a project with a Factory Production row
+  // can't go on the line before that row starts in L4, so its field moves up.
+  const tooEarly = draft.projects.filter((project) => {
+    const limit = l4Starts.get(project.id);
+    return limit?.factory && project.earliestStart < limit.date;
+  });
+  if (tooEarly.length)
+    setDraft((current) => ({
+      ...current,
+      projects: current.projects.map((project) => {
+        const limit = l4Starts.get(project.id);
+        return limit?.factory && project.earliestStart < limit.date
+          ? { ...project, earliestStart: limit.date }
+          : project;
+      }),
+    }));
   // L5 → L1: choosing FOB yard or Ship & install sets the project's Final Close.
   const changeDelivery = (project: SimProject, picked: SimDelivery) => {
     if (

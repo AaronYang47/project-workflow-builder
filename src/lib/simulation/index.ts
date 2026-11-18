@@ -12,6 +12,7 @@ export {
   isFactoryProductionRow,
   defaultFactoryStart,
   syncFactoryProductionRow,
+  factoryProductionStart,
   fobPickupDate,
   productionPhaseOptions,
   productionReleaseConditions,
