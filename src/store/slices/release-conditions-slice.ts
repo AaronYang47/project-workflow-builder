@@ -42,6 +42,36 @@ export function createReleaseConditionsSlice(set: StoreSet, get: StoreGet): Rele
         nextConditions = node.conditions.filter((_, itemIndex) => itemIndex !== index);
         linkedExecutionItemId = condition.linkedExecutionItemId;
         let nextFile = patchNode(file, nodeId, { conditions: nextConditions });
+        // Rows that followed the deleted condition now follow what it followed
+        // (or start with the Phase), so the L4 schedule doesn't break.
+        const deletedId = condition.id || `index-${index}`;
+        nextFile = {
+          ...nextFile,
+          graph: {
+            ...nextFile.graph,
+            nodes: nextFile.graph.nodes.map((item) =>
+              item.conditions.some(
+                (entry) =>
+                  entry.predecessor?.nodeId === nodeId &&
+                  entry.predecessor.conditionId === deletedId,
+              )
+                ? {
+                    ...item,
+                    conditions: item.conditions.map((entry) =>
+                      entry.predecessor?.nodeId === nodeId &&
+                      entry.predecessor.conditionId === deletedId
+                        ? {
+                            ...entry,
+                            predecessor: condition.predecessor,
+                            ...(condition.predecessor ? {} : { startOffsetDays: 0 }),
+                          }
+                        : entry,
+                    ),
+                  }
+                : item,
+            ),
+          },
+        };
 
         // A release condition can create a local L3 requirement when its
         // form is opened. Remove that orphan with the condition, while

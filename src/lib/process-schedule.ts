@@ -140,7 +140,13 @@ export function buildProcessSchedule(file: WorkflowFile) {
       let start = phaseStart(task.phaseIndex) + offset;
       if (blockedPhases.has(task.phaseIndex)) task.issue = "Waiting for preceding phase schedule";
       if (ref) {
-        const predecessor = byKey.get(JSON.stringify([ref.nodeId, ref.conditionId]));
+        // A deleted predecessor falls back to the last remaining condition of its
+        // Department, so the rows after it stay scheduled.
+        const predecessor =
+          byKey.get(JSON.stringify([ref.nodeId, ref.conditionId])) ??
+          tasks
+            .filter((item) => item.nodeId === ref.nodeId && item.key !== task.key)
+            .sort((left, right) => right.conditionIndex - left.conditionIndex)[0];
         const lagDays = ref.lagDays ?? 0;
         if (!Number.isInteger(lagDays) || lagDays < 0)
           task.issue = "Delay must be a non-negative whole number of days";
