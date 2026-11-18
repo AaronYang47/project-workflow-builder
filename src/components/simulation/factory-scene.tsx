@@ -212,7 +212,7 @@ export function FactoryScene({
                 >
                   <title>{`${project?.name ?? projectId} · ${count} modules ${pickedUp.has(projectId) ? "picked up" : "shipped to site"}`}</title>
                   <g
-                    className="motion-safe:animate-[factory-truck-departure_ease-in_both]"
+                    className="motion-safe:animate-[factory-truck-departure_ease-in-out_both]"
                     style={
                       {
                         animationDuration: `${departureMs}ms`,
@@ -220,23 +220,48 @@ export function FactoryScene({
                       } as CSSProperties
                     }
                   >
-                    <image href="/simulation-assets/truck.png" width="96" height="58" />
+                    <g data-loaded-flatbed transform="translate(0 11)">
+                      {/* Dual trailer axles and tractor wheels, seen from above. */}
+                      {[13, 22, 74, 91].map((axle) => (
+                        <g key={axle} fill="#070b12" stroke="#475569">
+                          <rect x={axle} y="1" width="7" height="7" rx="2" />
+                          <rect x={axle} y="28" width="7" height="7" rx="2" />
+                        </g>
+                      ))}
+                      <rect x="4" y="4" width="69" height="28" rx="3" fill="#94a3b8" />
+                      <rect x="6" y="6" width="64" height="24" rx="2" fill="#475569" />
+                      <rect x="68" y="13" width="14" height="10" fill="#94a3b8" />
+                      {/* The roof outline and tie-downs identify the house module on the deck. */}
+                      <rect
+                        x="9"
+                        y="8"
+                        width="56"
+                        height="20"
+                        rx="2"
+                        fill="#e2d2b2"
+                        stroke={project?.color ?? "#64748b"}
+                        strokeWidth="2"
+                      />
+                      <path d="M24 7v22 M51 7v22" stroke="#526172" strokeWidth="2" />
+                      <path d="M75 5h17l9 5v16l-9 5H75z" fill="#e4a641" stroke="#f4ca70" />
+                      <path d="M89 7l4 3v16l-4 3z" fill="#23394b" />
+                      <path d="M99 11v4m0 6v4" stroke="#fff4ce" strokeWidth="2" />
+                    </g>
                     <rect
-                      x="7"
-                      y="33"
-                      width="35"
-                      height="20"
-                      rx="5"
+                      x="19"
+                      y="38"
+                      width="34"
+                      height="17"
+                      rx="4"
                       fill="#0f172a"
                       stroke={project?.color ?? "#94a3b8"}
-                      strokeWidth="2"
                     />
                     <text
-                      x="24.5"
-                      y="48"
+                      x="36"
+                      y="50"
                       textAnchor="middle"
                       fill="white"
-                      fontSize="14"
+                      fontSize="12"
                       fontWeight="700"
                     >
                       ×{count}

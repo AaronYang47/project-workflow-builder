@@ -16,6 +16,7 @@ import type { SimFactory, SimProject, SimResult } from "@/lib/simulation";
 import { FactoryScene } from "./factory-scene";
 import { ProductionCalendar } from "./production-calendar";
 
+const TRUCK_DEPARTURE_MS = 2600;
 const SPEEDS = [1, 3, 7, 15] as const;
 /** Window event that opens or closes the production calendar ({ open }). */
 export const CALENDAR_EVENT = "construction-simulation:calendar";
@@ -87,19 +88,18 @@ export function FactoryPlayback({
   const day = result.days[index];
   const stepMs = Math.round(1000 / speed);
 
+  const hasDepartures = day ? Object.keys(day.departures).length > 0 : false;
   useEffect(() => {
     if (!playing) return;
-    const timer = window.setInterval(() => {
-      setDayIndex((current) => {
-        if (current >= last) {
-          queueMicrotask(() => setPlaying(false));
-          return last;
-        }
-        return current + 1;
-      });
-    }, stepMs);
-    return () => window.clearInterval(timer);
-  }, [playing, stepMs, last, setDayIndex]);
+    const showDeparture =
+      hasDepartures && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const delay = showDeparture ? Math.max(stepMs, TRUCK_DEPARTURE_MS) : stepMs;
+    const timer = window.setTimeout(() => {
+      if (index >= last) setPlaying(false);
+      else setDayIndex(index + 1);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [playing, stepMs, hasDepartures, index, last, setDayIndex]);
 
   if (!day) return null;
   const onLine = day.line.length;
@@ -208,7 +208,7 @@ export function FactoryPlayback({
           day={day}
           projects={projects}
           stepMs={playing ? stepMs : 250}
-          departureMs={playing ? Math.round(stepMs * 0.9) : 850}
+          departureMs={TRUCK_DEPARTURE_MS}
           yardCapacity={factory.yardCapacity}
         />
       </div>

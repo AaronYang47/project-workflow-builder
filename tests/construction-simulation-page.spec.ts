@@ -585,8 +585,16 @@ test("factory inventory counts each finished module waiting in the yard", async 
   const truck = page.locator("[data-truck-departure]");
   await expect(truck).toHaveAttribute("data-departure-count", "4");
   await expect(truck.locator("title")).toHaveText(/4 modules picked up/);
-  await expect(truck.locator("image")).toHaveAttribute("href", "/simulation-assets/truck.png");
-  await expect(truck.locator("g")).toHaveCSS("animation-name", "factory-truck-departure");
+  await expect(truck.locator("[data-loaded-flatbed]")).toBeVisible();
+  const movement = truck.locator(":scope > g");
+  await expect(movement).toHaveCSS("animation-name", "factory-truck-departure");
+  await expect(movement).toHaveCSS("animation-duration", "2.6s");
+  // On normal playback the departure remains on screen past the regular day interval.
+  await page.getByRole("button", { name: "Previous day" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(truck).toBeVisible();
+  await page.waitForTimeout(450);
+  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
 });
 
 test("the dashboard and playback stay within the viewport on desktop and phone", async ({
