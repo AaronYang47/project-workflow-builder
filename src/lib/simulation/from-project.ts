@@ -28,13 +28,23 @@ export function defaultProductionPhaseId(file: WorkflowFile) {
   )?.id;
 }
 
-/** FOB earliest pickup: line start + modules × weeks per module. */
+/**
+ * FOB earliest pickup, when the last module leaves the line. The line is a
+ * pipeline of `lineSlots` places: a module takes `weeksPerModule` to cross it
+ * and the next one follows one place (weeksPerModule ÷ lineSlots) behind. So
+ * the last of N modules is off after (N + lineSlots − 1) places, for example
+ * 18 modules on an 18-place line at 4 weeks: 35 × 4 ÷ 18 ≈ 7.8 weeks.
+ */
 export function fobPickupDate(
   project: Pick<SimProject, "earliestStart" | "modules" | "weeksPerModule">,
+  lineSlots = 18,
 ) {
   const start = dayOf(project.earliestStart);
   if (start == null) return project.earliestStart;
-  return isoFromDay(start + Math.round(project.modules * project.weeksPerModule * 7));
+  const slots = Math.max(1, Math.round(lineSlots));
+  const modules = Math.max(1, Math.round(project.modules));
+  const weeks = ((modules + slots - 1) * project.weeksPerModule) / slots;
+  return isoFromDay(start + Math.round(weeks * 7));
 }
 
 /**

@@ -311,6 +311,7 @@ export function simulateScenario(scenario: SimScenario, priority?: string[]): Si
     days.push({
       date: isoFromDay(day),
       working,
+      ...(working ? {} : { closure: factoryCalendar.closure(day) }),
       line: line.map(({ projectId, module, progress }) => ({ projectId, module, progress })),
       paceDays,
       blocked,

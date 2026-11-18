@@ -410,9 +410,16 @@ test("FOB yard projects take a batch size and truck delay", async ({ page }) => 
   await page.getByRole("button", { name: "Add virtual" }).click();
   const card = page.locator("[data-sim-project]").last();
   const fob = card.locator("[data-fob-pickup]");
-  // Virtual project: 12 modules × 4 weeks after today's line start.
-  await expect(fob.getByLabel("Earliest pickup date")).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
-  await expect(fob.getByText("12 modules × 4 weeks per module")).toBeVisible();
+  // Worked out from the line, or set by hand.
+  const pickup = fob.getByLabel("Earliest pickup date");
+  await expect(pickup).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
+  const auto = await pickup.textContent();
+  await expect(fob).toContainText("(12 modules + 18 line places − 1) × 4 weeks ÷ 18");
+  await fob.getByLabel("Set my own pickup date").check();
+  await expect(fob.getByLabel("Earliest pickup date")).toHaveValue(auto!);
+  await expect(fob).toContainText(`Auto would be ${auto}`);
+  await fob.getByLabel("Set my own pickup date").uncheck();
+  await expect(fob.getByLabel("Earliest pickup date")).toHaveText(auto!);
   const batch = fob.getByLabel("Customer collects every (modules)");
   await batch.click();
   await batch.press("ControlOrMeta+a");
@@ -566,7 +573,7 @@ test("factory inventory counts each finished module waiting in the yard", async 
               splittable: false,
               earliestStart: "2027-01-01",
               dueDate: "2027-02-10",
-              delivery: { kind: "fob", pickupDate: "2027-02-01" },
+              delivery: { kind: "fob", pickupDate: "2027-02-01", pickupCustom: true },
             },
           ],
         },
@@ -647,6 +654,8 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
   await noPageScroll();
 
   await page.setViewportSize({ width: 390, height: 844 });
+  // The inventory check scrolled the playback area down to the last card.
+  await page.locator("[data-factory-scene]").scrollIntoViewIfNeeded();
   await fit("[data-factory-scene]");
   await fit('input[aria-label="Simulation day"]');
   await page
@@ -661,4 +670,72 @@ test("the dashboard and playback stay within the viewport on desktop and phone",
     .click();
   await expect(page.getByRole("complementary", { name: "Simulation inputs" })).toBeVisible();
   await noPageScroll();
+});
+
+test("factory days off show their Calendar type, and every inventory card can be seen", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "construction-simulation:scenarios:v1",
+      JSON.stringify([
+        {
+          id: "day-off-check",
+          name: "Day off check",
+          factory: {
+            targetOnLine: 18,
+            normalMax: 19,
+            crowdedMax: 23,
+            yardCapacity: 24,
+            installCrews: 2,
+            calendar: {
+              startDate: "2027-09-01",
+              workWeek: "mon-thu",
+              holidayRegion: "CA-ON",
+              shutdowns: [],
+            },
+          },
+          projects: [
+            {
+              id: "day-off-project",
+              name: "Day off project",
+              color: "#2563eb",
+              source: { kind: "virtual" },
+              modules: 18,
+              weeksPerModule: 4,
+              splittable: false,
+              earliestStart: "2027-09-01",
+              dueDate: "2027-12-31",
+              delivery: { kind: "fob", pickupDate: "2027-09-01" },
+            },
+          ],
+        },
+      ]),
+    );
+  });
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const slider = page.getByRole("slider", { name: "Simulation day" });
+  await expect(slider).toBeVisible();
+  // Day 0 is 2027-09-01, so Thanksgiving (Mon 11 Oct 2027) is day 40.
+  await slider.fill("40");
+  await expect(page.locator("[data-playback-date]")).toContainText("11 Oct 2027");
+  await expect(page.locator("[data-playback-day-off]")).toHaveText(
+    "Day off · Stat holiday · Thanksgiving Day",
+  );
+  await expect(page.locator('[data-scene-day-off="statutory"]')).toContainText(
+    "DAY OFF · STAT HOLIDAY · THANKSGIVING DAY",
+  );
+  // Friday is the Mon–Thu week's weekend.
+  await slider.fill("44");
+  await expect(page.locator('[data-scene-day-off="weekend"]')).toContainText("DAY OFF · WEEKEND");
+  // The inventory keeps its natural height; the playback area scrolls to reach it.
+  const cards = page.locator("[data-line-module]");
+  const count = await cards.count();
+  expect(count).toBeGreaterThan(0);
+  await cards.last().scrollIntoViewIfNeeded();
+  await expect(cards.last()).toBeInViewport();
+  const lastBox = (await cards.last().boundingBox())!;
+  const inventory = (await page.locator("[data-module-inventory]").boundingBox())!;
+  expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(inventory.y + inventory.height + 1);
 });

@@ -9,4 +9,4 @@ export {
   simProjectFromWorkflow,
   virtualSimProject,
 } from "./from-project";
-export { workingDayTest } from "./work-calendar";
+export { closureTag, workingDayTest, type DayClosure } from "./work-calendar";

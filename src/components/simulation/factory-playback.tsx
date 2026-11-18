@@ -12,7 +12,8 @@ import {
   StepForward,
   X,
 } from "lucide-react";
-import type { SimFactory, SimProject, SimResult } from "@/lib/simulation";
+import { closureTag, type SimFactory, type SimProject, type SimResult } from "@/lib/simulation";
+import { dayOffPalette } from "@/lib/schedule-calendar";
 import { FactoryScene } from "./factory-scene";
 import { ProductionCalendar } from "./production-calendar";
 
@@ -87,6 +88,7 @@ export function FactoryPlayback({
   const index = Math.min(requestedIndex, last);
   const day = result.days[index];
   const stepMs = Math.round(1000 / speed);
+  const palette = dayOffPalette(factory.calendar);
 
   const hasDepartures = day ? Object.keys(day.departures).length > 0 : false;
   useEffect(() => {
@@ -130,8 +132,19 @@ export function FactoryPlayback({
           <p data-playback-date className="text-sm font-black">
             {longDate.format(new Date(`${day.date}T00:00:00Z`))}
             {!day.working ? (
-              <span className="ml-2 rounded bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                FACTORY CLOSED
+              <span
+                data-playback-day-off={day.closure?.kind ?? "closed"}
+                className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                style={
+                  day.closure
+                    ? {
+                        background: palette.fill[day.closure.kind],
+                        color: palette.ink[day.closure.kind],
+                      }
+                    : undefined
+                }
+              >
+                Day off · {closureTag(day.closure)}
               </span>
             ) : null}
           </p>
@@ -171,7 +184,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative order-last flex min-h-0 flex-1 flex-col bg-slate-950 p-2">
+      <div className="relative order-last flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-slate-950 p-2">
         {index < firstProductionIndex ? (
           <div
             data-line-idle
@@ -210,6 +223,7 @@ export function FactoryPlayback({
           stepMs={playing ? stepMs : 250}
           departureMs={TRUCK_DEPARTURE_MS}
           yardCapacity={factory.yardCapacity}
+          palette={palette}
         />
       </div>
 
@@ -316,6 +330,7 @@ export function FactoryPlayback({
                 result={result}
                 projects={projects}
                 index={index}
+                palette={palette}
                 onSelect={(position) => {
                   setPlaying(false);
                   setDayIndex(position);

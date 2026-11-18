@@ -15,6 +15,9 @@ export type SimDelivery =
       kind: "fob";
       /** Earliest day the customer collects. */
       pickupDate: string;
+      /** The user set pickupDate; otherwise it is worked out from the line
+       * (when the last module comes off it). */
+      pickupCustom?: boolean;
       /** The customer collects each time this many modules wait in the yard
        * (the last batch takes what is left). 0 or unset: everything at once,
        * once all modules are built. */
@@ -83,6 +86,8 @@ export interface SimDay {
   date: string;
   /** Factory working day. */
   working: boolean;
+  /** Closed days: the day-off type (weekend, stat holiday or shutdown). */
+  closure?: { kind: "weekend" | "statutory" | "shutdown"; label: string };
   line: SimModuleOnLine[];
   /** Working days the slowest module on the line needs; sets the line speed. */
   paceDays: number;

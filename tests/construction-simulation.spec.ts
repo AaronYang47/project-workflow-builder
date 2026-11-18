@@ -236,7 +236,7 @@ test("a saved project brings its production Phase and FOB yard choice", () => {
     source: { kind: "cloud", projectId: "abc" },
   });
   expect(sim.delivery.kind).toBe("fob");
-  // Earliest pickup = line start + modules × weeks per module.
+  // Earliest pickup = when the last module leaves the line.
   expect(sim.delivery).toMatchObject({
     pickupDate: fobPickupDate({
       earliestStart: sim.earliestStart,
@@ -245,7 +245,11 @@ test("a saved project brings its production Phase and FOB yard choice", () => {
     }),
   });
   expect(fobPickupDate({ earliestStart: "2027-01-04", modules: 18, weeksPerModule: 4 })).toBe(
-    "2028-05-22",
+    "2027-02-27",
+  );
+  // Pipeline: (18 + 18 − 1) places × 4 weeks ÷ 18 ≈ 7.8 weeks; 36 modules: 53 places ≈ 11.8 weeks.
+  expect(fobPickupDate({ earliestStart: "2027-01-04", modules: 36, weeksPerModule: 4 }, 18)).toBe(
+    "2027-03-27",
   );
 });
 

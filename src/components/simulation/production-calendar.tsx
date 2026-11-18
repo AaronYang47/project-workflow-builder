@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle, Check } from "lucide-react";
-import type { SimDay, SimProject, SimResult } from "@/lib/simulation";
+import { closureTag, type SimDay, type SimProject, type SimResult } from "@/lib/simulation";
+import { DEFAULT_DAY_OFF_PALETTE, type DayOffPalette } from "@/lib/schedule-calendar";
 
 const DAY_MS = 86_400_000;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -60,11 +61,14 @@ export function ProductionCalendar({
   result,
   projects,
   index,
+  palette = DEFAULT_DAY_OFF_PALETTE,
   onSelect,
 }: {
   result: SimResult;
   projects: SimProject[];
   index: number;
+  /** Day-off colours from the factory Calendar. */
+  palette?: DayOffPalette;
   onSelect: (index: number) => void;
 }) {
   const byId = new Map(projects.map((project) => [project.id, project]));
@@ -166,7 +170,9 @@ export function ProductionCalendar({
                 const due = dueOn.get(date) ?? [];
                 const title = [
                   date,
-                  ...(entry && !entry.day.working ? ["Factory closed"] : []),
+                  ...(entry && !entry.day.working
+                    ? [`Day off · ${closureTag(entry.day.closure)}`]
+                    : []),
                   ...items.map((item) => `${past ? "✓" : "·"} ${item.text}`),
                   ...due.map((project) => `Due · ${project.name}`),
                   ...warnings.map((warning) => `⚠ ${warning}`),
@@ -196,6 +202,28 @@ export function ProductionCalendar({
                         <Check className="size-3 text-emerald-600" />
                       ) : null}
                     </span>
+                    {entry && !entry.day.working ? (
+                      <span
+                        data-calendar-day-off={entry.day.closure?.kind ?? "closed"}
+                        className="truncate rounded px-0.5 font-bold leading-3"
+                        style={
+                          entry.day.closure
+                            ? {
+                                background: palette.fill[entry.day.closure.kind],
+                                color: palette.ink[entry.day.closure.kind],
+                              }
+                            : undefined
+                        }
+                      >
+                        {entry.day.closure?.kind === "statutory"
+                          ? "Stat"
+                          : entry.day.closure?.kind === "shutdown"
+                            ? "Shutdown"
+                            : entry.day.closure?.kind === "weekend"
+                              ? "Weekend"
+                              : "Day off"}
+                      </span>
+                    ) : null}
                     {items.slice(0, 2).map((item) => (
                       <span
                         key={item.key}

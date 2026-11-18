@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState, type CSSProperties } from "react";
-import type { SimDay, SimProject } from "@/lib/simulation";
+import { closureTag, type SimDay, type SimProject } from "@/lib/simulation";
+import type { DayOffPalette } from "@/lib/schedule-calendar";
 import { FactoryModuleInventory } from "./factory-module-inventory";
 
 const TRACK = { start: 52, end: 908, center: 126, height: 56 };
@@ -12,7 +13,9 @@ export function FactoryScene({
   stepMs,
   departureMs,
   yardCapacity,
+  palette,
 }: {
+  palette: DayOffPalette;
   day: SimDay;
   projects: SimProject[];
   stepMs: number;
@@ -32,9 +35,11 @@ export function FactoryScene({
   const roadY = 54 + Math.ceil(bayCount / 12) * 52;
   const roadHeight = Math.max(1, Math.ceil(shipments.length / trucksPerRow)) * 58;
   const height = 226 + roadY + roadHeight + 50;
+  const dayOffText = `DAY OFF · ${closureTag(day.closure).toUpperCase()}`;
+  const dayOffWidth = Math.min(560, 36 + dayOffText.length * 12.5);
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5">
+    <div className="flex min-h-full w-full flex-col gap-1.5">
       <div className="flex shrink-0 items-center justify-end">
         <div className="flex items-center rounded-md border border-slate-700 text-white">
           <button
@@ -65,7 +70,7 @@ export function FactoryScene({
           </button>
         </div>
       </div>
-      <div className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700">
+      <div className="min-h-[220px] flex-1 overflow-auto rounded-lg border border-slate-700">
         <svg
           role="img"
           aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
@@ -141,6 +146,27 @@ export function FactoryScene({
             <text x="28" y="205" fill="#94a3b8" fontSize="15">
               Module entry
             </text>
+            {!day.working ? (
+              <g data-scene-day-off={day.closure?.kind ?? "closed"} transform="translate(480 33)">
+                <rect
+                  x={-dayOffWidth / 2}
+                  y="-26"
+                  width={dayOffWidth}
+                  height="38"
+                  rx="19"
+                  fill={day.closure ? palette.fill[day.closure.kind] : "#64748b"}
+                />
+                <text
+                  y="0"
+                  textAnchor="middle"
+                  fill={day.closure ? palette.ink[day.closure.kind] : "#fff"}
+                  fontSize="20"
+                  fontWeight="800"
+                >
+                  {dayOffText}
+                </text>
+              </g>
+            ) : null}
             <text x="932" y="205" textAnchor="end" fill="#94a3b8" fontSize="15">
               Exit to yard →
             </text>

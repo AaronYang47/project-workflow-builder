@@ -72,6 +72,7 @@ export function ProjectCard({
   count,
   phaseOptions,
   l4Start,
+  lineSlots,
   lateDays,
   onChange,
   onPhaseChange,
@@ -85,6 +86,8 @@ export function ProjectCard({
   phaseOptions?: { id: string; title: string; description: string }[];
   /** Saved projects: the L4 date the production Phase starts; the line can't start earlier. */
   l4Start?: { date: string; phase: string };
+  /** Modules the line holds at its normal pace (the pipeline length). */
+  lineSlots: number;
   lateDays?: number;
   onChange: (patch: Partial<SimProject>) => void;
   onPhaseChange: (phaseId: string) => void;
@@ -95,6 +98,14 @@ export function ProjectCard({
 }) {
   const delivery = project.delivery;
   const name = project.name || "Project";
+  const autoPickup = fobPickupDate(
+    {
+      ...project,
+      earliestStart:
+        l4Start && project.earliestStart < l4Start.date ? l4Start.date : project.earliestStart,
+    },
+    lineSlots,
+  );
   return (
     <article
       data-sim-project={project.id}
@@ -278,22 +289,43 @@ export function ProjectCard({
       {delivery.kind === "fob" ? (
         <div className="mt-2 grid grid-cols-2 gap-2" data-fob-pickup>
           <div className="col-span-2" data-fob-earliest-pickup>
-            <span className={labelClass}>Earliest pickup date</span>
-            <output
-              aria-label="Earliest pickup date"
-              className="mt-1 flex min-h-9 w-full items-center rounded-md border bg-muted/60 px-2.5 text-sm font-semibold"
-            >
-              {fobPickupDate({
-                ...project,
-                earliestStart:
-                  l4Start && project.earliestStart < l4Start.date
-                    ? l4Start.date
-                    : project.earliestStart,
-              })}
-            </output>
+            {delivery.pickupCustom ? (
+              <DateField
+                label="Earliest pickup date"
+                value={delivery.pickupDate}
+                onChange={(pickupDate) => onChange({ delivery: { ...delivery, pickupDate } })}
+              />
+            ) : (
+              <>
+                <span className={labelClass}>Earliest pickup date</span>
+                <output
+                  aria-label="Earliest pickup date"
+                  className="mt-1 flex min-h-9 w-full items-center rounded-md border bg-muted/60 px-2.5 text-sm font-semibold"
+                >
+                  {autoPickup}
+                </output>
+              </>
+            )}
+            <label className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold">
+              <input
+                type="checkbox"
+                checked={delivery.pickupCustom === true}
+                onChange={(event) =>
+                  onChange({
+                    delivery: {
+                      ...delivery,
+                      pickupCustom: event.target.checked || undefined,
+                      pickupDate: event.target.checked ? autoPickup : delivery.pickupDate,
+                    },
+                  })
+                }
+              />
+              Set my own pickup date
+            </label>
             <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-              Auto: line start + {project.modules} modules × {project.weeksPerModule} weeks per
-              module.
+              {delivery.pickupCustom
+                ? `Auto would be ${autoPickup}, when the last module comes off the line.`
+                : `Auto: when the last module comes off the line — line start + (${project.modules} modules + ${lineSlots} line places − 1) × ${project.weeksPerModule} weeks ÷ ${lineSlots}.`}
             </p>
           </div>
           <div className="col-span-2">

@@ -204,10 +204,13 @@ function SimulationWorkspace() {
         const earliestStart = l4 && project.earliestStart < l4 ? l4 : project.earliestStart;
         const started = { ...project, earliestStart };
         // FOB pickup follows the line start: modules × weeks per module later.
-        return project.delivery.kind === "fob"
+        return project.delivery.kind === "fob" && !project.delivery.pickupCustom
           ? {
               ...started,
-              delivery: { ...project.delivery, pickupDate: fobPickupDate(started) },
+              delivery: {
+                ...project.delivery,
+                pickupDate: fobPickupDate(started, draft.factory.targetOnLine),
+              },
             }
           : started;
       }),
@@ -555,6 +558,7 @@ function SimulationWorkspace() {
                   files[project.id] ? productionPhaseOptions(files[project.id]) : undefined
                 }
                 l4Start={l4Starts.get(project.id)}
+                lineSlots={draft.factory.targetOnLine}
                 lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
                 onChange={(patch) => updateProject(project.id, patch)}
                 onPhaseChange={(productionPhaseId) => {
