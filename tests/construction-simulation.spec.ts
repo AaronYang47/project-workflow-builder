@@ -4,8 +4,6 @@ import { buildProcessSchedule } from "../src/lib/process-schedule";
 import { createE2EWorkflow } from "./support/e2e-workflow";
 import {
   defaultProductionPhaseId,
-  applySimulatedDays,
-  NEW_FACTORY_PRODUCTION_ROW,
   fobPickupDate,
   productionReleaseConditions,
   simulatedLineDays,
@@ -377,113 +375,6 @@ test("a stuck yard names the project and the rule holding it", () => {
   expect(stuck).toContain("Enlarge the yard");
 });
 
-test("L5 line days are written into the chosen L4 release condition", () => {
-  const file = createE2EWorkflow();
-  const departments = productionReleaseConditions(file, "high-level-3");
-  const target = {
-    nodeId: departments[0].nodeId,
-    conditionId: departments[0].conditions[1].conditionId,
-  };
-  expect(departments[0].nodeId).toBe("production-readiness");
-  expect(simulatedLineDays({ firstLoad: "2027-01-04", productionEnd: "2027-02-27" })).toBe(55);
-  expect(simulatedLineDays({ firstLoad: "2027-01-04" })).toBeUndefined();
-  const next = applySimulatedDays(file, target, 55, "Plan A");
-  const task = buildProcessSchedule(next).tasks.find(
-    (item) => item.nodeId === target.nodeId && item.conditionId === target.conditionId,
-  )!;
-  expect(task.days).toBe(55);
-  expect(task.condition).toMatchObject({
-    duration: 55,
-    durationUnit: "days",
-    simulated: { days: 55, scenario: "Plan A" },
-  });
-  expect(productionReleaseConditions(next, "high-level-3")[0].conditions[1]).toMatchObject({
-    days: 55,
-    simulated: 55,
-  });
-  // Other release conditions are untouched; an unknown target changes nothing.
-  expect(next.graph.nodes.find((node) => node.id === target.nodeId)!.conditions[0]).toEqual(
-    file.graph.nodes.find((node) => node.id === target.nodeId)!.conditions[0],
-  );
-  expect(applySimulatedDays(file, { nodeId: "x", conditionId: "y" }, 5, "A")).toBe(file);
-
-  // It can also start a number of days after another release condition starts.
-  const first = departments[0].conditions[0];
-  expect(departments[0].conditions[1].after.map((item) => item.conditionId)).toContain(
-    first.conditionId,
-  );
-  const timed = applySimulatedDays(
-    file,
-    {
-      ...target,
-      start: {
-        nodeId: target.nodeId,
-        conditionId: first.conditionId,
-        relation: "start",
-        lagDays: 5,
-      },
-    },
-    55,
-    "Plan A",
-  );
-  // (The fixture's earlier Phases have no durations, so check the stored timing.)
-  expect(timed.graph.nodes.find((node) => node.id === target.nodeId)!.conditions[1]).toMatchObject({
-    predecessor: { conditionId: first.conditionId, relation: "start", lagDays: 5 },
-    startOffsetDays: undefined,
-  });
-  expect(productionReleaseConditions(timed, "high-level-3")[0].conditions[1].start).toEqual({
-    nodeId: target.nodeId,
-    conditionId: first.conditionId,
-    relation: "start",
-    lagDays: 5,
-  });
-  // Or a number of days after its Phase starts.
-  const offset = applySimulatedDays(
-    file,
-    { ...target, start: { relation: "start", lagDays: 3 } },
-    55,
-    "Plan A",
-  );
-  expect(productionReleaseConditions(offset, "high-level-3")[0].conditions[1].start).toMatchObject({
-    lagDays: 3,
-  });
-});
-
-test("L5 line days can go into a new Factory Production row in L4", () => {
-  const file = createE2EWorkflow();
-  const department = productionReleaseConditions(file, "high-level-3")[0];
-  const option = department.conditions.at(-1)!;
-  expect(option.conditionId).toBe(NEW_FACTORY_PRODUCTION_ROW);
-  const next = applySimulatedDays(
-    file,
-    {
-      nodeId: department.nodeId,
-      conditionId: NEW_FACTORY_PRODUCTION_ROW,
-      start: {
-        nodeId: department.nodeId,
-        conditionId: department.conditions[0].conditionId,
-        relation: "start",
-        lagDays: 5,
-      },
-    },
-    62,
-    "Plan A",
-  );
-  const row = next.graph.nodes.find((node) => node.id === department.nodeId)!.conditions.at(-1)!;
-  expect(row).toMatchObject({
-    id: "factory-production",
-    label: "Factory Production",
-    duration: 62,
-    durationUnit: "days",
-    simulated: { days: 62, scenario: "Plan A" },
-    predecessor: { conditionId: department.conditions[0].conditionId, lagDays: 5 },
-  });
-  // Now it is a real row, so the "new row" choice is gone for that Department.
-  const after = productionReleaseConditions(next, "high-level-3")[0].conditions;
-  expect(after.at(-1)).toMatchObject({ conditionId: "factory-production", days: 62 });
-  expect(after.some((item) => item.conditionId === NEW_FACTORY_PRODUCTION_ROW)).toBe(false);
-});
-
 test("Auto schedule splits a project to fit another in, and says when splitting can't help", () => {
   const calendar = {
     startDate: "2027-01-01",
@@ -567,25 +458,61 @@ test("a loading plan in blocks runs a splittable project in parts", () => {
   ]);
 });
 
-test("L4's Factory Production row follows L5 and goes away when not chosen", () => {
+test("L5 only adds a Factory Production row below the chosen L4 release condition", () => {
   const file = createE2EWorkflow();
-  const department = productionReleaseConditions(file, "high-level-3")[0];
-  const target = { nodeId: department.nodeId, conditionId: NEW_FACTORY_PRODUCTION_ROW };
-  const rows = (current: typeof file) =>
-    current.graph.nodes.flatMap((node) =>
-      node.conditions.filter((condition) => condition.label === "Factory Production"),
-    );
+  const { departments, after } = productionReleaseConditions(file, "high-level-3");
+  const department = departments[0];
+  const anchor = department.conditions[0];
+  const target = { nodeId: department.nodeId, conditionId: anchor.conditionId };
+  const node = (current: typeof file) =>
+    current.graph.nodes.find((item) => item.id === department.nodeId)!;
   const added = syncFactoryProductionRow(file, target, 62, "Plan A");
-  expect(rows(added)).toHaveLength(1);
-  expect(rows(added)[0]).toMatchObject({ duration: 62, simulated: { managed: true } });
-  // Already in step: nothing changes.
-  const following = { ...target, conditionId: "factory-production" };
-  expect(syncFactoryProductionRow(added, following, 62, "Plan A")).toBe(added);
+  const conditions = node(added).conditions;
+  // Inserted right below the chosen condition, starting when it finishes.
+  expect(conditions[1]).toMatchObject({
+    id: "factory-production",
+    label: "Factory Production",
+    duration: 62,
+    durationUnit: "days",
+    predecessor: { conditionId: anchor.conditionId, relation: "finish", lagDays: 0 },
+    simulated: { days: 62, managed: true },
+  });
+  // L4's own rows are untouched.
+  expect(conditions.filter((item) => item.id !== "factory-production")).toEqual(
+    node(file).conditions,
+  );
+  // Already in step: same file. New days update the same row.
   expect(syncFactoryProductionRow(added, target, 62, "Plan A")).toBe(added);
-  // New line days update the same row.
-  expect(rows(syncFactoryProductionRow(added, following, 70, "Plan A"))[0].duration).toBe(70);
-  // No Department chosen, or another release condition chosen: the row is removed.
-  expect(rows(syncFactoryProductionRow(added, undefined, 62, "Plan A"))).toHaveLength(0);
-  const other = { nodeId: department.nodeId, conditionId: department.conditions[0].conditionId };
-  expect(rows(syncFactoryProductionRow(added, other, 62, "Plan A"))).toHaveLength(0);
+  expect(node(syncFactoryProductionRow(added, target, 70, "Plan A")).conditions[1].duration).toBe(
+    70,
+  );
+  // Chosen timing: 5 days after another condition starts.
+  const timed = syncFactoryProductionRow(
+    added,
+    { ...target, start: { ...after[1], relation: "start", lagDays: 5 } },
+    62,
+    "Plan A",
+  );
+  expect(node(timed).conditions[1].predecessor).toMatchObject({
+    conditionId: after[1].conditionId,
+    relation: "start",
+    lagDays: 5,
+  });
+  // Choosing another condition moves the row below it; choosing none removes it.
+  const moved = syncFactoryProductionRow(
+    added,
+    { nodeId: department.nodeId, conditionId: department.conditions[1].conditionId },
+    62,
+    "Plan A",
+  );
+  expect(node(moved).conditions.findIndex((item) => item.id === "factory-production")).toBe(2);
+  expect(node(syncFactoryProductionRow(added, undefined, 62, "Plan A")).conditions).toEqual(
+    node(file).conditions,
+  );
+  // L5's own row is never offered as a place to add below.
+  expect(
+    productionReleaseConditions(added, "high-level-3").departments[0].conditions.map(
+      (item) => item.conditionId,
+    ),
+  ).not.toContain("factory-production");
 });

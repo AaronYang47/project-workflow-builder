@@ -1,5 +1,5 @@
 import { orderHighLevelNodes } from "@/lib/high-level-workflow";
-import { buildProcessSchedule, schedulePredecessorCandidates } from "@/lib/process-schedule";
+import { buildProcessSchedule } from "@/lib/process-schedule";
 import { buildProcessTimeline } from "@/lib/schedule-calendar";
 import type { Condition, WorkflowFile } from "@/types/workflow";
 import { dayOf, isoFromDay } from "./work-calendar";
@@ -65,27 +65,27 @@ export function projectScheduleDates(file: WorkflowFile, productionPhaseId?: str
   return { earliestStart, dueDate };
 }
 
-/** The Departments in the production Phase and their L4 release conditions. */
+/** A Factory Production row that L5 added to L4. */
+export const isFactoryProductionRow = (condition: Condition) =>
+  /^factory-production(-\d+)?$/.test(condition.id ?? "");
+
+/**
+ * The Departments in the production Phase and their L4 release conditions
+ * (L5's own Factory Production rows left out), each with the conditions the
+ * Factory Production row may be timed after.
+ */
 export function productionReleaseConditions(file: WorkflowFile, productionPhaseId?: string) {
   const schedule = buildProcessSchedule(file);
   const index = schedule.phases.findIndex((phase) => phase.id === productionPhaseId);
   const departments: Array<{
     nodeId: string;
     department: string;
-    conditions: Array<{
-      conditionId: string;
-      title: string;
-      days?: number;
-      simulated?: number;
-      /** When it starts in L4 now. */
-      start: L4Start;
-      /** Release conditions it can follow (same Phase, no loops). */
-      after: Array<{ nodeId: string; conditionId: string; label: string }>;
-    }>;
+    conditions: Array<{ conditionId: string; title: string }>;
   }> = [];
-  if (index < 0) return departments;
+  const after: Array<{ nodeId: string; conditionId: string; label: string }> = [];
+  if (index < 0) return { departments, after };
   for (const task of schedule.tasks) {
-    if (task.phaseIndex !== index) continue;
+    if (task.phaseIndex !== index || isFactoryProductionRow(task.condition)) continue;
     let department = departments.find((item) => item.nodeId === task.nodeId);
     if (!department) {
       department = {
@@ -95,125 +95,14 @@ export function productionReleaseConditions(file: WorkflowFile, productionPhaseI
       };
       departments.push(department);
     }
-    department.conditions.push({
+    department.conditions.push({ conditionId: task.conditionId, title: task.title });
+    after.push({
+      nodeId: task.nodeId,
       conditionId: task.conditionId,
-      title: task.title,
-      days: task.days,
-      simulated: task.condition.simulated?.days,
-      start: task.condition.predecessor
-        ? {
-            nodeId: task.condition.predecessor.nodeId,
-            conditionId: task.condition.predecessor.conditionId,
-            relation: task.condition.predecessor.relation ?? "finish",
-            lagDays: task.condition.predecessor.lagDays ?? 0,
-          }
-        : { relation: "start", lagDays: task.condition.startOffsetDays ?? 0 },
-      after: schedulePredecessorCandidates(schedule.tasks, task).map((candidate) => ({
-        nodeId: candidate.nodeId,
-        conditionId: candidate.conditionId,
-        label: `${candidate.department || candidate.chapter} · ${candidate.title}`,
-      })),
+      label: `${task.department || task.chapter} · ${task.title}`,
     });
   }
-  // Each Department can take L5's line time as its own "Factory Production" row.
-  const phaseTasks = schedule.tasks.filter((task) => task.phaseIndex === index);
-  for (const department of departments) {
-    if (department.conditions.some((item) => FACTORY_PRODUCTION_TITLE.test(item.title))) continue;
-    department.conditions.push({
-      conditionId: NEW_FACTORY_PRODUCTION_ROW,
-      title: "+ Factory Production (new row)",
-      start: { relation: "start", lagDays: 0 },
-      after: phaseTasks.map((task) => ({
-        nodeId: task.nodeId,
-        conditionId: task.conditionId,
-        label: `${task.department || task.chapter} · ${task.title}`,
-      })),
-    });
-  }
-  return departments;
-}
-
-/** Release condition id meaning "add a new Factory Production row". */
-export const NEW_FACTORY_PRODUCTION_ROW = "new:factory-production";
-const FACTORY_PRODUCTION_TITLE = /^factory production$/i;
-
-/** A Factory Production row that L5 added to L4. */
-export const isFactoryProductionRow = (condition: Condition) =>
-  /^factory-production(-\d+)?$/.test(condition.id ?? "");
-
-/**
- * Keeps L4's Factory Production row in step with L5: the chosen Department has
- * one, with L5's line days and start timing; any other is removed (none when
- * no Department is chosen, or when another release condition is chosen).
- * Returns the same file when it already matches.
- */
-export function syncFactoryProductionRow(
-  file: WorkflowFile,
-  target: { nodeId: string; conditionId: string; start?: L4Start } | undefined,
-  days: number | undefined,
-  scenario: string,
-): WorkflowFile {
-  const wanted =
-    target &&
-    (target.conditionId === NEW_FACTORY_PRODUCTION_ROW ||
-      /^factory-production(-\d+)?$/.test(target.conditionId))
-      ? target
-      : undefined;
-  const node = wanted && file.graph.nodes.find((item) => item.id === wanted.nodeId);
-  const keep = node?.conditions.find(
-    (condition) =>
-      isFactoryProductionRow(condition) &&
-      (wanted!.conditionId === NEW_FACTORY_PRODUCTION_ROW || condition.id === wanted!.conditionId),
-  );
-  // Drop every other Factory Production row.
-  let next = file;
-  if (
-    file.graph.nodes.some((item) =>
-      item.conditions.some((condition) => isFactoryProductionRow(condition) && condition !== keep),
-    )
-  )
-    next = {
-      ...file,
-      graph: {
-        ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.conditions.some(
-            (condition) => isFactoryProductionRow(condition) && condition !== keep,
-          )
-            ? {
-                ...item,
-                conditions: item.conditions.filter(
-                  (condition) => !isFactoryProductionRow(condition) || condition === keep,
-                ),
-              }
-            : item,
-        ),
-      },
-    };
-  if (!wanted || !node || days === undefined) return next;
-  if (keep) {
-    const start = wanted.start;
-    const matches =
-      keep.duration === days &&
-      keep.durationUnit === "days" &&
-      keep.simulated?.days === days &&
-      keep.simulated.managed === true &&
-      (!start ||
-        (start.nodeId
-          ? keep.predecessor?.nodeId === start.nodeId &&
-            keep.predecessor.conditionId === start.conditionId &&
-            (keep.predecessor.relation ?? "finish") === start.relation &&
-            (keep.predecessor.lagDays ?? 0) === start.lagDays
-          : !keep.predecessor && (keep.startOffsetDays ?? 0) === start.lagDays));
-    if (matches) return next;
-    return applySimulatedDays(next, { ...wanted, conditionId: keep.id! }, days, scenario);
-  }
-  return applySimulatedDays(
-    next,
-    { ...wanted, conditionId: NEW_FACTORY_PRODUCTION_ROW },
-    days,
-    scenario,
-  );
+  return { departments, after };
 }
 
 /** Days a project is on the line in L5: first module on through the last module off. */
@@ -223,86 +112,110 @@ export function simulatedLineDays(result: { firstLoad?: string; productionEnd?: 
   return start == null || end == null || end < start ? undefined : end - start + 1;
 }
 
+/** By default the Factory Production row starts when the chosen condition finishes. */
+export function defaultFactoryStart(target: { nodeId: string; conditionId: string }): L4Start {
+  return { nodeId: target.nodeId, conditionId: target.conditionId, relation: "finish", lagDays: 0 };
+}
+
+const conditionIdAt = (conditions: Condition[], index: number) =>
+  conditions[index]?.id || `index-${index}`;
+
 /**
- * Writes the simulated line days into an L4 release condition's duration
- * (L4 durations are elapsed days, days off included) and notes where they came from.
+ * L5 never changes L4's own release conditions; it only adds one row. This
+ * keeps that "Factory Production" row right below the chosen release
+ * condition, with L5's line days and start timing, and removes it everywhere
+ * else (no row at all when no release condition is chosen). Returns the same
+ * file when it already matches.
  */
-export function applySimulatedDays(
+export function syncFactoryProductionRow(
   file: WorkflowFile,
-  target: { nodeId: string; conditionId: string; start?: L4Start },
-  days: number,
+  target: { nodeId: string; conditionId: string; start?: L4Start } | undefined,
+  days: number | undefined,
   scenario: string,
 ): WorkflowFile {
-  const start = target.start;
-  if (target.conditionId === NEW_FACTORY_PRODUCTION_ROW) {
-    // A new "Factory Production" row at the end of the Department.
-    const node = file.graph.nodes.find((item) => item.id === target.nodeId);
-    if (!node) return file;
-    const ids = new Set(node.conditions.map((condition) => condition.id));
-    let id = "factory-production";
-    for (let n = 2; ids.has(id); n += 1) id = `factory-production-${n}`;
-    const added: WorkflowFile = {
-      ...file,
-      graph: {
-        ...file.graph,
-        nodes: file.graph.nodes.map((item) =>
-          item.id === node.id
-            ? { ...item, conditions: [...item.conditions, { id, label: "Factory Production" }] }
-            : item,
-        ),
+  const node = target && file.graph.nodes.find((item) => item.id === target.nodeId);
+  const own = node?.conditions.filter(isFactoryProductionRow) ?? [];
+  const existing = own[0];
+  // The chosen condition, among L4's own rows.
+  const base = node
+    ? node.conditions.filter((condition) => !isFactoryProductionRow(condition))
+    : [];
+  const anchorIndex = node
+    ? node.conditions.findIndex(
+        (condition, index) =>
+          !isFactoryProductionRow(condition) &&
+          conditionIdAt(node.conditions, index) === target!.conditionId,
+      )
+    : -1;
+  const keepRow = node && anchorIndex >= 0 && (days !== undefined || existing);
+  let row: Condition | undefined;
+  if (keepRow && node) {
+    const start = target!.start ?? defaultFactoryStart(target!);
+    const lineDays = days ?? existing?.simulated?.days ?? existing?.duration ?? 1;
+    row = {
+      ...(existing ?? {}),
+      id: existing?.id ?? "factory-production",
+      label: "Factory Production",
+      duration: lineDays,
+      durationUnit: "days",
+      ...(start.nodeId && start.conditionId
+        ? {
+            predecessor: {
+              nodeId: start.nodeId,
+              conditionId: start.conditionId,
+              relation: start.relation,
+              lagDays: Math.max(0, Math.round(start.lagDays)),
+            },
+            startOffsetDays: undefined,
+          }
+        : { predecessor: undefined, startOffsetDays: Math.max(0, Math.round(start.lagDays)) }),
+      simulated: {
+        days: lineDays,
+        scenario,
+        updatedAt: existing?.simulated?.updatedAt ?? new Date().toISOString(),
+        managed: true,
       },
     };
-    return applySimulatedDays(added, { ...target, conditionId: id }, days, scenario);
   }
-  const schedule = buildProcessSchedule(file);
-  const task = schedule.tasks.find(
-    (item) => item.nodeId === target.nodeId && item.conditionId === target.conditionId,
-  );
-  if (!task) return file;
-  return {
-    ...file,
-    graph: {
-      ...file.graph,
-      nodes: file.graph.nodes.map((node) =>
-        node.id !== task.nodeId
-          ? node
-          : {
-              ...node,
-              conditions: node.conditions.map((condition, index) =>
-                index !== task.conditionIndex
-                  ? condition
-                  : {
-                      ...condition,
-                      duration: days,
-                      durationUnit: "days" as const,
-                      simulated: {
-                        days,
-                        scenario,
-                        updatedAt: new Date().toISOString(),
-                        ...(isFactoryProductionRow(condition) ? { managed: true } : {}),
-                      },
-                      ...(!start
-                        ? {}
-                        : start.nodeId && start.conditionId
-                          ? {
-                              predecessor: {
-                                nodeId: start.nodeId,
-                                conditionId: start.conditionId,
-                                relation: start.relation,
-                                lagDays: Math.max(0, Math.round(start.lagDays)),
-                              },
-                              startOffsetDays: undefined,
-                            }
-                          : {
-                              predecessor: undefined,
-                              startOffsetDays: Math.max(0, Math.round(start.lagDays)),
-                            }),
-                    },
-              ),
-            },
-      ),
-    },
+  const sameRow = (left?: Condition, right?: Condition) => {
+    if (!left || !right) return left === right;
+    const strip = (condition: Condition) => ({
+      ...condition,
+      simulated: condition.simulated && { ...condition.simulated, updatedAt: "", scenario: "" },
+    });
+    return JSON.stringify(strip(left)) === JSON.stringify(strip(right));
   };
+  let changed = false;
+  const nodes = file.graph.nodes.map((item) => {
+    const mine = item.conditions.filter(isFactoryProductionRow);
+    if (item !== node || !row) {
+      if (!mine.length) return item;
+      changed = true;
+      return { ...item, conditions: item.conditions.filter((c) => !isFactoryProductionRow(c)) };
+    }
+    // Right below the chosen condition.
+    const anchor = item.conditions[anchorIndex];
+    const at = base.indexOf(anchor) + 1;
+    const conditions = [...base.slice(0, at), row, ...base.slice(at)];
+    const same =
+      conditions.length === item.conditions.length &&
+      conditions.every((condition, index) =>
+        condition === row
+          ? sameRow(condition, item.conditions[index])
+          : condition === item.conditions[index],
+      );
+    if (same) return item;
+    changed = true;
+    return {
+      ...item,
+      conditions: conditions.map((condition) =>
+        condition === row
+          ? { ...row, simulated: { ...row.simulated!, updatedAt: new Date().toISOString() } }
+          : condition,
+      ),
+    };
+  });
+  return changed ? { ...file, graph: { ...file.graph, nodes } } : file;
 }
 
 const PROJECT_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2"];

@@ -25,9 +25,6 @@ import { AuthGate } from "@/components/workflow/auth-gate";
 import { TopToolbar } from "@/components/workflow/top-toolbar";
 import { Button } from "@/components/ui/button";
 import {
-  applySimulatedDays,
-  isFactoryProductionRow,
-  NEW_FACTORY_PRODUCTION_ROW,
   syncFactoryProductionRow,
   fobPickupDate,
   productionReleaseConditions,
@@ -396,13 +393,6 @@ function SimulationWorkspace() {
       for (const change of factoryRowChanges) {
         const { project, file, next, days, scenarioName } = change;
         const target = project.l4Target;
-        // A new row: point the project at the row it creates.
-        if (target?.conditionId === NEW_FACTORY_PRODUCTION_ROW) {
-          const id = next.graph.nodes
-            .find((item) => item.id === target.nodeId)
-            ?.conditions.find(isFactoryProductionRow)?.id;
-          if (id) updateProject(project.id, { l4Target: { ...target, conditionId: id } });
-        }
         if (change.current) {
           if (!canEditCollaborativeWorkflow()) continue;
           const store = useWorkflowStore.getState();
@@ -426,41 +416,6 @@ function SimulationWorkspace() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the wanted rows change
   }, [factoryRowChanges]);
-  /** L5 → L4: the simulated line days become the chosen release condition's duration. */
-  const writeLineDaysToL4 = (project: SimProject, days: number) => {
-    const target = project.l4Target;
-    if (!target || project.source.kind !== "cloud") return;
-    const scenarioName = draft.name || "Scenario";
-    const change = (file: WorkflowFile) => applySimulatedDays(file, target, days, scenarioName);
-    // A new Factory Production row: point the project at the row it creates.
-    const follow = (next: WorkflowFile) => {
-      if (target.conditionId !== NEW_FACTORY_PRODUCTION_ROW) return;
-      const id = next.graph.nodes.find((item) => item.id === target.nodeId)?.conditions.at(-1)?.id;
-      if (id) updateProject(project.id, { l4Target: { ...target, conditionId: id } });
-    };
-    if (project.source.projectId === currentId) {
-      if (!canEditCollaborativeWorkflow()) {
-        setNotice(
-          `${project.name}: you don't have edit control of this project, so L4 can't change.`,
-        );
-        return;
-      }
-      const store = useWorkflowStore.getState();
-      const next = change(store.file);
-      const node = next.graph.nodes.find((item) => item.id === target.nodeId);
-      if (!node || next === store.file) return;
-      store.updateNode(node.id, { conditions: node.conditions });
-      follow(next);
-      setNotice(`${project.name}: ${days} days written to L4.`);
-      return;
-    }
-    const file = files[project.id];
-    if (file) follow(change(file));
-    writeSavedProject(project, change, {
-      saved: `${project.name}: ${days} days written to L4 and saved.`,
-      failed: "could not write the days to L4",
-    });
-  };
   const updateFactory = (patch: Partial<SimFactory>) =>
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
   const calendarStart = result.days[0]?.date ?? todayIso();
@@ -809,10 +764,6 @@ function SimulationWorkspace() {
                     : undefined
                 }
                 lineDays={lineDaysFor(project)}
-                onWriteL4={() => {
-                  const days = lineDaysFor(project);
-                  if (days !== undefined) writeLineDaysToL4(project, days);
-                }}
                 lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
                 onChange={(patch) => {
                   const { delivery, ...rest } = patch;

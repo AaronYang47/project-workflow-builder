@@ -2,10 +2,9 @@ export * from "./types";
 export { simulateScenario } from "./simulate";
 export { optimizeScenario, scheduleNotes, scheduleScore } from "./optimize";
 export {
-  applySimulatedDays,
   defaultProductionPhaseId,
   isFactoryProductionRow,
-  NEW_FACTORY_PRODUCTION_ROW,
+  defaultFactoryStart,
   syncFactoryProductionRow,
   fobPickupDate,
   productionPhaseOptions,

@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, Cloud, FlaskConical, RefreshCw, Trash2 } from "lucide-react";
 import {
   fobPickupDate,
-  NEW_FACTORY_PRODUCTION_ROW,
+  defaultFactoryStart,
   productionReleaseConditions,
   type L4Start,
   type SimDelivery,
@@ -72,43 +72,32 @@ const SITE_DEFAULT: Extract<SimDelivery, { kind: "site" }> = {
   install: { mode: "rate", modulesPerDay: 4, finishDays: 5 },
 };
 
-/** Department and release condition in L4 that take the simulated line days. */
+/**
+ * Where L5 adds its Factory Production row in L4: right below the chosen
+ * Department release condition, timed after it. L4's own rows never change.
+ */
 function L4TargetPicker({
-  departments,
+  options,
   target,
   lineDays,
   onTarget,
-  onWrite,
 }: {
-  departments: NonNullable<Parameters<typeof ProjectCard>[0]["releaseConditions"]>;
+  options: ReturnType<typeof productionReleaseConditions>;
   target?: { nodeId: string; conditionId: string; start?: L4Start };
   lineDays?: number;
   onTarget: (target: { nodeId: string; conditionId: string; start?: L4Start } | undefined) => void;
-  onWrite?: () => void;
 }) {
+  const { departments, after } = options;
   const department = departments.find((item) => item.nodeId === target?.nodeId);
   const condition = department?.conditions.find((item) => item.conditionId === target?.conditionId);
-  // Start timing: what was set here, else what L4 has now.
-  const start = target?.start ?? condition?.start;
-  const sameStart = (left?: L4Start, right?: L4Start) =>
-    Boolean(left && right) &&
-    (left!.nodeId ?? "") === (right!.nodeId ?? "") &&
-    (left!.conditionId ?? "") === (right!.conditionId ?? "") &&
-    (left!.nodeId ? left!.relation === right!.relation : true) &&
-    left!.lagDays === right!.lagDays;
-  const inSync =
-    condition &&
-    lineDays !== undefined &&
-    condition.days === lineDays &&
-    sameStart(start, condition.start);
+  const start = target && condition ? (target.start ?? defaultFactoryStart(target)) : undefined;
   const setStart = (patch: Partial<L4Start>) =>
     target && start && onTarget({ ...target, start: { ...start, ...patch } });
-  // A Factory Production row follows L5 by itself; other rows take a Write.
-  const automatic =
-    condition !== undefined &&
-    (condition.conditionId === NEW_FACTORY_PRODUCTION_ROW ||
-      /^factory-production(-\d+)?$/.test(condition.conditionId));
   const afterKey = start?.nodeId ? JSON.stringify([start.nodeId, start.conditionId]) : "";
+  const afterLabel = (item?: L4Start) =>
+    after.find(
+      (option) => option.nodeId === item?.nodeId && option.conditionId === item?.conditionId,
+    )?.label ?? "the chosen release condition";
   return (
     <div className="col-span-2 grid grid-cols-2 gap-2" data-l4-target>
       <label className={labelClass}>
@@ -118,13 +107,9 @@ function L4TargetPicker({
           value={department?.nodeId ?? ""}
           onChange={(event) => {
             const next = departments.find((item) => item.nodeId === event.target.value);
-            // Default to the Department's Factory Production row (or a new one).
-            const first =
-              next?.conditions.find((item) => /^factory production$/i.test(item.title)) ??
-              next?.conditions.find((item) => item.conditionId === NEW_FACTORY_PRODUCTION_ROW) ??
-              next?.conditions[0];
+            const last = next?.conditions.at(-1);
             onTarget(
-              next && first ? { nodeId: next.nodeId, conditionId: first.conditionId } : undefined,
+              next && last ? { nodeId: next.nodeId, conditionId: last.conditionId } : undefined,
             );
           }}
           className={inputClass}
@@ -138,9 +123,9 @@ function L4TargetPicker({
         </select>
       </label>
       <label className={labelClass}>
-        Release condition
+        Add below
         <select
-          aria-label="Release condition"
+          aria-label="Add below"
           value={condition?.conditionId ?? ""}
           disabled={!department}
           onChange={(event) =>
@@ -177,7 +162,7 @@ function L4TargetPicker({
               className={inputClass}
             >
               <option value="">Phase start</option>
-              {condition.after.map((item) => (
+              {after.map((item) => (
                 <option
                   key={`${item.nodeId}:${item.conditionId}`}
                   value={JSON.stringify([item.nodeId, item.conditionId])}
@@ -213,42 +198,21 @@ function L4TargetPicker({
             data-l4-start-text
           >
             {start.nodeId
-              ? `Starts ${start.lagDays ? `${start.lagDays} days after` : "when"} ${
-                  condition.after.find(
-                    (item) =>
-                      item.nodeId === start.nodeId && item.conditionId === start.conditionId,
-                  )?.label ?? "the chosen release condition"
-                } ${start.relation === "start" ? "starts" : "finishes"}.`
+              ? `Starts ${start.lagDays ? `${start.lagDays} days after` : "when"} ${afterLabel(start)} ${start.relation === "start" ? "starts" : "finishes"}.`
               : `Starts ${start.lagDays ? `${start.lagDays} days after` : "when"} the Phase starts.`}
           </p>
         </div>
       ) : null}
-      <div className="col-span-2 flex flex-wrap items-center gap-2 text-[10px] leading-snug">
-        <span className="min-w-0 flex-1 text-muted-foreground" data-l4-target-status>
-          {!departments.length
-            ? "No release conditions in this Phase in L4."
-            : !condition
-              ? "Choose a Department to add a Factory Production row to L4."
-              : automatic
-                ? lineDays === undefined
-                  ? "This project doesn't finish on the line in this simulation; L4 keeps the last line time."
-                  : `L4 Factory Production follows L5: ${lineDays} days on the line.`
-                : lineDays === undefined
-                  ? "This project doesn't finish on the line in this simulation."
-                  : inSync
-                    ? `L4 has the L5 line time: ${lineDays} days.`
-                    : `L5: ${lineDays} days on the line · L4 now ${condition.days ? `${condition.days} days` : "no duration"}${sameStart(start, condition.start) ? "" : " · start timing changed"}.`}
-        </span>
-        {condition && !automatic && lineDays !== undefined && !inSync && onWrite ? (
-          <button
-            type="button"
-            onClick={onWrite}
-            className="rounded-md bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground"
-          >
-            Write {lineDays} days to L4
-          </button>
-        ) : null}
-      </div>
+      <p
+        className="col-span-2 text-[10px] leading-snug text-muted-foreground"
+        data-l4-target-status
+      >
+        {!departments.length
+          ? "No release conditions in this Phase in L4."
+          : !condition
+            ? "Choose a Department and a release condition: L5 adds a Factory Production row below it in L4."
+            : `L4: a Factory Production row below “${condition.title}”, following L5${lineDays === undefined ? " (this project doesn't finish on the line yet, so it keeps its last line time)" : `: ${lineDays} days on the line`}. L4's own rows don't change.`}
+      </p>
     </div>
   );
 }
@@ -263,7 +227,6 @@ export function ProjectCard({
   lineSlots,
   releaseConditions,
   lineDays,
-  onWriteL4,
   lateDays,
   onChange,
   onPhaseChange,
@@ -283,8 +246,6 @@ export function ProjectCard({
   releaseConditions?: ReturnType<typeof productionReleaseConditions>;
   /** Days this project is on the line in the simulation. */
   lineDays?: number;
-  /** Writes lineDays into the chosen L4 release condition. */
-  onWriteL4?: () => void;
   lateDays?: number;
   onChange: (patch: Partial<SimProject>) => void;
   onPhaseChange: (phaseId: string) => void;
@@ -415,11 +376,10 @@ export function ProjectCard({
         ) : null}
         {releaseConditions ? (
           <L4TargetPicker
-            departments={releaseConditions}
+            options={releaseConditions}
             target={project.l4Target}
             lineDays={lineDays}
             onTarget={(l4Target) => onChange({ l4Target })}
-            onWrite={onWriteL4}
           />
         ) : null}
         <DateField
