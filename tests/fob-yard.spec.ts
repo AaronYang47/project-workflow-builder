@@ -387,3 +387,15 @@ test("L5 FOB yard / Ship & install and the L1 Final Close switch follow each oth
   await expect(site).toHaveAttribute("aria-checked", "true");
   await expect(fob).toHaveAttribute("aria-checked", "false");
 });
+
+test("document exports skip only the chosen Phase, even when the schedule applies the skip again", () => {
+  const skipped = applyFobYardSkip(fourPhaseWorkflow(true));
+  const titles = (file: typeof skipped) => file.highLevel!.graph.nodes.map((node) => node.title);
+  expect(titles(skipped)).toEqual(["Start", "PHASE 3", "Final Close"]);
+  // Applying it again (as the schedule inside a PDF does) keeps PHASE 3.
+  expect(titles(applyFobYardSkip(skipped))).toEqual(["Start", "PHASE 3", "Final Close"]);
+  expect(buildProcessSchedule(skipped).phases.map((phase) => phase.title)).toContain("PHASE 3");
+  expect(phaseFormsSummary(skipped).map((phase) => phase.title)).toContain("PHASE 3");
+  // The PDF tag still names the skipped Phase.
+  expect(fobYardTag(skipped)?.label).toContain("PHASE 4");
+});

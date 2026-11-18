@@ -112,7 +112,16 @@ export function applyFobYardSkip(file: WorkflowFile): WorkflowFile {
     layout: { ...file.layout, nodes: layoutNodes, ...(layoutEdges ? { edges: layoutEdges } : {}) },
     highLevel: {
       ...file.highLevel,
-      graph: { nodes: hl.nodes.filter((node) => !l1.has(node.id)), edges: highLevelEdges },
+      // The skip is done: Final Close skips nothing more, so applying this
+      // again (the schedule inside a document export does) is a no-op.
+      graph: {
+        nodes: hl.nodes
+          .filter((node) => !l1.has(node.id))
+          .map((node) =>
+            node.type === "end" && node.fobYard ? { ...node, fobYardSkipPhaseIds: [] } : node,
+          ),
+        edges: highLevelEdges,
+      },
       layout: {
         ...file.highLevel.layout,
         nodes: Object.fromEntries(
