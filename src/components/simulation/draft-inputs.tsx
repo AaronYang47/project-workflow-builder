@@ -81,12 +81,16 @@ export function DateInput({
   value,
   onCommit,
   className,
+  min,
 }: {
   label: string;
   value: string;
   onCommit: (value: string) => void;
   className?: string;
+  /** Earliest date allowed (YYYY-MM-DD); earlier dates are not passed on. */
+  min?: string;
 }) {
+  const allowed = (raw: string) => validDate(raw) && (!min || raw >= min);
   const [text, setText] = useState(value);
   const [shown, setShown] = useState(value);
   if (value !== shown) {
@@ -97,19 +101,19 @@ export function DateInput({
     <input
       type="date"
       aria-label={label}
-      min="2000-01-01"
+      min={min && validDate(min) ? min : "2000-01-01"}
       max="2100-12-31"
       value={text}
-      aria-invalid={!validDate(text)}
+      aria-invalid={!allowed(text)}
       onChange={(event) => {
         setText(event.target.value);
-        if (validDate(event.target.value) && event.target.value !== value) {
+        if (allowed(event.target.value) && event.target.value !== value) {
           setShown(event.target.value);
           onCommit(event.target.value);
         }
       }}
       onBlur={() => {
-        if (!validDate(text)) setText(value);
+        if (!allowed(text)) setText(value);
       }}
       className={`${className ?? ""} aria-[invalid=true]:border-red-500`}
     />

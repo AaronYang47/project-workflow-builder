@@ -179,7 +179,36 @@ function SimulationWorkspace() {
     }
   };
 
-  const result = useMemo(() => simulateScenario(draft), [draft]);
+  // Saved projects can't start on the line before their production Phase
+  // starts in L4.
+  const l4Starts = useMemo(() => {
+    const starts = new Map<string, { date: string; phase: string }>();
+    for (const project of draft.projects) {
+      const file = files[project.id];
+      if (!file || !project.productionPhaseId) continue;
+      const date = projectScheduleDates(file, project.productionPhaseId).earliestStart;
+      const phase = productionPhaseOptions(file).find(
+        (option) => option.id === project.productionPhaseId,
+      );
+      if (date && phase)
+        starts.set(project.id, {
+          date,
+          phase: [phase.title, phase.description].filter(Boolean).join(" · "),
+        });
+    }
+    return starts;
+  }, [draft.projects, files]);
+  const simDraft = useMemo(
+    () => ({
+      ...draft,
+      projects: draft.projects.map((project) => {
+        const l4 = l4Starts.get(project.id)?.date;
+        return l4 && project.earliestStart < l4 ? { ...project, earliestStart: l4 } : project;
+      }),
+    }),
+    [draft, l4Starts],
+  );
+  const result = useMemo(() => simulateScenario(simDraft), [simDraft]);
   // One playback day shared by the factory, the charts, the timeline and Today.
   // It starts on the first production day and resets when the scenario changes.
   const firstProductionIndex = Math.max(
@@ -513,6 +542,7 @@ function SimulationWorkspace() {
                 phaseOptions={
                   files[project.id] ? productionPhaseOptions(files[project.id]) : undefined
                 }
+                l4Start={l4Starts.get(project.id)}
                 lateDays={result.projects.find((item) => item.projectId === project.id)?.lateDays}
                 onChange={(patch) => updateProject(project.id, patch)}
                 onPhaseChange={(productionPhaseId) => {
@@ -559,7 +589,7 @@ function SimulationWorkspace() {
           <h1 className="mr-auto text-base font-bold">Construction Simulation</h1>
           <Button
             onClick={() => {
-              const best = optimizeScenario(draft);
+              const best = optimizeScenario(simDraft);
               const byId = new Map(draft.projects.map((project) => [project.id, project]));
               setProjects(best.priority.map((id) => byId.get(id)!).filter(Boolean));
               const late = best.projects.filter((project) => project.lateDays > 0).length;

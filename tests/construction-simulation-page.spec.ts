@@ -466,3 +466,50 @@ test("the event list scrolls, keeps the newest on top and merges repeats; column
   const right = (await page.locator("[data-factory-playback]").boundingBox())!;
   expect(Math.abs(left.y + left.height - (right.y + right.height))).toBeLessThan(4);
 });
+
+test("Earliest line start can't be before the production Phase starts in L4", async ({ page }) => {
+  const file = createE2EWorkflow();
+  file.calendar = { startDate: "2027-01-04", shutdowns: [] };
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false, activeProjectId: "p1" },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  const card = page.locator('[data-sim-project="cloud-p1"]');
+  // Pick a later production Phase so its L4 start is after the calendar start.
+  const phase = card.getByLabel("Production Phase");
+  const options = await phase
+    .locator("option")
+    .evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value));
+  await phase.selectOption(options.at(-1)!);
+  const hint = card.locator("[data-l4-start-limit]");
+  await expect(hint).toContainText("earlier dates can't be chosen");
+  const start = card.getByLabel("Earliest line start", { exact: true });
+  const limit = (await start.getAttribute("min"))!;
+  expect(await start.inputValue()).toBe(limit);
+
+  // An earlier date is refused and the box returns to the L4 date.
+  const before = new Date(Date.parse(`${limit}T00:00:00Z`) - 10 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await start.fill(before);
+  await expect(start).toHaveAttribute("aria-invalid", "true");
+  await start.blur();
+  await expect(start).toHaveValue(limit);
+  // A later date is fine.
+  const after = new Date(Date.parse(`${limit}T00:00:00Z`) + 10 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await start.fill(after);
+  await expect(start).toHaveValue(after);
+  await expect(hint).not.toContainText("Before L4 allows");
+});

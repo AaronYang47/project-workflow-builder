@@ -42,15 +42,17 @@ function DateField({
   label,
   value,
   onChange,
+  min,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  min?: string;
 }) {
   return (
     <label className={labelClass}>
       {label}
-      <DateInput label={label} value={value} onCommit={onChange} className={inputClass} />
+      <DateInput label={label} value={value} onCommit={onChange} min={min} className={inputClass} />
     </label>
   );
 }
@@ -69,6 +71,7 @@ export function ProjectCard({
   position,
   count,
   phaseOptions,
+  l4Start,
   lateDays,
   onChange,
   onPhaseChange,
@@ -80,6 +83,8 @@ export function ProjectCard({
   position: number;
   count: number;
   phaseOptions?: { id: string; title: string; description: string }[];
+  /** Saved projects: the L4 date the production Phase starts; the line can't start earlier. */
+  l4Start?: { date: string; phase: string };
   lateDays?: number;
   onChange: (patch: Partial<SimProject>) => void;
   onPhaseChange: (phaseId: string) => void;
@@ -202,6 +207,7 @@ export function ProjectCard({
         <DateField
           label="Earliest line start"
           value={project.earliestStart}
+          min={l4Start?.date}
           onChange={(earliestStart) => onChange({ earliestStart })}
         />
         <DateField
@@ -209,6 +215,16 @@ export function ProjectCard({
           value={project.dueDate}
           onChange={(dueDate) => onChange({ dueDate })}
         />
+        {l4Start ? (
+          <p
+            data-l4-start-limit
+            className={`col-span-2 text-[10px] leading-snug ${project.earliestStart < l4Start.date ? "font-semibold text-red-600" : "text-muted-foreground"}`}
+          >
+            {project.earliestStart < l4Start.date
+              ? `Before L4 allows: the simulation uses ${l4Start.date}, when ${l4Start.phase} starts in L4.`
+              : `L4: ${l4Start.phase} starts ${l4Start.date} — earlier dates can't be chosen.`}
+          </p>
+        ) : null}
       </div>
 
       <label className="mt-3 flex items-center gap-2 text-xs font-semibold">
