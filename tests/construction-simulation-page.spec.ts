@@ -40,25 +40,16 @@ test("the factory plays day by day: modules move along the line into the yard", 
   await page.goto("/construction-simulation");
   const playback = page.locator("[data-factory-playback]");
   await expect(playback).toBeVisible();
-  const background = await page.request.get("/simulation-assets/assembly-hall.jpg");
-  expect(background.ok()).toBe(true);
-  expect(background.headers()["content-type"]).toContain("image/jpeg");
   const scene = page.locator("[data-factory-scene]");
-  await expect(scene.locator("image").first()).toHaveAttribute(
-    "href",
-    "/simulation-assets/assembly-hall.jpg",
-  );
+  await expect(scene.locator("[data-roller-track]")).toBeVisible();
   await page.getByRole("button", { name: "Yard & shipping" }).click();
-  await expect(scene.locator("image").first()).toHaveAttribute(
-    "href",
-    "/simulation-assets/factory-realistic.jpg",
-  );
+  await expect(scene.locator("[data-yard-floor-plan]")).toBeVisible();
   await page.getByRole("button", { name: "Assembly hall" }).click();
-  const initialView = await scene.getAttribute("viewBox");
   await page.getByRole("button", { name: "Zoom in factory" }).click();
-  await expect(scene).not.toHaveAttribute("viewBox", initialView!);
+  await expect(scene).toHaveCSS("width", /px$/);
+  await expect(scene).toHaveAttribute("style", "width: 150%;");
   await page.getByRole("button", { name: "Reset factory zoom" }).click();
-  await expect(scene).toHaveAttribute("viewBox", initialView!);
+  await expect(scene).toHaveAttribute("style", "width: 100%;");
   await page.getByRole("button", { name: "Add virtual" }).click();
 
   const slider = page.getByRole("slider", { name: "Simulation day" });
@@ -75,11 +66,7 @@ test("the factory plays day by day: modules move along the line into the yard", 
   await expect(page.locator("[data-inventory-line-count]")).toHaveText(String(onLine));
   const yardCount = Number(await page.locator("[data-inventory-yard-count]").textContent());
   await expect(page.locator("[data-yard-module]")).toHaveCount(yardCount);
-  for (const asset of ["module-building.png", "module-finished.png", "truck.png"]) {
-    const response = await page.request.get("/simulation-assets/" + asset);
-    expect(response.ok()).toBe(true);
-    expect(response.headers()["content-type"]).toContain("image/png");
-  }
+  await expect(scene.locator("[data-scene-line-module]")).toHaveCount(onLine);
 
   await page.waitForTimeout(400);
   await playback.screenshot({

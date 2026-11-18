@@ -2,22 +2,6 @@
 
 import type { SimDay, SimProject } from "@/lib/simulation";
 
-function ModuleThumbnail({ finished }: { finished: boolean }) {
-  return (
-    <svg viewBox="0 0 400 300" aria-hidden="true" className="h-20 w-full">
-      <image
-        href={
-          finished
-            ? "/simulation-assets/module-finished.png"
-            : "/simulation-assets/module-building.png"
-        }
-        width="400"
-        height="300"
-      />
-    </svg>
-  );
-}
-
 /** Yard entries use bay numbers because the engine tracks yard counts, not serial numbers. */
 export function FactoryModuleInventory({
   day,
@@ -87,7 +71,6 @@ export function FactoryModuleInventory({
                   <span>#{module.module}</span>
                   <span>{progress}%</span>
                 </div>
-                <ModuleThumbnail finished={progress >= 85} />
                 <p
                   className="line-clamp-2 min-h-8 px-2 pb-2 text-[11px] leading-4"
                   title={project?.name}
@@ -126,7 +109,6 @@ export function FactoryModuleInventory({
                 style={{ borderTopColor: project?.color }}
               >
                 <p className="px-2 pt-1 text-xs font-bold">Space {index + 1}</p>
-                <ModuleThumbnail finished />
                 <p
                   className="line-clamp-2 min-h-8 px-2 pb-2 text-[11px] leading-4"
                   title={project?.name}
