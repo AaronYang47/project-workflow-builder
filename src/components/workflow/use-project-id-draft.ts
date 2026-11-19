@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import {
+  applyNodeJobNumberToFile,
   legacyJobNumberFromProjectId,
   projectNodeUuid,
-  syncProjectNameIdentity,
 } from "@/lib/project-id";
-import type { DomainNode } from "@/types/workflow";
+import type { DomainNode, WorkflowFile } from "@/types/workflow";
 
 /**
  * Manages the live editing draft, parsing, validation, and serialization
@@ -17,18 +17,16 @@ export function useProjectIdDraft({
 }: {
   node: DomainNode;
   projectStartNode: DomainNode | undefined;
-  commitTransient: (
-    updater: (
-      file: import("@/types/workflow").WorkflowFile,
-    ) => import("@/types/workflow").WorkflowFile,
-  ) => void;
+  commitTransient: (updater: (file: WorkflowFile) => WorkflowFile) => void;
 }) {
   const isProjectStart = node.type === "projectStart";
   const projectStartProjectId = String(projectStartNode?.customFields.projectId || "");
 
   const nodeUuid = projectNodeUuid(node, projectStartNode);
+  const rawProjectId = String(node.customFields.projectId || "");
   const initialProjectId = isProjectStart
-    ? legacyJobNumberFromProjectId(String(node.customFields.projectId || "")) ||
+    ? legacyJobNumberFromProjectId(rawProjectId) ||
+      rawProjectId.replace(/\D/g, "").slice(0, 5) ||
       String(node.customFields.legacyJobNumber || node.customFields.projectNumber || "")
         .replace(/\D/g, "")
         .slice(0, 5)
@@ -42,7 +40,7 @@ export function useProjectIdDraft({
     setProjectIdDraft(initialProjectId);
   }
 
-  const projectIdSnapshotRef = useRef<typeof node | null>(null);
+  const projectIdSnapshotRef = useRef<WorkflowFile | null>(null);
   const projectIdValid = isProjectStart
     ? /^\d{5}$/.test(projectIdDraft)
     : Boolean(projectStartProjectId);
@@ -54,35 +52,7 @@ export function useProjectIdDraft({
     : legacyJobNumberFromProjectId(projectStartProjectId);
 
   const writeCustomFields = (patch: Record<string, string | number | boolean>) => {
-    const nextPatch =
-      isProjectStart && "projectId" in patch
-        ? {
-            ...patch,
-            legacyJobNumber: legacyJobNumberFromProjectId(String(patch.projectId || "")),
-          }
-        : patch;
-
-    commitTransient((file) => {
-      const nextNumber =
-        isProjectStart && "projectId" in patch
-          ? legacyJobNumberFromProjectId(String(patch.projectId || ""))
-          : "";
-      const name = file.graph.metadata.name;
-      return {
-        ...file,
-        graph: {
-          ...file.graph,
-          metadata: nextNumber
-            ? { ...file.graph.metadata, name: syncProjectNameIdentity(name, nextNumber) }
-            : file.graph.metadata,
-          nodes: file.graph.nodes.map((item) =>
-            item.id === node.id
-              ? { ...item, customFields: { ...item.customFields, ...nextPatch } }
-              : item,
-          ),
-        },
-      };
-    });
+    commitTransient((file) => applyNodeJobNumberToFile(file, node.id, patch));
   };
 
   return {

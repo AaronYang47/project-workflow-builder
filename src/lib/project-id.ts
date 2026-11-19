@@ -55,23 +55,68 @@ export function legacyJobNumberFromProjectId(projectId: string): string {
   return `${match[1]}${match[2]}`;
 }
 
+export function jobNumberFromProjectName(name: string): string {
+  return name.match(/^\s*(\d{5})(?=$|[\s_-])/)?.[1] || "";
+}
+
+export function jobNumberFromNode(node: DomainNode | undefined): string {
+  if (!node) return "";
+  const rawProjectId = String(node.customFields?.projectId || "");
+  const fromProjectId = legacyJobNumberFromProjectId(rawProjectId);
+  if (fromProjectId) return fromProjectId;
+  if (LEGACY_JOB_NUMBER_PATTERN.test(rawProjectId)) return rawProjectId;
+  const rawLegacy = String(node.customFields?.legacyJobNumber || "");
+  return LEGACY_JOB_NUMBER_PATTERN.test(rawLegacy) ? rawLegacy : "";
+}
+
+export function buildProjectIdFromJobNumber(
+  digits: string,
+  existingProjectId = "",
+  serviceType = "",
+): string {
+  if (!LEGACY_JOB_NUMBER_PATTERN.test(digits)) return "";
+  const prefix: ProjectIdPrefix =
+    serviceType === "Paid Service" || existingProjectId.startsWith("P-") ? "P" : "L";
+  return buildProjectId(digits.slice(2), prefix, digits.slice(0, 2));
+}
+
+export function syncJobNumberCondition(
+  conditions: DomainNode["conditions"],
+  hasJobNumber: boolean,
+): DomainNode["conditions"] {
+  let changed = false;
+  const next = conditions.map((condition) => {
+    if (condition.id !== "project-id-required" || condition.checked === hasJobNumber) {
+      return condition;
+    }
+    changed = true;
+    return { ...condition, checked: hasJobNumber };
+  });
+  return changed ? next : conditions;
+}
+
 export function syncProjectNameIdentity(
   name: string,
   number?: string,
   companyCode?: string,
 ): string {
-  const match = name.match(/^(\d{5})([_ -])([A-Za-z]{4})(?=[_ -]|$)/);
-  if (!match) {
-    // Projects created before a job number exists still use the normal name
-    // once the number is assigned later.
-    return number && /^\d{5}$/.test(number) && /^[A-Za-z]{4}(?=[_ -]|$)/.test(name)
-      ? `${number} ${name}`
-      : name;
+  const validCode = companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : undefined;
+  const applyCode = (value: string) =>
+    validCode ? value.replace(/^([A-Za-z]{4})(?=[_ -]|$)/, validCode) : value;
+  const leadMatch = name.match(/^(\s*)(\d{5})(?:([_ -]+)(.*))?$/);
+  if (leadMatch) {
+    const [, leadingWs, existingNum, sep = "", rawRest = ""] = leadMatch;
+    const rest = applyCode(rawRest);
+    if (number === "") return rest;
+    const nextNum = number && LEGACY_JOB_NUMBER_PATTERN.test(number) ? number : existingNum;
+    return rest ? `${leadingWs}${nextNum}${sep || " "}${rest}` : `${leadingWs}${nextNum}`;
   }
-  return name.replace(
-    match[0],
-    `${number && /^\d{5}$/.test(number) ? number : match[1]}${match[2]}${companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : match[3]}`,
-  );
+  const nextRest = applyCode(name);
+  if (number && LEGACY_JOB_NUMBER_PATTERN.test(number)) {
+    const trimmed = nextRest.trimStart();
+    return trimmed ? `${number} ${trimmed}` : number;
+  }
+  return nextRest;
 }
 
 /** Five-digit Legacy number stored as the cloud `project_number`. Follows Project ID. */
@@ -85,13 +130,132 @@ export function workflowLegacyJobNumber(file: WorkflowFile): string {
 
 export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
   if (node.type !== "projectStart") return node;
-  const legacyJobNumber = legacyJobNumberFromProjectId(String(node.customFields.projectId || ""));
-  if (String(node.customFields.legacyJobNumber || "") === legacyJobNumber) {
+  const rawProjectId = String(node.customFields.projectId || "");
+  const legacyJobNumber =
+    legacyJobNumberFromProjectId(rawProjectId) ||
+    (LEGACY_JOB_NUMBER_PATTERN.test(rawProjectId) ? rawProjectId : "");
+  const conditions = syncJobNumberCondition(node.conditions || [], Boolean(legacyJobNumber));
+  if (
+    String(node.customFields.legacyJobNumber || "") === legacyJobNumber &&
+    conditions === (node.conditions || [])
+  ) {
     return node;
   }
   return {
     ...node,
+    conditions,
     customFields: { ...node.customFields, legacyJobNumber },
+  };
+}
+
+export function withSyncedJobNumber(node: DomainNode, digits: string): DomainNode {
+  if (node.type !== "projectStart") return node;
+  const normalized = LEGACY_JOB_NUMBER_PATTERN.test(digits) ? digits : "";
+  const projectId = normalized
+    ? buildProjectIdFromJobNumber(
+        normalized,
+        String(node.customFields.projectId || ""),
+        String(node.config?.serviceType || ""),
+      )
+    : "";
+  return withSyncedLegacyJobNumber({
+    ...node,
+    customFields: {
+      ...node.customFields,
+      projectId,
+      legacyJobNumber: normalized,
+    },
+  });
+}
+
+export function applyNodeJobNumberToFile(
+  file: WorkflowFile,
+  nodeId: string,
+  patch: Record<string, string | number | boolean>,
+): WorkflowFile {
+  const target = file.graph.nodes.find((item) => item.id === nodeId);
+  const isStartProjectIdPatch = target?.type === "projectStart" && "projectId" in patch;
+  const rawProjectId = isStartProjectIdPatch ? String(patch.projectId || "") : "";
+  const nextDigits =
+    legacyJobNumberFromProjectId(rawProjectId) ||
+    (LEGACY_JOB_NUMBER_PATTERN.test(rawProjectId) ? rawProjectId : "");
+  const numberSyncArg = nextDigits ? nextDigits : rawProjectId === "" ? "" : undefined;
+
+  return {
+    ...file,
+    graph: {
+      ...file.graph,
+      metadata:
+        isStartProjectIdPatch && numberSyncArg !== undefined
+          ? {
+              ...file.graph.metadata,
+              name: syncProjectNameIdentity(file.graph.metadata.name, numberSyncArg),
+            }
+          : file.graph.metadata,
+      nodes: file.graph.nodes.map((item) =>
+        item.id === nodeId
+          ? withSyncedLegacyJobNumber({
+              ...item,
+              customFields: { ...item.customFields, ...patch },
+            })
+          : item,
+      ),
+    },
+  };
+}
+
+export function applyTitleJobNumberToFile(
+  file: WorkflowFile,
+  nextName: string,
+  prevName?: string,
+): WorkflowFile {
+  const prevDigits = prevName !== undefined ? jobNumberFromProjectName(prevName) : "";
+  const nextDigits = jobNumberFromProjectName(nextName);
+  const shouldClearNode = Boolean(prevDigits && !nextDigits);
+  if (!nextDigits && !shouldClearNode) return file;
+  let changed = false;
+  const nodes = file.graph.nodes.map((node) => {
+    if (node.type !== "projectStart") return node;
+    const synced = withSyncedJobNumber(node, nextDigits);
+    if (synced !== node) changed = true;
+    return synced;
+  });
+  return changed ? { ...file, graph: { ...file.graph, nodes } } : file;
+}
+
+export function syncWorkflowJobNumberOnLoad(file: WorkflowFile): WorkflowFile {
+  const start = file.graph.nodes.find((node) => node.type === "projectStart");
+  if (!start) return file;
+  const titleDigits = jobNumberFromProjectName(file.graph.metadata.name);
+  const nodeDigits = jobNumberFromNode(start);
+  if (titleDigits && !nodeDigits) {
+    return applyTitleJobNumberToFile(file, file.graph.metadata.name);
+  }
+  const nextName =
+    nodeDigits && !titleDigits
+      ? syncProjectNameIdentity(file.graph.metadata.name, nodeDigits)
+      : file.graph.metadata.name;
+  let nodesChanged = false;
+  const nodes = file.graph.nodes.map((node) => {
+    if (node.type !== "projectStart") return node;
+    const synced =
+      nodeDigits && !String(node.customFields.projectId || "")
+        ? withSyncedJobNumber(node, nodeDigits)
+        : withSyncedLegacyJobNumber(node);
+    if (synced !== node) nodesChanged = true;
+    return synced;
+  });
+  if (!nodesChanged && nextName === file.graph.metadata.name) return file;
+  return {
+    ...file,
+    graph: {
+      ...file.graph,
+      metadata:
+        nextName === file.graph.metadata.name
+          ? file.graph.metadata
+          : { ...file.graph.metadata, name: nextName },
+      nodes,
+    },
   };
 }
 

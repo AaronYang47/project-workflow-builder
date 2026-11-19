@@ -1,6 +1,7 @@
 "use client";
 
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { syncWorkflowJobNumberOnLoad } from "@/lib/project-id";
 import { createEmptyWorkspace } from "@/lib/project-template";
 import { migrateWorkflowFile } from "@/lib/workflow-migration";
 import { syncFinalCloseCompletion } from "@/lib/fob-yard";
@@ -237,7 +238,7 @@ export function normalizeLoadedWorkflow(loaded: WorkflowFile) {
   const withoutSelfLinks = removePhaseSelfLinks(sanitized.file);
   const ordered = synchronizeLinkedWorkflowOrder(withoutSelfLinks.file);
   return {
-    file: ordered,
+    file: syncWorkflowJobNumberOnLoad(ordered),
     clearedDefault:
       sanitized.removed || withoutSelfLinks.removed || ordered !== withoutSelfLinks.file,
   };

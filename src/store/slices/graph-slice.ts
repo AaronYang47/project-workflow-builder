@@ -3,6 +3,7 @@
 import { clone } from "@/lib/clone";
 import { createDomainNode } from "@/lib/create-domain-node";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
+import { jobNumberFromProjectName, withSyncedJobNumber } from "@/lib/project-id";
 import { releaseConditionBlocker } from "@/lib/workflow-progress";
 import {
   addOrReplaceEdge,
@@ -206,7 +207,11 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         }
       }
       const id = `${type}-${crypto.randomUUID().slice(0, 8)}`;
-      const node = createDomainNode(type, id);
+      let node = createDomainNode(type, id);
+      if (type === "projectStart") {
+        const titleDigits = jobNumberFromProjectName(get().file.graph.metadata.name);
+        if (titleDigits) node = withSyncedJobNumber(node, titleDigits);
+      }
       set((state) => ({
         past: appendHistory(state.past, state.file),
         file: insertNode(

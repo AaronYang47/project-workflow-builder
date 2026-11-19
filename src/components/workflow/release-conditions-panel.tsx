@@ -75,7 +75,9 @@ export function ReleaseConditionsPanel({
             store.selectNodes([node.id]);
             store.setFocusedInspectorField(inspectorKey);
           };
+          const isJobNumberCondition = condition.id === "project-id-required";
           const toggleCondition = () => {
+            if (isJobNumberCondition) return;
             if (!checked && blockIfOutOfSequence(node.id, condition.id || index)) return;
             if (!checked && conditionHasL3Forms(condition, node)) {
               openDepartmentL3(node.id, condition.id || `condition-${index}`);
@@ -84,7 +86,7 @@ export function ReleaseConditionsPanel({
             const linkedItem = condition.linkedExecutionItemId
               ? executionItems.find((item) => item.id === condition.linkedExecutionItemId)
               : undefined;
-            if (linkedItem && condition.id !== "project-id-required") {
+            if (linkedItem) {
               // L3-backed conditions are completed from the L3 form itself.
               // Do not let the L2 checkbox bypass required form fields.
               return;
@@ -143,15 +145,19 @@ export function ReleaseConditionsPanel({
                 type="button"
                 aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                 title={
-                  checked
-                    ? "Uncheck this release condition"
-                    : "Mark this release condition complete"
+                  isJobNumberCondition
+                    ? "Automatically checked when a complete Job Number is entered (no form required)"
+                    : checked
+                      ? "Uncheck this release condition"
+                      : "Mark this release condition complete"
                 }
                 disabled={
                   // Unticked ones stay clickable: the click explains what to finish first,
                   // or opens L3 for conditions completed through their files.
-                  checked &&
-                  (Boolean(condition.linkedExecutionItemId) || conditionHasL3Forms(condition, node))
+                  isJobNumberCondition ||
+                  (checked &&
+                    (Boolean(condition.linkedExecutionItemId) ||
+                      conditionHasL3Forms(condition, node)))
                 }
                 onClick={stopBubble(toggleCondition)}
                 className={cn(

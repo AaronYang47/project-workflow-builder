@@ -481,48 +481,71 @@ export function ExecutionView({
                 <span>{l3Title}</span>
               </h1>
 
-              {currentCondition ? (
-                <button
-                  type="button"
-                  aria-label={
-                    currentCondition.checked
-                      ? "Uncheck release condition"
-                      : "Check release condition"
-                  }
-                  title={
-                    currentCondition.checked
-                      ? "Uncheck release condition"
-                      : "Mark release condition complete"
-                  }
-                  disabled={
-                    currentConditionHasL3Forms &&
-                    currentCondition.id !== "project-id-required" &&
-                    !(sequenceBlocker && !currentCondition.checked)
-                  }
-                  onClick={() => {
-                    if (!currentCondition.checked && blockCurrentCondition()) return;
-                    const nextChecked = !currentCondition.checked;
-                    const updatedConditions = (node.conditions || []).map((c) =>
-                      c.id === currentCondition.id ? { ...c, checked: nextChecked } : c,
+              {currentCondition
+                ? (() => {
+                    const isJobNumberCondition = currentCondition.id === "project-id-required";
+                    const currentConditionChecked =
+                      isJobNumberCondition && node
+                        ? conditionIsSatisfied(
+                            currentCondition,
+                            node,
+                            projectStartNode,
+                            file.execution?.items,
+                            file.operations,
+                          )
+                        : Boolean(currentCondition.checked);
+                    return (
+                      <button
+                        type="button"
+                        aria-label={
+                          currentConditionChecked
+                            ? "Uncheck release condition"
+                            : "Check release condition"
+                        }
+                        title={
+                          isJobNumberCondition
+                            ? "Automatically checked when a complete Job Number is entered (no form required)"
+                            : currentConditionChecked
+                              ? "Uncheck release condition"
+                              : "Mark release condition complete"
+                        }
+                        disabled={
+                          isJobNumberCondition ||
+                          (currentConditionHasL3Forms &&
+                            !(sequenceBlocker && !currentCondition.checked))
+                        }
+                        onClick={() => {
+                          if (isJobNumberCondition) return;
+                          if (!currentCondition.checked && blockCurrentCondition()) return;
+                          const nextChecked = !currentCondition.checked;
+                          const updatedConditions = (node.conditions || []).map((c) =>
+                            c.id === currentCondition.id ? { ...c, checked: nextChecked } : c,
+                          );
+                          updateNode(node.id, { conditions: updatedConditions });
+                        }}
+                        className={cn(
+                          "flex size-4 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ml-0.5",
+                          currentConditionChecked
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : currentConditionHasL3Forms
+                              ? "condition-forms-breathe bg-amber-500 text-white"
+                              : "border-border bg-background hover:border-primary",
+                        )}
+                      >
+                        <Check className={cn("size-3", !currentConditionChecked && "opacity-0")} />
+                      </button>
                     );
-                    updateNode(node.id, { conditions: updatedConditions });
-                  }}
-                  className={cn(
-                    "flex size-4 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ml-0.5",
-                    currentCondition.checked
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : currentConditionHasL3Forms
-                        ? "condition-forms-breathe bg-amber-500 text-white"
-                        : "border-border bg-background hover:border-primary",
-                  )}
-                >
-                  <Check className={cn("size-3", !currentCondition.checked && "opacity-0")} />
-                </button>
-              ) : null}
+                  })()
+                : null}
 
               <span className="rounded-md border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground font-sans">
                 Condition requirements
               </span>
+              {currentCondition?.id === "project-id-required" ? (
+                <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary font-sans">
+                  No form required · Auto from Job Number
+                </span>
+              ) : null}
             </div>
             {currentCondition?.description && currentCondition.description.trim() !== l3Title ? (
               <p className="text-[11px] font-medium text-muted-foreground truncate max-w-md mt-0.5">

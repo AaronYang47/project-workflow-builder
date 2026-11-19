@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { type InspectorField } from "@/lib/inspector-schema";
 import {
+  applyNodeJobNumberToFile,
   legacyJobNumberFromProjectId,
   promoteToPaidService,
   syncProjectNameIdentity,
@@ -10,7 +11,7 @@ import {
   syncPaidConditions,
 } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
-import type { DomainNode } from "@/types/workflow";
+import type { DomainNode, WorkflowFile } from "@/types/workflow";
 import { readPath, writePath } from "@/lib/object-path";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,7 @@ export function Field({
 }) {
   const raw = readPath(node, field.key);
   const initial = useRef<DomainNode | null>(null);
+  const initialFile = useRef<WorkflowFile | null>(null);
   const setFocusedInspectorField = useWorkflowStore.getState().setFocusedInspectorField;
   const onContainerFocus = () => setFocusedInspectorField(field.key);
   const onContainerBlur = (event: React.FocusEvent<HTMLDivElement>) => {
@@ -54,29 +56,44 @@ export function Field({
     }
     if (transient) {
       if (!initial.current) initial.current = structuredClone(node);
-      store.commitTransient((file) => ({
-        ...file,
-        graph: {
-          ...file.graph,
-          metadata:
-            field.key === "customFields.projectId" || field.key === "customFields.customerCode"
-              ? {
-                  ...file.graph.metadata,
-                  name: syncProjectNameIdentity(
-                    file.graph.metadata.name,
-                    field.key === "customFields.projectId"
-                      ? legacyJobNumberFromProjectId(String(value || ""))
-                      : undefined,
-                    field.key === "customFields.customerCode" ? String(value || "") : undefined,
-                  ),
-                }
-              : file.graph.metadata,
-          nodes: file.graph.nodes.map((item) => (item.id === node.id ? next : item)),
-        },
-      }));
+      if (
+        (field.key === "customFields.projectId" || field.key === "customFields.customerCode") &&
+        !initialFile.current
+      ) {
+        initialFile.current = structuredClone(store.file);
+      }
+      store.commitTransient((file) => {
+        if (field.key === "customFields.projectId") {
+          return applyNodeJobNumberToFile(file, node.id, { projectId: String(value || "") });
+        }
+        return {
+          ...file,
+          graph: {
+            ...file.graph,
+            metadata:
+              field.key === "customFields.customerCode"
+                ? {
+                    ...file.graph.metadata,
+                    name: syncProjectNameIdentity(
+                      file.graph.metadata.name,
+                      undefined,
+                      String(value || ""),
+                    ),
+                  }
+                : file.graph.metadata,
+            nodes: file.graph.nodes.map((item) => (item.id === node.id ? next : item)),
+          },
+        };
+      });
     } else update(next);
   };
   const finish = () => {
+    if (initialFile.current) {
+      useWorkflowStore.getState().recordSnapshot(initialFile.current);
+      initialFile.current = null;
+      initial.current = null;
+      return;
+    }
     if (!initial.current) return;
     useWorkflowStore.getState().recordSnapshot({
       ...useWorkflowStore.getState().file,

@@ -1,7 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { PROJECT_ID_PATTERN, legacyJobNumberFromProjectId } from "@/lib/project-id";
+import {
+  LEGACY_JOB_NUMBER_PATTERN,
+  PROJECT_ID_PATTERN,
+  legacyJobNumberFromProjectId,
+} from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 
 /**
@@ -24,8 +28,10 @@ export function ProjectIdBadge({
   const projectStart = nodes.find((item) => item.type === "projectStart");
   const rawProjectId = String(projectStart?.customFields.projectId || "");
   const projectId = rawProjectId;
-  const ready = PROJECT_ID_PATTERN.test(projectId);
-  const legacy = legacyJobNumberFromProjectId(projectId);
+  const ready = PROJECT_ID_PATTERN.test(projectId) || LEGACY_JOB_NUMBER_PATTERN.test(projectId);
+  const legacy =
+    legacyJobNumberFromProjectId(projectId) ||
+    (LEGACY_JOB_NUMBER_PATTERN.test(projectId) ? projectId : "");
   const customerCode =
     String(projectStart?.customFields.customerCode || "").toUpperCase() ||
     projectName.match(/^\d{5}[_ -]([A-Za-z]{4})(?=[_ -]|$)/)?.[1]?.toUpperCase() ||

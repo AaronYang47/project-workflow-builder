@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { autoLayout } from "@/lib/layout";
 import { downloadWorkflowExcel, parseWorkflowExcel } from "@/lib/excel-workflow";
+import { applyTitleJobNumberToFile } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { CloudProjectControls } from "./cloud-project-controls";
 import { CollaboratorPresence } from "./collaborator-presence";
@@ -137,17 +138,23 @@ export function TopToolbar({
       metadataSnapshot.current = structuredClone(useWorkflowStore.getState().file);
   };
   const updateMeta = (patch: Partial<typeof store.file.graph.metadata>) =>
-    store.commitTransient((file) => ({
-      ...file,
-      graph: {
-        ...file.graph,
-        metadata: {
-          ...file.graph.metadata,
-          ...patch,
-          updatedAt: new Date().toISOString(),
+    store.commitTransient((file) => {
+      const prevName = file.graph.metadata.name;
+      const nextFile = {
+        ...file,
+        graph: {
+          ...file.graph,
+          metadata: {
+            ...file.graph.metadata,
+            ...patch,
+            updatedAt: new Date().toISOString(),
+          },
         },
-      },
-    }));
+      };
+      return "name" in patch
+        ? applyTitleJobNumberToFile(nextFile, nextFile.graph.metadata.name, prevName)
+        : nextFile;
+    });
   const finishMetadataEdit = () => {
     if (!metadataSnapshot.current) return;
     store.recordSnapshot(metadataSnapshot.current);

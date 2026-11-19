@@ -252,7 +252,9 @@ export function GeneralNode({
                     placeholder="27084"
                     onFocus={(event) => {
                       event.stopPropagation();
-                      projectIdSnapshotRef.current = structuredClone(node);
+                      projectIdSnapshotRef.current = structuredClone(
+                        useWorkflowStore.getState().file,
+                      );
                     }}
                     onChange={(event) => {
                       event.stopPropagation();
@@ -271,26 +273,17 @@ export function GeneralNode({
                     onBlur={(event) => {
                       event.stopPropagation();
                       const before = projectIdSnapshotRef.current;
+                      const prevNode = before?.graph.nodes.find((item) => item.id === node.id);
+                      const currentNode = useWorkflowStore
+                        .getState()
+                        .file.graph.nodes.find((item) => item.id === node.id);
                       if (
                         before &&
-                        String(before.customFields.projectId || "") !==
-                          String(
-                            useWorkflowStore
-                              .getState()
-                              .file.graph.nodes.find((item) => item.id === node.id)?.customFields
-                              .projectId || "",
-                          )
+                        prevNode &&
+                        String(prevNode.customFields.projectId || "") !==
+                          String(currentNode?.customFields.projectId || "")
                       ) {
-                        const current = useWorkflowStore.getState().file;
-                        recordSnapshot({
-                          ...current,
-                          graph: {
-                            ...current.graph,
-                            nodes: current.graph.nodes.map((item) =>
-                              item.id === node.id ? before : item,
-                            ),
-                          },
-                        });
+                        recordSnapshot(before);
                       }
                       projectIdSnapshotRef.current = null;
                     }}
@@ -360,7 +353,9 @@ export function GeneralNode({
                     operations,
                   );
                   const hasL3Forms = conditionHasL3Forms(condition, node);
+                  const isJobNumberCondition = condition.id === "project-id-required";
                   const toggleCondition = () => {
+                    if (isJobNumberCondition) return;
                     if (!checked && blockIfOutOfSequence(node.id, condition.id || index)) return;
                     if (!checked && hasL3Forms) {
                       openDepartmentL3(node.id, condition.id || `condition-${index}`);
@@ -432,11 +427,13 @@ export function GeneralNode({
                         type="button"
                         aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
                         title={
-                          checked
-                            ? "Uncheck this release condition"
-                            : "Mark this release condition complete"
+                          isJobNumberCondition
+                            ? "Automatically checked when a complete Job Number is entered (no form required)"
+                            : checked
+                              ? "Uncheck this release condition"
+                              : "Mark this release condition complete"
                         }
-                        disabled={hasL3Forms && checked}
+                        disabled={isJobNumberCondition || (hasL3Forms && checked)}
                         onClick={stopBubble(toggleCondition)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded border",

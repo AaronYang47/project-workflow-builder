@@ -8,7 +8,7 @@ import type {
   WorkflowFile,
 } from "@/types/workflow";
 import { REFERENCE_NODE_TYPES } from "@/types/workflow";
-import { BUILDING_PATTERN, MODULE_PATTERN } from "@/lib/project-id";
+import { BUILDING_PATTERN, MODULE_PATTERN, jobNumberFromNode } from "@/lib/project-id";
 import { ruleHasPaidService } from "@/lib/gate-service-types";
 import { executionItemProgress, getExecutionSummary } from "@/lib/execution";
 import type { ExecutionItem } from "@/types/workflow";
@@ -81,6 +81,8 @@ function conditionL3FormState(condition: Condition, node: DomainNode) {
 }
 
 export function conditionHasL3Forms(condition: Condition, node: DomainNode) {
+  // The Job Number condition tracks the 5-digit Job Number field and does not need L3 forms.
+  if (condition.id === "project-id-required") return false;
   // Linked execution items are the standard L3 form source for generated
   // workflows, even when no custom document record has been uploaded yet.
   if (condition.linkedExecutionItemId) return true;
@@ -156,11 +158,10 @@ export function conditionIsSatisfied(
   executionItems?: ExecutionItem[],
   operations?: ProjectOperations,
 ) {
-  // The Job Number reminder is informational for release and ticked by hand:
-  // entering a Job Number no longer forces it on (its files can tick it).
+  // The Job Number condition reflects whether a complete 5-digit Job Number has
+  // been entered (informational for release; no L3 forms required).
   if (condition.id === "project-id-required") {
-    const forms = conditionL3FormState(condition, node);
-    return condition.checked === true || forms.attachedComplete;
+    return Boolean(jobNumberFromNode(computedConditionSource(node, projectStart)));
   }
   if (condition.linkedExecutionItemId) {
     const linkedItem = executionItems?.find((item) => item.id === condition.linkedExecutionItemId);

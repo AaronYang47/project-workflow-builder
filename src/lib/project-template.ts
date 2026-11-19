@@ -4,12 +4,12 @@ import {
   type WorkflowFile,
 } from "@/types/workflow";
 import { clone } from "@/lib/clone";
-import { buildProjectId, currentYearSuffix } from "@/lib/project-id";
+import { buildProjectId, currentYearSuffix, jobNumberFromProjectName } from "@/lib/project-id";
 import { normalizeProjectOperations } from "@/lib/project-operations";
 
 export const createProjectWorkflow = (name: string, projectNumber = ""): WorkflowFile => {
   const now = new Date().toISOString();
-  const digits = projectNumber.replace(/\D/g, "");
+  const digits = (projectNumber || jobNumberFromProjectName(name)).replace(/\D/g, "");
   const yy = currentYearSuffix();
   const projectId =
     digits.length === 5

@@ -516,21 +516,30 @@ export function ReleaseConditionsWorkspace() {
                                       </span>
                                     </span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    aria-label={`View forms for ${conditionText(condition, index)}`}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      selectProcessLocation(chapter.id, {
-                                        id: condition.id,
-                                        index,
-                                      });
-                                      setDocumentsPopupOpen(true);
-                                    }}
-                                    className={`my-auto shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold hover:ring-1 hover:ring-primary/40 ${formsCount ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
-                                  >
-                                    {formsCount} {formsCount === 1 ? "form" : "forms"}
-                                  </button>
+                                  {condition.id === "project-id-required" && formsCount === 0 ? (
+                                    <span
+                                      title="Automatically checked when a complete Job Number is entered"
+                                      className="my-auto shrink-0 rounded-md bg-muted px-2 py-1 text-[9px] font-semibold text-muted-foreground"
+                                    >
+                                      No form
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      aria-label={`View forms for ${conditionText(condition, index)}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        selectProcessLocation(chapter.id, {
+                                          id: condition.id,
+                                          index,
+                                        });
+                                        setDocumentsPopupOpen(true);
+                                      }}
+                                      className={`my-auto shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold hover:ring-1 hover:ring-primary/40 ${formsCount ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                                    >
+                                      {formsCount} {formsCount === 1 ? "form" : "forms"}
+                                    </button>
+                                  )}
                                   <ArrowRight className="pointer-events-none mx-2 my-auto size-3.5 shrink-0 text-muted-foreground/70" />
                                 </div>
                               );
