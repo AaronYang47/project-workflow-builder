@@ -126,7 +126,8 @@ export function ProcessMapPanel({
                                 </span>
                                 {chapter.conditions.length ? (
                                   <span className="shrink-0 rounded-md bg-background/80 px-1.5 py-0.5 text-[8px] font-semibold text-muted-foreground">
-                                    {chapter.conditions.length} RC
+                                    {chapter.conditions.length}{" "}
+                                    {chapter.conditions.length === 1 ? "Step" : "Steps"}
                                   </span>
                                 ) : null}
                               </button>
@@ -195,7 +196,7 @@ export function ProcessMapPanel({
                       </span>
                       {selectedConditionLabel ? (
                         <>
-                          <span className="text-muted-foreground"> · Form / RC: </span>
+                          <span className="text-muted-foreground"> · Form / Step: </span>
                           <span className="font-medium text-foreground">
                             {selectedConditionLabel}
                           </span>

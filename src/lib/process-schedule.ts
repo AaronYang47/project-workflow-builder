@@ -97,7 +97,7 @@ export function buildProcessSchedule(file: WorkflowFile) {
         nodeId: node.id,
         conditionId: condition.id || `index-${index}`,
         conditionIndex: index,
-        title: condition.label || condition.description || `Release condition ${index + 1}`,
+        title: condition.label || condition.description || `Step ${index + 1}`,
         chapter: node.title,
         department: departmentDisplayName(node),
         phaseIndex: owners.get(node.id) ?? -1,

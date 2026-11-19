@@ -20,7 +20,7 @@ export default function PrivacyPage() {
         <p>
           This policy explains how Aaron Yang handles information in Falcon Process Building System,
           including its website and Microsoft Store app. The app helps users build project
-          workflows, manage release conditions, save project records, and export them.
+          workflows, manage steps, save project records, and export them.
         </p>
 
         <section className="space-y-2">

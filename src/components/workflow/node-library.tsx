@@ -122,7 +122,7 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
         {canEditWorkflow ? (
           <Link
             href={conditionsHref}
-            aria-label="Open Release Conditions Workspace"
+            aria-label="Open Steps Workspace"
             onClick={() =>
               sessionStorage.setItem("release-conditions:return-view", highLevelMode ? "l1" : "l2")
             }
@@ -132,7 +132,7 @@ export function NodeLibrary({ highLevelMode = false }: { highLevelMode?: boolean
               <ListChecks className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-xs font-bold">Release Conditions</span>
+              <span className="block text-xs font-bold">Steps</span>
               <span className="block text-[10px] leading-4 text-muted-foreground">
                 Open full-screen workspace
               </span>

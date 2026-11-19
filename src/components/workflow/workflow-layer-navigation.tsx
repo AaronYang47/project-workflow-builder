@@ -13,7 +13,7 @@ const layers = [
     id: "L3",
     label: "L3 · Conditions",
     path: "/release-conditions",
-    aria: "Open Release Conditions Workspace",
+    aria: "Open Steps Workspace",
   },
   {
     id: "L4",

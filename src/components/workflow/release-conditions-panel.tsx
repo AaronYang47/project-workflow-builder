@@ -46,7 +46,7 @@ export function ReleaseConditionsPanel({
         <ShieldCheck
           className={cn("size-4", statusReady ? "text-emerald-600" : "text-amber-600")}
         />
-        <span className="text-xs font-bold uppercase tracking-wide">Release conditions</span>
+        <span className="text-xs font-bold uppercase tracking-wide">Steps</span>
         <span
           className={cn(
             "ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold uppercase",
@@ -101,7 +101,7 @@ export function ReleaseConditionsPanel({
             <div
               key={condition.id || index}
               role="group"
-              aria-label={`Release condition ${index + 1}`}
+              aria-label={`Step ${index + 1}`}
               data-release-condition-index={index}
               data-release-condition-node-id={node.id}
               onClick={stopBubble(focusCondition)}
@@ -114,7 +114,7 @@ export function ReleaseConditionsPanel({
             >
               <button
                 type="button"
-                aria-label={`Drag to reorder release condition ${index + 1}`}
+                aria-label={`Drag to reorder step ${index + 1}`}
                 title="Drag to reorder"
                 onPointerDown={(event) => {
                   if (
@@ -128,10 +128,7 @@ export function ReleaseConditionsPanel({
                     {
                       nodeId: node.id,
                       index,
-                      label:
-                        condition.label ||
-                        condition.description ||
-                        `Release condition ${index + 1}`,
+                      label: condition.label || condition.description || `Step ${index + 1}`,
                     },
                     (target) => moveNodeCondition(node.id, index, target.nodeId, target.index),
                   );
@@ -143,13 +140,13 @@ export function ReleaseConditionsPanel({
               </button>
               <button
                 type="button"
-                aria-label={`${checked ? "Uncheck" : "Check"} release condition ${index + 1}`}
+                aria-label={`${checked ? "Uncheck" : "Check"} step ${index + 1}`}
                 title={
                   isJobNumberCondition
                     ? "Automatically checked when a complete Job Number is entered (no form required)"
                     : checked
-                      ? "Uncheck this release condition"
-                      : "Mark this release condition complete"
+                      ? "Uncheck this step"
+                      : "Mark this step complete"
                 }
                 disabled={
                   // Unticked ones stay clickable: the click explains what to finish first,
@@ -172,20 +169,20 @@ export function ReleaseConditionsPanel({
               </button>
               <button
                 type="button"
-                aria-label={`Edit release condition ${index + 1} in Inspector`}
-                title="Edit this release condition in Inspector"
+                aria-label={`Edit step ${index + 1} in Inspector`}
+                title="Edit this step in Inspector"
                 onClick={stopBubble(focusCondition)}
                 className="min-w-0 flex-1 whitespace-normal break-words bg-transparent py-0.5 text-left text-xs font-medium outline-none transition-colors hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {condition.label || condition.description || `Release condition ${index + 1}`}
+                {condition.label || condition.description || `Step ${index + 1}`}
                 {condition.required !== false && condition.id !== "project-id-required" ? (
                   <span className="ml-1 text-xs font-bold text-destructive">*</span>
                 ) : null}
               </button>
               <button
                 type="button"
-                aria-label={`Edit release condition ${index + 1} in Inspector`}
-                title="Edit this release condition in Inspector"
+                aria-label={`Edit step ${index + 1} in Inspector`}
+                title="Edit this step in Inspector"
                 onClick={stopBubble(focusCondition)}
                 className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
               >
@@ -194,7 +191,7 @@ export function ReleaseConditionsPanel({
               {!condition.locked ? (
                 <button
                   type="button"
-                  aria-label={`Delete release condition ${index + 1}`}
+                  aria-label={`Delete step ${index + 1}`}
                   onClick={stopBubble(() => deleteNodeCondition(node.id, condition.id, index))}
                   className="text-muted-foreground hover:text-destructive"
                 >
@@ -212,7 +209,7 @@ export function ReleaseConditionsPanel({
             ...conditions,
             {
               id: `condition-${crypto.randomUUID().slice(0, 8)}`,
-              label: "New release condition",
+              label: "New step",
               required: true,
               checked: false,
             },

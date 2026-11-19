@@ -282,19 +282,19 @@ test("Presentation menu downloads distinct versions with and without release con
   );
   await page.goto("/");
   await page.getByRole("button", { name: "Export", exact: true }).click();
-  await expect(page.getByText("With Release Conditions", { exact: true })).toBeVisible();
-  await expect(page.getByText("Without Release Conditions", { exact: true })).toBeVisible();
+  await expect(page.getByText("With Steps", { exact: true })).toBeVisible();
+  await expect(page.getByText("Without Steps", { exact: true })).toBeVisible();
   const withPending = page.waitForEvent("download");
   await page.getByText("Export PDF for Presentation", { exact: true }).click();
   const withPdf = await withPending;
   await withPdf.saveAs(testInfo.outputPath("with-conditions.pdf"));
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const withoutPending = page.waitForEvent("download");
-  await page.getByText("Export PDF for Presentation · No RC", { exact: true }).click();
+  await page.getByText("Export PDF for Presentation · No Steps", { exact: true }).click();
   const withoutPdf = await withoutPending;
   await withoutPdf.saveAs(testInfo.outputPath("without-conditions.pdf"));
   expect(withPdf.suggestedFilename()).not.toBe(withoutPdf.suggestedFilename());
-  expect(withoutPdf.suggestedFilename()).toContain("No-Release-Conditions");
+  expect(withoutPdf.suggestedFilename()).toContain("No-Steps");
   const snapshots = await page.evaluate(
     () =>
       (

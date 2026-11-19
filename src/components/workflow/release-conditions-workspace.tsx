@@ -287,16 +287,14 @@ export function ReleaseConditionsWorkspace() {
           onToggleHighLevelView={() => {}}
           openPalette={() => {}}
           onPageSearch={() =>
-            document
-              .querySelector<HTMLInputElement>('[aria-label="Search release conditions"]')
-              ?.focus()
+            document.querySelector<HTMLInputElement>('[aria-label="Search steps"]')?.focus()
           }
         />
         <CollaborationControlOverlay />
 
         {!hydrated ? (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-            Loading release conditions…
+            Loading steps…
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-row">
@@ -431,13 +429,10 @@ export function ReleaseConditionsWorkspace() {
                         {editingChapterId === chapter.id ? (
                           <div className="shrink-0 p-2">{chapterForm("edit")}</div>
                         ) : null}
-                        <section
-                          aria-label="Release conditions"
-                          className="flex min-h-0 flex-1 flex-col p-3"
-                        >
+                        <section aria-label="Steps" className="flex min-h-0 flex-1 flex-col p-3">
                           <header className="mb-2 flex shrink-0 items-center justify-between gap-2 border-b pb-2">
                             <h4 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                              Release Conditions
+                              Steps
                             </h4>
                             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/10 px-1 text-[9px] font-semibold text-primary">
                               {visible.length}
@@ -461,7 +456,7 @@ export function ReleaseConditionsWorkspace() {
                                   data-release-condition-index={index}
                                   data-release-condition-node-id={chapter.id}
                                   role="group"
-                                  aria-label={`Release condition ${index + 1}: ${conditionText(condition, index)}`}
+                                  aria-label={`Step ${index + 1}: ${conditionText(condition, index)}`}
                                   onClick={() =>
                                     selectProcessLocation(chapter.id, { id: condition.id, index })
                                   }
@@ -469,7 +464,7 @@ export function ReleaseConditionsWorkspace() {
                                 >
                                   <button
                                     type="button"
-                                    aria-label={`Drag release condition ${index + 1}`}
+                                    aria-label={`Drag step ${index + 1}`}
                                     onPointerDown={(event) =>
                                       beginReleaseConditionDrag(
                                         event.nativeEvent,
@@ -509,7 +504,7 @@ export function ReleaseConditionsWorkspace() {
                                         {conditionText(condition, index)}
                                       </span>
                                       <span className="mt-0.5 block text-[9px] text-muted-foreground">
-                                        Release condition
+                                        Step
                                         {conditionDurationLabel(condition)
                                           ? ` · ${conditionDurationLabel(condition)}`
                                           : ""}
@@ -547,8 +542,8 @@ export function ReleaseConditionsWorkspace() {
                             {!visible.length ? (
                               <p className="rounded-lg border border-dashed p-4 text-center text-[10px] leading-4 text-muted-foreground">
                                 {needle
-                                  ? "No release conditions or forms match this search."
-                                  : "No release conditions in this Department."}
+                                  ? "No steps or forms match this search."
+                                  : "No steps in this Department."}
                               </p>
                             ) : null}
                           </div>

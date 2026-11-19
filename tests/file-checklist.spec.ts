@@ -45,7 +45,7 @@ test("L3 lists a condition's files in three columns and ticking them completes t
   // L3 shows one release condition at a time; the node releases once all of them are complete.
   await expect(
     page.getByText(
-      "This release condition is complete. Complete the remaining department requirements to release this node.",
+      "This step is complete. Complete the remaining department requirements to release this node.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -79,9 +79,9 @@ test("a release-condition checkbox stays in L2", async ({ page }) => {
   const node = page.locator('[data-id="pre-construction"]');
   await expect(node).toBeVisible();
   const index = 1;
-  await node.getByRole("button", { name: `Check release condition ${index}`, exact: true }).click();
+  await node.getByRole("button", { name: `Check step ${index}`, exact: true }).click();
   await expect(
-    node.getByRole("button", { name: `Uncheck release condition ${index}`, exact: true }),
+    node.getByRole("button", { name: `Uncheck step ${index}`, exact: true }),
   ).toBeVisible();
   await expect(page.getByText("L3 · Execution Layer", { exact: true })).toHaveCount(0);
 });
@@ -118,11 +118,11 @@ test("entering L3 for a condition without forms does not automatically check it"
   await expect(node).toBeVisible();
 
   // Condition 2 should initially be unchecked (has "Check release condition 2" button)
-  await expect(node.getByRole("button", { name: "Check release condition 2" })).toBeVisible();
+  await expect(node.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
   // Open L3 for this node
   const conditionLink = node.getByRole("button", {
-    name: "Open L3 details for release condition 2",
+    name: "Open L3 details for step 2",
   });
   if ((await conditionLink.count()) > 0) {
     await conditionLink.click();
@@ -142,5 +142,5 @@ test("entering L3 for a condition without forms does not automatically check it"
   await page.getByRole("button", { name: "Back to L2" }).click();
 
   // Condition 2 should still be unchecked in L2
-  await expect(node.getByRole("button", { name: "Check release condition 2" })).toBeVisible();
+  await expect(node.getByRole("button", { name: "Check step 2" })).toBeVisible();
 });

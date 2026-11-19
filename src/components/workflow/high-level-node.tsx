@@ -327,8 +327,8 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
       </div>
       {linkedNodes.some((item) => item.conditionLabels.length) ? (
         <p className="mt-1 text-[10px] text-muted-foreground">
-          {linkedNodes.reduce((count, item) => count + item.conditionLabels.length, 0)} release
-          conditions across linked Departments
+          {linkedNodes.reduce((count, item) => count + item.conditionLabels.length, 0)} steps across
+          linked Departments
         </p>
       ) : null}
       <div className="mt-2 space-y-1.5">
@@ -702,10 +702,10 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
                     {linkedNode.conditionLabels.length ? (
                       <span
                         title={linkedNode.conditionLabels.join("\n")}
-                        aria-label={`${linkedNode.conditionLabels.length} release conditions: ${linkedNode.conditionLabels.join(", ")}`}
+                        aria-label={`${linkedNode.conditionLabels.length} steps: ${linkedNode.conditionLabels.join(", ")}`}
                         className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary"
                       >
-                        RC {linkedNode.conditionLabels.length}
+                        Steps {linkedNode.conditionLabels.length}
                       </span>
                     ) : null}
                   </div>

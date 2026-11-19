@@ -48,7 +48,7 @@ test("optional conditions need no documents, stay off Gantt, and appear directly
 
   await page.goto("/release-conditions");
   const department = page.locator('[data-release-condition-chapter-id="technical"]');
-  const releaseRow = department.getByRole("group", { name: "Release condition 1: Design review" });
+  const releaseRow = department.getByRole("group", { name: "Step 1: Design review" });
   await releaseRow.locator("button[aria-pressed]").click();
   await expect(releaseRow.locator("button[aria-pressed]")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -108,9 +108,7 @@ test("optional conditions need no documents, stay off Gantt, and appear directly
   ).toHaveText("2 forms");
   await page.getByRole("button", { name: "Close forms window" }).click();
   await expect(
-    department
-      .getByRole("region", { name: "Release conditions" })
-      .getByText("Site survey approval"),
+    department.getByRole("region", { name: "Steps" }).getByText("Site survey approval"),
   ).toHaveCount(0);
   await expect(optional.getByText(/supporting document/i)).toHaveCount(0);
   await expect(optional.getByRole("button", { name: /add supporting/i })).toHaveCount(0);

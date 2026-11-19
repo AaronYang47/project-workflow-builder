@@ -312,7 +312,7 @@ test("the execution view releases when every required file is checked", async ({
   // L3 shows one release condition at a time; the node releases once all of them are complete.
   await expect(
     page.getByText(
-      "This release condition is complete. Complete the remaining department requirements to release this node.",
+      "This step is complete. Complete the remaining department requirements to release this node.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -351,9 +351,7 @@ test("L2 release condition text click opens L3 with 3-box architecture: Legal, C
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
 
   // Find a release condition text button in L2 and click it
-  const conditionBtn = page
-    .getByRole("button", { name: /Open L3 details for release condition/ })
-    .first();
+  const conditionBtn = page.getByRole("button", { name: /Open L3 details for step/ }).first();
   await expect(conditionBtn).toBeVisible();
   await conditionBtn.click();
 
@@ -504,7 +502,7 @@ test("L3 customer Form is in File Library and cannot be checked until filled", a
   await page.getByRole("button", { name: "Close dialog" }).click();
 
   await page
-    .getByRole("button", { name: /Open L3 details for release condition/ })
+    .getByRole("button", { name: /Open L3 details for step/ })
     .first()
     .click();
   await page.getByRole("button", { name: "Add Customer Information Form" }).click();

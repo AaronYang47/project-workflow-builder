@@ -38,13 +38,13 @@ test("linked condition drags back to an empty Unassigned panel and can be restor
     { key: WORKFLOW_STORAGE_KEY, workflow: file },
   );
   await page.goto("/release-conditions");
-  const inbox = page.getByRole("region", { name: "Unassigned release conditions" });
+  const inbox = page.getByRole("region", { name: "Unassigned steps" });
   const card = page.locator('[data-release-condition-chapter-id="sales"]');
   const row = card.getByRole("group", {
-    name: "Release condition 1: Identify Customer Opportunity · EOI",
+    name: "Step 1: Identify Customer Opportunity · EOI",
   });
   await expect(row).toBeVisible();
-  await card.getByRole("button", { name: "Drag release condition 1", exact: true }).hover();
+  await card.getByRole("button", { name: "Drag step 1", exact: true }).hover();
   await page.mouse.down();
   const destination = (await inbox.boundingBox())!;
   await page.mouse.move(destination.x + destination.width / 2, destination.y + 250, { steps: 12 });
@@ -62,7 +62,7 @@ test("linked condition drags back to an empty Unassigned panel and can be restor
   await expect(inbox.getByRole("textbox", { name: "Unassigned condition text 1" })).toHaveValue(
     "Identify Customer Opportunity · EOI",
   );
-  await inbox.getByRole("button", { name: "Drag unassigned release condition 1" }).hover();
+  await inbox.getByRole("button", { name: "Drag unassigned step 1" }).hover();
   await page.mouse.down();
   const cardBox = (await card.boundingBox())!;
   await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + 60, { steps: 12 });
@@ -115,25 +115,23 @@ test("bulk release conditions are assigned to Departments and visible in L1, L2,
   );
   await page.goto("/");
 
-  const sidebarLink = page
-    .locator("aside")
-    .getByRole("link", { name: "Open Release Conditions Workspace" });
+  const sidebarLink = page.locator("aside").getByRole("link", { name: "Open Steps Workspace" });
   const lastPaletteNode = page.locator("aside").getByRole("button", { name: /Final Close/ });
   await expect(sidebarLink).toBeVisible();
   expect((await sidebarLink.boundingBox())!.y).toBeGreaterThan(
     (await lastPaletteNode.boundingBox())!.y,
   );
-  await page.getByRole("link", { name: "Open Release Conditions Workspace" }).first().click();
+  await page.getByRole("link", { name: "Open Steps Workspace" }).first().click();
   await expect(page).toHaveURL(/\/release-conditions$/);
   const mainHeight = await page
     .locator("main")
     .evaluate((element) => element.getBoundingClientRect().height);
   const viewportHeight = await page.evaluate(() => window.innerHeight);
   expect(mainHeight).toBe(viewportHeight);
-  const inbox = page.getByRole("region", { name: "Unassigned release conditions" });
+  const inbox = page.getByRole("region", { name: "Unassigned steps" });
   const board = page.getByRole("region", { name: "Department condition board" });
   await inbox
-    .getByRole("textbox", { name: "Enter release conditions, one per line" })
+    .getByRole("textbox", { name: "Enter steps, one per line" })
     .fill("Permit drawing approved\nProduct data sheet received");
   await inbox.getByRole("button", { name: "Add conditions" }).click();
   await expect(inbox.getByRole("textbox", { name: "Unassigned condition text 2" })).toHaveValue(
@@ -142,7 +140,7 @@ test("bulk release conditions are assigned to Departments and visible in L1, L2,
 
   const firstCard = board.locator('[data-release-condition-drop-node-id="chapter-one"]');
   const secondCard = board.locator('[data-release-condition-drop-node-id="chapter-two"]');
-  await inbox.getByRole("button", { name: "Drag unassigned release condition 1" }).hover();
+  await inbox.getByRole("button", { name: "Drag unassigned step 1" }).hover();
   await page.mouse.down();
   const firstHeader = (await firstCard.locator("h3").boundingBox())!;
   await page.mouse.move(firstHeader.x + 24, firstHeader.y + firstHeader.height / 2, { steps: 12 });
@@ -161,12 +159,12 @@ test("bulk release conditions are assigned to Departments and visible in L1, L2,
   await page.mouse.up();
   await expect(firstCard).not.toHaveAttribute("data-drop-chapter", "true");
   await expect(
-    firstCard.getByRole("group", { name: "Release condition 1: Permit drawing approved" }),
+    firstCard.getByRole("group", { name: "Step 1: Permit drawing approved" }),
   ).toBeVisible();
   await expect(inbox.getByRole("textbox", { name: "Unassigned condition text 1" })).toHaveValue(
     "Product data sheet received",
   );
-  await inbox.getByRole("button", { name: "Drag unassigned release condition 1" }).hover();
+  await inbox.getByRole("button", { name: "Drag unassigned step 1" }).hover();
   await page.mouse.down();
   const secondHeader = (await secondCard.locator("h3").boundingBox())!;
   await page.mouse.move(secondHeader.x + 24, secondHeader.y + secondHeader.height / 2, {
@@ -183,10 +181,10 @@ test("bulk release conditions are assigned to Departments and visible in L1, L2,
   );
   await page.getByRole("button", { name: "Redo (⇧⌘Z)" }).click();
   await expect(secondCard).toContainText("Product data sheet received");
-  await inbox.getByRole("textbox", { name: "Search release conditions" }).fill("Product");
+  await inbox.getByRole("textbox", { name: "Search steps" }).fill("Product");
   await expect(secondCard).toContainText("Product data sheet received");
-  await expect(firstCard).toContainText("No release conditions or forms match");
-  await inbox.getByRole("textbox", { name: "Search release conditions" }).fill("");
+  await expect(firstCard).toContainText("No steps or forms match");
+  await inbox.getByRole("textbox", { name: "Search steps" }).fill("");
 
   await board.getByRole("button", { name: "New Department" }).click();
   const createDepartment = board.getByRole("form", { name: "Create Department" });
@@ -214,21 +212,19 @@ test("bulk release conditions are assigned to Departments and visible in L1, L2,
   await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await page.getByRole("button", { name: "L1 · High Level" }).click();
   const l1 = page.locator('[data-id="l1-phase"]');
-  await expect(l1).toContainText("2 release conditions");
+  await expect(l1).toContainText("2 steps");
   await expect(l1).toContainText("QA Chapter");
 
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const firstChapter = page.locator('[data-id="chapter-one"]');
   const secondChapter = page.locator('[data-id="chapter-two"]');
-  await firstChapter
-    .getByRole("button", { name: "Open L3 details for release condition 1" })
-    .click();
+  await firstChapter.getByRole("button", { name: "Open L3 details for step 1" }).click();
   await expect(page.getByRole("button", { name: /Permit drawing approved/ }).first()).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(firstChapter).toContainText("Permit drawing approved");
   await expect(secondChapter).toContainText("Product data sheet received");
-  await page.getByRole("link", { name: "Open Release Conditions Workspace" }).first().click();
+  await page.getByRole("link", { name: "Open Steps Workspace" }).first().click();
   await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect(page.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute(
     "aria-pressed",
@@ -283,13 +279,10 @@ test("full-screen workspace remains usable with 92 release conditions", async ({
     '[data-release-condition-chapter]:not([data-release-condition-chapter-id="project-start"]) [data-release-condition-index]',
   );
   await expect(departmentRows).toHaveCount(90);
-  await page
-    .getByRole("textbox", { name: "Search release conditions" })
-    .first()
-    .fill("Condition 089");
+  await page.getByRole("textbox", { name: "Search steps" }).first().fill("Condition 089");
   await expect(board.locator("[data-release-condition-index]")).toHaveCount(1);
   await expect(board).toContainText("Condition 089");
-  await page.getByRole("textbox", { name: "Search release conditions" }).first().fill("");
+  await page.getByRole("textbox", { name: "Search steps" }).first().fill("");
   await expect(departmentRows).toHaveCount(90);
 });
 
@@ -323,10 +316,10 @@ test("Excel template imports conditions into matching Departments and leaves unk
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Excel template" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("release-conditions-template.xlsx");
+  expect(download.suggestedFilename()).toBe("steps-template.xlsx");
   const template = new ExcelJS.Workbook();
   await template.xlsx.readFile(await download.path());
-  expect(template.getWorksheet("Conditions")?.getCell("A1").value).toBe("Release Condition");
+  expect(template.getWorksheet("Conditions")?.getCell("A1").value).toBe("Step");
   expect(template.getWorksheet("Conditions")?.getCell("C1").value).toBe(
     "Condition ID (keep for existing rows)",
   );
@@ -336,23 +329,21 @@ test("Excel template imports conditions into matching Departments and leaves unk
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Conditions");
-  sheet.addRow(["Release Condition", "Chapter (optional)"]);
+  sheet.addRow(["Step", "Chapter (optional)"]);
   sheet.addRow(["Permit drawing approved", "Design"]);
   sheet.addRow(["Site survey complete", ""]);
   sheet.addRow(["Procurement ready", "Unknown Chapter"]);
   const buffer = await workbook.xlsx.writeBuffer();
-  await page
-    .locator('input[type="file"][aria-label="Select release conditions Excel file"]')
-    .setInputFiles({
-      name: "conditions.xlsx",
-      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      buffer: Buffer.from(buffer),
-    });
+  await page.locator('input[type="file"][aria-label="Select steps Excel file"]').setInputFiles({
+    name: "conditions.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(buffer),
+  });
   await expect(
     page.getByText(/^Processed 3 rows: 1 added to Departments, 2 added to Unassigned/),
   ).toBeVisible();
   const designCard = page.locator('[data-release-condition-chapter-id="design-chapter"]');
-  const inbox = page.getByRole("region", { name: "Unassigned release conditions" });
+  const inbox = page.getByRole("region", { name: "Unassigned steps" });
   await expect(designCard).toContainText("Permit drawing approved");
   await expect(inbox).toContainText("Site survey complete");
   await expect(inbox).toContainText("Procurement ready");
@@ -413,13 +404,11 @@ test("populated Excel template updates existing conditions without duplication",
 
   const upload = async () => {
     const buffer = await template.xlsx.writeBuffer();
-    await page
-      .locator('input[type="file"][aria-label="Select release conditions Excel file"]')
-      .setInputFiles({
-        name: "current-conditions.xlsx",
-        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        buffer: Buffer.from(buffer),
-      });
+    await page.locator('input[type="file"][aria-label="Select steps Excel file"]').setInputFiles({
+      name: "current-conditions.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(buffer),
+    });
   };
   await upload();
   const importStatus = page.getByText(/^Processed \d+ rows:/);
@@ -504,7 +493,7 @@ test("mobile workspace assigns from the drawer and touch-drags between Departmen
     await page.getByRole("button", { name: /Open unassigned conditions, 1 items/ }).tap();
     await page.getByRole("button", { name: "Assign Touch approval" }).tap();
     await page
-      .getByRole("dialog", { name: "Assign release condition" })
+      .getByRole("dialog", { name: "Assign step" })
       .getByRole("button", { name: /^Assign to .*Mobile Design/ })
       .tap();
     await expect(firstCard).toContainText("Touch approval");
@@ -513,7 +502,7 @@ test("mobile workspace assigns from the drawer and touch-drags between Departmen
     const cdp = await context.newCDPSession(page);
     // Assigning smooth-scrolls the board to the Department; let it settle on screen first.
     const handleButton = firstCard.getByRole("button", {
-      name: "Drag release condition 1",
+      name: "Drag step 1",
       exact: true,
     });
     await handleButton.scrollIntoViewIfNeeded();

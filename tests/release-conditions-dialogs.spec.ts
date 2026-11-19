@@ -78,7 +78,7 @@ async function seedWorkspace(page: Page) {
 const conditionRow = (page: Page, index: number, label: string) =>
   page
     .locator('[data-release-condition-chapter-id="technical"]')
-    .getByRole("group", { name: `Release condition ${index}: ${label}` });
+    .getByRole("group", { name: `Step ${index}: ${label}` });
 
 test("forms window adds, retargets and removes a document, and adds Library forms in one batch", async ({
   page,
@@ -95,9 +95,7 @@ test("forms window adds, retargets and removes a document, and adds Library form
   // Single document: retarget to the second condition and mark it Optional.
   await forms.getByRole("button", { name: "Add Required Documents" }).click();
   const add = page.getByRole("dialog", { name: "Add Required Document" });
-  await add
-    .getByRole("combobox", { name: "Choose release condition for document" })
-    .selectOption("1");
+  await add.getByRole("combobox", { name: "Choose step for document" }).selectOption("1");
   await add.getByRole("textbox", { name: "Document title" }).fill("Permit set");
   await add.getByRole("button", { name: "Optional", exact: true }).click();
   await expect(add.getByRole("button", { name: "Optional", exact: true })).toHaveAttribute(
@@ -147,7 +145,7 @@ test("phone Assign dialog moves an unassigned condition into the chosen departme
   await page.goto("/release-conditions");
   await page.getByRole("button", { name: /Open unassigned conditions, 1 items/ }).click();
   await page.getByRole("button", { name: "Assign Permit received" }).click();
-  const assign = page.getByRole("dialog", { name: "Assign release condition" });
+  const assign = page.getByRole("dialog", { name: "Assign step" });
   await expect(assign).toBeVisible();
   await assign.getByRole("button", { name: "Assign to Technical Department CHAPTER 01" }).click();
   await expect(assign).toHaveCount(0);

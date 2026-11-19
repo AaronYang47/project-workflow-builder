@@ -55,7 +55,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",
-    defaultSize: { width: 1000, height: 370 },
+    defaultSize: { width: 1000, height: 430 },
   },
   {
     type: "projectStart",

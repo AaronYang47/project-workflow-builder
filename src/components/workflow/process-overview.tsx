@@ -35,9 +35,9 @@ import type { Condition } from "@/types/workflow";
 
 const ROW_GRID = "grid grid-cols-[168px_minmax(660px,1fr)] sm:grid-cols-[280px_minmax(660px,1fr)]";
 
-/** Find a release condition by name from the toolbar search and scroll to it. */
+/** Find a step by name from the toolbar search and scroll to it. */
 function searchGanttTask() {
-  const name = window.prompt("Find release condition");
+  const name = window.prompt("Find step");
   if (!name) return;
   Array.from(document.querySelectorAll<HTMLElement>("[data-gantt-task]"))
     .find((row) => row.dataset.ganttTask?.toLowerCase().includes(name.toLowerCase()))
@@ -266,19 +266,19 @@ export function ProcessOverview() {
               <div className="flex flex-wrap gap-2 text-xs">
                 <button
                   type="button"
-                  aria-label="Open Create Release Condition"
+                  aria-label="Open Create Step"
                   aria-expanded={createOpen}
                   onClick={() => setCreateOpen((open) => !open)}
                   className="rounded-lg border bg-primary/10 px-3 py-2 font-semibold text-primary"
                 >
                   <Plus className="mr-1 inline size-3.5" />
-                  Create RC{inboxCount > 0 ? ` · ${inboxCount} unassigned` : ""}
+                  Create Step{inboxCount > 0 ? ` · ${inboxCount} unassigned` : ""}
                 </button>
                 <span className="rounded-lg border bg-panel px-3 py-2">
                   {schedule.phases.length} phases
                 </span>
                 <span className="rounded-lg border bg-panel px-3 py-2">
-                  {schedule.tasks.length} release conditions
+                  {schedule.tasks.length} steps
                 </span>
                 <ProcessCalendarButton
                   value={file.calendar}
@@ -392,7 +392,7 @@ export function ProcessOverview() {
                   ) : null}
                   <div className={`${ROW_GRID} border-b bg-muted/30 text-[10px] font-semibold`}>
                     <div className="sticky left-0 z-20 border-r bg-muted p-3">
-                      Department / release condition
+                      Department / step
                     </div>
                     <div
                       data-gantt-pan-surface
@@ -506,7 +506,7 @@ export function ProcessOverview() {
                             </div>
                             {!chapter.tasks.length && (
                               <p className="m-1 rounded border border-dashed px-3 py-2 text-[11px] text-muted-foreground">
-                                Drop a release condition here
+                                Drop a step here
                               </p>
                             )}
                             {chapter.tasks.map((task) => (
@@ -529,7 +529,7 @@ export function ProcessOverview() {
 
                   {!schedule.tasks.length && (
                     <p className="p-6 text-sm text-muted-foreground">
-                      Add release conditions to your departments to build a schedule.
+                      Add steps to your departments to build a schedule.
                     </p>
                   )}
                 </div>

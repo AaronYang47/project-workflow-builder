@@ -182,7 +182,7 @@ export function InboxPanel({
         />
       ) : null}
       <section
-        aria-label="Unassigned release conditions"
+        aria-label="Unassigned steps"
         data-mobile-inbox-open={mobileInboxOpen}
         data-release-condition-drop-node-id={RELEASE_CONDITION_INBOX_ID}
         data-release-condition-count={inbox.length}
@@ -246,7 +246,7 @@ export function InboxPanel({
               </button>
             </div>
             <textarea
-              aria-label="Enter release conditions, one per line"
+              aria-label="Enter steps, one per line"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
@@ -287,7 +287,7 @@ export function InboxPanel({
                 ref={excelInput}
                 type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                aria-label="Select release conditions Excel file"
+                aria-label="Select steps Excel file"
                 onChange={(event) => {
                   void importExcel(event.target.files?.[0]);
                 }}
@@ -309,7 +309,7 @@ export function InboxPanel({
             <label className="relative block">
               <Search className="absolute left-2 top-2.5 size-3.5 text-muted-foreground lg:left-2.5 lg:size-4" />
               <input
-                aria-label="Search release conditions"
+                aria-label="Search steps"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search"
@@ -332,14 +332,14 @@ export function InboxPanel({
                 data-release-condition-index={index}
                 data-release-condition-node-id={RELEASE_CONDITION_INBOX_ID}
                 role="group"
-                aria-label={`Unassigned release condition ${index + 1}`}
+                aria-label={`Unassigned step ${index + 1}`}
                 className="rounded-lg border bg-card p-1.5 shadow-xs lg:p-2.5"
               >
                 <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:gap-2">
                   <button
                     type="button"
                     data-inbox-drag-handle
-                    aria-label={`Drag unassigned release condition ${index + 1}`}
+                    aria-label={`Drag unassigned step ${index + 1}`}
                     disabled={!chapters.length}
                     onPointerDown={(event) =>
                       beginReleaseConditionDrag(
@@ -360,9 +360,7 @@ export function InboxPanel({
                   </button>
                   <ConditionTextArea
                     aria-label={`Unassigned condition text ${index + 1}`}
-                    value={
-                      condition.label ?? condition.description ?? `Release condition ${index + 1}`
-                    }
+                    value={condition.label ?? condition.description ?? `Step ${index + 1}`}
                     onChange={(event) => setInboxCondition(index, { label: event.target.value })}
                     onBlur={(event) => {
                       const label = event.target.value.trim();
@@ -373,7 +371,7 @@ export function InboxPanel({
                   />
                   <button
                     type="button"
-                    aria-label={`Delete unassigned release condition ${index + 1}`}
+                    aria-label={`Delete unassigned step ${index + 1}`}
                     onClick={() => setInbox(inbox.filter((_, current) => current !== index))}
                     className="ml-auto flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive lg:ml-0 lg:size-7"
                   >

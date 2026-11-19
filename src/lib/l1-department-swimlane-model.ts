@@ -27,7 +27,7 @@ type DepartmentConnection = {
 };
 
 type EvidenceItem = {
-  kind: "Form" | "RC";
+  kind: "Form" | "Step";
   code: string;
   title: string;
   description?: string;
@@ -184,8 +184,8 @@ function conditionEvidence(node: DomainNode, phase: PhaseColumn): EvidenceItem[]
     const description = condition.description?.trim();
     return [
       {
-        kind: "RC" as const,
-        code: "RC",
+        kind: "Step" as const,
+        code: "STEP",
         title: `${label}${conditionDurationLabel(condition) ? ` · ${conditionDurationLabel(condition)}` : ""}`,
         description:
           description && description.toLocaleLowerCase() !== label.toLocaleLowerCase()
@@ -454,13 +454,13 @@ export function ganttCoverage(
 
 export function evidenceHtml(column: DepartmentColumn) {
   if (!column.evidence.length) {
-    return `<div class="empty-evidence">No linked forms or release conditions</div>`;
+    return `<div class="empty-evidence">No linked forms or steps</div>`;
   }
   return column.evidence
     .map(
       (item, index) => `
     <div class="evidence-item">
-      <div class="evidence-line"><span class="evidence-number">${index + 1}</span><span class="kind kind-${item.kind.toLocaleLowerCase()}">${escapeHtml(item.kind)}${item.kind === "Form" && item.code ? ` · ${escapeHtml(item.code)}` : ""}</span><span class="evidence-title">${escapeHtml(item.title)}${item.kind === "RC" ? "*" : ""}</span></div>
+      <div class="evidence-line"><span class="evidence-number">${index + 1}</span><span class="kind kind-${item.kind.toLocaleLowerCase()}">${escapeHtml(item.kind)}${item.kind === "Form" && item.code ? ` · ${escapeHtml(item.code)}` : ""}</span><span class="evidence-title">${escapeHtml(item.title)}${item.kind === "Step" ? "*" : ""}</span></div>
       <div class="evidence-meta">${escapeHtml(item.phaseLabel)}${item.chapterCode ? ` · ${escapeHtml(item.chapterCode)}` : ""}</div>
       ${item.description ? `<div class="evidence-description">${escapeHtml(item.description)}</div>` : ""}
     </div>`,

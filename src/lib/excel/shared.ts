@@ -69,8 +69,7 @@ export function usesGateForm(node: DomainNode) {
 export function interfaceText(node: DomainNode) {
   const gate = usesGateForm(node);
   return {
-    conditionsTitle:
-      node.config.conditionsTitle || (gate ? "Approval conditions" : "Release conditions"),
+    conditionsTitle: node.config.conditionsTitle || (gate ? "Approval conditions" : "Steps"),
     documentsLabel: node.config.documentsLabel || "All applicable required documents",
     departmentLabel: node.config.departmentLabel || "Department",
     approverLabel: node.config.approverLabel || "Approved by",

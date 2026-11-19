@@ -82,31 +82,44 @@ test("Job Number auto-ticks the condition without forms and stays synced bidirec
 
   await expect(card.getByText("Job Number not set. You can add it later.")).toBeVisible();
   await expect(card).toContainText("Ready");
-  const check = card.getByRole("button", { name: "Check release condition 1" });
+  const check = card.getByRole("button", { name: "Check step 1" });
   await expect(check).toBeDisabled();
 
   // Entering 5 digits in the node auto-ticks "Job Number is entered" and prepends to the title.
   await jobInput.fill("27001");
   await expect(card.getByText("Job Number not set. You can add it later.")).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeVisible();
-  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Uncheck step 1" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Uncheck step 1" })).toBeDisabled();
   await expect(titleInput).toHaveValue("27001 No Job Number");
+
+  // Deleting even a single digit from the node immediately clears the old Job Number from the title.
+  await jobInput.focus();
+  await jobInput.press("Backspace");
+  await expect(jobInput).toHaveValue("2700");
+  await expect(titleInput).toHaveValue("No Job Number");
+  await expect(card.getByRole("button", { name: "Check step 1" })).toBeVisible();
+
+  // Completing the 5th digit syncs the new Job Number to the title and auto-ticks again.
+  await jobInput.type("2");
+  await expect(jobInput).toHaveValue("27002");
+  await expect(titleInput).toHaveValue("27002 No Job Number");
+  await expect(card.getByRole("button", { name: "Uncheck step 1" })).toBeVisible();
 
   // Clearing Job Number on the node unticks the condition and removes the 5-digit prefix from title.
   await jobInput.fill("");
-  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Check step 1" })).toBeVisible();
   await expect(titleInput).toHaveValue("No Job Number");
 
   // Typing a 5-digit Job Number at the left of the top-left title populates the node and auto-ticks.
   await titleInput.fill("28002 PROF ABC 1 St 1 Su");
   await expect(jobInput).toHaveValue("28002");
-  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Uncheck step 1" })).toBeVisible();
   await expect(card).toContainText("28002 PROF");
 
   // Removing the 5-digit prefix from the top-left title clears the node and unticks.
   await titleInput.fill("PROF ABC 1 St 1 Su");
   await expect(jobInput).toHaveValue("");
-  await expect(card.getByRole("button", { name: "Check release condition 1" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Check step 1" })).toBeVisible();
 });
 
 test("loading a titled workflow with a 5-digit Job Number populates Project Start automatically", async ({
@@ -132,7 +145,7 @@ test("loading a titled workflow with a 5-digit Job Number populates Project Star
   const card = page.locator('[data-id="start"]');
   await expect(card.getByRole("textbox", { name: "Job Number (5 digits)" })).toHaveValue("27001");
   await expect(card).toContainText("27001 PROF");
-  await expect(card.getByRole("button", { name: "Uncheck release condition 1" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Uncheck step 1" })).toBeVisible();
 });
 
 test("a cloud project can be created without a Job Number", async ({ page }) => {
@@ -234,9 +247,9 @@ test("adding Project Start to a workflow whose title has a Job Number populates 
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await page
     .locator(`[data-id="${startId}"]`)
-    .getByRole("button", { name: "Open L3 details for release condition 1" })
+    .getByRole("button", { name: "Open L3 details for step 1" })
     .click();
   await expect(page.getByText("No form required · Auto from Job Number")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Uncheck release condition" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Uncheck release condition" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Uncheck step" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Uncheck step" })).toBeDisabled();
 });

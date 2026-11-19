@@ -106,15 +106,11 @@ test("L3 explains the lock and ticking shows the previous-department popup", asy
   await page.getByRole("button", { name: "L2 · Detailed Workflow", exact: true }).click();
   await page
     .locator('[data-id="second"]')
-    .getByRole("button", { name: "Open L3 details for release condition 1", exact: true })
+    .getByRole("button", { name: "Open L3 details for step 1", exact: true })
     .click();
-  await expect(
-    page.getByText(/Finish every release condition in Chapter 1 first/).first(),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Check release condition", exact: true }).click();
+  await expect(page.getByText(/Finish every step in Chapter 1 first/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Check step", exact: true }).click();
   await expect(page.getByText("Finish the previous department first")).toBeVisible();
   await page.getByRole("button", { name: "Got it" }).click();
-  await expect(
-    page.getByRole("button", { name: "Check release condition", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check step", exact: true })).toBeVisible();
 });

@@ -78,7 +78,7 @@ export function AddDocumentDialog({
         .getState()
         .file.graph.nodes.find((node) => node.id === target.chapterId);
       const condition = findChapterCondition(latest, target.conditionId, target.conditionIndex);
-      if (!latest || !condition) throw new Error("This release condition is no longer available.");
+      if (!latest || !condition) throw new Error("This step is no longer available.");
       const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
       const required = isOptional ? false : documentRequired;
       const prefix =
@@ -169,7 +169,7 @@ export function AddDocumentDialog({
       .file.graph.nodes.find((node) => node.id === target.chapterId);
     const condition = findChapterCondition(latest, target.conditionId, target.conditionIndex);
     if (!latest || !condition) {
-      setDocumentError("This release condition is no longer available.");
+      setDocumentError("This step is no longer available.");
       return;
     }
     const isOptional = (latest.optionalConditions ?? []).some((item) => item.id === condition.id);
@@ -288,9 +288,9 @@ export function AddDocumentDialog({
                 </p>
               ) : (
                 <label className="block text-[11px] font-semibold">
-                  Release condition
+                  Step
                   <select
-                    aria-label="Choose release condition for forms"
+                    aria-label="Choose step for forms"
                     value={documentDialogTarget.conditionIndex}
                     onChange={(event) => {
                       const conditionIndex = Number(event.target.value);
@@ -316,7 +316,7 @@ export function AddDocumentDialog({
                 </label>
               )}
               <p className="text-[10px] text-muted-foreground">
-                Select one or more files from the L3 library for this release condition.
+                Select one or more files from the L3 library for this step.
               </p>
               {!targetIsOptional ? (
                 <fieldset>
@@ -432,9 +432,9 @@ export function AddDocumentDialog({
                 </p>
               ) : (
                 <label className="block text-[11px] font-semibold">
-                  Release condition
+                  Step
                   <select
-                    aria-label="Choose release condition for document"
+                    aria-label="Choose step for document"
                     value={documentDialogTarget.conditionIndex}
                     onChange={(event) => {
                       const conditionIndex = Number(event.target.value);
@@ -622,7 +622,7 @@ export function AddDocumentDialog({
               ) : null}
               {!targetCondition ? (
                 <p role="alert" className="text-[11px] text-destructive">
-                  Choose a valid release condition before adding this document.
+                  Choose a valid step before adding this document.
                 </p>
               ) : null}
             </div>

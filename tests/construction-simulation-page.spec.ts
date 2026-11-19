@@ -801,7 +801,7 @@ test("L5 adds a Factory Production row below the chosen L4 release condition", a
   // Choosing no Department in L5 takes the row out of L4.
   await page.getByRole("link", { name: "Open Construction Simulation" }).click();
   await card.getByLabel("Department").selectOption("");
-  await expect(status).toContainText("Choose a Department and a release condition");
+  await expect(status).toContainText("Choose a Department and a step");
   await page.getByRole("link", { name: "Open Process Overview" }).click();
   await expect(tasks).toHaveCount(firstTitle);
   await expect(row).toHaveCount(0);

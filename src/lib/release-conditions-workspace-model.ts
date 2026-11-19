@@ -10,7 +10,7 @@ import { getL1FallbackColor } from "@/lib/node-layout";
 import { type Condition, type DomainNode, type WorkflowFile } from "@/types/workflow";
 
 export const conditionText = (condition: Condition, index: number) =>
-  condition.label || condition.description || `Release condition ${index + 1}`;
+  condition.label || condition.description || `Step ${index + 1}`;
 export const chapterConditions = (node: DomainNode) => [
   ...node.conditions,
   ...(node.optionalConditions ?? []),

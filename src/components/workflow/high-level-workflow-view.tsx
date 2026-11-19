@@ -255,7 +255,7 @@ function HighLevelCanvasInner({
                   title: linkedWorkflowDisplayName(layer2Node),
                   gate: linkedWorkflowGate(nodeId, file.graph.nodes, file.layout.nodes),
                   conditionLabels: layer2Node.conditions.map(
-                    (condition) => condition.label || condition.description || "Release condition",
+                    (condition) => condition.label || condition.description || "Step",
                   ),
                   phaseGradientColors,
                 },

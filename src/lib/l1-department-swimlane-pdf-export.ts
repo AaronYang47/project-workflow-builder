@@ -326,7 +326,7 @@ export async function exportL1DepartmentSwimlanePdf(
         column.connections.length === 1 ? column.connections[0].phaseColor : undefined;
       const cardClass = singlePhaseColor ? "evidence-card single-phase-card" : "evidence-card";
       return `<div class="${cardClass}" style="--department-gradient:${gradient(colors)};--department-fill:${gradient(colors, 0.065)};${singlePhaseColor ? `--single-phase-color:${singlePhaseColor};` : ""}">
-      <div class="evidence-header"><span>FORMS & RELEASE CONDITIONS</span><span>${column.evidence.length}</span></div>
+      <div class="evidence-header"><span>FORMS & STEPS</span><span>${column.evidence.length}</span></div>
       ${evidenceHtml(column)}
     </div>`;
     })
@@ -422,7 +422,7 @@ export async function exportL1DepartmentSwimlanePdf(
     .evidence-number{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:#e2e8f0;text-align:center;font:800 7px/12px Arial,sans-serif;color:#334155}
     .kind{flex:0 0 auto;border-radius:3px;padding:1px 3px;font:800 6px Arial,sans-serif;letter-spacing:.04em}
     .kind-form{background:#e0f2fe;color:#075985}
-    .kind-rc{background:#ffedd5;color:#9a3412}
+    .kind-step{background:#ffedd5;color:#9a3412}
     .evidence-title{min-width:0;flex:1;overflow-wrap:anywhere;font-weight:700}
     .evidence-meta{margin:3px 0 0 16px;font:700 6px Arial,sans-serif;color:#64748b;letter-spacing:.03em}
     .evidence-description{margin:3px 0 0 16px;font-size:7px;line-height:1.25;color:#475569;overflow-wrap:anywhere}
@@ -432,7 +432,7 @@ export async function exportL1DepartmentSwimlanePdf(
   </style>
   <div class="document-header">
     <div><div class="kicker">${documentTitle}</div><h1>${escapeHtml(projectName)}</h1>${deliveryTag ? `<div class="delivery-tag${deliveryTag.fobYard ? " fob" : ""}">${escapeHtml(deliveryTag.label)}</div>` : ""}</div>
-    <div class="project-meta">${projectNumber ? `<div class="project-number"><span class="project-number-label">Job Number</span><span>${escapeHtml(projectNumber)}</span></div>` : ""}<div>Phases · Departments · ${options.gantt ? "Release Conditions · Gantt Chart" : "Release Conditions · Forms"}</div></div>
+    <div class="project-meta">${projectNumber ? `<div class="project-number"><span class="project-number-label">Job Number</span><span>${escapeHtml(projectNumber)}</span></div>` : ""}<div>Phases · Departments · ${options.gantt ? "Steps · Gantt Chart" : "Steps · Forms"}</div></div>
   </div>
   <div class="phase-ribbon"></div>
   <div class="coverage-row">${aligned ? '<div class="coverage-caption">PHASE</div>' : ""}<div class="phase-row">${phaseHtml}</div></div>
@@ -441,7 +441,7 @@ export async function exportL1DepartmentSwimlanePdf(
   ${pendingPhases.length || pendingDepartments.length ? `<p class="gantt-note">No scheduled duration: ${[...pendingPhases.map((phase) => phase.node.title), ...pendingDepartments.map((column) => column.label)].map(escapeHtml).join(" · ")}</p>` : ""}
   ${options.gantt ? processGanttPdfHtml(file, new Map(phases.map((phase) => [phase.node.id, phase.color])), { salesRowsWithoutBars: true }) : `<div class="down-arrow-grid">${downArrows}</div><div class="evidence-grid">${evidenceHtmlRows}</div>`}
   ${supportingDocumentsHtml}
-  <div class="footer">${options.gantt ? `${file.calendar ? "Calendar dates use the formal Sales-to-Technical handover as the start date. Grey intervals mark days off inside each task’s total duration; actual work equals total calendar days minus non-overlapping shutdown, statutory holiday and weekend days." : "Sales lead customer qualification before Day 1 is excluded from the elapsed-day totals. Day 1 is the formal Sales-to-Technical handover."} Phase and department color boundaries align with the Gantt time axis. Department cards show phase coverage; their widths do not represent individual task timing. ${file.releaseConditionInbox?.length || 0} unassigned condition(s) are not scheduled.` : "Department names are shown once. Phase-specific chapters, partial involvement, forms, and release conditions are listed with their source phase."}</div>`;
+  <div class="footer">${options.gantt ? `${file.calendar ? "Calendar dates use the formal Sales-to-Technical handover as the start date. Grey intervals mark days off inside each task’s total duration; actual work equals total calendar days minus non-overlapping shutdown, statutory holiday and weekend days." : "Sales lead customer qualification before Day 1 is excluded from the elapsed-day totals. Day 1 is the formal Sales-to-Technical handover."} Phase and department color boundaries align with the Gantt time axis. Department cards show phase coverage; their widths do not represent individual task timing. ${file.releaseConditionInbox?.length || 0} unassigned condition(s) are not scheduled.` : "Department names are shown once. Phase-specific chapters, partial involvement, forms, and steps are listed with their source phase."}</div>`;
 
   document.body.appendChild(container);
   try {
@@ -507,8 +507,8 @@ export async function exportL1DepartmentSwimlanePdf(
     pdf.setProperties({
       title: `${projectName} - ${documentTitle}`,
       subject: options.gantt
-        ? "Phases, departments and release condition Gantt chart"
-        : "Phases, departments, release conditions and forms",
+        ? "Phases, departments and step Gantt chart"
+        : "Phases, departments, steps and forms",
     });
     const safeName =
       `${projectNumber ? `${projectNumber}-` : ""}${projectName}`

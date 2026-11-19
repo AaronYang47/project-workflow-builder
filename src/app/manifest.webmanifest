@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Falcon Process Building System",
   "short_name": "Falcon Process Building System",
-  "description": "Build and manage project workflows, release conditions, and execution records.",
+  "description": "Build and manage project workflows, steps, and execution records.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",

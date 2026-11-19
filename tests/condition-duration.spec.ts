@@ -27,30 +27,18 @@ test("release condition duration replaces date and persists in weeks", async ({ 
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const card = page.locator('[data-id="sales-duration"]');
-  await card
-    .getByRole("button", { name: "Edit release condition 1 in Inspector", exact: true })
-    .first()
-    .click();
+  await card.getByRole("button", { name: "Edit step 1 in Inspector", exact: true }).first().click();
   await expect(page.getByText("Display date", { exact: true })).toHaveCount(0);
-  await page
-    .getByRole("spinbutton", { name: "Release condition 1 duration", exact: true })
-    .fill("2");
-  await page
-    .getByRole("combobox", { name: "Release condition 1 duration unit" })
-    .selectOption("weeks");
+  await page.getByRole("spinbutton", { name: "Step 1 duration", exact: true }).fill("2");
+  await page.getByRole("combobox", { name: "Step 1 duration unit" }).selectOption("weeks");
   // L2 cards list condition names only; the duration lives in the Inspector, Gantt and L3.
   await expect(card).not.toContainText("2026-10-29");
   await page.reload();
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
-  await card
-    .getByRole("button", { name: "Edit release condition 1 in Inspector", exact: true })
-    .first()
-    .click();
-  await expect(
-    page.getByRole("spinbutton", { name: "Release condition 1 duration", exact: true }),
-  ).toHaveValue("2");
-  await expect(
-    page.getByRole("combobox", { name: "Release condition 1 duration unit" }),
-  ).toHaveValue("weeks");
+  await card.getByRole("button", { name: "Edit step 1 in Inspector", exact: true }).first().click();
+  await expect(page.getByRole("spinbutton", { name: "Step 1 duration", exact: true })).toHaveValue(
+    "2",
+  );
+  await expect(page.getByRole("combobox", { name: "Step 1 duration unit" })).toHaveValue("weeks");
   await expect(page.getByText("Display date", { exact: true })).toHaveCount(0);
 });

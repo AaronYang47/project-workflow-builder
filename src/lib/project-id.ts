@@ -103,7 +103,7 @@ export function syncProjectNameIdentity(
   const validCode = companyCode && /^[A-Z]{4}$/.test(companyCode) ? companyCode : undefined;
   const applyCode = (value: string) =>
     validCode ? value.replace(/^([A-Za-z]{4})(?=[_ -]|$)/, validCode) : value;
-  const leadMatch = name.match(/^(\s*)(\d{5})(?:([_ -]+)(.*))?$/);
+  const leadMatch = name.match(/^(\s*)(\d{5})(?:([\s_-]+)([\s\S]*))?$/);
   if (leadMatch) {
     const [, leadingWs, existingNum, sep = "", rawRest = ""] = leadMatch;
     const rest = applyCode(rawRest);
@@ -135,8 +135,13 @@ export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
     legacyJobNumberFromProjectId(rawProjectId) ||
     (LEGACY_JOB_NUMBER_PATTERN.test(rawProjectId) ? rawProjectId : "");
   const conditions = syncJobNumberCondition(node.conditions || [], Boolean(legacyJobNumber));
+  const clearProjectNumber =
+    "projectNumber" in node.customFields &&
+    node.customFields.projectNumber !== "" &&
+    !legacyJobNumber;
   if (
     String(node.customFields.legacyJobNumber || "") === legacyJobNumber &&
+    !clearProjectNumber &&
     conditions === (node.conditions || [])
   ) {
     return node;
@@ -144,7 +149,11 @@ export function withSyncedLegacyJobNumber(node: DomainNode): DomainNode {
   return {
     ...node,
     conditions,
-    customFields: { ...node.customFields, legacyJobNumber },
+    customFields: {
+      ...node.customFields,
+      legacyJobNumber,
+      ...(clearProjectNumber ? { projectNumber: "" } : {}),
+    },
   };
 }
 
@@ -179,19 +188,17 @@ export function applyNodeJobNumberToFile(
   const nextDigits =
     legacyJobNumberFromProjectId(rawProjectId) ||
     (LEGACY_JOB_NUMBER_PATTERN.test(rawProjectId) ? rawProjectId : "");
-  const numberSyncArg = nextDigits ? nextDigits : rawProjectId === "" ? "" : undefined;
 
   return {
     ...file,
     graph: {
       ...file.graph,
-      metadata:
-        isStartProjectIdPatch && numberSyncArg !== undefined
-          ? {
-              ...file.graph.metadata,
-              name: syncProjectNameIdentity(file.graph.metadata.name, numberSyncArg),
-            }
-          : file.graph.metadata,
+      metadata: isStartProjectIdPatch
+        ? {
+            ...file.graph.metadata,
+            name: syncProjectNameIdentity(file.graph.metadata.name, nextDigits),
+          }
+        : file.graph.metadata,
       nodes: file.graph.nodes.map((item) =>
         item.id === nodeId
           ? withSyncedLegacyJobNumber({

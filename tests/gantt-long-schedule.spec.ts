@@ -55,7 +55,7 @@ test("long weekly work switches to monthly axis and later conditions follow edit
   const firstRow = page.locator('[data-gantt-task="Delineation"]');
   const firstLabel = firstRow.locator("[data-gantt-label]");
   const fixedLeft = (await firstLabel.boundingBox())!.x;
-  const header = board.getByText("Department / release condition");
+  const header = board.getByText("Department / step");
   const headerLeft = (await header.boundingBox())!.x;
   const departmentHeading = board.locator("[data-gantt-department] h3 span").first();
   const departmentLeft = (await departmentHeading.boundingBox())!.x;
@@ -279,17 +279,17 @@ test("mobile conditions board uses a full-width canvas with an unassigned drawer
   );
   await page.goto("/release-conditions");
   await expect(page.getByRole("button", { name: /Open unassigned conditions/ })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeHidden();
+  await expect(page.getByRole("region", { name: "Unassigned steps" })).toBeHidden();
   await page.getByRole("button", { name: /Open unassigned conditions/ }).click();
-  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Unassigned steps" })).toBeVisible();
   await page.getByRole("button", { name: "Assign Unassigned review" }).click();
-  const assignment = page.getByRole("dialog", { name: "Assign release condition" });
+  const assignment = page.getByRole("dialog", { name: "Assign step" });
   await expect(assignment).toBeVisible();
   await assignment
     .getByRole("button", { name: "Assign to Technical Department CHAPTER 01" })
     .click();
   await expect(assignment).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Unassigned release conditions" })).toBeHidden();
+  await expect(page.getByRole("region", { name: "Unassigned steps" })).toBeHidden();
   await expect(page.locator('[data-release-condition-chapter-id="technical"]')).toHaveAttribute(
     "data-release-condition-count",
     "2",

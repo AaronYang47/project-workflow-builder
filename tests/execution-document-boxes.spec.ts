@@ -114,7 +114,7 @@ test("Required and Supporting boxes count, tick, label and remove documents", as
   const required = box(page, "Required Documents");
   const supporting = box(page, "Supporting Documents");
 
-  await expect(required).toContainText("Forms / Documents for this release condition");
+  await expect(required).toContainText("Forms / Documents for this step");
   await expect(required).toContainText("0/2 Executed");
   await expect(required).toContainText("LEG-11");
   await expect(required).toContainText("FORM");

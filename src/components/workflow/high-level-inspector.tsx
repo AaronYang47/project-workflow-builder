@@ -370,7 +370,7 @@ export function HighLevelInspector() {
               </div>
               {linkedIds.some((id) => (workflowNodeById.get(id)?.conditions.length ?? 0) > 0) ? (
                 <div className="rounded-md border bg-card p-2.5">
-                  <p className="text-xs font-semibold">Release conditions in linked Departments</p>
+                  <p className="text-xs font-semibold">Steps in linked Departments</p>
                   <div className="mt-2 max-h-56 space-y-2 overflow-y-auto text-[11px]">
                     {linkedIds.map((id) => {
                       const chapter = workflowNodeById.get(id);

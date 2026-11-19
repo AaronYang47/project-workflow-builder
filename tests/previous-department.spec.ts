@@ -93,13 +93,13 @@ test("clicking a blocked condition on L2 shows the popup", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const second = page.locator('.react-flow__node[data-id="second"]');
-  await second.getByRole("button", { name: "Check release condition 1" }).click();
+  await second.getByRole("button", { name: "Check step 1" }).click();
   const dialog = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(dialog.getByText("Finish the previous department first")).toBeVisible();
   await expect(dialog).toContainText("Department Sales");
   await page.getByRole("button", { name: "Got it" }).click();
   // Still unticked.
-  await expect(second.getByRole("button", { name: "Check release condition 1" })).toBeVisible();
+  await expect(second.getByRole("button", { name: "Check step 1" })).toBeVisible();
 });
 
 test("ticks made out of order before the rule are flagged in validation, not removed", () => {
@@ -172,7 +172,7 @@ test("earlier required conditions on the same department block later conditions 
 
   expect(precedingConditionBlocker(store().file, "sales", "sales-1")).toBeUndefined();
   expect(releaseConditionBlocker(store().file, "sales", "sales-2")).toMatchObject({
-    title: "Finish the previous release condition first",
+    title: "Finish the previous step first",
   });
 
   // Trying to tick Condition 2 on L2 is blocked and shows the popup.
@@ -180,7 +180,7 @@ test("earlier required conditions on the same department block later conditions 
     conditions: sales().conditions.map((c) => (c.id === "sales-2" ? { ...c, checked: true } : c)),
   });
   expect(sales().conditions[1].checked).toBe(false);
-  expect(store().deleteBlocked?.title).toBe("Finish the previous release condition first");
+  expect(store().deleteBlocked?.title).toBe("Finish the previous step first");
   expect(store().deleteBlocked?.message).toContain("Sales condition 1");
 
   // Trying to tick any L3 file on Condition 2 is also blocked.
@@ -245,15 +245,15 @@ test("clicking blocked L2 conditions or L3 files shows the popup across all thre
 
   // 1. L2: clicking Condition 2 on Sales while Condition 1 is incomplete shows the condition popup.
   const salesCard = page.locator('.react-flow__node[data-id="sales"]');
-  await salesCard.getByRole("button", { name: "Check release condition 2" }).click();
+  await salesCard.getByRole("button", { name: "Check step 2" }).click();
   const dialog = page.getByRole("alertdialog").or(page.getByRole("dialog"));
-  await expect(dialog.getByText("Finish the previous release condition first")).toBeVisible();
+  await expect(dialog.getByText("Finish the previous step first")).toBeVisible();
   await expect(dialog).toContainText("Sales condition 1");
   await page.getByRole("button", { name: "Got it" }).click();
-  await expect(salesCard.getByRole("button", { name: "Check release condition 2" })).toBeVisible();
+  await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
   // 2. L3 files page for Sales Condition 2: every file box is blocked with popup until Condition 1 is done.
-  await salesCard.getByRole("button", { name: "Open L3 details for release condition 2" }).click();
+  await salesCard.getByRole("button", { name: "Open L3 details for step 2" }).click();
   await expect(
     page.getByText(/Finish “Sales condition 1” in Department Sales first/),
   ).toBeVisible();
@@ -261,7 +261,7 @@ test("clicking blocked L2 conditions or L3 files shows the popup across all thre
   for (const title of ["Signed contract", "Client sheet", "Site photo"]) {
     const box = page.getByRole("checkbox", { name: `Required file: ${title}` });
     await box.click();
-    await expect(dialog.getByText("Finish the previous release condition first")).toBeVisible();
+    await expect(dialog.getByText("Finish the previous step first")).toBeVisible();
     await page.getByRole("button", { name: "Got it" }).click();
     await expect(box).not.toBeChecked();
   }
@@ -281,7 +281,7 @@ test("clicking blocked L2 conditions or L3 files shows the popup across all thre
   // 4. L3 files page for Technical while Sales is incomplete shows the department popup.
   await page.getByRole("button", { name: "Back to L2 Detailed Workflow" }).click();
   const techCard = page.locator('.react-flow__node[data-id="tech"]');
-  await techCard.getByRole("button", { name: "Open L3 details for release condition 1" }).click();
+  await techCard.getByRole("button", { name: "Open L3 details for step 1" }).click();
   const techBox = page.getByRole("checkbox", { name: "Required file: Technical intake" });
   await techBox.click();
   await expect(dialog.getByText("Finish the previous department first")).toBeVisible();

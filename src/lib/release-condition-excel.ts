@@ -21,7 +21,7 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   workbook.creator = "Falcon Process Building System";
   const sheet = workbook.addWorksheet("Conditions");
   sheet.columns = [
-    { header: "Release Condition", key: "condition", width: 64 },
+    { header: "Step", key: "condition", width: 64 },
     { header: "Department (optional)", key: "chapter", width: 42 },
     { header: "Condition ID (keep for existing rows)", key: "id", width: 52 },
   ];
@@ -58,7 +58,7 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   guide.getColumn(2).width = 40;
   guide.getColumn(3).width = 52;
   guide.addRow([
-    "Fill one release condition per row on the Conditions sheet. Existing conditions are already included.",
+    "Fill one step per row on the Conditions sheet. Existing conditions are already included.",
   ]);
   guide.addRow([
     "Column A: edit the condition text. Column B: enter an existing Department name, or leave blank for Unassigned.",
@@ -71,11 +71,7 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   ]);
   guide.addRow([]);
   guide.addRow(["Sample new row — copy the values into a blank row on Conditions:"]);
-  guide.addRow([
-    "Release Condition",
-    "Department (optional)",
-    "Condition ID (keep for existing rows)",
-  ]);
+  guide.addRow(["Step", "Department (optional)", "Condition ID (keep for existing rows)"]);
   guide.addRow(["Permit drawing approved", chapters[0]?.title ?? "", ""]);
   guide.addRow([]);
   guide.addRow(["Existing Departments"]);
@@ -83,7 +79,7 @@ export async function downloadReleaseConditionTemplate(file: WorkflowFile) {
   guide.getRow(7).font = { bold: true };
   guide.getRow(10).font = { bold: true };
   const buffer = await workbook.xlsx.writeBuffer();
-  downloadBlob("release-conditions-template.xlsx", buffer as ArrayBuffer, EXCEL_MIME);
+  downloadBlob("steps-template.xlsx", buffer as ArrayBuffer, EXCEL_MIME);
 }
 
 function cellText(value: unknown): string {
@@ -113,7 +109,7 @@ export async function parseReleaseConditionExcel(
     ? headers.map((value) => cellText(value).toLowerCase())
     : [];
   const conditionColumn = headerValues.findIndex(
-    (value) => value === "release condition" || value === "condition",
+    (value) => value === "step" || value === "release condition" || value === "condition",
   );
   const chapterColumn = headerValues.findIndex(
     (value) =>
@@ -128,9 +124,7 @@ export async function parseReleaseConditionExcel(
     (value) => value === "condition id" || value === "condition id (keep for existing rows)",
   );
   if (conditionColumn < 1)
-    throw new Error(
-      "The first row needs a ‘Release Condition’ column. Please use the downloaded template.",
-    );
+    throw new Error("The first row needs a ‘Step’ column. Please use the downloaded template.");
 
   const rows: ReleaseConditionSpreadsheetRow[] = [];
   for (let index = 2; index <= sheet.rowCount; index++) {
@@ -139,9 +133,9 @@ export async function parseReleaseConditionExcel(
     const chapterName = chapterColumn > 0 ? cellText(row.getCell(chapterColumn).value) : "";
     const conditionId = idColumn > 0 ? cellText(row.getCell(idColumn).value) : "";
     if (!label && !chapterName && !conditionId) continue;
-    if (!label) throw new Error(`Row ${index} has a Department but no Release Condition.`);
+    if (!label) throw new Error(`Row ${index} has a Department but no Step.`);
     rows.push({ label, chapterName, conditionId });
   }
-  if (!rows.length) throw new Error("No release conditions were found in the spreadsheet.");
+  if (!rows.length) throw new Error("No steps were found in the spreadsheet.");
   return rows;
 }

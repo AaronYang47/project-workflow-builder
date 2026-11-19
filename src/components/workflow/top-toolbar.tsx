@@ -544,7 +544,7 @@ export function TopToolbar({
               <div className="flex flex-col">
                 <span className="font-semibold text-xs">High Level Process System Flowchart</span>
                 <span className="text-[10px] text-muted-foreground">
-                  Phases, departments, forms & release conditions
+                  Phases, departments, forms & steps
                 </span>
               </div>
             </DropdownMenuItem>
@@ -593,7 +593,7 @@ export function TopToolbar({
               <Presentation className="size-4 text-amber-500 shrink-0" />
               <div className="flex flex-col">
                 <span className="font-semibold text-xs">Export PDF for Presentation</span>
-                <span className="text-[10px] text-muted-foreground">With Release Conditions</span>
+                <span className="text-[10px] text-muted-foreground">With Steps</span>
               </div>
             </DropdownMenuItem>
 
@@ -603,10 +603,10 @@ export function TopToolbar({
             >
               <Presentation className="size-4 text-amber-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-xs">Export PDF for Presentation · No RC</span>
-                <span className="text-[10px] text-muted-foreground">
-                  Without Release Conditions
+                <span className="font-semibold text-xs">
+                  Export PDF for Presentation · No Steps
                 </span>
+                <span className="text-[10px] text-muted-foreground">Without Steps</span>
               </div>
             </DropdownMenuItem>
 

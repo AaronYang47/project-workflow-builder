@@ -68,7 +68,7 @@ for (const route of ["process-overview", "release-conditions"]) {
     const handle =
       route === "process-overview"
         ? source.locator("[data-gantt-label]").filter({ hasText: "Drag this condition" })
-        : source.getByRole("button", { name: "Drag release condition 1", exact: true });
+        : source.getByRole("button", { name: "Drag step 1", exact: true });
     const remoteGhost = viewer.locator("[data-remote-drag-preview]");
     const drag = async () => {
       await handle.hover();

@@ -115,7 +115,7 @@ export function MobileScheduleList({
       })}
       {!schedule.tasks.length && (
         <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-          Add release conditions to build a schedule.
+          Add steps to build a schedule.
         </p>
       )}
     </div>

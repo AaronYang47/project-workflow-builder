@@ -66,7 +66,7 @@ test("five-digit project display and release condition drag across stages", asyn
   const target = page.locator('[data-id="stage-two"]');
   await expect(source.getByRole("textbox", { name: "Department" })).toHaveValue("Department");
   await page.waitForTimeout(250);
-  const sourceGrip = source.getByRole("button", { name: "Drag to reorder release condition 1" });
+  const sourceGrip = source.getByRole("button", { name: "Drag to reorder step 1" });
   await expect
     .poll(async () => {
       await sourceGrip.hover();
@@ -88,7 +88,7 @@ test("five-digit project display and release condition drag across stages", asyn
   await expect(target.getByText("Move me")).toBeVisible();
   await expect(target.locator('[data-release-condition-index="0"]')).toContainText("Move me");
   await target
-    .getByRole("button", { name: "Drag to reorder release condition 1" })
+    .getByRole("button", { name: "Drag to reorder step 1" })
     .dragTo(source.locator("[data-node-header]"));
   await expect(source.getByText("Move me")).toBeVisible();
   await expect(target.getByText("Move me")).toHaveCount(0);
@@ -119,7 +119,7 @@ test("release condition drag lifts the full row and shifts nearby rows", async (
 
   const stageOne = page.locator('[data-id="stage-one"]');
   const rows = stageOne.locator("[data-release-condition-index]");
-  const grip = stageOne.getByRole("button", { name: "Drag to reorder release condition 1" });
+  const grip = stageOne.getByRole("button", { name: "Drag to reorder step 1" });
   await expect(rows).toHaveCount(3);
   await page.waitForTimeout(250);
   await expect
@@ -185,7 +185,7 @@ test("Job Number condition can be dragged within the first Chapter", async ({ pa
   const card = page.locator('[data-id="project-start"]');
   const rows = card.locator("[data-release-condition-index]");
   await expect(rows).toHaveCount(2);
-  const handle = card.getByRole("button", { name: "Drag to reorder release condition 1" });
+  const handle = card.getByRole("button", { name: "Drag to reorder step 1" });
   await page.waitForTimeout(500);
   await handle.hover();
   await page.mouse.down();

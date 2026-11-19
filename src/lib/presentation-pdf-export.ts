@@ -375,7 +375,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
     if (linkedL2.length === 0) {
       l3NodesHtml = `
         <div style="color: #94a3b8; font-size: 10px; font-style: italic; text-align: center; padding: 10px;">
-          No release conditions or controlled forms defined.
+          No steps or controlled forms defined.
         </div>
       `;
     } else {
@@ -675,7 +675,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           </div>
           <div style="display: flex; align-items: center; gap: 5px;">
             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
-            L3 · Node-by-Node Release Conditions & Controlled Documents
+            L3 · Node-by-Node Steps & Controlled Documents
           </div>
         </div>
 
@@ -692,7 +692,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
           <span>● <strong>Adaptive Layout:</strong> The canvas expands to fit the workflow content.</span>
         </div>
         <div style="font-weight: 700; color: #0f172a;">
-          Falcon Process Building System · Architecture with complete release condition register
+          Falcon Process Building System · Architecture with complete step register
         </div>
       </div>
 
@@ -749,7 +749,7 @@ export async function exportPresentationPdf(file: WorkflowFile): Promise<void> {
       pdf.addPage("a4", "landscape");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(15);
-      pdf.text("Release conditions - complete ordered list", 15, 17);
+      pdf.text("Steps - complete ordered list", 15, 17);
       let y = 28;
       const writeLines = (lines: string[], x: number, lineHeight: number) => {
         for (const line of lines) {

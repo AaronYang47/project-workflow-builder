@@ -32,8 +32,8 @@ const EDITING_CONTROLS = [
   '[aria-label^="Drag to reorder"]',
   '[aria-label="Drag node"]',
   '[aria-label^="Open notes for"]',
-  '[aria-label^="Edit release condition"]',
-  '[aria-label^="Delete release condition"]',
+  '[aria-label^="Edit step"]',
+  '[aria-label^="Delete step"]',
   "svg.lucide-grip-vertical",
 ].join(", ");
 const EDITING_BUTTON_TEXT = /^(\+\s*)?(Add condition|View All)$/i;

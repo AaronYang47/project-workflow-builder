@@ -497,17 +497,13 @@ export function ExecutionView({
                     return (
                       <button
                         type="button"
-                        aria-label={
-                          currentConditionChecked
-                            ? "Uncheck release condition"
-                            : "Check release condition"
-                        }
+                        aria-label={currentConditionChecked ? "Uncheck step" : "Check step"}
                         title={
                           isJobNumberCondition
                             ? "Automatically checked when a complete Job Number is entered (no form required)"
                             : currentConditionChecked
-                              ? "Uncheck release condition"
-                              : "Mark release condition complete"
+                              ? "Uncheck step"
+                              : "Mark step complete"
                         }
                         disabled={
                           isJobNumberCondition ||
@@ -596,7 +592,7 @@ export function ExecutionView({
       {conditions.length > 0 ? (
         <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-background/50 px-4 py-2 scroll-thin sm:px-6">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">
-            Release Conditions:
+            Steps:
           </span>
           {conditions.map((condition, idx) => {
             const isSelected =
@@ -745,7 +741,7 @@ export function ExecutionView({
           {/* ============================================================ */}
           <DocumentBox
             title="Required Documents"
-            subtitle="Forms / Documents for this release condition"
+            subtitle="Forms / Documents for this step"
             icon={<Scale className="size-4" />}
             theme={DOCUMENT_BOX_THEMES.indigo}
             docs={customLegalDocs}
@@ -808,8 +804,8 @@ export function ExecutionView({
             {releaseReady
               ? `${node.title.toUpperCase()} is ready to release.`
               : allRequiredChecked
-                ? "This release condition is complete. Complete the remaining department requirements to release this node."
-                : "Complete this release condition’s required documents and tasks to continue."}
+                ? "This step is complete. Complete the remaining department requirements to release this node."
+                : "Complete this step’s required documents and tasks to continue."}
           </span>
         </div>
         <p className="text-[11px] font-mono text-muted-foreground">

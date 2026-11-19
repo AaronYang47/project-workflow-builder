@@ -1,4 +1,5 @@
 import type { DomainNode } from "@/types/workflow";
+import type { QualificationForm101 } from "@/lib/qualification-form-101";
 
 /** Choices made in the L2 Qualification node. All can be changed later. */
 export type Qualification = {
@@ -9,6 +10,8 @@ export type Qualification = {
   /** Plans Available? Yes → LOI / CSA / PCS; No → CSA (Concept Consultation). */
   plansAvailable?: "yes" | "no";
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
+  /** PROFAB [1.01] Qualification Form data, stored only when edited. */
+  form101?: QualificationForm101;
 };
 
 export const CLIENT_TYPES = ["Owner", "GC", "Architect", "Consultant", "Other"] as const;

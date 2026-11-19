@@ -250,7 +250,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
               conditions.length > 0
                 ? `
                 <div style="margin-bottom: 12px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px;">
-                  <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Release Conditions</span>
+                  <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Steps</span>
                   <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                     ${conditions
                       .map(

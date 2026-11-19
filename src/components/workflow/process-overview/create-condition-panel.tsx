@@ -53,14 +53,14 @@ export function CreateConditionPanel({
 
   return (
     <aside
-      aria-label="Create and assign release conditions"
+      aria-label="Create and assign steps"
       className="absolute bottom-4 right-4 top-20 z-50 flex w-[320px] max-w-[calc(100%-32px)] flex-col overflow-hidden rounded-xl border bg-panel shadow-xl"
     >
       <div className="flex shrink-0 items-center justify-between border-b px-3 py-3">
-        <h2 className="text-sm font-bold">Create Release Condition</h2>
+        <h2 className="text-sm font-bold">Create Step</h2>
         <button
           type="button"
-          aria-label="Close Create Release Condition"
+          aria-label="Close Create Step"
           onClick={onClose}
           className="rounded p-1 hover:bg-muted"
         >
@@ -75,9 +75,9 @@ export function CreateConditionPanel({
         }}
       >
         <label className="block text-xs font-semibold">
-          Condition name
+          Step name
           <input
-            aria-label="New release condition"
+            aria-label="New step"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             disabled={!canEdit}
@@ -105,15 +105,15 @@ export function CreateConditionPanel({
           disabled={!canEdit || !draft.trim()}
           className="flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
         >
-          <Plus className="size-3.5" /> Create release condition
+          <Plus className="size-3.5" /> Create step
         </button>
         <p className="text-[11px] leading-4 text-muted-foreground">
-          Drag a condition below into a chapter in the Gantt chart, and it adopts that chapter’s
+          Drag a step below into a chapter in the Gantt chart, and it adopts that chapter’s
           department and phase.
         </p>
       </form>
       <section
-        aria-label="Unassigned release conditions"
+        aria-label="Unassigned steps"
         data-release-condition-chapter
         data-release-condition-drop-node-id={RELEASE_CONDITION_INBOX_ID}
         data-release-condition-count={inbox.length}
@@ -125,7 +125,7 @@ export function CreateConditionPanel({
           className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3"
         >
           {inbox.map((condition, index) => {
-            const name = condition.label || `condition ${index + 1}`;
+            const name = condition.label || `step ${index + 1}`;
             return (
               <div
                 key={condition.id || index}
@@ -145,7 +145,7 @@ export function CreateConditionPanel({
                       {
                         nodeId: RELEASE_CONDITION_INBOX_ID,
                         index,
-                        label: condition.label || "Release condition",
+                        label: condition.label || "Step",
                       },
                       (target) =>
                         moveCondition(
@@ -162,7 +162,7 @@ export function CreateConditionPanel({
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-xs font-medium">
-                    {condition.label || condition.description || "Release condition"}
+                    {condition.label || condition.description || "Step"}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {ganttDurationText(condition, false, workingDaysPerWeek) || "Duration not set"}

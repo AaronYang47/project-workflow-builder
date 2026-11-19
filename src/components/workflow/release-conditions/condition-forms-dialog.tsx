@@ -73,7 +73,7 @@ export function ConditionFormsDialog({
               {conditionText(condition, conditionIndex)}
             </h2>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Forms linked to this {isOptional ? "optional condition" : "release condition"}
+              Forms linked to this {isOptional ? "optional condition" : "step"}
             </p>
           </div>
           {canEdit && !isOptional ? (
@@ -185,7 +185,7 @@ export function ConditionFormsDialog({
                       <button
                         type="button"
                         aria-label={`Remove ${document.title}`}
-                        title="Remove form from this release condition"
+                        title="Remove form from this step"
                         onClick={() =>
                           removeConditionDocument(
                             chapter,

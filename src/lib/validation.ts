@@ -337,7 +337,7 @@ export function validateWorkflow(file: WorkflowFile): ValidationIssue[] {
         id: `out-of-order-ticks-${node.id}`,
         severity: "warning",
         code: "OUT_OF_ORDER_TICKS",
-        message: `${node.title}: ${ticked.length} release condition${ticked.length === 1 ? " is" : "s are"} ticked before the previous department is finished. ${blocker}`,
+        message: `${node.title}: ${ticked.length} step${ticked.length === 1 ? " is" : "s are"} ticked before the previous department is finished. ${blocker}`,
         nodeId: node.id,
       });
       continue;

@@ -24,10 +24,14 @@ export function useProjectIdDraft({
 
   const nodeUuid = projectNodeUuid(node, projectStartNode);
   const rawProjectId = String(node.customFields.projectId || "");
+  const legacyFallback =
+    !("projectId" in node.customFields) && node.customFields.projectNumber
+      ? node.customFields.projectNumber
+      : "";
   const initialProjectId = isProjectStart
     ? legacyJobNumberFromProjectId(rawProjectId) ||
       rawProjectId.replace(/\D/g, "").slice(0, 5) ||
-      String(node.customFields.legacyJobNumber || node.customFields.projectNumber || "")
+      String(node.customFields.legacyJobNumber || legacyFallback || "")
         .replace(/\D/g, "")
         .slice(0, 5)
     : "";

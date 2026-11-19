@@ -97,7 +97,7 @@ function L4TargetPicker({
   const afterLabel = (item?: L4Start) =>
     after.find(
       (option) => option.nodeId === item?.nodeId && option.conditionId === item?.conditionId,
-    )?.label ?? "the chosen release condition";
+    )?.label ?? "the chosen step";
   return (
     <div className="col-span-2 grid grid-cols-2 gap-2" data-l4-target>
       <label className={labelClass}>
@@ -208,9 +208,9 @@ function L4TargetPicker({
         data-l4-target-status
       >
         {!departments.length
-          ? "No release conditions in this Phase in L4."
+          ? "No steps in this Phase in L4."
           : !condition
-            ? "Choose a Department and a release condition: L5 adds a Factory Production row below it in L4."
+            ? "Choose a Department and a step: L5 adds a Factory Production row below it in L4."
             : `L4: a Factory Production row below “${condition.title}”, following L5${lineDays === undefined ? " (this project doesn't finish on the line yet, so it keeps its last line time)" : `: ${lineDays} days on the line`}. L4's own rows don't change.`}
       </p>
     </div>

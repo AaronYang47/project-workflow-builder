@@ -41,9 +41,7 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
   const viewerId = await viewer.evaluate(() => sessionStorage.getItem("workflow-collab-peer-id"));
   expect(viewerId).not.toBe(editorId);
 
-  await page
-    .locator('[data-workflow-toolbar] a[aria-label="Open Release Conditions Workspace"]')
-    .click();
+  await page.locator('[data-workflow-toolbar] a[aria-label="Open Steps Workspace"]').click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/release-conditions");
   await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/");
@@ -51,9 +49,7 @@ test("viewer follows the editor's layers and cannot navigate until control is gr
 
   await expect(viewer.getByRole("button", { name: "L1 · High Level" })).toBeDisabled();
   await expect(viewer.getByRole("button", { name: "L2 · Detailed Workflow" })).toBeDisabled();
-  await expect(viewer.getByRole("link", { name: "Open Release Conditions Workspace" })).toHaveCount(
-    0,
-  );
+  await expect(viewer.getByRole("link", { name: "Open Steps Workspace" })).toHaveCount(0);
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(viewer.getByRole("button", { name: "L2 · Detailed Workflow" })).toHaveAttribute(
     "aria-pressed",
@@ -138,9 +134,7 @@ test("viewer follows Conditions and Process & Gantt routes, including late joins
   await seedE2EWorkflow(viewer);
   await viewer.goto(`/?room=${room}&editor=${editorId}`);
   await expect(viewer.getByRole("button", { name: "Take Control", exact: true })).toBeEnabled();
-  await page
-    .locator('[data-workflow-toolbar] a[aria-label="Open Release Conditions Workspace"]')
-    .click();
+  await page.locator('[data-workflow-toolbar] a[aria-label="Open Steps Workspace"]').click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/release-conditions");
   await expect(viewer.getByText("Read only", { exact: true })).toBeVisible();
   expect(new URL(viewer.url()).searchParams.get("room")).toBe(room);
@@ -152,32 +146,24 @@ test("viewer follows Conditions and Process & Gantt routes, including late joins
   await expect(
     viewer.getByRole("heading", { name: "Process system & schedule", exact: true }),
   ).toBeVisible();
-  await viewer.getByRole("button", { name: "Open Create Release Condition" }).click();
-  await expect(
-    viewer.getByRole("textbox", { name: "New release condition", exact: true }),
-  ).toBeDisabled();
+  await viewer.getByRole("button", { name: "Open Create Step" }).click();
+  await expect(viewer.getByRole("textbox", { name: "New step", exact: true })).toBeDisabled();
   // A new viewer opening an old canvas link must reach the editor's current page.
   const late = await context.newPage();
   await seedE2EWorkflow(late);
   await late.goto(`/?room=${room}&editor=${editorId}`);
   await expect.poll(() => new URL(late.url()).pathname).toBe("/process-overview");
-  await late.getByRole("button", { name: "Open Create Release Condition" }).click();
-  await expect(
-    late.getByRole("textbox", { name: "New release condition", exact: true }),
-  ).toBeDisabled();
+  await late.getByRole("button", { name: "Open Create Step" }).click();
+  await expect(late.getByRole("textbox", { name: "New step", exact: true })).toBeDisabled();
   await late.close();
   await viewer.getByRole("button", { name: "Take Control", exact: true }).click();
   await expect(page.getByText("Editing control requested")).toBeVisible();
   await page.getByRole("button", { name: "Allow", exact: true }).click();
-  await expect(
-    viewer.getByRole("textbox", { name: "New release condition", exact: true }),
-  ).toBeEnabled();
-  await viewer.getByRole("button", { name: "Close Create Release Condition" }).click();
+  await expect(viewer.getByRole("textbox", { name: "New step", exact: true })).toBeEnabled();
+  await viewer.getByRole("button", { name: "Close Create Step" }).click();
   await expect(page.getByText("Read only", { exact: true })).toBeVisible();
   // Follow direction reverses with editing control, even across page boundaries.
-  await viewer
-    .getByRole("link", { name: "Open Release Conditions Workspace", exact: true })
-    .click();
+  await viewer.getByRole("link", { name: "Open Steps Workspace", exact: true }).click();
   await expect.poll(() => new URL(page.url()).pathname).toBe("/release-conditions");
   await viewer.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(page.url()).pathname).toBe("/");
@@ -253,9 +239,7 @@ test("separate browser sessions can exchange a control request", async ({ browse
   await expect(viewer.getByRole("button", { name: "Take Control" })).toBeEnabled({
     timeout: 20000,
   });
-  await page
-    .locator('[data-workflow-toolbar] a[aria-label="Open Release Conditions Workspace"]')
-    .click();
+  await page.locator('[data-workflow-toolbar] a[aria-label="Open Steps Workspace"]').click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/release-conditions");
   await page.getByRole("link", { name: "L2 · Department Workflow" }).click();
   await expect.poll(() => new URL(viewer.url()).pathname).toBe("/");

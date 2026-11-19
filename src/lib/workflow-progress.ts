@@ -456,12 +456,12 @@ export function precedingConditionBlocker(
 
   const prevLabels = unmet.map((item) => {
     const idx = conditions.indexOf(item);
-    return item.label?.trim() || item.description?.trim() || `Release condition ${idx + 1}`;
+    return item.label?.trim() || item.description?.trim() || `Step ${idx + 1}`;
   });
   const target = conditions[targetIndex];
   const targetLabel =
-    target.label?.trim() || target.description?.trim() || `Release condition ${targetIndex + 1}`;
-  return `Finish ${prevLabels.map((name) => `“${name}”`).join(", ")} in ${nodeDisplayLabel(node)} first. “${targetLabel}” can be ticked once the preceding release condition is satisfied.`;
+    target.label?.trim() || target.description?.trim() || `Step ${targetIndex + 1}`;
+  return `Finish ${prevLabels.map((name) => `“${name}”`).join(", ")} in ${nodeDisplayLabel(node)} first. “${targetLabel}” can be ticked once the preceding step is satisfied.`;
 }
 
 /**
@@ -479,7 +479,7 @@ export function releaseConditionBlocker(
   }
   const conditionBlocker = precedingConditionBlocker(file, nodeId, conditionIdOrIndex);
   if (conditionBlocker) {
-    return { title: "Finish the previous release condition first", message: conditionBlocker };
+    return { title: "Finish the previous step first", message: conditionBlocker };
   }
   return undefined;
 }
@@ -535,5 +535,5 @@ export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
   const names = blocking.map((step) =>
     step.type === "gate" ? `${step.title} (Gate approval)` : nodeDisplayLabel(step),
   );
-  return `Finish every release condition in ${names.join(", ")} first. ${nodeDisplayLabel(node)} can be ticked once the previous department is complete.`;
+  return `Finish every step in ${names.join(", ")} first. ${nodeDisplayLabel(node)} can be ticked once the previous department is complete.`;
 }

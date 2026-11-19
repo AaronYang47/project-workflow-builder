@@ -393,7 +393,7 @@ export async function exportExecutivePresentationPdf(
                 ? `
                 <div data-presentation-conditions style="margin-top: 9px; padding-top: 7px; border-top: 1px solid ${theme.border};">
                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 5px; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: ${theme.subtext};">
-                    <span>Release Conditions</span><span>${conditions.length}</span>
+                    <span>Steps</span><span>${conditions.length}</span>
                   </div>
                   <div style="display: flex; flex-direction: column; gap: 4px;">
                     ${conditions
@@ -721,7 +721,7 @@ export async function exportExecutivePresentationPdf(
       .replace(/-+/g, "-");
     stampFobYardTag(pdf, file);
     pdf.save(
-      `${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Release-Conditions"}.pdf`,
+      `${safeProjectName}-Executive-Presentation-Architecture${includeReleaseConditions ? "" : "-No-Steps"}.pdf`,
     );
   } finally {
     document.body.removeChild(container);

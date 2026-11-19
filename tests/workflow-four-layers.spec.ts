@@ -11,20 +11,21 @@ test("four layers navigate without a selected node and preserve L2 return contex
   await page.goto("/");
   const toolbar = page.locator("[data-workflow-toolbar]");
   // Wide screens show the full label, narrower ones just "L3" / "L4".
-  await expect(
-    toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }),
-  ).toContainText("L3 · Conditions");
+  await expect(toolbar.getByRole("link", { name: "Open Steps Workspace" })).toContainText(
+    "L3 · Conditions",
+  );
   await expect(toolbar.getByRole("link", { name: "Open Process Overview" })).toContainText(
     "L4 · Process & Gantt",
   );
   await expect(toolbar.getByRole("button", { name: "L3 · Execution View" })).toHaveCount(0);
-  await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
+  await toolbar.getByRole("link", { name: "Open Steps Workspace" }).click();
   await expect(page.getByRole("region", { name: "Department condition board" })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Workflow layers" });
   await expect(nav.getByRole("link")).toHaveCount(5);
-  await expect(
-    nav.getByRole("link", { name: "Open Release Conditions Workspace" }),
-  ).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Open Steps Workspace" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await nav.getByRole("link", { name: "Open Process Overview" }).click();
   await expect(
     page.getByRole("heading", { name: "Process system & schedule", exact: true }),
@@ -39,7 +40,7 @@ test("four layers navigate without a selected node and preserve L2 return contex
     "aria-pressed",
     "true",
   );
-  await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
+  await toolbar.getByRole("link", { name: "Open Steps Workspace" }).click();
   await page.getByRole("link", { name: "L1 · Process", exact: true }).click();
   await expect(page.getByRole("button", { name: "L1 · High Level" })).toHaveAttribute(
     "aria-pressed",

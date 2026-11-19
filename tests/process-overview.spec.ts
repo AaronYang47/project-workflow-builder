@@ -135,7 +135,7 @@ test("L3 and L4 keep the same top toolbar as L1", async ({ page }) => {
   await page.goto("/");
   const toolbar = page.locator("[data-workflow-toolbar]");
   await expect(toolbar).toBeVisible();
-  await toolbar.getByRole("link", { name: "Open Release Conditions Workspace" }).click();
+  await toolbar.getByRole("link", { name: "Open Steps Workspace" }).click();
   await expect(toolbar).toBeVisible();
   await expect(toolbar.getByRole("button", { name: "Export", exact: true })).toBeVisible();
   await toolbar.getByRole("link", { name: "Open Process Overview" }).click();
@@ -265,7 +265,7 @@ test("Gantt PDF omits departments without release conditions", () => {
   const html = processGanttPdfHtml(file, new Map());
   expect(html).toContain('class="gantt-department">Department Technical');
   expect(html).not.toContain('class="gantt-department">Department Purchasing');
-  expect(html).not.toContain("No release conditions");
+  expect(html).not.toContain("No steps");
 });
 
 test("Technical work can stay in Phase 1 while beginning at the Sales handoff", () => {
@@ -661,7 +661,7 @@ test("overview links to the current process and persists department task depende
   const flow = page.getByRole("region", { name: "Complete process flowchart" });
   await expect(flow).not.toContainText("STEP");
   expect((await flow.boundingBox())!.height).toBeLessThan(130);
-  await expect(page.getByText("Release conditions · Gantt chart", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Steps · Gantt chart", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-gantt-instructions]")).toHaveCount(0);
   await expect(
     page.getByText("1 week estimated from Sales handoff", { exact: false }),
@@ -849,11 +849,11 @@ test("Gantt drag reorders, crosses phases into empty departments, and synchroniz
   await page.getByRole("button", { name: /Redo \(/ }).click();
   await expect(target.locator('[data-gantt-task="Design review"]')).toBeVisible();
   await page.getByRole("link", { name: "L1 · Process", exact: true }).click();
-  await expect(page.locator('[data-id="phase-3"]')).toContainText("1 release conditions");
+  await expect(page.locator('[data-id="phase-3"]')).toContainText("1 steps");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator('[data-id="delivery"]')).toContainText("Design review");
   await expect(page.locator('[data-id="tech"]')).not.toContainText("Design review");
-  await page.getByRole("link", { name: "Open Release Conditions Workspace" }).first().click();
+  await page.getByRole("link", { name: "Open Steps Workspace" }).first().click();
   await expect(page.locator('[data-release-condition-chapter-id="delivery"]')).toContainText(
     "Design review",
   );
@@ -1107,16 +1107,16 @@ test("create a duration-based condition, assign by dragging, and synchronize the
     { key: WORKFLOW_STORAGE_KEY, file: fixture() },
   );
   await page.goto("/process-overview");
-  await page.getByRole("button", { name: "Open Create Release Condition" }).click();
-  const creator = page.getByRole("complementary", { name: "Create and assign release conditions" });
+  await page.getByRole("button", { name: "Open Create Step" }).click();
+  const creator = page.getByRole("complementary", { name: "Create and assign steps" });
   await creator
-    .getByRole("textbox", { name: "New release condition", exact: true })
+    .getByRole("textbox", { name: "New step", exact: true })
     .fill("Approve shop drawings");
   await creator
     .getByRole("spinbutton", { name: "New condition duration in weeks", exact: true })
     .fill("2");
-  await creator.getByRole("button", { name: "Create release condition", exact: true }).click();
-  const inbox = creator.getByRole("region", { name: "Unassigned release conditions" });
+  await creator.getByRole("button", { name: "Create step", exact: true }).click();
+  const inbox = creator.getByRole("region", { name: "Unassigned steps" });
   await expect(inbox).toContainText("2 weeks");
   await page.screenshot({ path: "tmp/process-create-condition.png" });
   const destination = page
@@ -1148,7 +1148,7 @@ test("create a duration-based condition, assign by dragging, and synchronize the
   await expect(
     assigned.getByRole("slider", { name: "Duration in days for Approve shop drawings" }),
   ).toHaveAttribute("aria-valuenow", "14");
-  await page.getByRole("link", { name: "Open Release Conditions Workspace", exact: true }).click();
+  await page.getByRole("link", { name: "Open Steps Workspace", exact: true }).click();
   await expect(page.locator('[data-release-condition-chapter-id="tech"]')).toContainText(
     "Approve shop drawings",
   );

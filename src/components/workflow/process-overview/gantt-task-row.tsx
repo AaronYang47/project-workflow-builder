@@ -132,7 +132,7 @@ export function GanttTaskRow({
                 <button
                   type="button"
                   aria-label={`Remove L5 data from ${task.title}`}
-                  title="Remove the L5 data from this release condition (its duration stays; use Edit to change it)"
+                  title="Remove the L5 data from this step (its duration stays; use Edit to change it)"
                   onClick={() => actions.removeSimulated(task)}
                   className="-mr-0.5 flex size-4 items-center justify-center rounded hover:bg-foreground/10"
                 >

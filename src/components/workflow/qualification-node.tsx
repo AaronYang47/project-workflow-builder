@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   COMMERCIAL_PATHS,
@@ -10,6 +11,13 @@ import {
   qualificationRoute,
   type Qualification,
 } from "@/lib/qualification";
+import {
+  FORM_101_CODE,
+  FORM_101_VERSION,
+  evaluateQualificationForm101,
+  type QualificationForm101,
+} from "@/lib/qualification-form-101";
+import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 
@@ -44,13 +52,27 @@ function Arrow({ active, label }: { active: boolean; label?: string }) {
  * blocks the project (a pending GC can go on), and every choice can change later.
  */
 export function QualificationNode({ node, selected }: { node: DomainNode; selected: boolean }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const workflowTitle = useWorkflowStore((state) => state.file.graph.metadata.name);
   const qualification = qualificationOf(node);
-  const update = (patch: Partial<Qualification>) =>
+  const writeQualification = (next: Qualification) =>
     useWorkflowStore.getState().updateNode(node.id, {
-      config: { ...node.config, qualification: { ...qualification, ...patch } },
+      config: { ...node.config, qualification: next },
     });
+  const update = (patch: Partial<Qualification>) =>
+    writeQualification({ ...qualification, ...patch });
+  const saveForm101 = (nextForm: QualificationForm101 | undefined) => {
+    if (!nextForm) {
+      const rest = { ...qualification };
+      delete rest.form101;
+      writeQualification(rest);
+      return;
+    }
+    writeQualification({ ...qualification, form101: nextForm });
+  };
   const plans = qualification.plansAvailable;
   const route = qualificationRoute(qualification);
+  const formEval = evaluateQualificationForm101(qualification);
   const choice = (active: boolean) =>
     cn(
       "nodrag rounded-md border px-2 py-1 text-[11px] font-bold transition-colors",
@@ -63,14 +85,14 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
     <div
       data-qualification-node
       className={cn(
-        "workflow-node l2-node-card h-full w-full overflow-hidden rounded-2xl border-2 bg-card shadow-[0_6px_18px_rgba(37,99,169,.12)]",
+        "workflow-node l2-node-card flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 bg-card shadow-[0_6px_18px_rgba(37,99,169,.12)]",
         selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background",
       )}
       style={{ borderColor: `${ACCENT}55` }}
     >
       <div
         data-node-header
-        className="flex h-12 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
+        className="flex h-12 shrink-0 cursor-grab items-center gap-2 border-b px-3 active:cursor-grabbing"
         style={{ background: `color-mix(in srgb, ${ACCENT} 14%, transparent)` }}
       >
         <span
@@ -85,17 +107,28 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           </p>
           <p className="truncate text-sm font-bold">{node.title || "Qualification"}</p>
         </div>
-        {route ? (
+        <div className="ml-auto flex items-center gap-1.5">
           <span
-            data-qualification-route
-            className="ml-auto rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary"
+            data-qualification-score
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums",
+              gradeToneClasses(formEval.grade),
+            )}
           >
-            Route: {route}
+            Score: {formEval.totalScore}/100 ({formEval.grade})
           </span>
-        ) : null}
+          {route ? (
+            <span
+              data-qualification-route
+              className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary"
+            >
+              Route: {route}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex items-stretch gap-1 p-3">
+      <div className="flex min-h-0 flex-1 items-stretch gap-1 px-3 py-2.5">
         {/* 1. Qualification */}
         <section
           aria-label="Qualification details"
@@ -230,6 +263,57 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           Continue to the existing workflow
         </div>
       </div>
+
+      {/* Form [1.01] Completeness & Client Score Bar */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-background/60 px-3 py-2">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2 text-[10px]">
+            <span className="font-bold uppercase tracking-wider text-foreground">
+              Form [{FORM_101_CODE}]
+            </span>
+            <span className="text-muted-foreground">
+              v{FORM_101_VERSION}
+              {qualification.form101?.revision ? ` · Rev ${qualification.form101.revision}` : ""}
+            </span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {formEval.gradeLabel}
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              A1 {formEval.sections[0].score}/{formEval.sections[0].maxScore} · A2{" "}
+              {formEval.sections[1].score}/{formEval.sections[1].maxScore} · A3{" "}
+              {formEval.sections[2].score}/{formEval.sections[2].maxScore} · B{" "}
+              {formEval.sections[3].score}/{formEval.sections[3].maxScore}
+            </span>
+            {formEval.openRfiCount > 0 ? (
+              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-semibold text-amber-800 dark:text-amber-300 tabular-nums">
+                RFIs: {formEval.openRfiCount}
+              </span>
+            ) : null}
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${formEval.totalScore}%` }}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="nodrag print:hidden inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20"
+        >
+          <FileSpreadsheet className="size-3.5" />
+          Open Form [1.01]
+        </button>
+      </div>
+
+      <QualificationForm101Dialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        qualification={qualification}
+        workflowTitleHint={workflowTitle}
+        onSave={saveForm101}
+      />
 
       <Handle
         type="target"

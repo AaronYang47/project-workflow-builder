@@ -148,7 +148,7 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
   );
   await expect(page.locator('[data-id="glass-qa-phase"] .l2-phase-card')).toHaveCount(1);
   await expect(page.locator('[data-id="glass-qa-reference"] .l2-node-card')).toHaveCount(1);
-  await expect(page.locator('[data-id="glass-qa-reference"]')).toContainText("Release conditions");
+  await expect(page.locator('[data-id="glass-qa-reference"]')).toContainText("Steps");
   await expect(page.locator('[data-id="glass-qa-reference"]')).toContainText("UUID");
   await expect(
     page.locator('[data-id="glass-qa-reference"] [aria-label="Completion description"]'),
@@ -169,7 +169,7 @@ test("L1 and L2 cards keep their glass material in dark and light themes", async
   await page.locator('[data-id="glass-qa-reference"] [aria-label="Completion description"]').blur();
   await expect(inspectorDescription).toHaveValue("Final completion record is ready");
   await expect(
-    page.locator('[data-id="glass-qa-reference"] button[aria-label="Check release condition 1"]'),
+    page.locator('[data-id="glass-qa-reference"] button[aria-label="Check step 1"]'),
   ).toBeVisible();
   await expectGlassMaterial(page, ".l2-node-card");
   const l2Tints = await page.locator('.l2-node-card[data-glass-tint="true"]').evaluateAll((cards) =>
