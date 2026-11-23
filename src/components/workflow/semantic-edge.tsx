@@ -10,6 +10,7 @@ import {
 } from "@xyflow/react";
 import { Pencil } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { isCommercialRouteColor } from "@/lib/commercial-routes";
 import {
   cardObstacles,
   corridorYAboveCards,
@@ -596,6 +597,18 @@ export function SemanticEdge({
     Boolean(routed && automaticRoute) &&
     (routedCollides || pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40);
   const chapterConnection = data?.chapterConnection;
+  // Agreement branches have dedicated left/right ports. A direct segment
+  // keeps the three routes legible and avoids the generic orthogonal detours.
+  const straightCommercialRoute =
+    isCommercialRouteColor(domain.customFields.routeColor) &&
+    sourcePosition === Position.Right &&
+    targetPosition === Position.Left &&
+    targetX > sourceX
+      ? [
+          { x: sourceX, y: sourceY },
+          { x: targetX, y: targetY },
+        ]
+      : undefined;
   const chapterRoute = chapterConnection?.points.map((point, index, points) => {
     if (index === 0) return { x: sourceX, y: sourceY };
     if (index === points.length - 1) return { x: targetX, y: targetY };
@@ -604,6 +617,7 @@ export function SemanticEdge({
     return point;
   });
   const visibleRoute =
+    straightCommercialRoute ??
     chapterRoute ??
     withMinEndStub(
       preGateSalesRoute ??
