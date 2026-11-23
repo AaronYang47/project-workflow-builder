@@ -17,6 +17,9 @@ import type { ProjectOperations } from "@/types/project-operations";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
+import { qualificationOf } from "@/lib/qualification";
+import { evaluateQualificationGate } from "@/lib/qualification-form-101";
+import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
 export type GateCompletionState = "none" | "partial" | "complete";
 export type SequenceBlockerNotice = {
@@ -207,12 +210,20 @@ export function conditionDisplaySatisfied(
   return conditionIsSatisfied(condition, node, projectStart, executionItems, operations);
 }
 
+export function qualificationNodeReady(node: DomainNode) {
+  return evaluateQualificationGate(qualificationOf(node)).passed;
+}
+
 export function nodeReleaseReady(
   node: DomainNode,
   projectStart?: DomainNode,
   executionItems?: ExecutionItem[],
   operations?: ProjectOperations,
 ) {
+  if (node.type === "qualification") {
+    return qualificationNodeReady(node);
+  }
+  if (node.type === "estimation") return preliminaryEstimationReady(node);
   if (node.type === "gate") {
     const checklistReady = gateApprovalReady(node);
     if (!checklistReady || !operations) return checklistReady;
@@ -248,6 +259,13 @@ export function nodeStatusLabel(
 ) {
   const stored = String(node.customFields.status || "").trim();
   if (stored) return stored;
+  if (node.type === "qualification") {
+    const gate = evaluateQualificationGate(qualificationOf(node));
+    if (gate.passed) return "Ready";
+    if (gate.scorePassed) return "In Progress";
+    return "Blocked";
+  }
+  if (node.type === "estimation") return preliminaryEstimationReady(node) ? "Ready" : "In Progress";
   if (node.type === "gate" || (node.config.gateRules || []).length) {
     if (gateApprovalReady(node)) {
       if (!operations || operationsGateStatus(node.id, operations).ready) return "Ready";
@@ -333,7 +351,7 @@ export function getWorkflowProgress(
     }
     return roots;
   })();
-  const starts = rootProjectStarts.length
+  const baseStarts = rootProjectStarts.length
     ? rootProjectStarts
     : projectStartAncestors.length
       ? projectStartAncestors
@@ -347,6 +365,12 @@ export function getWorkflowProgress(
                 !(REFERENCE_NODE_TYPES as readonly WorkflowNodeType[]).includes(node.type),
             )
             .slice(0, 1);
+  const rootQualifications = nodes.filter(
+    (node) => node.type === "qualification" && !incoming.has(node.id),
+  );
+  const starts = Array.from(
+    new Map([...baseStarts, ...rootQualifications].map((node) => [node.id, node])).values(),
+  );
   const reachedNodeIds = new Set(starts.map((node) => node.id));
   const activeEdgeIds = new Set<string>();
   const queue = starts.map((node) => node.id);
@@ -473,10 +497,8 @@ export function releaseConditionBlocker(
   nodeId: string,
   conditionIdOrIndex?: string | number,
 ): SequenceBlockerNotice | undefined {
-  const departmentBlocker = sequentialExecutionBlocker(file, nodeId);
-  if (departmentBlocker) {
-    return { title: "Finish the previous department first", message: departmentBlocker };
-  }
+  const departmentNotice = sequentialBlockerNotice(file, nodeId);
+  if (departmentNotice) return departmentNotice;
   const conditionBlocker = precedingConditionBlocker(file, nodeId, conditionIdOrIndex);
   if (conditionBlocker) {
     return { title: "Finish the previous step first", message: conditionBlocker };
@@ -484,15 +506,10 @@ export function releaseConditionBlocker(
   return undefined;
 }
 
-/**
- * A department's release conditions (and their files) can be ticked only once
- * the flow has reached it: every earlier department on the way has all its
- * release conditions complete (and every Gate on the way is approved). With
- * FOB yard on, the flow runs around the skipped Phases. Returns the message
- * naming what to finish first, or undefined when ticking is allowed. A
- * department the flow can't reach at all (not connected) is not blocked.
- */
-export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
+function sequentialBlockerNotice(
+  file: WorkflowFile,
+  nodeId: string,
+): SequenceBlockerNotice | undefined {
   const running = applyFobYardSkip(file);
   const node = running.graph.nodes.find((item) => item.id === nodeId);
   if (!node || node.type === "phase" || node.type === "gate") return undefined;
@@ -532,8 +549,38 @@ export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
     queue.push(...(sources.get(id) ?? []));
   }
   if (!blocking.length) return undefined;
+
+  const qualBlocker = blocking.find((step) => step.type === "qualification");
+  if (qualBlocker && blocking.length === 1) {
+    const gate = evaluateQualificationGate(qualificationOf(qualBlocker));
+    const targetName = nodeDisplayLabel(node);
+    return {
+      title: "Complete Qualification first",
+      message: `${gate.blockingReason ?? "Complete Qualification and approve Tech Review first."} ${targetName} can continue once Qualification passes.`,
+    };
+  }
+
   const names = blocking.map((step) =>
-    step.type === "gate" ? `${step.title} (Gate approval)` : nodeDisplayLabel(step),
+    step.type === "qualification"
+      ? `${step.title || "Qualification"} (Score ≥ 70% & Tech Review)`
+      : step.type === "gate"
+        ? `${step.title} (Gate approval)`
+        : nodeDisplayLabel(step),
   );
-  return `Finish every step in ${names.join(", ")} first. ${nodeDisplayLabel(node)} can be ticked once the previous department is complete.`;
+  return {
+    title: "Finish the previous department first",
+    message: `Finish every step in ${names.join(", ")} first. ${nodeDisplayLabel(node)} can be ticked once the previous department is complete.`,
+  };
+}
+
+/**
+ * A department's release conditions (and their files) can be ticked only once
+ * the flow has reached it: every earlier department on the way has all its
+ * release conditions complete (and every Gate on the way is approved). With
+ * FOB yard on, the flow runs around the skipped Phases. Returns the message
+ * naming what to finish first, or undefined when ticking is allowed. A
+ * department the flow can't reach at all (not connected) is not blocked.
+ */
+export function sequentialExecutionBlocker(file: WorkflowFile, nodeId: string) {
+  return sequentialBlockerNotice(file, nodeId)?.message;
 }

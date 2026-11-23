@@ -19,6 +19,7 @@ export type SemanticFlowEdge = Edge<
     route?: EdgeRoutePoint[];
     chapterConnection?: ChapterConnection;
     active?: boolean;
+    displayColor?: string;
     obstacles?: LabelObstacle[];
     labelLane?: number;
     labelHugsPath?: boolean;

@@ -36,6 +36,13 @@ export function getAdaptiveNodeSize(
       height: Math.max(current?.height || 0, fallback.height),
     };
   }
+  if (node.type === "estimation") {
+    const fallback = getNodeDefinition(node.type).defaultSize;
+    return {
+      width: Math.max(current?.width || 0, fallback.width),
+      height: Math.max(current?.height || 0, fallback.height),
+    };
+  }
   if (node.type === "projectStart") {
     const fallback = getNodeDefinition(node.type).defaultSize;
     const headerWidth = estimateNodeHeaderWidth(node);

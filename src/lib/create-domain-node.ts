@@ -36,6 +36,20 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       customFields: {},
       config: { qualification: {} },
     };
+  if (type === "estimation")
+    return {
+      id,
+      type,
+      title: "Estimation",
+      description: "Preliminary Estimation [1.06] · budgeting only, not a price or offer.",
+      color: def.color,
+      metadata: {},
+      conditions: [],
+      documents: [],
+      criteria: [],
+      customFields: {},
+      config: { stage: "Estimation", iconKey: "document" },
+    };
   const matrixKind = matrixKindForNode({ type });
   return {
     id,

@@ -1,6 +1,15 @@
 import type { DomainNode } from "@/types/workflow";
 import type { QualificationForm101 } from "@/lib/qualification-form-101";
 
+export type TechReviewStatus = "pending" | "approved" | "rejected";
+
+export type QualificationTechReview = {
+  status: TechReviewStatus;
+  reviewer?: string;
+  reviewedAt?: string;
+  notes?: string;
+};
+
 /** Choices made in the L2 Qualification node. All can be changed later. */
 export type Qualification = {
   clientType?: (typeof CLIENT_TYPES)[number];
@@ -12,6 +21,8 @@ export type Qualification = {
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
   form101?: QualificationForm101;
+  /** Technical review gate required after Form [1.01] reaches >= 70%. */
+  techReview?: QualificationTechReview;
 };
 
 export const CLIENT_TYPES = ["Owner", "GC", "Architect", "Consultant", "Other"] as const;

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { FormStepId } from "./steps";
 import {
   ANNEX_1_CATEGORIES,
   ANNEX_2_BY_DISCIPLINE,
@@ -122,13 +123,24 @@ export function SectionAIntake({
   onChange,
   isLoi,
   workflowTitleHint,
+  onlyStep,
+  onAdvance,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
   isLoi: boolean;
   workflowTitleHint?: string;
+  onlyStep?: FormStepId;
+  onAdvance?: () => void;
 }) {
   const { sectionA } = form;
+  const show = (step: FormStepId) => !onlyStep || onlyStep === step;
+  const handleEnterAdvance = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && onAdvance) {
+      event.preventDefault();
+      onAdvance();
+    }
+  };
 
   const patchA = (
     updater: (prevA: QualificationForm101["sectionA"]) => QualificationForm101["sectionA"],
@@ -205,73 +217,93 @@ export function SectionAIntake({
       row.exactLocation.trim(),
   );
 
+  const hasUnansweredDocs = PROJECT_DOCUMENT_DEFINITIONS.some(
+    (doc) => !sectionA.documents[doc.key].available,
+  );
+
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">A. Sales Intake</h3>
-        <p className="text-[11px] text-muted-foreground">
-          Project identification, stakeholders, commercial readiness, target dates, and available
-          documentation.
-        </p>
-      </div>
+      {!onlyStep ? (
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">A. Sales Intake</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Project identification, stakeholders, commercial readiness, target dates, and available
+            documentation.
+          </p>
+        </div>
+      ) : null}
 
       {/* Subsection: Project information (Q1-Q7) */}
-      <div className="space-y-3">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-          Project information
-        </p>
+      {!onlyStep || ["q1", "q2", "q3", "q4", "q5", "q6", "q7"].includes(onlyStep) ? (
+        <div className="space-y-3">
+          {!onlyStep ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Project information
+            </p>
+          ) : null}
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <QuestionCard
-            id="q101-q1"
-            number="Q1"
-            title="What is the project name?"
-            complete={Boolean(sectionA.projectName.trim())}
-          >
-            <div className="flex gap-2">
-              <input
-                aria-label="Project name"
-                value={sectionA.projectName}
-                onChange={(e) => patchA((p) => ({ ...p, projectName: e.target.value }))}
-                placeholder="Enter project name"
-                className={inputCls}
-              />
-              {!sectionA.projectName.trim() && workflowTitleHint ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 text-[11px]"
-                  onClick={() => patchA((p) => ({ ...p, projectName: workflowTitleHint }))}
+          {show("q1") || show("q2") ? (
+            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-2")}>
+              {show("q1") ? (
+                <QuestionCard
+                  id="q101-q1"
+                  number="Q1"
+                  title="What is the project name?"
+                  complete={Boolean(sectionA.projectName.trim())}
                 >
-                  Use title
-                </Button>
+                  <div className="flex gap-2">
+                    <input
+                      aria-label="Project name"
+                      autoFocus={onlyStep === "q1"}
+                      value={sectionA.projectName}
+                      onChange={(e) => patchA((p) => ({ ...p, projectName: e.target.value }))}
+                      onKeyDown={handleEnterAdvance}
+                      placeholder="Enter project name"
+                      className={inputCls}
+                    />
+                    {!sectionA.projectName.trim() && workflowTitleHint ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 text-[11px]"
+                        onClick={() => patchA((p) => ({ ...p, projectName: workflowTitleHint }))}
+                      >
+                        Use title
+                      </Button>
+                    ) : null}
+                  </div>
+                </QuestionCard>
+              ) : null}
+
+              {show("q2") ? (
+                <QuestionCard
+                  id="q101-q2"
+                  number="Q2"
+                  title="What is the full project address?"
+                  complete={Boolean(sectionA.projectAddress.trim())}
+                >
+                  <input
+                    aria-label="Full project address"
+                    autoFocus={onlyStep === "q2"}
+                    value={sectionA.projectAddress}
+                    onChange={(e) => patchA((p) => ({ ...p, projectAddress: e.target.value }))}
+                    onKeyDown={handleEnterAdvance}
+                    placeholder="Street, city, province/state, postal code"
+                    className={inputCls}
+                  />
+                </QuestionCard>
               ) : null}
             </div>
-          </QuestionCard>
+          ) : null}
 
-          <QuestionCard
-            id="q101-q2"
-            number="Q2"
-            title="What is the full project address?"
-            complete={Boolean(sectionA.projectAddress.trim())}
-          >
-            <input
-              aria-label="Full project address"
-              value={sectionA.projectAddress}
-              onChange={(e) => patchA((p) => ({ ...p, projectAddress: e.target.value }))}
-              placeholder="Street, city, province/state, postal code"
-              className={inputCls}
-            />
-          </QuestionCard>
-        </div>
-
-        <QuestionCard
-          id="q101-q3"
-          number="Q3"
-          title="Who are the project parties?"
-          complete={partiesComplete}
-        >
+          {show("q3") ? (
+            <QuestionCard
+              id="q101-q3"
+              number="Q3"
+              title="Who are the project parties?"
+              complete={partiesComplete}
+            >
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs">
               <thead>
@@ -325,13 +357,15 @@ export function SectionAIntake({
             </table>
           </div>
         </QuestionCard>
+          ) : null}
 
-        <QuestionCard
-          id="q101-q4"
-          number="Q4"
-          title="Who is the main project contact?"
-          complete={contactComplete}
-        >
+          {show("q4") ? (
+            <QuestionCard
+              id="q101-q4"
+              number="Q4"
+              title="Who is the main project contact?"
+              complete={contactComplete}
+            >
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             <label className="space-y-1 text-[11px]">
               <span className="font-medium text-muted-foreground">Name</span>
@@ -396,372 +430,444 @@ export function SectionAIntake({
             </label>
           </div>
         </QuestionCard>
+          ) : null}
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <QuestionCard
-              id="q101-q5"
-              number="Q5"
-              title="What is the main occupancy group of the building?"
-              hint="Select all that apply."
-              complete={sectionA.occupancyGroups.length > 0}
-            >
-              <div className="grid gap-2 sm:grid-cols-2">
-                {OCCUPANCY_GROUPS.map((group) => {
-                  const checked = sectionA.occupancyGroups.includes(group.code);
-                  return (
-                    <label
-                      key={group.code}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors",
-                        checked ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted/50",
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleOccupancy(group.code)}
-                        className="size-3.5 accent-primary"
-                      />
-                      <span>{group.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </QuestionCard>
-          </div>
+          {show("q5") || show("q6") ? (
+            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-3")}>
+              {show("q5") ? (
+                <div className={cn(!onlyStep && "md:col-span-2")}>
+                  <QuestionCard
+                    id="q101-q5"
+                    number="Q5"
+                    title="What is the main occupancy group of the building?"
+                    hint="Select all that apply."
+                    complete={sectionA.occupancyGroups.length > 0}
+                  >
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {OCCUPANCY_GROUPS.map((group) => {
+                        const checked = sectionA.occupancyGroups.includes(group.code);
+                        return (
+                          <label
+                            key={group.code}
+                            className={cn(
+                              "flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors",
+                              checked
+                                ? "border-primary bg-primary/10 font-medium"
+                                : "hover:bg-muted/50",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleOccupancy(group.code)}
+                              className="size-3.5 accent-primary"
+                            />
+                            <span>{group.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </QuestionCard>
+                </div>
+              ) : null}
 
-          <QuestionCard
-            id="q101-q6"
-            number="Q6"
-            title="Approximate gross building area"
-            hint="Sum of the floor areas of all levels [sq. ft]."
-            complete={Boolean(sectionA.grossAreaSqFt.trim())}
-          >
-            <div className="flex items-center gap-2">
-              <input
-                aria-label="Gross area sq ft"
-                value={sectionA.grossAreaSqFt}
-                onChange={(e) => patchA((p) => ({ ...p, grossAreaSqFt: e.target.value }))}
-                placeholder="e.g. 24,500"
-                className={inputCls}
-              />
-              <span className="shrink-0 text-xs font-medium text-muted-foreground">sq. ft</span>
-            </div>
-          </QuestionCard>
-        </div>
-
-        <QuestionCard
-          id="q101-q7"
-          number="Q7"
-          title="Who are the responsible consultants for each discipline?"
-          complete={consultantsComplete}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="py-1.5 pr-2">Discipline</th>
-                  <th className="py-1.5 px-2">Name</th>
-                  <th className="py-1.5 px-2">Company</th>
-                  <th className="py-1.5 pl-2">Contact</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {DISCIPLINE_DEFINITIONS.map((discipline) => (
-                  <tr key={discipline.key}>
-                    <td className="py-1.5 pr-2 font-medium whitespace-nowrap">
-                      {discipline.consultantLabel}
-                    </td>
-                    {(["name", "company", "contact"] as const).map((fieldKey) => (
-                      <td key={fieldKey} className="py-1.5 px-1.5">
-                        <input
-                          aria-label={`${discipline.consultantLabel} consultant ${fieldKey}`}
-                          value={sectionA.consultants[discipline.key][fieldKey]}
-                          onChange={(e) =>
-                            patchA((p) => ({
-                              ...p,
-                              consultants: {
-                                ...p.consultants,
-                                [discipline.key]: {
-                                  ...p.consultants[discipline.key],
-                                  [fieldKey]: e.target.value,
-                                },
-                              },
-                            }))
-                          }
-                          placeholder={
-                            fieldKey === "name"
-                              ? "Consultant name"
-                              : fieldKey === "company"
-                                ? "Firm"
-                                : "Email / phone"
-                          }
-                          className={cellInputCls}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </QuestionCard>
-      </div>
-
-      {/* Subsection: Commercial status and schedule (Q8-Q11) */}
-      <div className="space-y-3 pt-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-          Commercial status and schedule
-        </p>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <QuestionCard
-            id="q101-q8"
-            number="Q8"
-            title="Has a project budget been established?"
-            hint="No amount required."
-            complete={Boolean(sectionA.budgetEstablished)}
-          >
-            <YesNoToggle
-              label="Project budget established"
-              value={sectionA.budgetEstablished}
-              onChange={(next) => patchA((p) => ({ ...p, budgetEstablished: next }))}
-            />
-          </QuestionCard>
-
-          <QuestionCard
-            id="q101-q9"
-            number="Q9"
-            title="Has a deposit been received under a CSA or a PCS?"
-            hint="No deposit for an LOI."
-            complete={isLoi || Boolean(sectionA.depositReceived)}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <YesNoToggle
-                label="CSA or PCS deposit received"
-                value={sectionA.depositReceived}
-                onChange={(next) => patchA((p) => ({ ...p, depositReceived: next }))}
-              />
-              {isLoi ? (
-                <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                  LOI path selected — No deposit required (Exempted)
-                </span>
+              {show("q6") ? (
+                <QuestionCard
+                  id="q101-q6"
+                  number="Q6"
+                  title="Approximate gross building area"
+                  hint="Sum of the floor areas of all levels [sq. ft]."
+                  complete={Boolean(sectionA.grossAreaSqFt.trim())}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      aria-label="Gross area sq ft"
+                      autoFocus={onlyStep === "q6"}
+                      value={sectionA.grossAreaSqFt}
+                      onChange={(e) => patchA((p) => ({ ...p, grossAreaSqFt: e.target.value }))}
+                      onKeyDown={handleEnterAdvance}
+                      placeholder="e.g. 24,500"
+                      className={inputCls}
+                    />
+                    <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                      sq. ft
+                    </span>
+                  </div>
+                </QuestionCard>
               ) : null}
             </div>
-          </QuestionCard>
-        </div>
+          ) : null}
 
-        <QuestionCard
-          id="q101-q10"
-          number="Q10"
-          title="What is the permit status, if one exists?"
-          hint="Also list the permit document in the table of Q12."
-          complete={Boolean(sectionA.permitStatus.trim())}
-        >
-          <textarea
-            aria-label="Permit status"
-            rows={2}
-            value={sectionA.permitStatus}
-            onChange={(e) => patchA((p) => ({ ...p, permitStatus: e.target.value }))}
-            placeholder="e.g. Submitted to municipality on 2026.10.12, awaiting zoning review / Issued / Not applied yet"
-            className={inputCls}
-          />
-        </QuestionCard>
-
-        <QuestionCard
-          id="q101-q11"
-          number="Q11"
-          title="What are the project target dates?"
-          hint="Format: yyyy.mm.dd"
-          complete={datesComplete}
-        >
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {TARGET_DATE_FIELDS.map((field) => (
-              <label key={field.key} className="space-y-1 text-[11px]">
-                <span className="font-medium text-muted-foreground">{field.label}</span>
-                <input
-                  aria-label={`Target date: ${field.label}`}
-                  value={sectionA.targetDates[field.key]}
-                  onChange={(e) =>
-                    patchA((p) => ({
-                      ...p,
-                      targetDates: { ...p.targetDates, [field.key]: e.target.value },
-                    }))
-                  }
-                  placeholder="yyyy.mm.dd"
-                  className={inputCls}
-                />
-              </label>
-            ))}
-          </div>
-        </QuestionCard>
-      </div>
-
-      {/* Subsection: Project documents (Q12-Q13) */}
-      <div className="space-y-3 pt-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-          Project documents
-        </p>
-
-        <QuestionCard
-          id="q101-q12"
-          number="Q12"
-          title="Which project documents are available?"
-          hint="Provide the file location or email date when available."
-          complete={docsComplete}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="py-1.5 pr-2">Document</th>
-                  <th className="py-1.5 px-2">Available?</th>
-                  <th className="py-1.5 pl-2">File location / email date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
-                  const entry = sectionA.documents[doc.key];
-                  const missingLoc = entry.available === "yes" && !entry.locationOrDate.trim();
-                  return (
-                    <tr key={doc.key}>
-                      <td className="py-1.5 pr-2 font-medium">{doc.label}</td>
-                      <td className="py-1.5 px-2 whitespace-nowrap">
-                        <YesNoToggle
-                          label={`${doc.label} available`}
-                          value={entry.available}
-                          onChange={(next) =>
-                            patchA((p) => ({
-                              ...p,
-                              documents: {
-                                ...p.documents,
-                                [doc.key]: { ...p.documents[doc.key], available: next },
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td className="py-1.5 pl-2">
-                        <input
-                          aria-label={`${doc.label} file location or email date`}
-                          value={entry.locationOrDate}
-                          onChange={(e) =>
-                            patchA((p) => ({
-                              ...p,
-                              documents: {
-                                ...p.documents,
-                                [doc.key]: {
-                                  ...p.documents[doc.key],
-                                  locationOrDate: e.target.value,
-                                },
-                              },
-                            }))
-                          }
-                          placeholder={
-                            missingLoc
-                              ? "Required for full score: file path or email date"
-                              : "SharePoint path, folder link, or email date"
-                          }
-                          className={cn(
-                            cellInputCls,
-                            missingLoc && "border-amber-500/70 focus:border-amber-500",
-                          )}
-                        />
-                      </td>
+          {show("q7") ? (
+            <QuestionCard
+              id="q101-q7"
+              number="Q7"
+              title="Who are the responsible consultants for each discipline?"
+              complete={consultantsComplete}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <th className="py-1.5 pr-2">Discipline</th>
+                      <th className="py-1.5 px-2">Name</th>
+                      <th className="py-1.5 px-2">Company</th>
+                      <th className="py-1.5 pl-2">Contact</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </QuestionCard>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {DISCIPLINE_DEFINITIONS.map((discipline) => (
+                      <tr key={discipline.key}>
+                        <td className="py-1.5 pr-2 font-medium whitespace-nowrap">
+                          {discipline.consultantLabel}
+                        </td>
+                        {(["name", "company", "contact"] as const).map((fieldKey) => (
+                          <td key={fieldKey} className="py-1.5 px-1.5">
+                            <input
+                              aria-label={`${discipline.consultantLabel} consultant ${fieldKey}`}
+                              value={sectionA.consultants[discipline.key][fieldKey]}
+                              onChange={(e) =>
+                                patchA((p) => ({
+                                  ...p,
+                                  consultants: {
+                                    ...p.consultants,
+                                    [discipline.key]: {
+                                      ...p.consultants[discipline.key],
+                                      [fieldKey]: e.target.value,
+                                    },
+                                  },
+                                }))
+                              }
+                              placeholder={
+                                fieldKey === "name"
+                                  ? "Consultant name"
+                                  : fieldKey === "company"
+                                    ? "Firm"
+                                    : "Email / phone"
+                              }
+                              className={cellInputCls}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </QuestionCard>
+          ) : null}
+        </div>
+      ) : null}
 
-        <QuestionCard
-          id="q101-q13"
-          number="Q13"
-          title="Latest drawings details"
-          hint="Provide drawing names, revision numbers, revision dates, issue status (e.g. Issued for Permit or Issued for Construction), and exact location."
-          complete={drawingsComplete}
-        >
-          <div className="space-y-2">
-            {sectionA.latestDrawings.length === 0 ? (
-              <p className="rounded-lg border border-dashed px-3 py-2 text-[11px] text-muted-foreground">
-                No drawing sets recorded yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {sectionA.latestDrawings.map((row, idx) => (
-                  <div
-                    key={row.id}
-                    className="grid gap-2 rounded-lg border bg-background/70 p-2.5 sm:grid-cols-6"
-                  >
-                    <input
-                      aria-label={`Drawing ${idx + 1} name`}
-                      value={row.drawingName}
-                      onChange={(e) => updateDrawingRow(row.id, { drawingName: e.target.value })}
-                      placeholder="Drawing name / set"
-                      className={cn(cellInputCls, "sm:col-span-2")}
+      {/* Subsection: Commercial status and schedule (Q8-Q11) */}
+      {!onlyStep || ["q8", "q9", "q10", "q11"].includes(onlyStep) ? (
+        <div className={cn("space-y-3", !onlyStep && "pt-1")}>
+          {!onlyStep ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Commercial status and schedule
+            </p>
+          ) : null}
+
+          {show("q8") || show("q9") ? (
+            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-2")}>
+              {show("q8") ? (
+                <QuestionCard
+                  id="q101-q8"
+                  number="Q8"
+                  title="Has a project budget been established?"
+                  hint="No amount required."
+                  complete={Boolean(sectionA.budgetEstablished)}
+                >
+                  <YesNoToggle
+                    label="Project budget established"
+                    value={sectionA.budgetEstablished}
+                    onChange={(next) => patchA((p) => ({ ...p, budgetEstablished: next }))}
+                  />
+                </QuestionCard>
+              ) : null}
+
+              {show("q9") ? (
+                <QuestionCard
+                  id="q101-q9"
+                  number="Q9"
+                  title="Has a deposit been received under a CSA or a PCS?"
+                  hint="No deposit for an LOI."
+                  complete={isLoi || Boolean(sectionA.depositReceived)}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <YesNoToggle
+                      label="CSA or PCS deposit received"
+                      value={sectionA.depositReceived}
+                      onChange={(next) => patchA((p) => ({ ...p, depositReceived: next }))}
                     />
-                    <input
-                      aria-label={`Drawing ${idx + 1} revision number`}
-                      value={row.revisionNumber}
-                      onChange={(e) => updateDrawingRow(row.id, { revisionNumber: e.target.value })}
-                      placeholder="Rev #"
-                      className={cellInputCls}
-                    />
-                    <input
-                      aria-label={`Drawing ${idx + 1} revision date`}
-                      value={row.revisionDate}
-                      onChange={(e) => updateDrawingRow(row.id, { revisionDate: e.target.value })}
-                      placeholder="Rev date (yyyy.mm.dd)"
-                      className={cellInputCls}
-                    />
-                    <input
-                      list="drawing-issue-status-list"
-                      aria-label={`Drawing ${idx + 1} issue status`}
-                      value={row.issueStatus}
-                      onChange={(e) => updateDrawingRow(row.id, { issueStatus: e.target.value })}
-                      placeholder="Issue status"
-                      className={cellInputCls}
-                    />
-                    <div className="flex gap-1 sm:col-span-6">
-                      <input
-                        aria-label={`Drawing ${idx + 1} exact location`}
-                        value={row.exactLocation}
-                        onChange={(e) =>
-                          updateDrawingRow(row.id, { exactLocation: e.target.value })
-                        }
-                        placeholder="Exact folder / link / email location"
-                        className={cellInputCls}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 shrink-0 text-destructive hover:bg-destructive/10"
-                        aria-label={`Delete drawing row ${idx + 1}`}
-                        onClick={() => removeDrawingRow(row.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                    {isLoi ? (
+                      <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        LOI path selected — No deposit required (Exempted)
+                      </span>
+                    ) : null}
                   </div>
+                </QuestionCard>
+              ) : null}
+            </div>
+          ) : null}
+
+          {show("q10") ? (
+            <QuestionCard
+              id="q101-q10"
+              number="Q10"
+              title="What is the permit status, if one exists?"
+              hint="Also list the permit document in the table of Q12."
+              complete={Boolean(sectionA.permitStatus.trim())}
+            >
+              <textarea
+                aria-label="Permit status"
+                autoFocus={onlyStep === "q10"}
+                rows={onlyStep === "q10" ? 3 : 2}
+                value={sectionA.permitStatus}
+                onChange={(e) => patchA((p) => ({ ...p, permitStatus: e.target.value }))}
+                placeholder="e.g. Submitted to municipality on 2026.10.12, awaiting zoning review / Issued / Not applied yet"
+                className={inputCls}
+              />
+            </QuestionCard>
+          ) : null}
+
+          {show("q11") ? (
+            <QuestionCard
+              id="q101-q11"
+              number="Q11"
+              title="What are the project target dates?"
+              hint="Format: yyyy.mm.dd"
+              complete={datesComplete}
+            >
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {TARGET_DATE_FIELDS.map((field) => (
+                  <label key={field.key} className="space-y-1 text-[11px]">
+                    <span className="font-medium text-muted-foreground">{field.label}</span>
+                    <input
+                      aria-label={`Target date: ${field.label}`}
+                      value={sectionA.targetDates[field.key]}
+                      onChange={(e) =>
+                        patchA((p) => ({
+                          ...p,
+                          targetDates: { ...p.targetDates, [field.key]: e.target.value },
+                        }))
+                      }
+                      placeholder="yyyy.mm.dd"
+                      className={inputCls}
+                    />
+                  </label>
                 ))}
               </div>
-            )}
-            <datalist id="drawing-issue-status-list">
-              {DRAWING_ISSUE_STATUS_SUGGESTIONS.map((status) => (
-                <option key={status} value={status} />
-              ))}
-            </datalist>
-            <Button type="button" variant="outline" size="sm" onClick={addDrawingRow}>
-              <Plus className="mr-1 size-3.5" />
-              Add drawing set
-            </Button>
-          </div>
-        </QuestionCard>
-      </div>
+            </QuestionCard>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Subsection: Project documents (Q12-Q13) */}
+      {!onlyStep || ["q12", "q13"].includes(onlyStep) ? (
+        <div className={cn("space-y-3", !onlyStep && "pt-1")}>
+          {!onlyStep ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Project documents
+            </p>
+          ) : null}
+
+          {show("q12") ? (
+            <QuestionCard
+              id="q101-q12"
+              number="Q12"
+              title="Which project documents are available?"
+              hint="Provide the file location or email date when available."
+              complete={docsComplete}
+            >
+              <div className="space-y-2">
+                {hasUnansweredDocs ? (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[11px] text-muted-foreground"
+                      onClick={() =>
+                        patchA((p) => {
+                          const nextDocs = { ...p.documents };
+                          for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
+                            if (!nextDocs[doc.key].available) {
+                              nextDocs[doc.key] = { ...nextDocs[doc.key], available: "no" };
+                            }
+                          }
+                          return { ...p, documents: nextDocs };
+                        })
+                      }
+                    >
+                      Mark unanswered as No
+                    </Button>
+                  </div>
+                ) : null}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="py-1.5 pr-2">Document</th>
+                        <th className="py-1.5 px-2">Available?</th>
+                        <th className="py-1.5 pl-2">File location / email date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
+                        const entry = sectionA.documents[doc.key];
+                        const missingLoc = entry.available === "yes" && !entry.locationOrDate.trim();
+                        return (
+                          <tr key={doc.key}>
+                            <td className="py-1.5 pr-2 font-medium">{doc.label}</td>
+                            <td className="py-1.5 px-2 whitespace-nowrap">
+                              <YesNoToggle
+                                label={`${doc.label} available`}
+                                value={entry.available}
+                                onChange={(next) =>
+                                  patchA((p) => ({
+                                    ...p,
+                                    documents: {
+                                      ...p.documents,
+                                      [doc.key]: { ...p.documents[doc.key], available: next },
+                                    },
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td className="py-1.5 pl-2">
+                              <input
+                                aria-label={`${doc.label} file location or email date`}
+                                value={entry.locationOrDate}
+                                onChange={(e) =>
+                                  patchA((p) => ({
+                                    ...p,
+                                    documents: {
+                                      ...p.documents,
+                                      [doc.key]: {
+                                        ...p.documents[doc.key],
+                                        locationOrDate: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
+                                placeholder={
+                                  missingLoc
+                                    ? "Required for full score: file path or email date"
+                                    : "SharePoint path, folder link, or email date"
+                                }
+                                className={cn(
+                                  cellInputCls,
+                                  missingLoc && "border-amber-500/70 focus:border-amber-500",
+                                )}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </QuestionCard>
+          ) : null}
+
+          {show("q13") ? (
+            <QuestionCard
+              id="q101-q13"
+              number="Q13"
+              title="Latest drawings details"
+              hint="Provide drawing names, revision numbers, revision dates, issue status (e.g. Issued for Permit or Issued for Construction), and exact location."
+              complete={drawingsComplete}
+            >
+              <div className="space-y-2">
+                {sectionA.latestDrawings.length === 0 ? (
+                  <p className="rounded-lg border border-dashed px-3 py-2 text-[11px] text-muted-foreground">
+                    No drawing sets recorded yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {sectionA.latestDrawings.map((row, idx) => (
+                      <div
+                        key={row.id}
+                        className="grid gap-2 rounded-lg border bg-background/70 p-2.5 sm:grid-cols-6"
+                      >
+                        <input
+                          aria-label={`Drawing ${idx + 1} name`}
+                          value={row.drawingName}
+                          onChange={(e) =>
+                            updateDrawingRow(row.id, { drawingName: e.target.value })
+                          }
+                          placeholder="Drawing name / set"
+                          className={cn(cellInputCls, "sm:col-span-2")}
+                        />
+                        <input
+                          aria-label={`Drawing ${idx + 1} revision number`}
+                          value={row.revisionNumber}
+                          onChange={(e) =>
+                            updateDrawingRow(row.id, { revisionNumber: e.target.value })
+                          }
+                          placeholder="Rev #"
+                          className={cellInputCls}
+                        />
+                        <input
+                          aria-label={`Drawing ${idx + 1} revision date`}
+                          value={row.revisionDate}
+                          onChange={(e) =>
+                            updateDrawingRow(row.id, { revisionDate: e.target.value })
+                          }
+                          placeholder="Rev date (yyyy.mm.dd)"
+                          className={cellInputCls}
+                        />
+                        <input
+                          list="drawing-issue-status-list"
+                          aria-label={`Drawing ${idx + 1} issue status`}
+                          value={row.issueStatus}
+                          onChange={(e) =>
+                            updateDrawingRow(row.id, { issueStatus: e.target.value })
+                          }
+                          placeholder="Issue status"
+                          className={cellInputCls}
+                        />
+                        <div className="flex gap-1 sm:col-span-6">
+                          <input
+                            aria-label={`Drawing ${idx + 1} exact location`}
+                            value={row.exactLocation}
+                            onChange={(e) =>
+                              updateDrawingRow(row.id, { exactLocation: e.target.value })
+                            }
+                            placeholder="Exact folder / link / email location"
+                            className={cellInputCls}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 shrink-0 text-destructive hover:bg-destructive/10"
+                            aria-label={`Delete drawing row ${idx + 1}`}
+                            onClick={() => removeDrawingRow(row.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <datalist id="drawing-issue-status-list">
+                  {DRAWING_ISSUE_STATUS_SUGGESTIONS.map((status) => (
+                    <option key={status} value={status} />
+                  ))}
+                </datalist>
+                <Button type="button" variant="outline" size="sm" onClick={addDrawingRow}>
+                  <Plus className="mr-1 size-3.5" />
+                  Add drawing set
+                </Button>
+              </div>
+            </QuestionCard>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -769,12 +875,20 @@ export function SectionAIntake({
 export function SectionBIntake({
   form,
   onChange,
+  onlyStep,
+  onAdvance,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
+  onlyStep?: FormStepId;
+  onAdvance?: () => void;
 }) {
   const [openAnnexFor, setOpenAnnexFor] = useState<DisciplineKey | "special" | null>(null);
   const { sectionB } = form;
+  const visibleDisciplines = onlyStep
+    ? DISCIPLINE_DEFINITIONS.filter((d) => onlyStep === `b-${d.key}`)
+    : DISCIPLINE_DEFINITIONS;
+  const showSpecial = !onlyStep || onlyStep === "b-special";
 
   const patchDiscipline = (
     key: DisciplineKey,
@@ -810,25 +924,31 @@ export function SectionBIntake({
 
   return (
     <div id="q101-section-b" className="scroll-mt-4 space-y-4">
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-          B. Customer Intake by Discipline
-        </h3>
-        <p className="text-[11px] text-muted-foreground">
-          Special items or conditions discussed with the client, one concise line per item,
-          including what the client is still considering. Use Annex quick-pick examples or mark a
-          discipline as reviewed with no special items.
-        </p>
-      </div>
+      {!onlyStep ? (
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+            B. Customer Intake by Discipline
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Special items or conditions discussed with the client, one concise line per item,
+            including what the client is still considering. Use Annex quick-pick examples or mark a
+            discipline as reviewed with no special items.
+          </p>
+        </div>
+      ) : null}
 
-      {DISCIPLINE_DEFINITIONS.map((discipline) => {
+      {visibleDisciplines.map((discipline) => {
         const sec = sectionB.disciplines[discipline.key];
         const hasRows = sec.items.some((row) => row.item.trim().length > 0);
         const complete = Boolean(sec.reviewedNone || hasRows);
         const showAnnex = openAnnexFor === discipline.key;
 
         return (
-          <div key={discipline.key} className="rounded-xl border bg-card/60 p-3.5 space-y-2.5">
+          <div
+            key={discipline.key}
+            id={`q101-b-${discipline.key}`}
+            className="scroll-mt-4 rounded-xl border bg-card/60 p-3.5 space-y-2.5"
+          >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-xs font-bold text-foreground">{discipline.sectionTitle}</p>
@@ -962,6 +1082,21 @@ export function SectionBIntake({
                 <Sparkles className="mr-1 size-3.5 text-primary" />
                 {showAnnex ? "Hide Annex 2 examples" : "Pick from Annex 2"}
               </Button>
+              {onlyStep && onAdvance && !hasRows ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="ml-auto"
+                  onClick={() => {
+                    patchDiscipline(discipline.key, (s) => ({ ...s, reviewedNone: true }));
+                    onAdvance();
+                  }}
+                >
+                  No special items
+                  <ArrowRight className="ml-1 size-3.5" />
+                </Button>
+              ) : null}
             </div>
 
             {showAnnex ? (
@@ -994,7 +1129,8 @@ export function SectionBIntake({
       })}
 
       {/* B.8 Special products and items */}
-      <div id="q101-b8" className="scroll-mt-4 rounded-xl border bg-card/60 p-3.5 space-y-3">
+      {showSpecial ? (
+        <div id="q101-b8" className="scroll-mt-4 rounded-xl border bg-card/60 p-3.5 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="max-w-2xl space-y-1">
             <p className="text-xs font-bold text-foreground">
@@ -1162,6 +1298,23 @@ export function SectionBIntake({
             <Sparkles className="mr-1 size-3.5 text-primary" />
             {openAnnexFor === "special" ? "Hide Annex 1 examples" : "Pick from Annex 1"}
           </Button>
+          {onlyStep &&
+          onAdvance &&
+          !sectionB.specialProducts.items.some((r) => r.item.trim().length > 0) ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="ml-auto"
+              onClick={() => {
+                patchSpecial((s) => ({ ...s, reviewedNone: true }));
+                onAdvance();
+              }}
+            >
+              No special items
+              <ArrowRight className="ml-1 size-3.5" />
+            </Button>
+          ) : null}
         </div>
 
         {openAnnexFor === "special" ? (
@@ -1205,7 +1358,8 @@ export function SectionBIntake({
             </div>
           </div>
         ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1213,9 +1367,11 @@ export function SectionBIntake({
 export function SectionCIntake({
   form,
   onChange,
+  hideHeader,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
+  hideHeader?: boolean;
 }) {
   const { rfis } = form.sectionC;
 
@@ -1228,15 +1384,17 @@ export function SectionCIntake({
 
   return (
     <div id="q101-section-c" className="scroll-mt-4 space-y-3">
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-          C. Technical Intake Summary
-        </h3>
-        <p className="text-[11px] text-muted-foreground">
-          1. Missing information and next actions (RFIs are tracked for follow-up without distorting
-          completeness score).
-        </p>
-      </div>
+      {!hideHeader ? (
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+            C. Technical Intake Summary
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            1. Missing information and next actions (RFIs are tracked for follow-up without
+            distorting completeness score).
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border bg-card/60 p-3.5 space-y-2.5">
         {rfis.length === 0 ? (

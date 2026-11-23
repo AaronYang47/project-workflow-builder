@@ -1,7 +1,8 @@
-import type { Qualification } from "@/lib/qualification";
+import type { Qualification, TechReviewStatus } from "@/lib/qualification";
 
 export const FORM_101_CODE = "1.01";
 export const FORM_101_VERSION = "261116";
+export const FORM_101_PASS_SCORE = 70;
 export const FORM_101_ORGANIZATION =
   "GROUPE PROFAB INC. · 294 rue Laurier, St-Apollinaire, QC, G0S 2E0 · www.profab.ca";
 
@@ -901,5 +902,87 @@ export function evaluateQualificationForm101(
     openRfiCount: nonEmptyRfis.length,
     incompleteRfiCount,
     hasAnyInput,
+  };
+}
+
+export type QualificationGateState = "failed_score" | "pending_review" | "rejected" | "passed";
+
+export interface QualificationGateEvaluation {
+  totalScore: number;
+  passScore: number;
+  scorePassed: boolean;
+  reviewStatus: TechReviewStatus;
+  techReviewApproved: boolean;
+  passed: boolean;
+  state: QualificationGateState;
+  statusLabel: string;
+  blockingReason?: string;
+}
+
+/**
+ * Qualification passes only when BOTH conditions hold:
+ * 1. Form [1.01] completeness score is at least 70% (lower scores automatically fail).
+ * 2. Tech Review has been explicitly approved.
+ */
+export function evaluateQualificationGate(
+  qualification: Qualification,
+): QualificationGateEvaluation {
+  const { totalScore } = evaluateQualificationForm101(qualification);
+  const scorePassed = totalScore >= FORM_101_PASS_SCORE;
+  const reviewStatus: TechReviewStatus = qualification.techReview?.status ?? "pending";
+  const techReviewApproved = scorePassed && reviewStatus === "approved";
+
+  if (!scorePassed) {
+    return {
+      totalScore,
+      passScore: FORM_101_PASS_SCORE,
+      scorePassed: false,
+      reviewStatus,
+      techReviewApproved: false,
+      passed: false,
+      state: "failed_score",
+      statusLabel: `Auto-Fail (< ${FORM_101_PASS_SCORE}%)`,
+      blockingReason: `Form [${FORM_101_CODE}] score is ${totalScore}% (minimum ${FORM_101_PASS_SCORE}% required). It cannot pass until score reaches ${FORM_101_PASS_SCORE}% and Tech Review approves.`,
+    };
+  }
+
+  if (reviewStatus === "rejected") {
+    return {
+      totalScore,
+      passScore: FORM_101_PASS_SCORE,
+      scorePassed: true,
+      reviewStatus,
+      techReviewApproved: false,
+      passed: false,
+      state: "rejected",
+      statusLabel: "Tech Review Rejected",
+      blockingReason:
+        "Tech Review rejected this qualification. Update Form [1.01] and obtain Tech Review approval to continue.",
+    };
+  }
+
+  if (!techReviewApproved) {
+    return {
+      totalScore,
+      passScore: FORM_101_PASS_SCORE,
+      scorePassed: true,
+      reviewStatus,
+      techReviewApproved: false,
+      passed: false,
+      state: "pending_review",
+      statusLabel: "Awaiting Tech Review",
+      blockingReason: `Form [${FORM_101_CODE}] reached ${totalScore}% (≥ ${FORM_101_PASS_SCORE}%). Approve Tech Review to continue to the next step.`,
+    };
+  }
+
+  return {
+    totalScore,
+    passScore: FORM_101_PASS_SCORE,
+    scorePassed: true,
+    reviewStatus,
+    techReviewApproved: true,
+    passed: true,
+    state: "passed",
+    statusLabel: "Tech Review Passed",
   };
 }

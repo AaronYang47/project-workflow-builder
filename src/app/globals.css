@@ -500,11 +500,15 @@ button:disabled {
   height: 100%;
 }
 .workflow-edge-flow {
-  stroke-width: 3.2;
-  stroke-dasharray: 1 13;
+  stroke-width: 4.5;
+  stroke-dasharray: 12 18;
   stroke-linecap: round;
   filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
-  animation: workflow-edge-flow 1.25s linear infinite;
+  animation: workflow-edge-flow 1.1s linear infinite;
+}
+.high-level-flow-edge-active .react-flow__edge-path {
+  stroke-dasharray: 12 18;
+  animation: workflow-edge-flow 1.1s linear infinite;
 }
 .panel-edge-toggle {
   position: absolute;
@@ -529,7 +533,7 @@ button:disabled {
 }
 @keyframes workflow-edge-flow {
   to {
-    stroke-dashoffset: -28;
+    stroke-dashoffset: -30;
   }
 }
 .pyramid-flow-edge,
@@ -833,6 +837,10 @@ button:disabled {
   .workflow-edge-flow {
     animation: none;
     opacity: 0.35 !important;
+  }
+  .high-level-flow-edge-active .react-flow__edge-path {
+    animation: none;
+    stroke-dasharray: none;
   }
   .pyramid-flow-edge,
   .pyramid-flow-edge-down,

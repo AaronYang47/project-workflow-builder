@@ -9,6 +9,7 @@ import {
   CircleDot,
   CircleStop,
   ClipboardCheck,
+  Calculator,
   FileStack,
   FileText,
   FolderKanban,
@@ -31,6 +32,7 @@ import type { WorkflowNodeType } from "@/types/workflow";
 // node types users can drag or double-click to add.
 export const PALETTE_NODE_TYPES = [
   "qualification",
+  "estimation",
   "general",
   "gate",
   "terminal",
@@ -55,7 +57,16 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",
-    defaultSize: { width: 1000, height: 430 },
+    defaultSize: { width: 1180, height: 390 },
+  },
+  {
+    type: "estimation",
+    label: "Estimation",
+    description: "Preliminary estimate [1.06] after Qualification approval",
+    icon: Calculator,
+    color: "#0f766e",
+    category: "Flow",
+    defaultSize: { width: 520, height: 560 },
   },
   {
     type: "projectStart",

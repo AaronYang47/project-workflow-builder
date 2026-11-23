@@ -25,11 +25,13 @@ import {
 } from "@/lib/detailed-workflow";
 import { normalizeProjectOperations } from "@/lib/project-operations";
 import { createDefaultTerminalConditions } from "@/lib/create-domain-node";
+import { ensureEstimationWorkflow } from "@/lib/estimation-workflow";
 
 const stageByType: Record<WorkflowNodeType, string> = {
   general: "Department",
   projectStart: "Project",
   qualification: "Qualification",
+  estimation: "Estimation",
   start: "Start",
   end: "End",
   phase: "Phase",
@@ -58,6 +60,7 @@ const iconByType: Record<WorkflowNodeType, string> = {
   general: "activity",
   projectStart: "building",
   qualification: "check",
+  estimation: "document",
   start: "flag",
   end: "check",
   phase: "box",
@@ -85,6 +88,7 @@ const iconByType: Record<WorkflowNodeType, string> = {
 const preservedTypes = new Set<WorkflowNodeType>([
   "projectStart",
   "qualification",
+  "estimation",
   "phase",
   ...REFERENCE_NODE_TYPES,
 ]);
@@ -756,5 +760,5 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   };
   // Migration normalizes the saved document in place. It must not inject the
   // canonical lifecycle: each cloud project owns only the nodes it saved.
-  return normalizePreviousPhaseDependencies(migratedFile);
+  return normalizePreviousPhaseDependencies(ensureEstimationWorkflow(migratedFile));
 }

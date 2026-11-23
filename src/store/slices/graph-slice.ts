@@ -2,6 +2,7 @@
 
 import { clone } from "@/lib/clone";
 import { createDomainNode } from "@/lib/create-domain-node";
+import { ensureEstimationWorkflow } from "@/lib/estimation-workflow";
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { jobNumberFromProjectName, withSyncedJobNumber } from "@/lib/project-id";
 import { releaseConditionBlocker } from "@/lib/workflow-progress";
@@ -192,6 +193,13 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
           return existing.id;
         }
       }
+      if (type === "estimation") {
+        const existing = get().file.graph.nodes.find((node) => node.type === "estimation");
+        if (existing) {
+          set({ selection: { nodeIds: [existing.id] } });
+          return existing.id;
+        }
+      }
       if (type === "projectStart") {
         const existing = get().file.graph.nodes.find((node) => node.type === "projectStart");
         if (existing) {
@@ -228,6 +236,9 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         selection: { nodeIds: [] },
       }));
       if (type === "qualification") placeQualificationFirst(id);
+      if (type === "qualification" || type === "estimation") {
+        get().commitTransient((current) => ensureEstimationWorkflow(current, type === "estimation" ? id : undefined));
+      }
       if (
         typeof window !== "undefined" &&
         type !== "phase" &&

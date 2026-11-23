@@ -405,11 +405,13 @@ function HighLevelCanvasInner({
           sourcePosition: Position.Right,
           targetPosition: Position.Left,
           animated: lineActive(edge.target),
-          className: "high-level-flow-edge",
+          className: lineActive(edge.target)
+            ? "high-level-flow-edge high-level-flow-edge-active"
+            : "high-level-flow-edge",
           data: { active: lineActive(edge.target) },
           style: {
             stroke: isSelected ? "#0d9488" : lineActive(edge.target) ? "#159a75" : "#94a3b8",
-            strokeWidth: isSelected ? 4 : lineActive(edge.target) ? 3.2 : 2.4,
+            strokeWidth: isSelected ? 5.5 : lineActive(edge.target) ? 5 : 2.4,
             strokeLinecap: "round" as const,
             strokeLinejoin: "round" as const,
           },

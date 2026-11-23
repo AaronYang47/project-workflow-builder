@@ -652,7 +652,7 @@ export function SemanticEdge({
   const approvedLabelMaxWidth = Math.max(80, Math.min(360, connectorGap - 28));
   const rawColor = getSemanticEdgeColor(domain);
   const active = data?.active;
-  const color = rawColor;
+  const color = data?.displayColor ?? (active ? rawColor : "#94a3b8");
 
   return (
     <>
@@ -661,8 +661,8 @@ export function SemanticEdge({
         path={path}
         style={{
           stroke: color,
-          strokeWidth: selected ? 3.8 : active ? 3.2 : 2.0,
-          opacity: active === false ? 0.65 : 1,
+          strokeWidth: selected ? 5 : active ? 4.5 : 2.4,
+          opacity: active === false ? 0.85 : 1,
           filter: active ? `drop-shadow(0 0 3px ${color}55)` : undefined,
           strokeLinejoin: "round",
           strokeLinecap: "round",

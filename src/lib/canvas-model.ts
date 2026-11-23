@@ -291,7 +291,7 @@ export function buildCanvasEdges(
       targetNode?.metadata.workflowSection === "Pre-Gate Sales" ||
       sourceNode?.type === "projectStart";
     const active = progress.activeEdgeIds.has(domain.id);
-    const activeColor = getSemanticEdgeColor(domain);
+    const activeColor = active ? getSemanticEdgeColor(domain) : "#94a3b8";
     const supportingLane = supportingEdgeLanes.get(domain.id);
 
     return {
@@ -320,6 +320,7 @@ export function buildCanvasEdges(
         chapterConnection: chapterConnections[domain.id],
         route: file.layout.edges?.[domain.id]?.points,
         active,
+        displayColor: activeColor,
         obstacles: labelObstacles,
         labelLane:
           supportingLane !== undefined
