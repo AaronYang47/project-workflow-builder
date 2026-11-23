@@ -27,7 +27,7 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       id,
       type,
       title: "Qualification",
-      description: "Client, GC and plans check before the project starts.",
+      description: "Form [1.01] qualification and CSA / PCS / LOI routing.",
       color: def.color,
       metadata: {},
       conditions: [],

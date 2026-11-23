@@ -53,7 +53,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
   {
     type: "qualification",
     label: "Qualification",
-    description: "Client, GC and plans check before the project starts",
+    description: "Form [1.01] qualification and CSA / PCS / LOI routing",
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",

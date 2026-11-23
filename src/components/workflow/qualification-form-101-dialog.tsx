@@ -22,6 +22,8 @@ import {
   FORM_101_CODE,
   FORM_101_ORGANIZATION,
   FORM_101_PASS_SCORE,
+  FORM_101_MAX_SCORE,
+  FORM_101_PASS_PERCENT,
   FORM_101_VERSION,
   compactQualificationForm101,
   createEmptyQualificationForm101,
@@ -72,7 +74,7 @@ function QualificationForm101DialogBody({
   onSave: (nextForm: QualificationForm101 | undefined) => void;
   onClose: () => void;
 }) {
-  const isLoi = qualification.commercialPath === "LOI";
+  const isLoi = qualificationRoute(qualification) === "LOI";
   const [draft, setDraft] = useState<QualificationForm101>(() =>
     normalizeQualificationForm101(qualification.form101),
   );
@@ -302,7 +304,9 @@ function QualificationForm101DialogBody({
                 gradeToneClasses(evaluation.grade),
               )}
             >
-              <span>Score: {evaluation.totalScore}/100</span>
+              <span>
+                Score: {evaluation.totalScore}/{FORM_101_MAX_SCORE}
+              </span>
               <span>·</span>
               <span>Grade {evaluation.grade}</span>
             </span>
@@ -316,8 +320,8 @@ function QualificationForm101DialogBody({
               )}
             >
               {gate.scorePassed
-                ? `≥ ${FORM_101_PASS_SCORE}% Met`
-                : `Need ${FORM_101_PASS_SCORE - evaluation.totalScore}% more — Cannot Pass`}
+                ? `≥ ${FORM_101_PASS_SCORE}/${FORM_101_MAX_SCORE} (${FORM_101_PASS_PERCENT}%) Met`
+                : `Need ${FORM_101_PASS_SCORE - evaluation.totalScore} points — Cannot Pass`}
             </span>
             {evaluation.q9DepositExempt ? (
               <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">

@@ -29,9 +29,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     // the qualification card left; the new card takes its former position.
     const desiredX = (qLayout?.x ?? 0) + width + 160;
     const startX = start && startLayout ? absoluteX(start.id) : undefined;
-    const estimatorX = startX !== undefined && desiredX + 520 + 120 > startX
-      ? startX - 520 - 120
-      : desiredX;
+    const estimatorX =
+      startX !== undefined && desiredX + 520 + 120 > startX ? startX - 520 - 120 : desiredX;
     if (qLayout && estimatorX < desiredX) qLayout.x -= desiredX - estimatorX;
     file.layout.nodes[id] = {
       nodeId: id,
@@ -43,7 +42,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     };
   }
   const direct = file.graph.edges.filter(
-    (edge) => edge.source === qualification.id &&
+    (edge) =>
+      edge.source === qualification.id &&
       edge.target !== id &&
       !["failure", "rework", "reopen", "hold"].includes(edge.type),
   );
@@ -64,15 +64,20 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       customFields: {},
     });
   }
-  if (!file.graph.edges.some((edge) => edge.source === qualification.id && edge.target === id)) {
+  // Each route has its own output and matching Estimation input. Replace the
+  // older single edge as well as incomplete route sets in saved workflows.
+  file.graph.edges = file.graph.edges.filter(
+    (edge) => !(edge.source === qualification.id && edge.target === id),
+  );
+  for (const route of ["CSA", "PCS", "LOI"] as const) {
     file.graph.edges.push({
-      id: `edge-${qualification.id}-${id}`,
+      id: `edge-${qualification.id}-${id}-${route.toLowerCase()}`,
       source: qualification.id,
       target: id,
-      sourceHandle: "out",
-      targetHandle: "in",
+      sourceHandle: route,
+      targetHandle: route,
       type: "normal",
-      label: "Passed",
+      label: route,
       lineStyle: "solid",
       arrowStyle: "closed",
       customFields: {},
@@ -108,7 +113,11 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
         const target = queue.shift()!;
         if (downstream.has(target) || target === l1Source.id) continue;
         downstream.add(target);
-        queue.push(...highLevel.graph.edges.filter((edge) => edge.source === target).map((edge) => edge.target));
+        queue.push(
+          ...highLevel.graph.edges
+            .filter((edge) => edge.source === target)
+            .map((edge) => edge.target),
+        );
       }
       for (const target of downstream) {
         const layout = highLevel.layout.nodes[target];
@@ -117,11 +126,12 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       highLevel.graph.edges = highLevel.graph.edges.map((edge) =>
         nextEdges.includes(edge) ? { ...edge, source: l1Id } : edge,
       );
-      if (nextEdges.length) highLevel.graph.edges.push({
-        id: `high-level-edge-${l1Source.id}-${l1Id}`,
-        source: l1Source.id,
-        target: l1Id,
-      });
+      if (nextEdges.length)
+        highLevel.graph.edges.push({
+          id: `high-level-edge-${l1Source.id}-${l1Id}`,
+          source: l1Source.id,
+          target: l1Id,
+        });
     }
   }
   return file;

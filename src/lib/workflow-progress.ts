@@ -17,7 +17,7 @@ import type { ProjectOperations } from "@/types/project-operations";
 import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
-import { qualificationOf } from "@/lib/qualification";
+import { qualificationOf, qualificationRoute } from "@/lib/qualification";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
@@ -393,6 +393,12 @@ export function getWorkflowProgress(
           (edge.sourceHandle === "yes" && gateApprovalReady(source)) ||
           (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
       }
+      if (
+        source.type === "qualification" &&
+        ["CSA", "PCS", "LOI"].includes(edge.sourceHandle ?? "")
+      ) {
+        allowed = edge.sourceHandle === qualificationRoute(qualificationOf(source));
+      }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);
       if (!reachedNodeIds.has(edge.target)) {
@@ -556,13 +562,13 @@ function sequentialBlockerNotice(
     const targetName = nodeDisplayLabel(node);
     return {
       title: "Complete Qualification first",
-      message: `${gate.blockingReason ?? "Complete Qualification and approve Tech Review first."} ${targetName} can continue once Qualification passes.`,
+      message: `${gate.blockingReason ?? "Complete Form [1.01] and choose the CSA, PCS or LOI route."} ${targetName} can continue once Qualification passes.`,
     };
   }
 
   const names = blocking.map((step) =>
     step.type === "qualification"
-      ? `${step.title || "Qualification"} (Score ≥ 70% & Tech Review)`
+      ? `${step.title || "Qualification"} (Score ≥ 52/84 and route selected)`
       : step.type === "gate"
         ? `${step.title} (Gate approval)`
         : nodeDisplayLabel(step),

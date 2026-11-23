@@ -12,16 +12,17 @@ export type QualificationTechReview = {
 
 /** Choices made in the L2 Qualification node. All can be changed later. */
 export type Qualification = {
+  customerHistory?: "new" | "existing";
   clientType?: (typeof CLIENT_TYPES)[number];
   gcStatus?: (typeof GC_STATUSES)[number];
   contractingClient?: (typeof CONTRACTING_CLIENT)[number];
   projectType?: (typeof PROJECT_TYPES)[number];
-  /** Plans Available? Yes → LOI / CSA / PCS; No → CSA (Concept Consultation). */
+  /** No plans → CSA; new customer with plans → PCS; existing customer → LOI. */
   plansAvailable?: "yes" | "no";
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
   form101?: QualificationForm101;
-  /** Technical review gate required after Form [1.01] reaches >= 70%. */
+  /** Retained for older saved projects; no longer gates the two-step Qualification flow. */
   techReview?: QualificationTechReview;
 };
 
@@ -44,13 +45,17 @@ export function qualificationOf(node: DomainNode): Qualification {
 }
 
 /**
- * The route the project takes after Qualification: with plans, the chosen
- * LOI / CSA / PCS; without plans, CSA (Concept Consultation). Undefined until
- * "Plans Available?" is answered.
+ * The preliminary route selected from customer history and drawing availability.
+ * Older saved selections remain readable until the user answers the new questions.
  */
 export function qualificationRoute(qualification: Qualification) {
-  if (qualification.plansAvailable === "no") return "CSA (Concept Consultation)";
-  if (qualification.plansAvailable === "yes")
-    return qualification.commercialPath ?? "LOI / CSA / PCS (choose one)";
+  if (qualification.customerHistory === "existing") return "LOI";
+  if (qualification.customerHistory === "new" && qualification.plansAvailable === "no")
+    return "CSA";
+  if (qualification.customerHistory === "new" && qualification.plansAvailable === "yes")
+    return "PCS";
+  if (qualification.customerHistory) return undefined;
+  if (qualification.commercialPath) return qualification.commercialPath;
+  if (qualification.plansAvailable === "no") return "CSA";
   return undefined;
 }

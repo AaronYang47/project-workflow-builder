@@ -1,8 +1,10 @@
-import type { Qualification, TechReviewStatus } from "@/lib/qualification";
+import { qualificationRoute, type Qualification } from "@/lib/qualification";
 
 export const FORM_101_CODE = "1.01";
-export const FORM_101_VERSION = "261116";
-export const FORM_101_PASS_SCORE = 70;
+export const FORM_101_VERSION = "261119";
+export const FORM_101_MAX_SCORE = 84;
+export const FORM_101_PASS_SCORE = 52;
+export const FORM_101_PASS_PERCENT = 62;
 export const FORM_101_ORGANIZATION =
   "GROUPE PROFAB INC. · 294 rue Laurier, St-Apollinaire, QC, G0S 2E0 · www.profab.ca";
 
@@ -336,7 +338,7 @@ export interface QualificationForm101 {
 export type QualificationGrade = "A" | "B" | "C" | "D";
 
 export interface QualificationScoreSection {
-  id: "A1" | "A2" | "A3" | "B";
+  id: "A1" | "A2" | "A3" | "B" | "C";
   label: string;
   score: number;
   maxScore: number;
@@ -344,7 +346,7 @@ export interface QualificationScoreSection {
 
 export interface QualificationMissingItem {
   id: string;
-  section: "A1" | "A2" | "A3" | "B";
+  section: "A1" | "A2" | "A3" | "B" | "C";
   anchorId: string;
   label: string;
 }
@@ -584,29 +586,26 @@ const filled = (value: string | undefined) => Boolean(value && value.trim().leng
 function gradeForScore(
   score: number,
 ): Pick<QualificationForm101Evaluation, "grade" | "gradeLabel"> {
-  if (score >= 85) return { grade: "A", gradeLabel: "Complete / Ready" };
-  if (score >= 65) return { grade: "B", gradeLabel: "Mostly Complete" };
-  if (score >= 40) return { grade: "C", gradeLabel: "Partial Intake" };
+  if (score >= 72) return { grade: "A", gradeLabel: "Complete / Ready" };
+  if (score >= FORM_101_PASS_SCORE) return { grade: "B", gradeLabel: "Mostly Complete" };
+  if (score >= 34) return { grade: "C", gradeLabel: "Partial Intake" };
   return { grade: "D", gradeLabel: "Incomplete" };
 }
 
 /**
- * Evaluate client intake completeness on a 100-point absolute scale:
- * - Section A1 (Project & Stakeholders): 30 pts
- * - Section A2 (Commercial Status & Schedule): 20 pts (Q9 deposit auto-exempted for LOI)
- * - Section A3 (Documents & Latest Drawings): 25 pts
- * - Section B  (Discipline Intake & Special Products): 25 pts
- * Section C (RFIs) is tracked independently without distorting completeness score.
+ * Paper Form [1.01] has 84 available points. The circled required portions
+ * total 52 points; 52/84 is the 62% pass threshold. Optional portions may
+ * contribute to the same total. Q2 and Q9 are required responses without points.
  */
 export function evaluateQualificationForm101(
   qualification: Qualification,
 ): QualificationForm101Evaluation {
   const form = normalizeQualificationForm101(qualification.form101);
   const { sectionA, sectionB, sectionC } = form;
-  const q9DepositExempt = qualification.commercialPath === "LOI";
+  const q9DepositExempt = qualificationRoute(qualification) === "LOI";
   const missingItems: QualificationMissingItem[] = [];
 
-  // --- Section A1 (30 pts) ---
+  // --- Section A1 (36 pts) ---
   let a1 = 0;
   let aCompleted = 0;
 
@@ -618,7 +617,7 @@ export function evaluateQualificationForm101(
   }
 
   if (filled(sectionA.projectAddress)) {
-    a1 += 4;
+    // Q2 is a required answer without points on the annotated form.
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -657,7 +656,7 @@ export function evaluateQualificationForm101(
     sectionA.mainContact.phone,
   ];
   const contactFilled = contactValues.filter(filled).length;
-  a1 += Math.round((contactFilled / 4) * 5);
+  a1 += contactFilled;
   if (contactFilled === 4) aCompleted += 1;
   else {
     missingItems.push({
@@ -669,7 +668,7 @@ export function evaluateQualificationForm101(
   }
 
   if (sectionA.occupancyGroups.length > 0) {
-    a1 += 3;
+    a1 += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -681,7 +680,7 @@ export function evaluateQualificationForm101(
   }
 
   if (filled(sectionA.grossAreaSqFt)) {
-    a1 += 3;
+    a1 += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -696,16 +695,13 @@ export function evaluateQualificationForm101(
   let fullConsultants = 0;
   for (const discipline of DISCIPLINE_DEFINITIONS) {
     const entry = sectionA.consultants[discipline.key];
-    const hasIdentity = filled(entry.name) || filled(entry.company);
-    const hasContact = filled(entry.contact);
-    if (hasIdentity && hasContact) {
-      consultantUnits += 1;
+    const fieldsFilled = [entry.name, entry.company, entry.contact].filter(filled).length;
+    consultantUnits += fieldsFilled;
+    if (fieldsFilled === 3) {
       fullConsultants += 1;
-    } else if (hasIdentity || hasContact) {
-      consultantUnits += 0.5;
     }
   }
-  a1 += Math.round((consultantUnits / DISCIPLINE_DEFINITIONS.length) * 6);
+  a1 += consultantUnits;
   if (fullConsultants === DISCIPLINE_DEFINITIONS.length) aCompleted += 1;
   else {
     missingItems.push({
@@ -716,10 +712,10 @@ export function evaluateQualificationForm101(
     });
   }
 
-  // --- Section A2 (20 pts) ---
+  // --- Section A2 (9 pts) ---
   let a2 = 0;
   if (sectionA.budgetEstablished) {
-    a2 += 4;
+    a2 += 2;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -731,7 +727,7 @@ export function evaluateQualificationForm101(
   }
 
   if (q9DepositExempt || sectionA.depositReceived) {
-    a2 += 4;
+    // Q9 is required for CSA/PCS, but the paper form assigns no points.
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -743,7 +739,7 @@ export function evaluateQualificationForm101(
   }
 
   if (filled(sectionA.permitStatus)) {
-    a2 += 4;
+    a2 += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -757,7 +753,7 @@ export function evaluateQualificationForm101(
   const datesFilled = TARGET_DATE_FIELDS.filter((field) =>
     filled(sectionA.targetDates[field.key]),
   ).length;
-  a2 += Math.round((datesFilled / TARGET_DATE_FIELDS.length) * 8);
+  a2 += datesFilled;
   if (datesFilled === TARGET_DATE_FIELDS.length) aCompleted += 1;
   else {
     missingItems.push({
@@ -768,21 +764,21 @@ export function evaluateQualificationForm101(
     });
   }
 
-  // --- Section A3 (25 pts) ---
+  // --- Section A3 (17 pts) ---
   let a3DocsPts = 0;
   let completeDocs = 0;
   for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
     const entry = sectionA.documents[doc.key];
     if (entry.available === "no") {
-      a3DocsPts += 2;
       completeDocs += 1;
     } else if (entry.available === "yes" && filled(entry.locationOrDate)) {
-      a3DocsPts += 2;
       completeDocs += 1;
     } else if (entry.available === "yes") {
-      a3DocsPts += 1;
+      completeDocs += 1;
     }
   }
+  // Only the availability answer is scored; file location/email date is optional.
+  a3DocsPts = completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length ? 1 : 0;
   if (completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length) {
     aCompleted += 1;
   } else {
@@ -803,7 +799,7 @@ export function evaluateQualificationForm101(
     if (filled(row.exactLocation)) attrs += 1;
     if (attrs > bestDrawingAttrs) bestDrawingAttrs = attrs;
   }
-  const a3DrawingsPts = Math.round((bestDrawingAttrs / 4) * 9);
+  const a3DrawingsPts = bestDrawingAttrs * 4;
   if (bestDrawingAttrs === 4) {
     aCompleted += 1;
   } else {
@@ -819,27 +815,16 @@ export function evaluateQualificationForm101(
   }
   const a3 = a3DocsPts + a3DrawingsPts;
 
-  // --- Section B (25 pts) ---
+  // --- Section B (18 pts) ---
   let completedBDisciplines = 0;
-  const missingDisciplines: string[] = [];
   for (const discipline of DISCIPLINE_DEFINITIONS) {
     const sec = sectionB.disciplines[discipline.key];
     const hasRows = sec.items.some((row) => filled(row.item));
     if (sec.reviewedNone || hasRows) {
       completedBDisciplines += 1;
-    } else {
-      missingDisciplines.push(discipline.consultantLabel);
     }
   }
-  const bDisciplinesPts = Math.round((completedBDisciplines / DISCIPLINE_DEFINITIONS.length) * 18);
-  if (missingDisciplines.length) {
-    missingItems.push({
-      id: "b-disciplines",
-      section: "B",
-      anchorId: "q101-section-b",
-      label: `Section B disciplines (${missingDisciplines.join(", ")})`,
-    });
-  }
+  const bDisciplinesPts = completedBDisciplines * 2;
 
   const sp = sectionB.specialProducts;
   const spHasItemWithSupply = sp.items.some((row) => filled(row.item) && Boolean(row.supply));
@@ -847,53 +832,46 @@ export function evaluateQualificationForm101(
   let bSpecialPts = 0;
   let spComplete = false;
   if (sp.reviewedNone || spHasItemWithSupply) {
-    bSpecialPts = 7;
+    bSpecialPts = 4;
     spComplete = true;
   } else if (spHasAnyItem) {
-    bSpecialPts = 4;
-    missingItems.push({
-      id: "b8-supply",
-      section: "B",
-      anchorId: "q101-b8",
-      label: "B.8 Special products supply scope (FI/SI, F/S, FIA/SIO)",
-    });
+    bSpecialPts = 0;
   } else {
-    missingItems.push({
-      id: "b8",
-      section: "B",
-      anchorId: "q101-b8",
-      label: "B.8 Special products & PE alignment (add items or mark None)",
-    });
+    // Section B is optional in the annotated scoring guide.
   }
   const b = bDisciplinesPts + bSpecialPts;
-
-  const totalScore = Math.max(0, Math.min(100, a1 + a2 + a3 + b));
-  const { grade, gradeLabel } = gradeForScore(totalScore);
   const nonEmptyRfis = sectionC.rfis.filter(
     (row) => filled(row.rfiNo) || filled(row.disciplineOrIssue),
   );
   const incompleteRfiCount = nonEmptyRfis.filter(
     (row) => !filled(row.sentBy) || !filled(row.dueDate),
   ).length;
+  const c = nonEmptyRfis.some(
+    (row) =>
+      filled(row.rfiNo) &&
+      filled(row.disciplineOrIssue) &&
+      filled(row.sentBy) &&
+      filled(row.dueDate),
+  )
+    ? 4
+    : 0;
+  const totalScore = Math.max(0, Math.min(FORM_101_MAX_SCORE, a1 + a2 + a3 + b + c));
+  const { grade, gradeLabel } = gradeForScore(totalScore);
 
   const hasAnyInput =
     Boolean(qualification.form101) &&
-    (filled(form.revision) ||
-      a1 > 0 ||
-      a2 - (q9DepositExempt ? 4 : 0) > 0 ||
-      a3 > 0 ||
-      b > 0 ||
-      nonEmptyRfis.length > 0);
+    (filled(form.revision) || a1 > 0 || a2 > 0 || a3 > 0 || b > 0 || nonEmptyRfis.length > 0);
 
   return {
     totalScore,
     grade,
     gradeLabel,
     sections: [
-      { id: "A1", label: "Project & Parties", score: a1, maxScore: 30 },
-      { id: "A2", label: "Commercial & Schedule", score: a2, maxScore: 20 },
-      { id: "A3", label: "Docs & Drawings", score: a3, maxScore: 25 },
-      { id: "B", label: "Technical Intake", score: b, maxScore: 25 },
+      { id: "A1", label: "Project & Parties", score: a1, maxScore: 36 },
+      { id: "A2", label: "Commercial & Schedule", score: a2, maxScore: 9 },
+      { id: "A3", label: "Docs & Drawings", score: a3, maxScore: 17 },
+      { id: "B", label: "Technical Intake", score: b, maxScore: 18 },
+      { id: "C", label: "RFIs", score: c, maxScore: 4 },
     ],
     missingItems,
     q9DepositExempt,
@@ -905,14 +883,13 @@ export function evaluateQualificationForm101(
   };
 }
 
-export type QualificationGateState = "failed_score" | "pending_review" | "rejected" | "passed";
+export type QualificationGateState = "failed_score" | "pending_route" | "passed";
 
 export interface QualificationGateEvaluation {
   totalScore: number;
   passScore: number;
   scorePassed: boolean;
-  reviewStatus: TechReviewStatus;
-  techReviewApproved: boolean;
+  route?: "CSA" | "PCS" | "LOI";
   passed: boolean;
   state: QualificationGateState;
   statusLabel: string;
@@ -921,57 +898,37 @@ export interface QualificationGateEvaluation {
 
 /**
  * Qualification passes only when BOTH conditions hold:
- * 1. Form [1.01] completeness score is at least 70% (lower scores automatically fail).
- * 2. Tech Review has been explicitly approved.
+ * Form [1.01] must reach 52/84 and one of the three customer routes must resolve.
  */
 export function evaluateQualificationGate(
   qualification: Qualification,
 ): QualificationGateEvaluation {
   const { totalScore } = evaluateQualificationForm101(qualification);
   const scorePassed = totalScore >= FORM_101_PASS_SCORE;
-  const reviewStatus: TechReviewStatus = qualification.techReview?.status ?? "pending";
-  const techReviewApproved = scorePassed && reviewStatus === "approved";
+  const route = qualificationRoute(qualification);
 
   if (!scorePassed) {
     return {
       totalScore,
       passScore: FORM_101_PASS_SCORE,
       scorePassed: false,
-      reviewStatus,
-      techReviewApproved: false,
+      route,
       passed: false,
       state: "failed_score",
-      statusLabel: `Auto-Fail (< ${FORM_101_PASS_SCORE}%)`,
-      blockingReason: `Form [${FORM_101_CODE}] score is ${totalScore}% (minimum ${FORM_101_PASS_SCORE}% required). It cannot pass until score reaches ${FORM_101_PASS_SCORE}% and Tech Review approves.`,
+      statusLabel: `Below ${FORM_101_PASS_SCORE}/${FORM_101_MAX_SCORE}`,
+      blockingReason: `Form [${FORM_101_CODE}] has ${totalScore}/${FORM_101_MAX_SCORE} points. At least ${FORM_101_PASS_SCORE} points (${FORM_101_PASS_PERCENT}%) are needed before choosing a route.`,
     };
   }
-
-  if (reviewStatus === "rejected") {
+  if (!route) {
     return {
       totalScore,
       passScore: FORM_101_PASS_SCORE,
       scorePassed: true,
-      reviewStatus,
-      techReviewApproved: false,
+      route: undefined,
       passed: false,
-      state: "rejected",
-      statusLabel: "Tech Review Rejected",
-      blockingReason:
-        "Tech Review rejected this qualification. Update Form [1.01] and obtain Tech Review approval to continue.",
-    };
-  }
-
-  if (!techReviewApproved) {
-    return {
-      totalScore,
-      passScore: FORM_101_PASS_SCORE,
-      scorePassed: true,
-      reviewStatus,
-      techReviewApproved: false,
-      passed: false,
-      state: "pending_review",
-      statusLabel: "Awaiting Tech Review",
-      blockingReason: `Form [${FORM_101_CODE}] reached ${totalScore}% (≥ ${FORM_101_PASS_SCORE}%). Approve Tech Review to continue to the next step.`,
+      state: "pending_route",
+      statusLabel: "Choose CSA / PCS / LOI",
+      blockingReason: `Form [${FORM_101_CODE}] passed. Select whether the customer is new or existing and whether plans are available to choose the route.`,
     };
   }
 
@@ -979,10 +936,9 @@ export function evaluateQualificationGate(
     totalScore,
     passScore: FORM_101_PASS_SCORE,
     scorePassed: true,
-    reviewStatus,
-    techReviewApproved: true,
+    route,
     passed: true,
     state: "passed",
-    statusLabel: "Tech Review Passed",
+    statusLabel: `${route} → Estimation`,
   };
 }
