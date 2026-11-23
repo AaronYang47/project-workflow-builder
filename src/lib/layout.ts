@@ -104,13 +104,18 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
   };
   const result = await elk.layout(graph);
   const COMMON_STEP_Y = 220;
-  for (const node of result.children || []) {
+  const elkChildren = result.children || [];
+  const firstNodeY = elkChildren.length ? Math.min(...elkChildren.map((node) => node.y ?? 0)) : 0;
+  const verticalOffset = COMMON_STEP_Y - firstNodeY;
+  for (const node of elkChildren) {
     const current = nodes[node.id];
     if (current)
       nodes[node.id] = {
         ...current,
         x: rounded(node.x),
-        y: COMMON_STEP_Y,
+        // Keep ELK's vertical lanes so parallel branches remain stacked instead
+        // of being flattened into one row. Shift the first lane below the frame header.
+        y: rounded((node.y ?? firstNodeY) + verticalOffset),
         width: rounded(node.width) || current.width,
         height: rounded(node.height) || current.height,
       };

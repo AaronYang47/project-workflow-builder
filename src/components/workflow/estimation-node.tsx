@@ -3,8 +3,6 @@
 import { Handle, Position } from "@xyflow/react";
 import { Calculator, CheckCircle2, LockKeyhole } from "lucide-react";
 import { estimateSummary, preliminaryEstimationReady } from "@/lib/preliminary-estimation";
-import { qualificationOf, qualificationRoute } from "@/lib/qualification";
-import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 
@@ -28,7 +26,6 @@ export function EstimationNode({
     state.file.graph.nodes.find((item) => item.type === "qualification"),
   );
   const sourcePassed = reached;
-  const route = qualification ? qualificationRoute(qualificationOf(qualification)) : undefined;
   const estimate = estimateSummary(node, qualification);
   const ready = preliminaryEstimationReady(node);
   const update = (key: string, value: string | boolean) =>
@@ -61,27 +58,13 @@ export function EstimationNode({
       data-estimation-node
       className={`relative h-full overflow-visible rounded-xl border-2 bg-white shadow-md dark:bg-slate-900 ${selected ? "border-teal-500" : "border-teal-600/50"}`}
     >
-      {(["CSA", "PCS", "LOI"] as const).map((path, index) => (
-        <div
-          key={path}
-          className="pointer-events-none absolute left-0 z-20"
-          style={{ top: `${[16, 50, 84][index]}%` }}
-        >
-          <Handle
-            type="target"
-            id={path}
-            position={Position.Left}
-            className={`!left-[-6px] !size-3 !border-2 !border-white ${sourcePassed && route === path ? "commercial-route-handle-active" : ""}`}
-            style={{
-              backgroundColor:
-                sourcePassed && route === path ? COMMERCIAL_ROUTE_STYLE[path].color : "#94a3b8",
-            }}
-          />
-          <span className="absolute left-4 -translate-y-1/2 rounded bg-white px-1 text-[9px] font-bold text-slate-500 dark:bg-slate-900">
-            {path}
-          </span>
-        </div>
-      ))}
+      <Handle
+        type="target"
+        id="in"
+        position={Position.Left}
+        className={`!left-[-6px] !size-3 !border-2 !border-white ${sourcePassed ? "commercial-route-handle-active" : ""}`}
+        style={{ backgroundColor: sourcePassed ? "#0f766e" : "#94a3b8" }}
+      />
       <Handle type="source" id="out" position={Position.Right} />
       <div className="h-full overflow-auto rounded-[inherit] p-4">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-700">

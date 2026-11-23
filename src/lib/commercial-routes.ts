@@ -2,6 +2,11 @@ import type { DomainNode } from "@/types/workflow";
 
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
 export type CommercialRoute = (typeof COMMERCIAL_ROUTES)[number];
+export const COMMERCIAL_ROUTE_CHOICE_NODE_ID = "commercial-route-choice";
+
+export function isCommercialRouteChoiceNode(node: DomainNode) {
+  return node.type === "commercialRule" && node.config.commercialRouteChoice === true;
+}
 
 export const COMMERCIAL_ROUTE_STYLE: Record<
   CommercialRoute,

@@ -27,7 +27,7 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       id,
       type,
       title: "Qualification",
-      description: "Form [1.01] qualification and CSA / PCS / LOI routing.",
+      description: "Form [1.01] qualification · minimum score 52/84.",
       color: def.color,
       metadata: {},
       conditions: [],
