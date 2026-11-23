@@ -152,6 +152,51 @@ test("the Final Close FOB yard switch greys out Phase 4 and routes around it", a
   );
 });
 
+test("L2 PDF prints skipped FOB yard cards in grayscale", async ({ page }) => {
+  await page.addInitScript(
+    ({ key, file }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+      window.print = () => {
+        const card = document.querySelector<HTMLElement>(
+          '#vector-canvas-print .react-flow__node.fob-yard-skipped[data-id="l2-p4"]',
+        );
+        const colors = Array.from(card?.querySelectorAll<HTMLElement>("*") ?? []).flatMap(
+          (element) => {
+            const style = getComputedStyle(element);
+            return [style.color, style.backgroundColor, style.borderTopColor];
+          },
+        );
+        (window as unknown as { skippedPrintColors: string[] }).skippedPrintColors = colors;
+      };
+    },
+    { key: WORKFLOW_STORAGE_KEY, file: fourPhaseWorkflow(true) },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await expect(page.locator('.react-flow__node.fob-yard-skipped[data-id="l2-p4"]')).toBeVisible();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
+  const colors = await page
+    .waitForFunction(
+      () => (window as unknown as { skippedPrintColors?: string[] }).skippedPrintColors,
+    )
+    .then((result) => result.jsonValue());
+  expect(colors.length).toBeGreaterThan(0);
+  for (const color of colors) {
+    const channels = color.match(/rgba?\((\d+), (\d+), (\d+)/);
+    if (channels)
+      expect(
+        Math.max(...channels.slice(1).map(Number)) - Math.min(...channels.slice(1).map(Number)),
+      ).toBeLessThanOrEqual(1);
+  }
+});
+
 test("Final Close completion condition follows FOB yard; custom text is kept", () => {
   const off = syncFinalCloseCompletion(fourPhaseWorkflow(false));
   const label = (file: typeof off) =>

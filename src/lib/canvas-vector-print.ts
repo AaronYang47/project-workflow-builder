@@ -197,6 +197,38 @@ function solidifyTranslucentGradients(root: HTMLElement, pageColor: Rgba) {
   });
 }
 
+/** Print engines discard CSS filters, so bake FOB yard grayscale into the cloned cards. */
+function desaturateSkippedCards(root: HTMLElement) {
+  const properties = [
+    "color",
+    "background-color",
+    "background-image",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "fill",
+    "stroke",
+  ];
+  root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped").forEach((card) => {
+    card.style.setProperty("opacity", "0.8", "important");
+    for (const element of [card, ...card.querySelectorAll<HTMLElement>("*")]) {
+      const computed = getComputedStyle(element);
+      for (const property of properties) {
+        const value = computed.getPropertyValue(property);
+        if (!value || value === "none") continue;
+        const grayscale = value.replace(COLOR_TOKEN, (token) => {
+          const color = parseColor(token);
+          if (!color) return token;
+          const gray = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
+          return css([gray, gray, gray, color[3]]);
+        });
+        if (grayscale !== value) element.style.setProperty(property, grayscale, "important");
+      }
+    }
+  });
+}
+
 /** Hidden rather than removed, so cards keep the exact layout of the canvas. */
 function hideEditingControls(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>(EDITING_CONTROLS).forEach((element) => {
@@ -720,6 +752,7 @@ export function printCanvasVector(
   const pageColor = parseColor(getComputedStyle(root).backgroundColor) ?? [255, 255, 255, 1];
   flattenBlurredEffects(copy);
   solidifyTranslucentGradients(copy, pageColor);
+  desaturateSkippedCards(copy);
 
   const previousTitle = document.title;
   document.title = title;
