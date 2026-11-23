@@ -67,7 +67,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: Calculator,
     color: "#0f766e",
     category: "Flow",
-    defaultSize: { width: 520, height: 600 },
+    defaultSize: { width: 390, height: 240 },
   },
   {
     type: "projectStart",

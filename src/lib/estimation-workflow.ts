@@ -127,7 +127,7 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       : {
           ...eLayout,
           parentId: undefined,
-          width: Math.max(eLayout.width, eSize.width),
+          width: eSize.width,
           height: eSize.height,
         };
 

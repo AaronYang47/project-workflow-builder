@@ -91,8 +91,8 @@ export function CommercialRouteGroupNode({
               className={`relative min-h-0 rounded-xl border-2 p-2 text-[10px] leading-snug ${active ? "commercial-route-node-active" : ""}`}
               style={
                 {
-                  borderColor: active ? style.color : "#94a3b8",
-                  backgroundColor: active ? `${style.color}0c` : "var(--card)",
+                  borderColor: active ? style.color : `${style.color}88`,
+                  backgroundColor: active ? `${style.color}13` : `${style.color}06`,
                   "--commercial-route-color": style.color,
                 } as React.CSSProperties
               }
@@ -102,7 +102,7 @@ export function CommercialRouteGroupNode({
                 position={Position.Left}
                 id={path}
                 className="!left-[-6px] !size-3 !border-2 !border-background"
-                style={{ backgroundColor: active ? style.color : "#94a3b8" }}
+                style={{ backgroundColor: active ? style.color : `${style.color}88` }}
               />
               <Handle
                 type="source"
@@ -110,12 +110,12 @@ export function CommercialRouteGroupNode({
                 id={path}
                 className="!right-[-6px] !size-3 !border-2 !border-background"
                 style={{
-                  backgroundColor: ready ? style.color : "#94a3b8",
+                  backgroundColor: ready ? style.color : `${style.color}88`,
                 }}
               />
               <div
                 className="mb-1 flex items-center gap-1.5 font-bold"
-                style={{ color: active ? style.color : "#64748b" }}
+                style={{ color: style.color }}
               >
                 <Icon className="size-3.5" />
                 {path} · {style.agreement}
