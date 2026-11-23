@@ -34,7 +34,6 @@ function routeEdge(
     sourceHandle: route,
     targetHandle: route,
     type: "normal",
-    label: route,
     lineStyle: "solid",
     arrowStyle: "closed",
     customFields: { routeColor: COMMERCIAL_ROUTE_STYLE[route].color },

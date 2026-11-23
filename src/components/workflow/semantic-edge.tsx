@@ -700,20 +700,22 @@ export function SemanticEdge({
           style={{ color, stroke: color, opacity: selected ? 1 : 0.85 }}
         />
       ) : null}
-      <EdgeLabelRenderer>
-        <EditableEdgeLabel
-          key={`${id}-${domain.label ?? ""}-${displayLabel}`}
-          id={id}
-          displayLabel={displayLabel}
-          rawLabel={domain.label}
-          color={color}
-          active={active}
-          approved={approved}
-          approvedLabelMaxWidth={approvedLabelMaxWidth}
-          placement={placement}
-          selected={selected}
-        />
-      </EdgeLabelRenderer>
+      {!isCommercialRouteColor(domain.customFields.routeColor) && (
+        <EdgeLabelRenderer>
+          <EditableEdgeLabel
+            key={`${id}-${domain.label ?? ""}-${displayLabel}`}
+            id={id}
+            displayLabel={displayLabel}
+            rawLabel={domain.label}
+            color={color}
+            active={active}
+            approved={approved}
+            approvedLabelMaxWidth={approvedLabelMaxWidth}
+            placement={placement}
+            selected={selected}
+          />
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 }
