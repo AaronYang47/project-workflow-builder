@@ -28,17 +28,24 @@ export function CommercialRouteGroupNode({
   );
   const route = qualification ? qualificationRoute(qualificationOf(qualification)) : undefined;
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
+  const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
+  const pcsExtraHours = Number(node.customFields.commercialRoutePcsExtraHours || 0);
+  const csaFee = Number.isFinite(csaHours) && csaHours > 0 ? csaHours * 200 : undefined;
   const pcsFee =
     Number.isFinite(modules) && modules > 0 ? Math.max(25_000, modules * 1_750) : undefined;
+  const pcsTotal = pcsFee === undefined ? undefined : pcsFee + Math.max(0, pcsExtraHours) * 200;
   const signed = node.conditions.some(
     (condition) => condition.id === "loi-ceo-signature-required" && condition.checked,
   );
-  const updateField = (key: string, value: string) =>
-    useWorkflowStore.getState().updateNode(node.id, {
+  const updateField = (key: string, value: string) => {
+    const store = useWorkflowStore.getState();
+    const current = store.file.graph.nodes.find((item) => item.id === node.id) ?? node;
+    store.updateNode(node.id, {
       type: "commercialRule",
-      config: { ...node.config, commercialRouteGroup: true },
-      customFields: { ...node.customFields, [key]: value },
+      config: { ...current.config, commercialRouteGroup: true },
+      customFields: { ...current.customFields, [key]: value },
     });
+  };
   const updateSignature = (checked: boolean) =>
     useWorkflowStore.getState().updateNode(node.id, {
       conditions: node.conditions.map((condition) =>
@@ -89,14 +96,14 @@ export function CommercialRouteGroupNode({
                 type="target"
                 position={Position.Left}
                 id={path}
-                className="!left-[-18px] !size-3 !border-2 !border-background"
+                className="!left-[-6px] !size-3 !border-2 !border-background"
                 style={{ backgroundColor: active ? style.color : "#94a3b8" }}
               />
               <Handle
                 type="source"
                 position={Position.Right}
                 id={path}
-                className="!right-[-18px] !size-3 !border-2 !border-background"
+                className="!right-[-6px] !size-3 !border-2 !border-background"
                 style={{
                   backgroundColor: active && (path !== "LOI" || signed) ? style.color : "#94a3b8",
                 }}
@@ -111,10 +118,26 @@ export function CommercialRouteGroupNode({
               </div>
               {path === "CSA" && (
                 <>
-                  <p className="font-semibold">Consultation Services · CAD $200 / hour + taxes</p>
+                  <label className="flex items-center gap-2 font-semibold">
+                    Consultation Services · Hours
+                    <input
+                      aria-label="CSA billable hours"
+                      className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={String(node.customFields.commercialRouteCsaHours || "")}
+                      onChange={(event) =>
+                        updateField("commercialRouteCsaHours", event.target.value)
+                      }
+                    />
+                  </label>
+                  <p className="font-bold">
+                    CAD $200 × hours {csaFee !== undefined && `= ${cad(csaFee)} before tax`}
+                  </p>
                   <p className="text-muted-foreground">
-                    Up to 10 hours anticipated (about {cad(2_000)} before tax); actual hours billed.
-                    Extra work needs prior written approval.
+                    Up to 10 hours anticipated (about {cad(2_000)}); actual hours billed. Extra work
+                    needs prior written approval. Applicable taxes extra.
                   </p>
                 </>
               )}
@@ -135,10 +158,27 @@ export function CommercialRouteGroupNode({
                     />
                   </label>
                   <p>
-                    Fee: greater of {cad(25_000)} or {cad(1_750)} × modules.{" "}
-                    {pcsFee !== undefined && <strong>{cad(pcsFee)}</strong>}
+                    Base: greater of {cad(25_000)} or {cad(1_750)} × modules.
                   </p>
-                  <p className="text-muted-foreground">Additional hours: {cad(200)} / hour.</p>
+                  <label className="flex items-center gap-2 text-muted-foreground">
+                    Extra hours · {cad(200)} / hour
+                    <input
+                      aria-label="PCS additional hours"
+                      className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={String(node.customFields.commercialRoutePcsExtraHours || "")}
+                      onChange={(event) =>
+                        updateField("commercialRoutePcsExtraHours", event.target.value)
+                      }
+                    />
+                  </label>
+                  <p className="font-bold">
+                    {pcsTotal === undefined
+                      ? "Enter modules to calculate"
+                      : `Total: ${cad(pcsTotal)} before tax`}
+                  </p>
                 </>
               )}
               {path === "LOI" && (

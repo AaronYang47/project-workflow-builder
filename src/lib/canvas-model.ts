@@ -8,6 +8,7 @@ import { chapterLabel } from "@/lib/chapter-label";
 import { routeChapterConnections } from "@/lib/chapter-edge-routing";
 import { estimatePhaseHeaderHeight } from "@/lib/phase-layout";
 import { getSemanticEdgeColor, type LabelObstacle } from "@/lib/semantic-edge-geometry";
+import { isCommercialRouteGroupNode } from "@/lib/commercial-routes";
 import { PHASE_HEADER_HEIGHT, getL1FallbackColor } from "@/lib/node-layout";
 import { chapterPhaseGradientColors, DEFAULT_STAGE_COLORS } from "@/lib/chapter-phase-gradient";
 import { isReferenceNodeType, type DomainEdge } from "@/types/workflow";
@@ -297,7 +298,7 @@ export function buildCanvasEdges(
     return {
       id: domain.id,
       type: "semantic",
-      zIndex: 10,
+      zIndex: active ? 12 : 10,
       className:
         fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
           ? "fob-yard-skipped"
@@ -309,7 +310,11 @@ export function buildCanvasEdges(
       reconnectable: true,
       selected: selection.edgeId === domain.id,
       markerEnd:
-        domain.arrowStyle === "none"
+        domain.arrowStyle === "none" ||
+        (sourceNode &&
+          isCommercialRouteGroupNode(sourceNode) &&
+          targetNode?.type === "estimation" &&
+          !active)
           ? undefined
           : {
               type: MarkerType.ArrowClosed,
