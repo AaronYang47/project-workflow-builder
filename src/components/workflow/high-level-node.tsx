@@ -689,7 +689,7 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
                     </button>
                     <button
                       type="button"
-                      className="nodrag min-w-0 flex-1 whitespace-normal break-words text-left text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors"
+                      className="nodrag min-w-0 flex-1 truncate whitespace-nowrap text-left text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors"
                       onClick={(event) => {
                         event.stopPropagation();
                         data.onLinkedLayer2NodeClick?.(linkedNode.id);
@@ -750,7 +750,7 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
     return (
       <div
         className={cn(
-          "high-level-node-card relative w-72 min-w-72 max-w-72 overflow-visible rounded-2xl border bg-primary/[0.055] shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all",
+          "high-level-node-card relative w-full min-w-72 overflow-visible rounded-2xl border bg-primary/[0.055] shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all",
           visual.border,
         )}
       >
@@ -779,9 +779,9 @@ function HighLevelNodeComponent({ data }: NodeProps<HighLevelFlowNode>) {
       className={cn(
         "high-level-node-card relative flex flex-col overflow-visible rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all",
         data.type === "phase"
-          ? "w-72 min-w-72 max-w-72"
+          ? "w-full min-w-72"
           : data.type === "start" || data.type === "end"
-            ? "w-64 min-w-64 max-w-64 min-h-[184px]"
+            ? "w-full min-w-64 min-h-[184px]"
             : "w-52 min-w-52 max-w-52 bg-card",
         data.type !== "phase" && !nodeColor ? visual.border : "",
         data.skipped ? "opacity-45 grayscale" : "",

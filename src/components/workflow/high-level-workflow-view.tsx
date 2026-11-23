@@ -22,6 +22,7 @@ import {
   orderLinkedWorkflowNodeIds,
 } from "@/lib/high-level-workflow";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
+import { highLevelCardWidth } from "@/lib/high-level-card-width";
 import { getFileProgress } from "@/lib/workflow-progress";
 import { departmentDisplayName } from "@/lib/department-label";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -198,18 +199,22 @@ function HighLevelCanvasInner({
               (id) => linkedPhaseById.get(id) === file.layout.nodes[gate.id]?.parentId,
             ),
           }));
-        const width =
-          node.type === "phase" || node.type === "primaryGate"
-            ? 288
-            : node.type === "start" || node.type === "end"
-              ? 256
-              : 208;
+        const width = highLevelCardWidth(
+          node.type,
+          linkedLayer2NodeIds.flatMap((id) => {
+            const linked = layer2ById.get(id);
+            return linked
+              ? [{ title: linkedWorkflowDisplayName(linked), hasSteps: linked.conditions.length > 0 }]
+              : [];
+          }),
+        );
         return {
           id: node.id,
           type: node.type,
           position: { x: layout?.x || 0, y: layout?.y || 0 },
           width,
           initialWidth: width,
+          style: { width },
           data: {
             title: node.title,
             description: node.description,
