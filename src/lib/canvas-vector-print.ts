@@ -575,6 +575,8 @@ const SERPENTINE_MAX_ROWS = 6;
 const SERPENTINE_ROW_GAP = 150;
 const SERPENTINE_MIN_GAP = 96;
 const CONNECTOR_STUB = 24;
+/** How far outside the cards the line turning down to the next row runs. */
+const ROW_TURN_OFFSET = 36;
 
 type Serpentine = {
   rows: number;
@@ -583,6 +585,8 @@ type Serpentine = {
   mirrored: Set<string>;
   rowOf: Map<string, number>;
   rowBottoms: number[];
+  /** Right edge of the widest row; the S turns run just outside it. */
+  sheetWidth: number;
   bounds: CanvasRect;
 };
 
@@ -705,6 +709,7 @@ function serpentineLayouts(
       mirrored,
       rowOf,
       rowBottoms,
+      sheetWidth,
       bounds: {
         x: -padding,
         y: -padding,
@@ -788,11 +793,16 @@ function orthogonalRoute(
   toSide: Side,
   lane: number,
   forceLane: boolean,
+  /** Optional x for the vertical runs at each end, e.g. out at the sheet edge. */
+  turnX?: { from?: number; to?: number },
 ): Point[] {
   const out = SIDE_VECTOR[fromSide];
   const into = SIDE_VECTOR[toSide];
-  const a = { x: from.x + out.x * CONNECTOR_STUB, y: from.y + out.y * CONNECTOR_STUB };
-  const b = { x: to.x + into.x * CONNECTOR_STUB, y: to.y + into.y * CONNECTOR_STUB };
+  const a = {
+    x: turnX?.from ?? from.x + out.x * CONNECTOR_STUB,
+    y: from.y + out.y * CONNECTOR_STUB,
+  };
+  const b = { x: turnX?.to ?? to.x + into.x * CONNECTOR_STUB, y: to.y + into.y * CONNECTOR_STUB };
   if (out.y === 0 && into.y === 0) {
     const facing = out.x === -into.x && out.x * (to.x - from.x) >= CONNECTOR_STUB * 2;
     if (facing && !forceLane) {
@@ -867,14 +877,20 @@ function routeSerpentineLinks(
       sameRowLanes.set(fromRow, used + 1);
       lane = layout.rowBottoms[fromRow] + 28 + (used % 4) * 10;
     }
-    const points = orthogonalRoute(
-      from,
-      handleSide(fromHandle),
-      to,
-      handleSide(toHandle),
-      lane,
-      forceLane,
-    );
+    const fromSide = handleSide(fromHandle);
+    const toSide = handleSide(toHandle);
+    // Turning to the next row: run out to the sheet edge, clear of every frame.
+    const edgeX = (side: Side, x: number) =>
+      side === "right"
+        ? Math.max(x + CONNECTOR_STUB, layout.sheetWidth + ROW_TURN_OFFSET)
+        : side === "left"
+          ? Math.min(x - CONNECTOR_STUB, -ROW_TURN_OFFSET)
+          : undefined;
+    const turnX =
+      fromRow !== toRow && !link.passUnder?.length
+        ? { from: edgeX(fromSide, from.x), to: edgeX(toSide, to.x) }
+        : undefined;
+    const points = orthogonalRoute(from, fromSide, to, toSide, lane, forceLane, turnX);
     const path = roundedPath(points);
     group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
 
