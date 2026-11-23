@@ -18,7 +18,6 @@ import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
-import { COMMERCIAL_ROUTES, isCommercialRouteChoiceNode } from "@/lib/commercial-routes";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
@@ -212,7 +211,7 @@ export function conditionDisplaySatisfied(
 }
 
 export function qualificationNodeReady(node: DomainNode) {
-  return evaluateQualificationGate(qualificationOf(node)).scorePassed;
+  return evaluateQualificationGate(qualificationOf(node)).passed;
 }
 
 export function nodeReleaseReady(
@@ -223,11 +222,6 @@ export function nodeReleaseReady(
 ) {
   if (node.type === "qualification") {
     return qualificationNodeReady(node);
-  }
-  if (isCommercialRouteChoiceNode(node)) {
-    return COMMERCIAL_ROUTES.includes(
-      node.customFields.selectedRoute as (typeof COMMERCIAL_ROUTES)[number],
-    );
   }
   if (node.type === "estimation") return preliminaryEstimationReady(node);
   if (node.type === "gate") {
@@ -267,15 +261,9 @@ export function nodeStatusLabel(
   if (stored) return stored;
   if (node.type === "qualification") {
     const gate = evaluateQualificationGate(qualificationOf(node));
-    if (gate.scorePassed) return gate.route ? "Ready" : "Ready for route selection";
+    if (gate.passed) return "Ready";
+    if (gate.scorePassed) return "In Progress";
     return "Blocked";
-  }
-  if (isCommercialRouteChoiceNode(node)) {
-    return COMMERCIAL_ROUTES.includes(
-      node.customFields.selectedRoute as (typeof COMMERCIAL_ROUTES)[number],
-    )
-      ? "Ready"
-      : "In Progress";
   }
   if (node.type === "estimation") return preliminaryEstimationReady(node) ? "Ready" : "In Progress";
   if (node.type === "gate" || (node.config.gateRules || []).length) {
@@ -406,14 +394,10 @@ export function getWorkflowProgress(
           (edge.sourceHandle !== "yes" && !gateChecklistSatisfied(source));
       }
       if (
-        isCommercialRouteChoiceNode(source) &&
-        COMMERCIAL_ROUTES.includes(edge.sourceHandle as (typeof COMMERCIAL_ROUTES)[number])
+        source.type === "qualification" &&
+        ["CSA", "PCS", "LOI"].includes(edge.sourceHandle ?? "")
       ) {
-        const qualification = nodes.find((node) => node.type === "qualification");
-        const selectedRoute = qualification
-          ? qualificationRoute(qualificationOf(qualification))
-          : undefined;
-        allowed = edge.sourceHandle === selectedRoute;
+        allowed = edge.sourceHandle === qualificationRoute(qualificationOf(source));
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

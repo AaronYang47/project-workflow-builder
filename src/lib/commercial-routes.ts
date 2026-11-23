@@ -2,11 +2,6 @@ import type { DomainNode } from "@/types/workflow";
 
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
 export type CommercialRoute = (typeof COMMERCIAL_ROUTES)[number];
-export const COMMERCIAL_ROUTE_CHOICE_NODE_ID = "commercial-route-choice";
-
-export function isCommercialRouteChoiceNode(node: DomainNode) {
-  return node.type === "commercialRule" && node.config.commercialRouteChoice === true;
-}
 
 export const COMMERCIAL_ROUTE_STYLE: Record<
   CommercialRoute,
@@ -21,6 +16,10 @@ export const commercialRouteNodeId = (route: CommercialRoute) =>
   `commercial-route-${route.toLowerCase()}`;
 
 export function commercialRouteForNode(node: DomainNode): CommercialRoute | undefined {
+  // Keep canonical agreement cards recognizable if a saved/collaborative patch
+  // accidentally overwrites the node type while editing a field.
+  const canonical = COMMERCIAL_ROUTES.find((item) => node.id === commercialRouteNodeId(item));
+  if (canonical) return canonical;
   if (node.type !== "commercialRule") return undefined;
   const route = node.config.commercialRoute;
   return COMMERCIAL_ROUTES.find((item) => item === route);

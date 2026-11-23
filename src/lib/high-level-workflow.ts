@@ -12,6 +12,7 @@ import { spacePhaseFrames } from "@/lib/phase-layout";
 import { createDomainNode } from "@/lib/create-domain-node";
 import { highLevelCardWidth } from "@/lib/high-level-card-width";
 import { departmentDisplayName } from "@/lib/department-label";
+import { commercialRouteForNode } from "@/lib/commercial-routes";
 
 export {
   defaultFobYardSkipPhaseIds,
@@ -261,7 +262,11 @@ export function synchronizeLinkedWorkflowOrder(file: WorkflowFile): WorkflowFile
   detachCardsFromOtherStepFrames(file.graph.nodes, layouts, highLevel.graph.nodes);
   const newFrames = frameUnframedSteps(graphNodes, layouts, highLevel.graph.nodes);
   if (newFrames.length) graphNodes = [...graphNodes, ...newFrames];
-  const positionedIds = allLinkedIds.filter((id) => layouts[id]);
+  // Agreement choices are parallel branches. Keep ELK's shared column and
+  // vertical positions instead of treating them as sequential L1 steps.
+  const positionedIds = allLinkedIds.filter(
+    (id) => layouts[id] && !commercialRouteForNode(nodeById.get(id)!),
+  );
   // L2 stores absolute canvas coordinates even when parentId marks membership.
   // Reuse the existing slots so a reorder does not collapse later phases.
   const slots = positionedIds.map((id) => layouts[id].x).sort((a, b) => a - b);

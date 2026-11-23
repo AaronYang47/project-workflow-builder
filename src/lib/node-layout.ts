@@ -3,7 +3,7 @@ import { getNodeDefinition } from "@/lib/node-catalog";
 import { isReferenceNodeType, type DomainNode, type NodeLayout } from "@/types/workflow";
 import { matrixKindForNode } from "@/lib/matrix-config";
 import { chapterLabel } from "@/lib/chapter-label";
-import { commercialRouteForNode, isCommercialRouteChoiceNode } from "@/lib/commercial-routes";
+import { commercialRouteForNode } from "@/lib/commercial-routes";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 // Phase header is about 96–112px tall. Keep a generous gutter below it so Gate
@@ -30,12 +30,6 @@ export function getAdaptiveNodeSize(
   if (node.type === "gate") return getGateLayoutMetrics(node);
   if (node.type === "phase")
     return { width: current?.width || 720, height: current?.height || 420 };
-  if (isCommercialRouteChoiceNode(node)) {
-    return {
-      width: Math.max(current?.width || 0, 320),
-      height: Math.max(current?.height || 0, 360),
-    };
-  }
   const commercialRoute = commercialRouteForNode(node);
   if (commercialRoute) {
     return {

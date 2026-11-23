@@ -2,42 +2,14 @@ import { createDomainNode } from "@/lib/create-domain-node";
 import {
   COMMERCIAL_ROUTES,
   COMMERCIAL_ROUTE_STYLE,
-  COMMERCIAL_ROUTE_CHOICE_NODE_ID,
   commercialRouteForNode,
   commercialRouteNodeId,
-  isCommercialRouteChoiceNode,
 } from "@/lib/commercial-routes";
-import { qualificationOf, qualificationRoute } from "@/lib/qualification";
 import { getNodeDefinition } from "@/lib/node-catalog";
 import type { Condition, DomainEdge, DomainNode, NodeLayout, WorkflowFile } from "@/types/workflow";
 
 const BYPASS_EDGE_TYPES = new Set(["failure", "rework", "reopen", "hold"]);
 const CEO_SIGNATURE_CONDITION = "loi-ceo-signature-required";
-
-function makeRouteChoiceNode(previous: DomainNode | undefined, qualificationNode: DomainNode) {
-  const id = previous?.id ?? COMMERCIAL_ROUTE_CHOICE_NODE_ID;
-  const base = previous ?? createDomainNode("commercialRule", id);
-  const selectedRoute = qualificationRoute(qualificationOf(qualificationNode));
-  return {
-    ...base,
-    id,
-    type: "commercialRule" as const,
-    title: "Choose CSA / PCS / LOI",
-    description: "Choose the commercial route from customer history and plan availability.",
-    color: "#0f766e",
-    conditions: base.conditions,
-    customFields: {
-      ...base.customFields,
-      selectedRoute: selectedRoute ?? "",
-    },
-    config: {
-      ...base.config,
-      commercialRouteChoice: true,
-      stage: "Qualification",
-      iconKey: "check",
-    },
-  } satisfies DomainNode;
-}
 
 function routeTitle(route: (typeof COMMERCIAL_ROUTES)[number]) {
   if (route === "CSA") return "CSA · Consultation Services";
@@ -122,20 +94,23 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
 
   const file = structuredClone(input);
   const currentQualification = file.graph.nodes.find((node) => node.id === qualification.id)!;
+  const obsoleteChoiceIds = new Set(
+    file.graph.nodes
+      .filter(
+        (node) =>
+          node.id === "commercial-route-choice" || node.config.commercialRouteChoice === true,
+      )
+      .map((node) => node.id),
+  );
+  file.graph.nodes = file.graph.nodes.filter((node) => !obsoleteChoiceIds.has(node.id));
+  file.graph.edges = file.graph.edges.filter(
+    (edge) => !obsoleteChoiceIds.has(edge.source) && !obsoleteChoiceIds.has(edge.target),
+  );
+  for (const choiceId of obsoleteChoiceIds) delete file.layout.nodes[choiceId];
   const existingEstimation = file.graph.nodes.find((node) => node.type === "estimation");
   const id = estimationId ?? existingEstimation?.id ?? "estimation-1-06";
   const estimation = file.graph.nodes.find((node) => node.id === id);
   if (!estimation) file.graph.nodes.push(createDomainNode("estimation", id));
-
-  const existingChoice = file.graph.nodes.find(isCommercialRouteChoiceNode);
-  const routeChoice = makeRouteChoiceNode(existingChoice, currentQualification);
-  if (existingChoice) {
-    file.graph.nodes = file.graph.nodes.map((item) =>
-      item.id === existingChoice.id ? routeChoice : item,
-    );
-  } else {
-    file.graph.nodes.push(routeChoice);
-  }
 
   const routeNodes = Object.fromEntries(
     COMMERCIAL_ROUTES.map((route) => {
@@ -150,11 +125,9 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     }),
   );
   const routeIds = new Set(COMMERCIAL_ROUTES.map((route) => routeNodes[route].id));
-  const managedIds = new Set([routeChoice.id, ...routeIds, id]);
 
   const qualificationSize = getNodeDefinition("qualification").defaultSize;
   const estimationSize = getNodeDefinition("estimation").defaultSize;
-  const routeChoiceSize = { width: 320, height: 360 };
   const qualificationLayout = (file.layout.nodes[currentQualification.id] ||= {
     nodeId: currentQualification.id,
     x: 0,
@@ -168,10 +141,16 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   const routeLayoutsMissing = COMMERCIAL_ROUTES.some(
     (route) => !file.layout.nodes[routeNodes[route].id],
   );
-  const routeChoiceLayoutMissing = !file.layout.nodes[routeChoice.id];
   const estimationLayoutMissing = !file.layout.nodes[id];
+  const routeXs = COMMERCIAL_ROUTES.map((route) => file.layout.nodes[routeNodes[route].id]?.x);
+  const routesNotAligned =
+    routeXs.every((x) => x !== undefined) &&
+    Math.max(...(routeXs as number[])) - Math.min(...(routeXs as number[])) > 2;
   const shouldPlaceManagedNodes =
-    routeLayoutsMissing || routeChoiceLayoutMissing || estimationLayoutMissing;
+    routeLayoutsMissing ||
+    estimationLayoutMissing ||
+    obsoleteChoiceIds.size > 0 ||
+    routesNotAligned;
 
   const start = file.graph.nodes.find((node) => node.type === "projectStart");
   const startLayout = start ? file.layout.nodes[start.id] : undefined;
@@ -189,55 +168,40 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
 
   if (shouldPlaceManagedNodes) {
     const routeWidth = 320;
-    const routeChoiceX = qualificationLayout.x + qualificationSize.width + 120;
-    const routeX = routeChoiceX + routeChoiceSize.width + 120;
+    const qualificationX = qualificationLayout.x;
+    const routeX = qualificationX + qualificationSize.width + 160;
     let estimationX = routeX + routeWidth + 140;
     const startX = start && startLayout ? absoluteX(start.id) : undefined;
-    let xShift = 0;
-    if (startX !== undefined && estimationX + estimationSize.width + 120 > startX) {
-      xShift = estimationX + estimationSize.width + 120 - startX;
-      qualificationLayout.x -= xShift;
-    }
-    estimationX -= xShift;
-    file.layout.nodes[routeChoice.id] = {
-      nodeId: routeChoice.id,
-      x: routeChoiceX - xShift,
-      y: qualificationLayout.y,
-      width: routeChoiceSize.width,
-      height: routeChoiceSize.height,
-      zIndex: 10,
-    };
-    const routeOffsets: Record<(typeof COMMERCIAL_ROUTES)[number], number> = {
-      CSA: 0,
-      PCS: 248,
-      LOI: 496,
-    };
-    const routeStackTop = Math.max(qualificationLayout.y, 220);
-    for (const route of COMMERCIAL_ROUTES) {
+    const shift =
+      startX !== undefined && estimationX + estimationSize.width + 120 > startX
+        ? estimationX + estimationSize.width + 120 - startX
+        : 0;
+    qualificationLayout.x -= shift;
+    estimationX -= shift;
+    const y = qualificationLayout.y;
+    const stackTop = Math.max(y, 220);
+    for (const [index, route] of COMMERCIAL_ROUTES.entries()) {
       const node = routeNodes[route];
+      const size = getNodeDefinition("commercialRule").defaultSize;
+      const height = route === "LOI" ? 208 : 192;
       file.layout.nodes[node.id] = {
         nodeId: node.id,
-        x: routeX - xShift,
-        y: routeStackTop + routeOffsets[route],
-        width: Math.max(getNodeDefinition("commercialRule").defaultSize.width, routeWidth),
-        height: COMMERCIAL_ROUTE_STYLE[route].height,
+        x: routeX - shift,
+        y: stackTop + index * 248,
+        width: Math.max(size.width, routeWidth),
+        height,
         zIndex: 10,
       };
     }
     file.layout.nodes[id] = {
       nodeId: id,
       x: estimationX,
-      y: qualificationLayout.y,
+      y,
       width: estimationSize.width,
       height: estimationSize.height,
       zIndex: 10,
     };
   } else {
-    const routeChoiceLayout = file.layout.nodes[routeChoice.id];
-    if (routeChoiceLayout) {
-      routeChoiceLayout.width = Math.max(routeChoiceLayout.width, routeChoiceSize.width);
-      routeChoiceLayout.height = Math.max(routeChoiceLayout.height, routeChoiceSize.height);
-    }
     for (const route of COMMERCIAL_ROUTES) {
       const routeLayout = file.layout.nodes[routeNodes[route].id];
       if (routeLayout) {
@@ -252,40 +216,34 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     }
   }
 
+  const routeIdsToFilter = routeIds;
   const directDownstream = file.graph.edges.filter(
     (edge) =>
       edge.source === currentQualification.id &&
-      !managedIds.has(edge.target) &&
+      edge.target !== id &&
+      !routeIdsToFilter.has(edge.target) &&
       !BYPASS_EDGE_TYPES.has(edge.type),
   );
   file.graph.edges = file.graph.edges
     .filter((edge) => {
-      if (edge.source === currentQualification.id && managedIds.has(edge.target)) return false;
-      if (managedIds.has(edge.source) && managedIds.has(edge.target)) return false;
+      if (
+        edge.source === currentQualification.id &&
+        (edge.target === id || routeIdsToFilter.has(edge.target))
+      )
+        return false;
+      if (routeIdsToFilter.has(edge.source) && edge.target === id) return false;
       return true;
     })
     .map((edge) =>
       directDownstream.includes(edge) ? { ...edge, source: id, sourceHandle: "out" } : edge,
     );
 
-  file.graph.edges.push({
-    id: `edge-${currentQualification.id}-${routeChoice.id}`,
-    source: currentQualification.id,
-    target: routeChoice.id,
-    sourceHandle: "out",
-    targetHandle: "in",
-    type: "normal",
-    lineStyle: "solid",
-    arrowStyle: "closed",
-    customFields: {},
-  });
-
   for (const route of COMMERCIAL_ROUTES) {
     const routeNode = routeNodes[route];
     file.graph.edges.push(
       makeRouteEdge(
-        `edge-${routeChoice.id}-${routeNode.id}`,
-        routeChoice.id,
+        `edge-${currentQualification.id}-${routeNode.id}`,
+        currentQualification.id,
         routeNode.id,
         route,
         route,
@@ -316,6 +274,16 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   // Keep legacy L1 data usable and remove the earlier fake Estimation phase.
   const highLevel = file.highLevel;
   if (highLevel) {
+    for (const step of highLevel.graph.nodes) {
+      if (step.linkedLayer2NodeIds)
+        step.linkedLayer2NodeIds = step.linkedLayer2NodeIds.filter(
+          (id) => !obsoleteChoiceIds.has(id),
+        );
+      if (step.linkedDetailedNodeIds)
+        step.linkedDetailedNodeIds = step.linkedDetailedNodeIds.filter(
+          (id) => !obsoleteChoiceIds.has(id),
+        );
+    }
     const legacyId = `high-level-${id}`;
     const legacy = highLevel.graph.nodes.some((node) => node.id === legacyId);
     if (legacy) {
@@ -351,15 +319,14 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       ),
     );
     if (l1Source) {
-      const linkedManagedIds = new Set([...managedIds]);
+      const managedIds = new Set([...routeIds, id]);
       const linked = (l1Source.linkedLayer2NodeIds ?? l1Source.linkedDetailedNodeIds ?? []).filter(
-        (linkedId) => !linkedManagedIds.has(linkedId),
+        (linkedId) => !managedIds.has(linkedId),
       );
       const qualificationIndex = linked.indexOf(currentQualification.id);
       linked.splice(
         qualificationIndex + 1,
         0,
-        routeChoice.id,
         ...COMMERCIAL_ROUTES.map((route) => routeNodes[route].id),
         id,
       );

@@ -38,6 +38,8 @@ export function CommercialRouteNode({
 
   const updateField = (key: string, value: string | number) =>
     useWorkflowStore.getState().updateNode(node.id, {
+      type: "commercialRule",
+      config: { ...node.config, commercialRoute: route },
       customFields: { ...node.customFields, [key]: value },
     });
 

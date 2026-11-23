@@ -53,11 +53,11 @@ export const NODE_CATALOG: NodeDefinition[] = [
   {
     type: "qualification",
     label: "Qualification",
-    description: "Form [1.01] · minimum qualification score 52/84",
+    description: "Form [1.01] qualification and CSA / PCS / LOI routing",
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",
-    defaultSize: { width: 560, height: 420 },
+    defaultSize: { width: 840, height: 460 },
   },
   {
     type: "estimation",
