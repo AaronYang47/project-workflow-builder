@@ -410,7 +410,7 @@ export function getWorkflowProgress(
           (condition) =>
             condition.id === "loi-ceo-signature-required" && condition.checked === true,
         );
-        allowed = Boolean(route && (route !== "LOI" || loiSigned));
+        allowed = edge.sourceHandle === route && (route !== "LOI" || loiSigned);
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

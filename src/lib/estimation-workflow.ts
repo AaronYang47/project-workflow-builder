@@ -154,17 +154,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     );
   for (const route of COMMERCIAL_ROUTES)
     file.graph.edges.push(routeEdge(qualification.id, groupId, route));
-  file.graph.edges.push({
-    id: `edge-${groupId}-${id}`,
-    source: groupId,
-    target: id,
-    sourceHandle: "out",
-    targetHandle: "in",
-    type: "normal",
-    lineStyle: "solid",
-    arrowStyle: "closed",
-    customFields: {},
-  });
+  for (const route of COMMERCIAL_ROUTES)
+    file.graph.edges.push({ ...routeEdge(groupId, id, route), targetHandle: "in" });
   const start = file.graph.nodes.find((node) => node.type === "projectStart");
   if (
     !directDownstream.length &&

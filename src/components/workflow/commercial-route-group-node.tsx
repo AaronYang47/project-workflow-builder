@@ -33,7 +33,6 @@ export function CommercialRouteGroupNode({
   const signed = node.conditions.some(
     (condition) => condition.id === "loi-ceo-signature-required" && condition.checked,
   );
-  const canProceed = reached && Boolean(route) && (route !== "LOI" || signed);
   const updateField = (key: string, value: string) =>
     useWorkflowStore.getState().updateNode(node.id, {
       type: "commercialRule",
@@ -51,11 +50,22 @@ export function CommercialRouteGroupNode({
     <div
       data-commercial-route-group
       className={`relative flex h-full w-full flex-col overflow-visible rounded-2xl border-2 bg-card p-3 shadow-md ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border"}`}
+      style={{ borderColor: node.color || "#9a5c24" }}
     >
-      <div className="mb-2 border-b pb-2 text-sm font-bold">
+      <div
+        className="mb-2 border-b pb-2 text-sm font-bold"
+        style={{ borderColor: node.color || "#9a5c24" }}
+      >
         CSA / PCS / LOI{" "}
-        <span className="float-right text-[10px] font-medium text-muted-foreground">
-          Select one route
+        <span
+          data-selected-commercial-route={route ?? "none"}
+          className="float-right rounded-full px-2 py-0.5 text-[10px] font-bold"
+          style={{
+            backgroundColor: route ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8",
+            color: "#fff",
+          }}
+        >
+          {route ?? "No route selected"}
         </span>
       </div>
       <div className="grid min-h-0 flex-1 grid-rows-3 gap-2">
@@ -69,8 +79,8 @@ export function CommercialRouteGroupNode({
               className={`relative min-h-0 rounded-xl border-2 p-2 text-[10px] leading-snug ${active ? "commercial-route-node-active" : ""}`}
               style={
                 {
-                  borderColor: active ? style.color : `${style.color}66`,
-                  backgroundColor: `${style.color}0c`,
+                  borderColor: active ? style.color : "#94a3b8",
+                  backgroundColor: active ? `${style.color}0c` : "var(--card)",
                   "--commercial-route-color": style.color,
                 } as React.CSSProperties
               }
@@ -79,12 +89,21 @@ export function CommercialRouteGroupNode({
                 type="target"
                 position={Position.Left}
                 id={path}
-                className="!size-3 !border-2 !border-background"
-                style={{ backgroundColor: style.color }}
+                className="!left-[-18px] !size-3 !border-2 !border-background"
+                style={{ backgroundColor: active ? style.color : "#94a3b8" }}
+              />
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={path}
+                className="!right-[-18px] !size-3 !border-2 !border-background"
+                style={{
+                  backgroundColor: active && (path !== "LOI" || signed) ? style.color : "#94a3b8",
+                }}
               />
               <div
                 className="mb-1 flex items-center gap-1.5 font-bold"
-                style={{ color: style.color }}
+                style={{ color: active ? style.color : "#64748b" }}
               >
                 <Icon className="size-3.5" />
                 {path} · {style.agreement}
@@ -155,13 +174,6 @@ export function CommercialRouteGroupNode({
           );
         })}
       </div>
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="out"
-        className="!size-3 !border-2 !border-background"
-        style={{ backgroundColor: canProceed ? "#0f766e" : "#94a3b8" }}
-      />
     </div>
   );
 }

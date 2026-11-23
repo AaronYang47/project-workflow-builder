@@ -56,7 +56,8 @@ export function EstimationNode({
   return (
     <div
       data-estimation-node
-      className={`relative h-full overflow-visible rounded-xl border-2 bg-white shadow-md dark:bg-slate-900 ${selected ? "border-teal-500" : "border-teal-600/50"}`}
+      className={`relative h-full overflow-visible rounded-xl border-2 bg-white shadow-md dark:bg-slate-900 ${selected ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+      style={{ borderColor: node.color || "#0f766e" }}
     >
       <Handle
         type="target"
@@ -70,7 +71,8 @@ export function EstimationNode({
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-700">
           <div>
             <div className="flex items-center gap-2 text-base font-bold">
-              <Calculator className="size-5 text-teal-600" /> Estimation
+              <Calculator className="size-5" style={{ color: node.color || "#0f766e" }} />{" "}
+              Estimation
             </div>
             <div className="text-xs text-slate-500">
               S [1.06] · Preliminary Estimation · CAD before tax

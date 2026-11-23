@@ -58,7 +58,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         "workflow-node l2-node-card relative flex h-full w-full flex-col overflow-visible rounded-2xl border-2 bg-card/95 shadow-[0_6px_18px_rgba(37,99,169,.12)]",
         selected && "ring-2 ring-primary/80 ring-offset-2 ring-offset-background",
       )}
-      style={{ borderColor: "#2563a955" }}
+      style={{ borderColor: node.color || "#2563a9" }}
     >
       <div
         data-node-header
