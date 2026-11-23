@@ -5,6 +5,7 @@ import { Position, type Edge } from "@xyflow/react";
 import type { DomainEdge, EdgeRoutePoint } from "@/types/workflow";
 import { estimateEdgeLabelChip } from "@/lib/layout-geometry";
 import type { ChapterConnection } from "@/lib/chapter-edge-routing";
+import { isCommercialRouteColor } from "@/lib/commercial-routes";
 
 export type Point = { x: number; y: number };
 export type LabelObstacle = Point & {
@@ -51,6 +52,7 @@ export function getSemanticEdgeColor(edge: DomainEdge) {
   ) {
     return "#dc2626";
   }
+  if (isCommercialRouteColor(edge.customFields.routeColor)) return edge.customFields.routeColor;
   return colors[edge.type] || "#159a75";
 }
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);

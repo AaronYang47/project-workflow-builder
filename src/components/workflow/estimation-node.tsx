@@ -4,7 +4,7 @@ import { Handle, Position } from "@xyflow/react";
 import { Calculator, CheckCircle2, LockKeyhole } from "lucide-react";
 import { estimateSummary, preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
-import { qualificationNodeReady } from "@/lib/workflow-progress";
+import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 
@@ -15,11 +15,19 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-export function EstimationNode({ node, selected }: { node: DomainNode; selected: boolean }) {
+export function EstimationNode({
+  node,
+  selected,
+  reached,
+}: {
+  node: DomainNode;
+  selected: boolean;
+  reached: boolean;
+}) {
   const qualification = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "qualification"),
   );
-  const sourcePassed = qualification ? qualificationNodeReady(qualification) : false;
+  const sourcePassed = reached;
   const route = qualification ? qualificationRoute(qualificationOf(qualification)) : undefined;
   const estimate = estimateSummary(node, qualification);
   const ready = preliminaryEstimationReady(node);
@@ -57,14 +65,17 @@ export function EstimationNode({ node, selected }: { node: DomainNode; selected:
         <div
           key={path}
           className="pointer-events-none absolute left-0 z-20"
-          style={{ top: `${32 + index * 18}%` }}
+          style={{ top: `${[16, 50, 84][index]}%` }}
         >
           <Handle
             type="target"
             id={path}
             position={Position.Left}
-            className="!left-[-6px] !size-3 !border-2 !border-white"
-            style={{ backgroundColor: sourcePassed && route === path ? "#059669" : "#94a3b8" }}
+            className={`!left-[-6px] !size-3 !border-2 !border-white ${sourcePassed && route === path ? "commercial-route-handle-active" : ""}`}
+            style={{
+              backgroundColor:
+                sourcePassed && route === path ? COMMERCIAL_ROUTE_STYLE[path].color : "#94a3b8",
+            }}
           />
           <span className="absolute left-4 -translate-y-1/2 rounded bg-white px-1 text-[9px] font-bold text-slate-500 dark:bg-slate-900">
             {path}

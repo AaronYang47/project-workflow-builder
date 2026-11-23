@@ -18,11 +18,12 @@ import {
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
+import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 
 const routes = ["CSA", "PCS", "LOI"] as const;
-const routePositions = { CSA: "32%", PCS: "50%", LOI: "68%" } as const;
+const routePositions = { CSA: "16%", PCS: "50%", LOI: "84%" } as const;
 
 export function QualificationNode({ node, selected }: { node: DomainNode; selected: boolean }) {
   const [formOpen, setFormOpen] = useState(false);
@@ -99,12 +100,12 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
 
       <div
         data-qualification-internal-flow
-        className="flex min-h-0 flex-1 items-stretch gap-3 bg-muted/20 p-3"
+        className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.16fr)_1.5rem_minmax(0,.9fr)] items-stretch gap-3 bg-muted/20 p-3"
       >
         <section
           data-qualification-flow-step="form101"
           aria-label="Qualification Form 1.01"
-          className="flex min-w-0 flex-1 flex-col rounded-xl border bg-card p-3 shadow-sm"
+          className="flex min-w-0 flex-col rounded-xl border bg-card p-3 shadow-sm"
         >
           <div className="flex items-center gap-2 border-b pb-2">
             <FileSpreadsheet className="size-5 text-primary" />
@@ -182,7 +183,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         <section
           data-qualification-flow-step="route"
           aria-label="CSA PCS LOI route"
-          className="flex min-w-0 flex-1 flex-col rounded-xl border bg-card p-3 shadow-sm"
+          className="flex min-w-0 flex-col rounded-xl border bg-card p-3 shadow-sm"
         >
           <div className="flex items-center gap-2 border-b pb-2">
             <GitBranch className="size-5 text-primary" />
@@ -306,8 +307,11 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             type="source"
             position={Position.Right}
             id={path}
-            className="!right-[-6px] !size-3 !border-2 !border-background"
-            style={{ backgroundColor: route === path && gate.passed ? "#059669" : "#94a3b8" }}
+            className={`!right-[-6px] !size-3 !border-2 !border-background ${route === path && gate.passed ? "commercial-route-handle-active" : ""}`}
+            style={{
+              backgroundColor:
+                route === path && gate.passed ? COMMERCIAL_ROUTE_STYLE[path].color : "#94a3b8",
+            }}
           />
         </div>
       ))}

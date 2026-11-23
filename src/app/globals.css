@@ -506,6 +506,39 @@ button:disabled {
   filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
   animation: workflow-edge-flow 1.1s linear infinite;
 }
+.commercial-route-node-active {
+  animation: commercial-route-breathe 1.8s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--commercial-route-color) 35%, transparent),
+    0 0 16px color-mix(in srgb, var(--commercial-route-color) 42%, transparent);
+}
+.commercial-route-handle-active {
+  animation: commercial-route-handle-breathe 1.8s ease-in-out infinite;
+}
+@keyframes commercial-route-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--commercial-route-color) 24%, transparent),
+      0 0 9px color-mix(in srgb, var(--commercial-route-color) 24%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--commercial-route-color) 16%, transparent),
+      0 0 22px color-mix(in srgb, var(--commercial-route-color) 58%, transparent);
+  }
+}
+@keyframes commercial-route-handle-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px currentColor);
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 5px currentColor);
+    transform: scale(1.25);
+  }
+}
 .high-level-flow-edge-active .react-flow__edge-path {
   stroke-dasharray: 12 18;
   animation: workflow-edge-flow 1.1s linear infinite;
@@ -534,6 +567,12 @@ button:disabled {
 @keyframes workflow-edge-flow {
   to {
     stroke-dashoffset: -30;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .commercial-route-node-active,
+  .commercial-route-handle-active {
+    animation: none;
   }
 }
 .pyramid-flow-edge,

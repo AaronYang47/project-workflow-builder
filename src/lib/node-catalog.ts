@@ -57,7 +57,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",
-    defaultSize: { width: 1180, height: 390 },
+    defaultSize: { width: 920, height: 600 },
   },
   {
     type: "estimation",
@@ -66,7 +66,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: Calculator,
     color: "#0f766e",
     category: "Flow",
-    defaultSize: { width: 520, height: 560 },
+    defaultSize: { width: 520, height: 600 },
   },
   {
     type: "projectStart",

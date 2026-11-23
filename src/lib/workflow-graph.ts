@@ -96,7 +96,7 @@ export function patchNode(
   const layout = file.layout.nodes[id];
   const preferred = getAdaptiveNodeSize(next, layout);
   const nextSize =
-    next.type === "gate"
+    next.type === "gate" || next.type === "qualification" || next.type === "estimation"
       ? preferred
       : {
           width: Math.max(layout?.width || 0, preferred.width),

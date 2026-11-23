@@ -7,6 +7,8 @@ import { GateNode } from "./gate-node";
 import { GeneralNode } from "./general-node";
 import { QualificationNode } from "./qualification-node";
 import { EstimationNode } from "./estimation-node";
+import { CommercialRouteNode } from "./commercial-route-node";
+import { commercialRouteForNode } from "@/lib/commercial-routes";
 import type { WorkflowFlowNode } from "./node-utils";
 
 import { useCollaborationStore } from "@/lib/collaboration/collaboration-store";
@@ -62,7 +64,9 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) 
     ) : node.type === "qualification" ? (
       <QualificationNode node={node} selected={selected} />
     ) : node.type === "estimation" ? (
-      <EstimationNode node={node} selected={selected} />
+      <EstimationNode node={node} selected={selected} reached={data.reached === true} />
+    ) : commercialRouteForNode(node) ? (
+      <CommercialRouteNode node={node} selected={selected} reached={data.reached === true} />
     ) : (
       <GeneralNode
         node={node}
