@@ -128,7 +128,9 @@ export const compact = (points: Point[]) =>
           (all[index - 1].y === point.y && point.y === all[index + 1].y)
         ),
     );
-export const roundedPath = (points: Point[], radius = 14) => {
+/** Corner radius shared by every connector bend, on the canvas and in print. */
+export const EDGE_CORNER_RADIUS = 14;
+export const roundedPath = (points: Point[], radius = EDGE_CORNER_RADIUS) => {
   if (points.length < 2) return "";
   let path = `M${points[0].x},${points[0].y}`;
   for (let index = 1; index < points.length - 1; index++) {

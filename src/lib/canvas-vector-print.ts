@@ -1,5 +1,6 @@
 import type { PhaseForms, PrintHeader } from "@/lib/phase-forms-summary";
 import { escapeHtml } from "@/lib/html";
+import { EDGE_CORNER_RADIUS, roundedPath } from "@/lib/semantic-edge-geometry";
 
 /** 11 x 17 in at the CSS 96 px/in reference; the long side is 17 in. */
 const SHEET_LONG_PX = 17 * 96;
@@ -510,7 +511,14 @@ function rerouteLinks(copy: HTMLElement, viewport: HTMLElement, links: CanvasLin
       const lane = bottom + 44;
       const outX = from.x + 24;
       const inX = to.x - 24;
-      const path = `M ${from.x} ${from.y} L ${outX} ${from.y} L ${outX} ${lane} L ${inX} ${lane} L ${inX} ${to.y} L ${to.x} ${to.y}`;
+      const path = roundedPath([
+        from,
+        { x: outX, y: from.y },
+        { x: outX, y: lane },
+        { x: inX, y: lane },
+        { x: inX, y: to.y },
+        to,
+      ]);
       group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
       copy
         .querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`)
@@ -522,10 +530,21 @@ function rerouteLinks(copy: HTMLElement, viewport: HTMLElement, links: CanvasLin
     }
     const horizontal = Math.abs(to.x - from.x) >= Math.abs(to.y - from.y);
     const middle = horizontal ? (from.x + to.x) / 2 : (from.y + to.y) / 2;
-    const path = horizontal
-      ? `M ${from.x} ${from.y} L ${middle} ${from.y} L ${middle} ${to.y} L ${to.x} ${to.y}`
-      : `M ${from.x} ${from.y} L ${from.x} ${middle} L ${to.x} ${middle} L ${to.x} ${to.y}`;
+    // Same rounded bends as the canvas connectors.
+    const path = roundedPath(
+      horizontal
+        ? [from, { x: middle, y: from.y }, { x: middle, y: to.y }, to]
+        : [from, { x: from.x, y: middle }, { x: to.x, y: middle }, to],
+    );
     group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
+    const junction = group.querySelector<SVGCircleElement>("[data-commercial-junction]");
+    if (junction && horizontal) {
+      junction.setAttribute(
+        "cx",
+        String(middle + Math.min(EDGE_CORNER_RADIUS, (to.x - middle) / 2)),
+      );
+      junction.setAttribute("cy", String(to.y));
+    }
     const label = copy.querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`);
     const labelPoint = horizontal
       ? { x: middle, y: (from.y + to.y) / 2 }

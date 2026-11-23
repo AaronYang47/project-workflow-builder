@@ -25,6 +25,7 @@ import {
   MIN_END_STUB,
   withMinEndStub,
   compact,
+  EDGE_CORNER_RADIUS,
   roundedPath,
   routedPoints,
   placeLabel,
@@ -645,7 +646,7 @@ export function SemanticEdge({
       targetPosition,
     );
   const path =
-    visibleRoute.length >= 2 ? roundedPath(visibleRoute, commercialOutput ? 0 : 14) : bezierPath;
+    visibleRoute.length >= 2 ? roundedPath(visibleRoute, EDGE_CORNER_RADIUS) : bezierPath;
   const labelGuide =
     visibleRoute.length >= 2
       ? visibleRoute
@@ -714,7 +715,8 @@ export function SemanticEdge({
       {commercialOutput && orthogonalCommercialRoute && (
         <circle
           data-commercial-junction
-          cx={junctionX}
+          // The rounded corners of all three branches meet just after the bend.
+          cx={junctionX + Math.min(EDGE_CORNER_RADIUS, (targetX - junctionX) / 2)}
           cy={targetY}
           r={active ? 4 : 3}
           fill={color}
