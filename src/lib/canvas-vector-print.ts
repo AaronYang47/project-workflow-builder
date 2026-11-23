@@ -556,6 +556,358 @@ function rerouteLinks(copy: HTMLElement, viewport: HTMLElement, links: CanvasLin
   }
 }
 
+type Point = { x: number; y: number };
+type Side = "left" | "right" | "top" | "bottom";
+const SIDE_VECTOR: Record<Side, Point> = {
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+  top: { x: 0, y: -1 },
+  bottom: { x: 0, y: 1 },
+};
+const MIRRORED_SIDE: Record<Side, Side> = {
+  left: "right",
+  right: "left",
+  top: "top",
+  bottom: "bottom",
+};
+/** S-shaped print: most rows to try, the space between rows, and the straight end of each connector. */
+const SERPENTINE_MAX_ROWS = 6;
+const SERPENTINE_ROW_GAP = 150;
+const SERPENTINE_MIN_GAP = 96;
+const CONNECTOR_STUB = 24;
+
+type Serpentine = {
+  rows: number;
+  positions: Map<string, CanvasRect>;
+  /** Cards in right-to-left rows; their connectors enter and leave on the other side. */
+  mirrored: Set<string>;
+  rowOf: Map<string, number>;
+  rowBottoms: number[];
+  bounds: CanvasRect;
+};
+
+/**
+ * Lays the flow out as an S: the top-level cards (a Phase frame with
+ * everything inside it counts as one) keep their order, wrap onto further
+ * rows, and every other row runs right to left. Returns one layout for each
+ * number of rows; the caller keeps the one that prints largest.
+ */
+function serpentineLayouts(
+  cards: CanvasCard[],
+  rects: Map<string, CanvasRect>,
+  padding: number,
+  labels: LabelSpan[],
+): Serpentine[] {
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  const topOf = (card: CanvasCard) => {
+    let current = card;
+    const seen = new Set<string>();
+    while (current.parentId && byId.has(current.parentId) && !seen.has(current.id)) {
+      seen.add(current.id);
+      current = byId.get(current.parentId)!;
+    }
+    return current.id;
+  };
+  const members = new Map<string, string[]>();
+  for (const card of cards) {
+    const top = topOf(card);
+    members.set(top, [...(members.get(top) ?? []), card.id]);
+  }
+  const tops: CanvasCard[] = cards
+    .filter((card) => topOf(card) === card.id)
+    .map((card) => ({ id: card.id, ...rects.get(card.id)! }));
+  const units = bands(tops, "x").map((band) => {
+    const ids = band.cards.flatMap((card) => members.get(card.id) ?? []);
+    const boxes = ids.map((id) => rects.get(id)!);
+    return {
+      ids,
+      x0: Math.min(...boxes.map((box) => box.x)),
+      x1: Math.max(...boxes.map((box) => box.x + box.width)),
+      y0: Math.min(...boxes.map((box) => box.y)),
+      y1: Math.max(...boxes.map((box) => box.y + box.height)),
+    };
+  });
+  if (!units.length) return [];
+  // The gap before each unit only needs room for the connector label inside it.
+  const gaps = units.map((unit, index) => {
+    if (index === 0) return 0;
+    const previous = units[index - 1];
+    const inside = labels.filter((label) => label.x > previous.x1 && label.x < unit.x0);
+    return Math.max(SERPENTINE_MIN_GAP, ...inside.map((label) => label.width + LABEL_CLEARANCE));
+  });
+  const width = (from: number, to: number) => {
+    let total = 0;
+    for (let index = from; index <= to; index += 1)
+      total += units[index].x1 - units[index].x0 + (index > from ? gaps[index] : 0);
+    return total;
+  };
+  // Split the units into `rows` runs, keeping the widest row as narrow as possible.
+  const split = (rows: number): number[][] => {
+    const n = units.length;
+    const best: number[][] = Array.from({ length: rows + 1 }, () => Array(n + 1).fill(Infinity));
+    const cut: number[][] = Array.from({ length: rows + 1 }, () => Array(n + 1).fill(0));
+    best[0][0] = 0;
+    for (let row = 1; row <= rows; row += 1)
+      for (let end = row; end <= n; end += 1)
+        for (let start = row - 1; start < end; start += 1) {
+          const value = Math.max(best[row - 1][start], width(start, end - 1));
+          if (value < best[row][end]) {
+            best[row][end] = value;
+            cut[row][end] = start;
+          }
+        }
+    const runs: number[][] = [];
+    for (let row = rows, end = n; row > 0; row -= 1) {
+      const start = cut[row][end];
+      runs.unshift(Array.from({ length: end - start }, (_, index) => start + index));
+      end = start;
+    }
+    return runs;
+  };
+
+  const layouts: Serpentine[] = [];
+  for (let rows = 1; rows <= Math.min(units.length, SERPENTINE_MAX_ROWS); rows += 1) {
+    const runs = split(rows);
+    const sheetWidth = Math.max(...runs.map((run) => width(run[0], run.at(-1)!)));
+    const positions = new Map<string, CanvasRect>();
+    const mirrored = new Set<string>();
+    const rowOf = new Map<string, number>();
+    const rowBottoms: number[] = [];
+    let top = 0;
+    runs.forEach((run, row) => {
+      const reverse = row % 2 === 1;
+      let cursor = reverse ? sheetWidth : 0;
+      let height = 0;
+      run.forEach((index, order) => {
+        const unit = units[index];
+        const unitWidth = unit.x1 - unit.x0;
+        if (order > 0) cursor += reverse ? -gaps[index] : gaps[index];
+        const left = reverse ? cursor - unitWidth : cursor;
+        cursor = reverse ? left : left + unitWidth;
+        height = Math.max(height, unit.y1 - unit.y0);
+        for (const id of unit.ids) {
+          const rect = rects.get(id)!;
+          positions.set(id, {
+            ...rect,
+            x: reverse ? left + (unit.x1 - (rect.x + rect.width)) : left + (rect.x - unit.x0),
+            y: top + (rect.y - unit.y0),
+          });
+          rowOf.set(id, row);
+          if (reverse) mirrored.add(id);
+        }
+      });
+      rowBottoms.push(top + height);
+      top += height + SERPENTINE_ROW_GAP;
+    });
+    layouts.push({
+      rows,
+      positions,
+      mirrored,
+      rowOf,
+      rowBottoms,
+      bounds: {
+        x: -padding,
+        y: -padding,
+        width: sheetWidth + padding * 2,
+        height: rowBottoms.at(-1)! + padding * 2,
+      },
+    });
+  }
+  return layouts;
+}
+
+function handleSide(handle: HTMLElement): Side {
+  const printed = handle.dataset.printSide as Side | undefined;
+  if (printed) return printed;
+  for (const side of ["left", "right", "top", "bottom"] as const)
+    if (handle.classList.contains(`react-flow__handle-${side}`)) return side;
+  return "right";
+}
+
+/** Moves the connection points of right-to-left cards onto their mirrored side. */
+function mirrorHandles(copy: HTMLElement, ids: Set<string>) {
+  const moves: { handle: HTMLElement; left: number; top: number; side: Side }[] = [];
+  for (const id of ids) {
+    const card = copy.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
+    card?.querySelectorAll<HTMLElement>(".react-flow__handle").forEach((handle) => {
+      const parent = handle.offsetParent as HTMLElement | null;
+      if (!parent) return;
+      const box = parent.getBoundingClientRect();
+      const rect = handle.getBoundingClientRect();
+      const left = rect.left - box.left - parent.clientLeft;
+      moves.push({
+        handle,
+        left: parent.clientWidth - left - rect.width,
+        top: rect.top - box.top - parent.clientTop,
+        side: MIRRORED_SIDE[handleSide(handle)],
+      });
+    });
+  }
+  for (const { handle, left, top, side } of moves) {
+    for (const [property, value] of [
+      ["left", `${left}px`],
+      ["top", `${top}px`],
+      ["right", "auto"],
+      ["bottom", "auto"],
+      ["transform", "none"],
+      ["margin", "0"],
+    ])
+      handle.style.setProperty(property, value, "important");
+    handle.dataset.printSide = side;
+  }
+}
+
+/** Drops repeated points and points in the middle of a straight run. */
+function compactRoute(points: Point[]) {
+  const unique = points.filter(
+    (point, index) =>
+      index === 0 ||
+      Math.abs(point.x - points[index - 1].x) > 0.5 ||
+      Math.abs(point.y - points[index - 1].y) > 0.5,
+  );
+  return unique.filter((point, index) => {
+    if (index === 0 || index === unique.length - 1) return true;
+    const previous = unique[index - 1];
+    const next = unique[index + 1];
+    return !(
+      (Math.abs(previous.x - point.x) < 0.5 && Math.abs(point.x - next.x) < 0.5) ||
+      (Math.abs(previous.y - point.y) < 0.5 && Math.abs(point.y - next.y) < 0.5)
+    );
+  });
+}
+
+/**
+ * A right-angled connector that leaves and enters each card straight out of
+ * its connection point. Facing cards are joined directly; otherwise the line
+ * runs along `lane`, a clear horizontal track below the row.
+ */
+function orthogonalRoute(
+  from: Point,
+  fromSide: Side,
+  to: Point,
+  toSide: Side,
+  lane: number,
+  forceLane: boolean,
+): Point[] {
+  const out = SIDE_VECTOR[fromSide];
+  const into = SIDE_VECTOR[toSide];
+  const a = { x: from.x + out.x * CONNECTOR_STUB, y: from.y + out.y * CONNECTOR_STUB };
+  const b = { x: to.x + into.x * CONNECTOR_STUB, y: to.y + into.y * CONNECTOR_STUB };
+  if (out.y === 0 && into.y === 0) {
+    const facing = out.x === -into.x && out.x * (to.x - from.x) >= CONNECTOR_STUB * 2;
+    if (facing && !forceLane) {
+      const middle = (from.x + to.x) / 2;
+      return compactRoute([from, { x: middle, y: from.y }, { x: middle, y: to.y }, to]);
+    }
+    return compactRoute([from, a, { x: a.x, y: lane }, { x: b.x, y: lane }, b, to]);
+  }
+  if (out.x === 0 && into.x === 0) {
+    const middle = (a.y + b.y) / 2;
+    return compactRoute([from, a, { x: a.x, y: middle }, { x: b.x, y: middle }, b, to]);
+  }
+  return compactRoute(
+    out.x === 0 ? [from, a, { x: a.x, y: b.y }, b, to] : [from, a, { x: b.x, y: a.y }, b, to],
+  );
+}
+
+/** Redraws every connector for the S-shaped layout, with rounded bends. */
+function routeSerpentineLinks(
+  copy: HTMLElement,
+  viewport: HTMLElement,
+  links: CanvasLink[],
+  layout: Serpentine,
+) {
+  const handleOf = (nodeId: string, kind: "source" | "target", handleId?: string | null) => {
+    const handles = Array.from(
+      copy.querySelectorAll<HTMLElement>(
+        `.react-flow__handle.${kind}[data-nodeid="${CSS.escape(nodeId)}"]`,
+      ),
+    );
+    return (
+      handles.find((element) => (element.dataset.handleid || null) === (handleId ?? null)) ??
+      handles[0]
+    );
+  };
+  const origin = viewport.getBoundingClientRect();
+  const sameRowLanes = new Map<number, number>();
+  for (const link of links) {
+    const group = copy.querySelector<SVGGElement>(
+      `.react-flow__edge[data-id="${CSS.escape(link.id)}"]`,
+    );
+    const fromHandle = handleOf(link.source, "source", link.sourceHandle);
+    const toHandle = handleOf(link.target, "target", link.targetHandle);
+    const from = handlePoint(copy, viewport, link.source, "source", link.sourceHandle);
+    const to = handlePoint(copy, viewport, link.target, "target", link.targetHandle);
+    if (!group || !fromHandle || !toHandle || !from || !to) continue;
+    const fromRow = layout.rowOf.get(link.source) ?? 0;
+    const toRow = layout.rowOf.get(link.target) ?? 0;
+    let lane: number;
+    let forceLane = false;
+    if (link.passUnder?.length) {
+      // FOB yard bypass: underneath every skipped card.
+      lane =
+        Math.max(
+          from.y,
+          to.y,
+          ...link.passUnder.map((id) => {
+            const card = copy.querySelector<HTMLElement>(
+              `.react-flow__node[data-id="${CSS.escape(id)}"]`,
+            );
+            return card ? card.getBoundingClientRect().bottom - origin.top : -Infinity;
+          }),
+        ) + 44;
+      forceLane = true;
+    } else if (fromRow !== toRow) {
+      // Down to the next row through the clear space between the rows.
+      lane = layout.rowBottoms[Math.min(fromRow, toRow)] + SERPENTINE_ROW_GAP / 2;
+      forceLane = true;
+    } else {
+      // A line going back along its own row runs just under that row.
+      const used = sameRowLanes.get(fromRow) ?? 0;
+      sameRowLanes.set(fromRow, used + 1);
+      lane = layout.rowBottoms[fromRow] + 28 + (used % 4) * 10;
+    }
+    const points = orthogonalRoute(
+      from,
+      handleSide(fromHandle),
+      to,
+      handleSide(toHandle),
+      lane,
+      forceLane,
+    );
+    const path = roundedPath(points);
+    group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
+
+    const junction = group.querySelector<SVGCircleElement>("[data-commercial-junction]");
+    const corner = points.at(-2);
+    if (junction && corner && Math.abs(corner.y - to.y) < 0.5) {
+      const run = to.x - corner.x;
+      junction.setAttribute(
+        "cx",
+        String(corner.x + Math.sign(run) * Math.min(EDGE_CORNER_RADIUS, Math.abs(run) / 2)),
+      );
+      junction.setAttribute("cy", String(to.y));
+    }
+    // Label on the middle of the longest straight run, preferring a level one
+    // so it reads along the line instead of sitting across a card's edge.
+    let longest = { length: -1, point: from };
+    for (let index = 1; index < points.length; index += 1) {
+      const start = points[index - 1];
+      const end = points[index];
+      const level = Math.abs(end.y - start.y) < 0.5;
+      const length = Math.hypot(end.x - start.x, end.y - start.y) + (level ? 100_000 : 0);
+      if (length > longest.length)
+        longest = { length, point: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 } };
+    }
+    copy
+      .querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`)
+      ?.style.setProperty(
+        "transform",
+        `translate(-50%, -50%) translate(${longest.point.x}px, ${longest.point.y}px)`,
+      );
+  }
+}
+
 /**
  * Prints the live canvas through the browser's own print engine, so the PDF
  * keeps text, lines and cards as vectors drawn with the same styles and
@@ -658,27 +1010,13 @@ export function printCanvasVector(
     }
   }
 
-  const bounds =
-    chosen?.bounds ??
-    (() => {
-      const xs = cards.map((card) => card.x);
-      const ys = cards.map((card) => card.y);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      return {
-        x: minX - padding,
-        y: minY - padding,
-        width: Math.max(...cards.map((card) => card.x + card.width)) - minX + padding * 2,
-        height: Math.max(...cards.map((card) => card.y + card.height)) - minY + padding * 2,
-      };
-    })();
   // Title block on top, the flowchart, then the forms notes underneath. The
   // notes shrink their text rather than take room from the flowchart.
   const titleBlock = header ? headerBlock(header) : null;
   if (titleBlock) root.appendChild(titleBlock);
   const panel = forms.length ? formsPanel(forms) : null;
   if (panel) root.appendChild(panel);
-  const layoutFor = (portrait: boolean) => {
+  const areaFor = (portrait: boolean) => {
     const pageWidth = portrait ? SHEET_SHORT_PX : SHEET_LONG_PX;
     const pageHeight = portrait ? SHEET_LONG_PX : SHEET_SHORT_PX;
     let headerHeight = 0;
@@ -699,26 +1037,81 @@ export function printCanvasVector(
     const flowTop = PAGE_MARGIN_PX + (titleBlock ? headerHeight + PANEL_GAP_PX : 0);
     const flowHeight =
       pageHeight - flowTop - PAGE_MARGIN_PX - (panel ? panelHeight + PANEL_GAP_PX : 0);
-    const scale = Math.min(
-      (pageWidth - PAGE_MARGIN_PX * 2) / bounds.width,
-      flowHeight / bounds.height,
-    );
     return {
       portrait,
       pageWidth,
       pageHeight,
-      headerHeight,
       panelHeight,
       fontSize,
       flowTop,
+      flowWidth: pageWidth - PAGE_MARGIN_PX * 2,
       flowHeight,
-      scale,
     };
   };
-  const landscape = layoutFor(false);
-  const upright = layoutFor(true);
-  const page = upright.scale > landscape.scale ? upright : landscape;
-  layoutFor(page.portrait);
+  const areas = [areaFor(false), areaFor(true)];
+  const placeOn = (box: CanvasRect) =>
+    areas
+      .map((area) => ({
+        area,
+        scale: Math.min(area.flowWidth / box.width, area.flowHeight / box.height),
+      }))
+      .reduce((best, option) => (option.scale > best.scale ? option : best));
+
+  let bounds: CanvasRect =
+    chosen?.bounds ??
+    (() => {
+      const xs = cards.map((card) => card.x);
+      const ys = cards.map((card) => card.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      return {
+        x: minX - padding,
+        y: minY - padding,
+        width: Math.max(...cards.map((card) => card.x + card.width)) - minX + padding * 2,
+        height: Math.max(...cards.map((card) => card.y + card.height)) - minY + padding * 2,
+      };
+    })();
+  let placement = placeOn(bounds);
+
+  // A long flow wraps onto more rows in an S so it prints larger on the sheet.
+  if (original && cards.length > 1) {
+    const labels: LabelSpan[] = Array.from(
+      copy.querySelectorAll<HTMLElement>("[data-edge-label]"),
+    ).flatMap((label) => {
+      const match = label.style.transform.match(/translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*$/);
+      return match ? [{ x: Number(match[1]), width: label.offsetWidth }] : [];
+    });
+    const options = serpentineLayouts(cards, original.positions, padding, labels).map((layout) => ({
+      layout,
+      ...placeOn(layout.bounds),
+    }));
+    const best = options.reduce<(typeof options)[number] | null>(
+      (winner, option) => (!winner || option.scale > winner.scale * 1.02 ? option : winner),
+      null,
+    );
+    if (best && best.scale > placement.scale) {
+      // Back to the canvas card sizes, then into the S.
+      reflowCards(copy, cards, 1, padding, null);
+      for (const card of cards) {
+        const position = best.layout.positions.get(card.id)!;
+        copy
+          .querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(card.id)}"]`)
+          ?.style.setProperty(
+            "transform",
+            `translate(${position.x}px, ${position.y}px)`,
+            "important",
+          );
+      }
+      mirrorHandles(copy, best.layout.mirrored);
+      routeSerpentineLinks(copy, viewport, links, best.layout);
+      chosen = { ...original, share: 1, changed: true, bounds: best.layout.bounds };
+      bounds = best.layout.bounds;
+      placement = best;
+      root.dataset.printRows = String(best.layout.rows);
+    }
+  }
+  const page = { ...placement.area, scale: placement.scale };
+  areaFor(page.portrait);
   const { portrait, pageWidth, pageHeight, scale } = page;
   root.dataset.cardWidthShare = String(chosen?.share ?? 1);
   const offsetX = (pageWidth - bounds.width * scale) / 2 - bounds.x * scale;

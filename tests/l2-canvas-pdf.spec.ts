@@ -28,6 +28,26 @@ for (const { item, startOnL2, title } of cases) {
             (edge) => !edge.getAttribute("marker-end")!.includes("print-"),
           ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
+          rows: Number(root?.dataset.printRows ?? 1),
+          // Top-level cards (Phase frames and stand-alone cards) must never overlap on the sheet.
+          overlaps: (() => {
+            if (!root) return 0;
+            root.style.setProperty("display", "block", "important");
+            const boxes = Array.from(
+              root.querySelectorAll<HTMLElement>(".react-flow__node-phase"),
+            ).map((card) => card.getBoundingClientRect());
+            root.style.removeProperty("display");
+            return boxes.filter((box, index) =>
+              boxes.some(
+                (other, otherIndex) =>
+                  otherIndex > index &&
+                  box.left < other.right - 1 &&
+                  other.left < box.right - 1 &&
+                  box.top < other.bottom - 1 &&
+                  other.top < box.bottom - 1,
+              ),
+            ).length;
+          })(),
           formGroups: Array.from(
             new Set(
               Array.from(root?.querySelectorAll<HTMLElement>("[data-print-forms-group]") ?? []).map(
@@ -56,6 +76,8 @@ for (const { item, startOnL2, title } of cases) {
               controls: number;
               strayRefs: number;
               formPhases: number;
+              rows: number;
+              overlaps: number;
               formGroups: string[];
             }[];
           }
@@ -72,7 +94,12 @@ for (const { item, startOnL2, title } of cases) {
     const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString(
       "latin1",
     );
-    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 1224 792\]/);
+    if (item.startsWith("L2")) {
+      // A long L2 flow wraps into an S over several rows so it prints larger.
+      expect(printed.rows).toBeGreaterThan(1);
+      expect(printed.overlaps).toBe(0);
+    }
+    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 (1224 792|792 1224)\]/);
     expect((pdf.match(/\/Type\s*\/Page\b/g) || []).length).toBe(1);
     // Text stays text: the page carries fonts rather than one flat picture.
     expect(pdf).toMatch(/\/Type\s*\/Font\b/);
