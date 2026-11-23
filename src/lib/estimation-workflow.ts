@@ -85,53 +85,53 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   }
   // Keep the L1 view in sync when Qualification already has a linked L1 card.
   const highLevel = file.highLevel;
-  const l1Source = highLevel?.graph.nodes.find((node) =>
-    (node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []).includes(qualification.id),
-  );
-  if (highLevel && l1Source) {
-    const l1Id = `high-level-${id}`;
-    if (!highLevel.graph.nodes.some((node) => node.id === l1Id)) {
-      highLevel.graph.nodes.push({
-        id: l1Id,
-        type: "phase",
-        title: "Estimation",
-        description: "S [1.06] Preliminary Estimation",
-        code: "1.06",
-        backgroundColor: "#0f766e",
-        linkedLayer2NodeIds: [id],
-      });
-      const sourceLayout = highLevel.layout.nodes[l1Source.id];
-      highLevel.layout.nodes[l1Id] = {
-        nodeId: l1Id,
-        x: (sourceLayout?.x ?? 0) + 380,
-        y: sourceLayout?.y ?? 0,
-      };
-      const nextEdges = highLevel.graph.edges.filter((edge) => edge.source === l1Source.id);
-      const downstream = new Set<string>();
-      const queue = nextEdges.map((edge) => edge.target);
-      while (queue.length) {
-        const target = queue.shift()!;
-        if (downstream.has(target) || target === l1Source.id) continue;
-        downstream.add(target);
-        queue.push(
-          ...highLevel.graph.edges
-            .filter((edge) => edge.source === target)
-            .map((edge) => edge.target),
-        );
-      }
-      for (const target of downstream) {
-        const layout = highLevel.layout.nodes[target];
-        if (layout) layout.x += 380;
-      }
-      highLevel.graph.edges = highLevel.graph.edges.map((edge) =>
-        nextEdges.includes(edge) ? { ...edge, source: l1Id } : edge,
+  if (highLevel) {
+    // Older releases inserted Estimation as a separate L1 Phase. Fold that
+    // legacy card back into the same L1 process step as Qualification.
+    const legacyId = `high-level-${id}`;
+    const legacy = highLevel.graph.nodes.some((node) => node.id === legacyId);
+    if (legacy) {
+      const incoming = highLevel.graph.edges.filter((edge) => edge.target === legacyId);
+      const outgoing = highLevel.graph.edges.filter((edge) => edge.source === legacyId);
+      const edges = highLevel.graph.edges.filter(
+        (edge) => edge.source !== legacyId && edge.target !== legacyId,
       );
-      if (nextEdges.length)
-        highLevel.graph.edges.push({
-          id: `high-level-edge-${l1Source.id}-${l1Id}`,
-          source: l1Source.id,
-          target: l1Id,
-        });
+      const existingPairs = new Set(edges.map((edge) => `${edge.source}\0${edge.target}`));
+      const existingIds = new Set(edges.map((edge) => edge.id));
+      for (const before of incoming) {
+        for (const after of outgoing) {
+          const key = `${before.source}\0${after.target}`;
+          if (before.source === after.target || existingPairs.has(key)) continue;
+          existingPairs.add(key);
+          let edgeId = `high-level-edge-${before.id}-without-${legacyId}-${after.id}`;
+          let suffix = 2;
+          while (existingIds.has(edgeId)) edgeId = `${edgeId}-${suffix++}`;
+          existingIds.add(edgeId);
+          edges.push({
+            id: edgeId,
+            source: before.source,
+            target: after.target,
+          });
+        }
+      }
+      highLevel.graph.edges = edges;
+      highLevel.graph.nodes = highLevel.graph.nodes.filter((node) => node.id !== legacyId);
+      const { [legacyId]: _legacyLayout, ...remainingLayouts } = highLevel.layout.nodes;
+      void _legacyLayout;
+      highLevel.layout.nodes = remainingLayouts;
+    }
+
+    const l1Source = highLevel.graph.nodes.find((node) =>
+      (node.linkedLayer2NodeIds ?? node.linkedDetailedNodeIds ?? []).includes(qualification.id),
+    );
+    if (l1Source) {
+      const linked = (l1Source.linkedLayer2NodeIds ?? l1Source.linkedDetailedNodeIds ?? []).filter(
+        (linkedId) => linkedId !== id,
+      );
+      const qualificationIndex = linked.indexOf(qualification.id);
+      linked.splice(qualificationIndex + 1, 0, id);
+      l1Source.linkedLayer2NodeIds = linked;
+      l1Source.linkedDetailedNodeIds = [...linked];
     }
   }
   return file;

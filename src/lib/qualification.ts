@@ -45,11 +45,14 @@ export function qualificationOf(node: DomainNode): Qualification {
 }
 
 /**
- * The preliminary route selected from customer history and drawing availability.
+ * New customers follow plan availability; returning customers can explicitly
+ * choose CSA, PCS, or LOI.
  * Older saved selections remain readable until the user answers the new questions.
  */
 export function qualificationRoute(qualification: Qualification) {
-  if (qualification.customerHistory === "existing") return "LOI";
+  if (qualification.customerHistory === "existing") {
+    return qualification.commercialPath;
+  }
   if (qualification.customerHistory === "new" && qualification.plansAvailable === "no")
     return "CSA";
   if (qualification.customerHistory === "new" && qualification.plansAvailable === "yes")

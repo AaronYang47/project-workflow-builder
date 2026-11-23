@@ -10,6 +10,8 @@ import type {
 import { getAdaptiveNodeSize } from "@/lib/node-layout";
 import { spacePhaseFrames } from "@/lib/phase-layout";
 import { createDomainNode } from "@/lib/create-domain-node";
+import { highLevelCardWidth } from "@/lib/high-level-card-width";
+import { departmentDisplayName } from "@/lib/department-label";
 
 export {
   defaultFobYardSkipPhaseIds,
@@ -710,22 +712,29 @@ export function createDefaultHighLevelProcess(): HighLevelWorkflow {
 export function autoArrangeHighLevel(file: WorkflowFile): WorkflowFile {
   const highLevel = file.highLevel;
   if (!highLevel) return file;
-  const gap = 56;
-  const widthFor = (type: HighLevelNodeType) => {
-    if (type === "phase" || type === "primaryGate") return 288;
-    if (type === "start" || type === "end") return 256;
-    return 208;
-  };
+  const gap = 80;
+  const workflowNodes = new Map(file.graph.nodes.map((node) => [node.id, node]));
+  const widthFor = (step: HighLevelNode) =>
+    highLevelCardWidth(
+      step.type,
+      (step.linkedLayer2NodeIds ?? step.linkedDetailedNodeIds ?? []).flatMap((id) => {
+        const linked = workflowNodes.get(id);
+        return linked && linked.type !== "phase"
+          ? [{ title: departmentDisplayName(linked), hasSteps: linked.conditions.length > 0 }]
+          : [];
+      }),
+    );
   let x = 0;
   const nodes = Object.fromEntries(
     orderHighLevelNodes(highLevel.graph.nodes, highLevel.graph.edges).map((node) => {
+      const width = widthFor(node);
       const position = {
         ...(highLevel.layout.nodes[node.id] || { nodeId: node.id }),
         nodeId: node.id,
         x,
         y: 220,
       };
-      x += widthFor(node.type) + gap;
+      x += width + gap;
       return [node.id, position];
     }),
   );

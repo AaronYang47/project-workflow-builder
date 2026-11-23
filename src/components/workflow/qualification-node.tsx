@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { Check, ClipboardCheck, FileSpreadsheet, GitBranch } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qualificationOf, qualificationRoute, type Qualification } from "@/lib/qualification";
 import {
   FORM_101_CODE,
   FORM_101_MAX_SCORE,
+  FORM_101_OPTIONAL_MAX_SCORE,
   FORM_101_PASS_PERCENT,
   FORM_101_PASS_SCORE,
+  FORM_101_REQUIRED_MAX_SCORE,
   FORM_101_VERSION,
   evaluateQualificationForm101,
   evaluateQualificationGate,
@@ -129,21 +131,35 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
               style={{ width: `${(score.totalScore / FORM_101_MAX_SCORE) * 100}%` }}
             />
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-1.5 text-[10px]">
-            {score.sections.map((section) => (
+          <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px]">
+            {[
+              {
+                id: "required",
+                label: "Required",
+                score: score.requiredScore,
+                maxScore: FORM_101_REQUIRED_MAX_SCORE,
+              },
+              {
+                id: "optional",
+                label: "Optional",
+                score: score.optionalScore,
+                maxScore: FORM_101_OPTIONAL_MAX_SCORE,
+              },
+            ].map((category) => (
               <div
-                key={section.id}
+                key={category.id}
+                data-qualification-score-category={category.id}
                 className="flex justify-between rounded border bg-background/70 px-2 py-1"
               >
-                <span className="font-bold">{section.id}</span>
+                <span className="font-bold">{category.label}</span>
                 <span>
-                  {section.score}/{section.maxScore}
+                  {category.score}/{category.maxScore}
                 </span>
               </div>
             ))}
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            Circled fields are required. Right-side values are each question&apos;s full score. The
+            Required questions are worth 52 points; optional questions add up to 32 points. The
             complete form is worth 84 points.
           </p>
           <button
@@ -180,7 +196,13 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             <button
               type="button"
               aria-pressed={qualification.customerHistory === "new"}
-              onClick={() => update({ customerHistory: "new", commercialPath: undefined })}
+              onClick={() =>
+                update({
+                  customerHistory: "new",
+                  plansAvailable: undefined,
+                  commercialPath: undefined,
+                })
+              }
               className={choiceClass(qualification.customerHistory === "new")}
             >
               New customer
@@ -188,7 +210,13 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             <button
               type="button"
               aria-pressed={qualification.customerHistory === "existing"}
-              onClick={() => update({ customerHistory: "existing", commercialPath: "LOI" })}
+              onClick={() =>
+                update({
+                  customerHistory: "existing",
+                  plansAvailable: undefined,
+                  commercialPath: undefined,
+                })
+              }
               className={choiceClass(qualification.customerHistory === "existing")}
             >
               Existing customer
@@ -217,26 +245,31 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
               </div>
             </>
           )}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {routes.map((path) => (
+          {qualification.customerHistory === "existing" && (
+            <>
+              <p className="mt-3 text-[11px] font-semibold">Choose the route</p>
               <div
-                key={path}
-                data-route-option={path}
-                className={cn(
-                  "rounded-lg border px-2 py-2 text-center text-xs font-bold",
-                  route === path
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700"
-                    : "border-border bg-muted/30 text-muted-foreground",
-                )}
+                className="mt-1 grid grid-cols-3 gap-2"
+                role="group"
+                aria-label="Existing customer route"
               >
-                {route === path && <Check className="mr-1 inline size-3.5" />}
-                {path}
+                {routes.map((path) => (
+                  <button
+                    key={path}
+                    type="button"
+                    aria-pressed={route === path}
+                    onClick={() => update({ commercialPath: path })}
+                    className={choiceClass(route === path)}
+                  >
+                    {path}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
           <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-            CSA · no plans &nbsp;·&nbsp; PCS · new customer with plans &nbsp;·&nbsp; LOI · existing
-            customer
+            New: CSA without plans or PCS with plans. Existing: CSA or PCS, with LOI as an
+            additional option.
           </p>
           <p
             data-qualification-route

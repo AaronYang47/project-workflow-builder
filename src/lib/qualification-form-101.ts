@@ -3,6 +3,8 @@ import { qualificationRoute, type Qualification } from "@/lib/qualification";
 export const FORM_101_CODE = "1.01";
 export const FORM_101_VERSION = "261119";
 export const FORM_101_MAX_SCORE = 84;
+export const FORM_101_REQUIRED_MAX_SCORE = 52;
+export const FORM_101_OPTIONAL_MAX_SCORE = FORM_101_MAX_SCORE - FORM_101_REQUIRED_MAX_SCORE;
 export const FORM_101_PASS_SCORE = 52;
 export const FORM_101_PASS_PERCENT = 62;
 export const FORM_101_ORGANIZATION =
@@ -353,6 +355,8 @@ export interface QualificationMissingItem {
 
 export interface QualificationForm101Evaluation {
   totalScore: number;
+  requiredScore: number;
+  optionalScore: number;
   grade: QualificationGrade;
   gradeLabel: "Complete / Ready" | "Mostly Complete" | "Partial Intake" | "Incomplete";
   sections: QualificationScoreSection[];
@@ -604,6 +608,7 @@ export function evaluateQualificationForm101(
   const { sectionA, sectionB, sectionC } = form;
   const q9DepositExempt = qualificationRoute(qualification) === "LOI";
   const missingItems: QualificationMissingItem[] = [];
+  let requiredScore = 0;
 
   // --- Section A1 (36 pts) ---
   let a1 = 0;
@@ -611,6 +616,7 @@ export function evaluateQualificationForm101(
 
   if (filled(sectionA.projectName)) {
     a1 += 3;
+    requiredScore += 3;
     aCompleted += 1;
   } else {
     missingItems.push({ id: "q1", section: "A1", anchorId: "q101-q1", label: "Q1 Project name" });
@@ -630,12 +636,16 @@ export function evaluateQualificationForm101(
 
   let partyPts = 0;
   const missingParties: string[] = [];
-  for (const role of PROJECT_PARTY_ROLES) {
+  for (const [index, role] of PROJECT_PARTY_ROLES.entries()) {
     const entry = sectionA.parties[role.key];
     const hasCompany = filled(entry.company);
     const hasContact = filled(entry.contact);
     if (hasCompany) partyPts += 1;
     if (hasContact) partyPts += 1;
+    if (index < 2) {
+      if (hasCompany) requiredScore += 1;
+      if (hasContact) requiredScore += 1;
+    }
     if (!hasCompany || !hasContact) missingParties.push(role.label);
   }
   a1 += partyPts;
@@ -669,6 +679,7 @@ export function evaluateQualificationForm101(
 
   if (sectionA.occupancyGroups.length > 0) {
     a1 += 1;
+    requiredScore += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -681,6 +692,7 @@ export function evaluateQualificationForm101(
 
   if (filled(sectionA.grossAreaSqFt)) {
     a1 += 1;
+    requiredScore += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -702,6 +714,7 @@ export function evaluateQualificationForm101(
     }
   }
   a1 += consultantUnits;
+  requiredScore += consultantUnits;
   if (fullConsultants === DISCIPLINE_DEFINITIONS.length) aCompleted += 1;
   else {
     missingItems.push({
@@ -716,6 +729,7 @@ export function evaluateQualificationForm101(
   let a2 = 0;
   if (sectionA.budgetEstablished) {
     a2 += 2;
+    requiredScore += 2;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -740,6 +754,7 @@ export function evaluateQualificationForm101(
 
   if (filled(sectionA.permitStatus)) {
     a2 += 1;
+    requiredScore += 1;
     aCompleted += 1;
   } else {
     missingItems.push({
@@ -754,6 +769,7 @@ export function evaluateQualificationForm101(
     filled(sectionA.targetDates[field.key]),
   ).length;
   a2 += datesFilled;
+  requiredScore += datesFilled;
   if (datesFilled === TARGET_DATE_FIELDS.length) aCompleted += 1;
   else {
     missingItems.push({
@@ -779,6 +795,7 @@ export function evaluateQualificationForm101(
   }
   // Only the availability answer is scored; file location/email date is optional.
   a3DocsPts = completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length ? 1 : 0;
+  requiredScore += a3DocsPts;
   if (completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length) {
     aCompleted += 1;
   } else {
@@ -791,15 +808,23 @@ export function evaluateQualificationForm101(
   }
 
   let bestDrawingAttrs = 0;
+  let bestRequiredDrawingPoints = 0;
   for (const row of sectionA.latestDrawings) {
     let attrs = 0;
-    if (filled(row.drawingName)) attrs += 1;
-    if (filled(row.revisionNumber) || filled(row.revisionDate)) attrs += 1;
+    const hasDrawingName = filled(row.drawingName);
+    const hasRevision = filled(row.revisionNumber) || filled(row.revisionDate);
+    if (hasDrawingName) attrs += 1;
+    if (hasRevision) attrs += 1;
     if (filled(row.issueStatus)) attrs += 1;
     if (filled(row.exactLocation)) attrs += 1;
     if (attrs > bestDrawingAttrs) bestDrawingAttrs = attrs;
+    bestRequiredDrawingPoints = Math.max(
+      bestRequiredDrawingPoints,
+      (Number(hasDrawingName) + Number(hasRevision)) * 4,
+    );
   }
   const a3DrawingsPts = bestDrawingAttrs * 4;
+  requiredScore += bestRequiredDrawingPoints;
   if (bestDrawingAttrs === 4) {
     aCompleted += 1;
   } else {
@@ -856,6 +881,8 @@ export function evaluateQualificationForm101(
     ? 4
     : 0;
   const totalScore = Math.max(0, Math.min(FORM_101_MAX_SCORE, a1 + a2 + a3 + b + c));
+  const requiredScoreFinal = Math.min(FORM_101_REQUIRED_MAX_SCORE, requiredScore, totalScore);
+  const optionalScore = Math.max(0, totalScore - requiredScoreFinal);
   const { grade, gradeLabel } = gradeForScore(totalScore);
 
   const hasAnyInput =
@@ -864,6 +891,8 @@ export function evaluateQualificationForm101(
 
   return {
     totalScore,
+    requiredScore: requiredScoreFinal,
+    optionalScore,
     grade,
     gradeLabel,
     sections: [
