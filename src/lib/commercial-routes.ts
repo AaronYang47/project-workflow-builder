@@ -8,6 +8,28 @@ export function isCommercialRouteGroupNode(node: DomainNode) {
   return node.id === COMMERCIAL_ROUTE_GROUP_ID || node.config.commercialRouteGroup === true;
 }
 
+export function commercialRouteReady(node: DomainNode, route: CommercialRoute | undefined) {
+  if (route === "CSA") {
+    const hours = Number(node.customFields.commercialRouteCsaHours);
+    return Number.isFinite(hours) && hours > 0;
+  }
+  if (route === "PCS") {
+    const modules = Number(node.customFields.commercialRouteModuleCount);
+    const extraHours = Number(node.customFields.commercialRoutePcsExtraHours || 0);
+    return (
+      Number.isInteger(modules) && modules > 0 && Number.isFinite(extraHours) && extraHours >= 0
+    );
+  }
+  if (route === "LOI") {
+    const price = String(node.customFields.commercialRoutePrice ?? "").trim();
+    const signed = node.conditions.some(
+      (condition) => condition.id === "loi-ceo-signature-required" && condition.checked === true,
+    );
+    return price.length > 0 && signed;
+  }
+  return false;
+}
+
 export const COMMERCIAL_ROUTE_STYLE: Record<
   CommercialRoute,
   { color: string; label: string; agreement: string; height: number }

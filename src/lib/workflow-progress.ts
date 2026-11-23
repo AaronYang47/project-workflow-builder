@@ -18,7 +18,7 @@ import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
-import { isCommercialRouteGroupNode } from "@/lib/commercial-routes";
+import { commercialRouteReady, isCommercialRouteGroupNode } from "@/lib/commercial-routes";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
@@ -406,11 +406,7 @@ export function getWorkflowProgress(
         const route = qualification
           ? qualificationRoute(qualificationOf(qualification))
           : undefined;
-        const loiSigned = source.conditions.some(
-          (condition) =>
-            condition.id === "loi-ceo-signature-required" && condition.checked === true,
-        );
-        allowed = edge.sourceHandle === route && (route !== "LOI" || loiSigned);
+        allowed = edge.sourceHandle === route && commercialRouteReady(source, route);
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

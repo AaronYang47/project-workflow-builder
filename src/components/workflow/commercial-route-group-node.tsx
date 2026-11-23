@@ -2,7 +2,11 @@
 
 import { Handle, Position } from "@xyflow/react";
 import { Calculator, FileSignature, Handshake } from "lucide-react";
-import { COMMERCIAL_ROUTES, COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
+import {
+  COMMERCIAL_ROUTES,
+  COMMERCIAL_ROUTE_STYLE,
+  commercialRouteReady,
+} from "@/lib/commercial-routes";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
@@ -79,6 +83,7 @@ export function CommercialRouteGroupNode({
         {COMMERCIAL_ROUTES.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
           const active = reached && route === path;
+          const ready = active && commercialRouteReady(node, path);
           const Icon = path === "CSA" ? Handshake : path === "PCS" ? Calculator : FileSignature;
           return (
             <section
@@ -105,7 +110,7 @@ export function CommercialRouteGroupNode({
                 id={path}
                 className="!right-[-6px] !size-3 !border-2 !border-background"
                 style={{
-                  backgroundColor: active && (path !== "LOI" || signed) ? style.color : "#94a3b8",
+                  backgroundColor: ready ? style.color : "#94a3b8",
                 }}
               />
               <div
@@ -114,7 +119,7 @@ export function CommercialRouteGroupNode({
               >
                 <Icon className="size-3.5" />
                 {path} · {style.agreement}
-                {active && <span className="ml-auto">ACTIVE</span>}
+                {active && <span className="ml-auto">{ready ? "READY" : "INCOMPLETE"}</span>}
               </div>
               {path === "CSA" && (
                 <>
@@ -135,6 +140,9 @@ export function CommercialRouteGroupNode({
                   <p className="font-bold">
                     CAD $200 × hours {csaFee !== undefined && `= ${cad(csaFee)} before tax`}
                   </p>
+                  {active && !ready && (
+                    <p className="text-amber-600">Enter billable hours to continue.</p>
+                  )}
                   <p className="text-muted-foreground">
                     Up to 10 hours anticipated (about {cad(2_000)}); actual hours billed. Extra work
                     needs prior written approval. Applicable taxes extra.
@@ -179,6 +187,11 @@ export function CommercialRouteGroupNode({
                       ? "Enter modules to calculate"
                       : `Total: ${cad(pcsTotal)} before tax`}
                   </p>
+                  {active && !ready && (
+                    <p className="text-amber-600">
+                      Enter a valid module count and extra hours to continue.
+                    </p>
+                  )}
                 </>
               )}
               {path === "LOI" && (
@@ -208,6 +221,11 @@ export function CommercialRouteGroupNode({
                   <p className="text-muted-foreground">
                     Non-binding estimate; confirmed in the Sales Agreement.
                   </p>
+                  {active && !ready && (
+                    <p className="text-amber-600">
+                      Enter a price or range and confirm the CEO signature to continue.
+                    </p>
+                  )}
                 </>
               )}
             </section>
