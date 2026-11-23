@@ -66,6 +66,37 @@
   --node-glass-tag-fill: rgb(255 255 255 / 12%);
 }
 
+[data-factory-scene] {
+  --scene-line-bg: #e8edf3;
+  --scene-line-border: #bac5d3;
+  --scene-roller-base: #cbd5e1;
+  --scene-roller-highlight: #64748b;
+  --scene-module-border: #ffffff;
+  --scene-module-face: #ffffff;
+  --scene-module-ink: #172033;
+  --scene-empty-bay: #f1f4f8;
+  --scene-empty-bay-border: #aeb9c7;
+  --scene-bay-text-outline: #f8f9fb;
+  --scene-road-bg: #e2e8f0;
+  --scene-road-border: #bac5d3;
+  --scene-road-marking: #94a3b8;
+}
+.dark [data-factory-scene] {
+  --scene-line-bg: #17283a;
+  --scene-line-border: #475569;
+  --scene-roller-base: #334155;
+  --scene-roller-highlight: #94a3b8;
+  --scene-module-border: #e2e8f0;
+  --scene-module-face: #0f172a;
+  --scene-module-ink: #ffffff;
+  --scene-empty-bay: #17283a;
+  --scene-empty-bay-border: #64748b;
+  --scene-bay-text-outline: #0f172a;
+  --scene-road-bg: #1e293b;
+  --scene-road-border: #475569;
+  --scene-road-marking: #64748b;
+}
+
 @theme inline {
   --font-sans: var(--font-industrial);
   --color-background: var(--background);

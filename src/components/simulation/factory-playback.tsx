@@ -184,7 +184,7 @@ export function FactoryPlayback({
         ) : null}
       </div>
 
-      <div className="relative order-last flex min-h-0 flex-1 flex-col bg-slate-950 p-2">
+      <div className="relative order-last flex min-h-0 flex-1 flex-col bg-gradient-to-b from-sky-50 to-slate-100 p-2 dark:from-slate-900 dark:to-slate-950">
         {index < firstProductionIndex ? (
           <div
             data-line-idle

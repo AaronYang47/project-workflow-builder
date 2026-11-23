@@ -89,9 +89,9 @@ export function FactoryScene({
   const dayOffWidth = Math.min(560, 36 + dayOffText.length * 12.5);
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 text-foreground">
       <div className="flex shrink-0 items-center justify-end">
-        <div className="flex items-center rounded-md border border-slate-700 text-white">
+        <div className="flex items-center rounded-md border border-border bg-background/85 text-foreground shadow-sm">
           <button
             type="button"
             aria-label="Zoom out factory"
@@ -122,28 +122,28 @@ export function FactoryScene({
       </div>
       <div
         ref={frame}
-        className="min-h-0 flex-[5] overflow-auto rounded-lg border border-slate-700"
+        className="min-h-0 flex-[5] overflow-auto rounded-lg border border-border bg-background"
       >
         <svg
           role="img"
           aria-label={`Factory on ${day.date}: ${day.line.length} modules on the line, ${day.yardTotal} in the yard`}
           viewBox={`0 0 ${W} ${height}`}
           style={{ width: `${zoom * 100}%` }}
-          className={`block select-none bg-slate-900 ${zoom === 1 ? "h-full" : ""}`}
+          className={`block select-none bg-background ${zoom === 1 ? "h-full" : ""}`}
           data-factory-scene
         >
           <defs>
             <pattern id={rollers} width="16" height="8" patternUnits="userSpaceOnUse">
-              <rect width="16" height="8" fill="#334155" />
-              <rect x="4" width="7" height="8" rx="2" fill="#94a3b8" />
+              <rect width="16" height="8" fill="var(--scene-roller-base)" />
+              <rect x="4" width="7" height="8" rx="2" fill="var(--scene-roller-highlight)" />
             </pattern>
           </defs>
 
           <g data-roller-track>
-            <text x="28" y="33" fill="#e2e8f0" fontSize="20" fontWeight="600">
+            <text x="28" y="33" fill="var(--foreground)" fontSize="20" fontWeight="600">
               Production line
             </text>
-            <text x={W - 28} y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
+            <text x={W - 28} y="33" textAnchor="end" fill="var(--muted-foreground)" fontSize="18">
               {day.line.length} modules
             </text>
             <rect
@@ -152,8 +152,8 @@ export function FactoryScene({
               width={W - 56}
               height="96"
               rx="10"
-              fill={day.blocked ? "#421f29" : "#17283a"}
-              stroke={day.blocked ? "#fb7185" : "#475569"}
+              fill={day.blocked ? "#421f29" : "var(--scene-line-bg)"}
+              stroke={day.blocked ? "#fb7185" : "var(--scene-line-border)"}
             />
             {[TRACK.center - TRACK.height / 2, TRACK.center + TRACK.height / 2].map((y) => (
               <rect
@@ -187,16 +187,29 @@ export function FactoryScene({
                     height={TRACK.height}
                     rx="4"
                     fill={project?.color ?? "#475569"}
-                    stroke="#e2e8f0"
+                    stroke="var(--scene-module-border)"
                   />
-                  <rect x="-11" y="-18" width="22" height="36" rx="3" fill="#0f172a" />
-                  <text y="5" textAnchor="middle" fill="white" fontSize="13" fontWeight="700">
+                  <rect
+                    x="-11"
+                    y="-18"
+                    width="22"
+                    height="36"
+                    rx="3"
+                    fill="var(--scene-module-face)"
+                  />
+                  <text
+                    y="5"
+                    textAnchor="middle"
+                    fill="var(--scene-module-ink)"
+                    fontSize="13"
+                    fontWeight="700"
+                  >
                     {item.module}
                   </text>
                 </g>
               );
             })}
-            <text x="28" y="205" fill="#94a3b8" fontSize="15">
+            <text x="28" y="205" fill="var(--muted-foreground)" fontSize="15">
               Module entry
             </text>
             {!day.working ? (
@@ -223,15 +236,15 @@ export function FactoryScene({
                 </text>
               </g>
             ) : null}
-            <text x={W - 28} y="205" textAnchor="end" fill="#94a3b8" fontSize="15">
+            <text x={W - 28} y="205" textAnchor="end" fill="var(--muted-foreground)" fontSize="15">
               Exit to yard →
             </text>
           </g>
           <g data-yard-floor-plan transform="translate(0 226)">
-            <text x="28" y="33" fill="#e2e8f0" fontSize="20" fontWeight="600">
+            <text x="28" y="33" fill="var(--foreground)" fontSize="20" fontWeight="600">
               Yard
             </text>
-            <text x={W - 28} y="33" textAnchor="end" fill="#cbd5e1" fontSize="18">
+            <text x={W - 28} y="33" textAnchor="end" fill="var(--muted-foreground)" fontSize="18">
               {day.yardTotal} / {yardCapacity} occupied
             </text>
             {Array.from({ length: bayCount }, (_, index) => {
@@ -250,18 +263,18 @@ export function FactoryScene({
                     width={bayWidth}
                     height="43"
                     rx="5"
-                    fill={project?.color ?? "#17283a"}
-                    stroke="#64748b"
+                    fill={project?.color ?? "var(--scene-empty-bay)"}
+                    stroke="var(--scene-empty-bay-border)"
                     strokeDasharray={project ? undefined : "4 4"}
                   />
                   <text
                     x={bayWidth / 2}
                     y="27"
                     textAnchor="middle"
-                    fill={project ? "#fff" : "#94a3b8"}
+                    fill={project ? "#fff" : "var(--muted-foreground)"}
                     fontSize={bayFont}
                     paintOrder="stroke"
-                    stroke={project ? "#0f172a" : undefined}
+                    stroke={project ? "var(--scene-bay-text-outline)" : undefined}
                     strokeWidth="2"
                   >
                     {index + 1}
@@ -275,10 +288,14 @@ export function FactoryScene({
               width={W - 56}
               height={roadHeight}
               rx="8"
-              fill="#1e293b"
-              stroke="#475569"
+              fill="var(--scene-road-bg)"
+              stroke="var(--scene-road-border)"
             />
-            <path d={`M44 ${roadY + 29} H${W - 44}`} stroke="#64748b" strokeDasharray="12 10" />
+            <path
+              d={`M44 ${roadY + 29} H${W - 44}`}
+              stroke="var(--scene-road-marking)"
+              strokeDasharray="12 10"
+            />
             {shipments.map(([projectId, count], index) => {
               const project = byId.get(projectId);
               const row = Math.floor(index / trucksPerRow);
@@ -336,14 +353,14 @@ export function FactoryScene({
                       width="34"
                       height="17"
                       rx="4"
-                      fill="#0f172a"
+                      fill="var(--scene-module-face)"
                       stroke={project?.color ?? "#94a3b8"}
                     />
                     <text
                       x="36"
                       y="50"
                       textAnchor="middle"
-                      fill="white"
+                      fill="var(--scene-module-ink)"
                       fontSize="12"
                       fontWeight="700"
                     >
@@ -353,7 +370,7 @@ export function FactoryScene({
                 </g>
               );
             })}
-            <text x="28" y={roadY + roadHeight + 28} fill="#94a3b8" fontSize="15">
+            <text x="28" y={roadY + roadHeight + 28} fill="var(--muted-foreground)" fontSize="15">
               Shipping lane →
             </text>
           </g>

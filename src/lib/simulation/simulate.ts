@@ -171,6 +171,64 @@ export function simulateScenario(
     let blocked = false;
     let paceDays = 0;
 
+    // Dispatch first to release yard capacity before deciding whether the line
+    // can move. Dispatch again after production so newly completed modules can
+    // still leave on the same day. Per-day limits apply across both passes.
+    const pickedUpToday = new Set<string>();
+    const sentToday = new Map<string, number>();
+    const dispatchFromYard = () => {
+      for (const state of states) {
+        const delivery = state.project.delivery;
+        const allBuilt = state.produced === state.project.modules;
+        if (delivery.kind === "fob") {
+          if (pickedUpToday.has(state.project.id)) continue;
+          const pickupDay = dayOf(delivery.pickupDate) ?? Infinity;
+          const batch = Math.max(0, Math.round(delivery.batchSize ?? 0));
+          const ready =
+            state.completion === undefined &&
+            day >= pickupDay &&
+            state.inYard > 0 &&
+            (batch ? state.inYard >= batch || allBuilt : allBuilt);
+          if (!ready) continue;
+          const taken = batch ? Math.min(batch, state.inYard) : state.inYard;
+          state.inYard -= taken;
+          yardTotal -= taken;
+          state.collected += taken;
+          pickedUpToday.add(state.project.id);
+          pickedToday.push(state.project.id);
+          departures[state.project.id] = (departures[state.project.id] ?? 0) + taken;
+          events.push(
+            `${state.project.name}: customer collected ${taken} module${taken === 1 ? "" : "s"} from the FOB yard.`,
+          );
+          if (state.collected >= state.project.modules) {
+            state.pickup = day;
+            state.completion = day;
+          }
+          continue;
+        }
+
+        if (!working || state.inYard <= 0) continue;
+        const readyDay = dayOf(delivery.siteReadyDate ?? "") ?? -Infinity;
+        const mayShip =
+          delivery.transport === "as-built" ||
+          (delivery.transport === "all-done" && allBuilt) ||
+          (delivery.transport === "site-ready" && day >= readyDay);
+        if (!mayShip) continue;
+        const dailyLimit = Math.max(1, delivery.modulesPerDay);
+        const sent = sentToday.get(state.project.id) ?? 0;
+        const count = Math.min(state.inYard, dailyLimit - sent);
+        if (count <= 0) continue;
+        state.inYard -= count;
+        yardTotal -= count;
+        state.departed += count;
+        sentToday.set(state.project.id, sent + count);
+        departures[state.project.id] = (departures[state.project.id] ?? 0) + count;
+        state.arrivals.push({ day: day + Math.max(0, delivery.transportDays), count });
+      }
+    };
+
+    dispatchFromYard();
+
     if (working) {
       // 1. The line moves at the pace of its slowest module.
       if (line.length) {
@@ -245,49 +303,9 @@ export function simulateScenario(
       peakOnLine = Math.max(peakOnLine, line.length);
     }
 
-    // 3. Deliveries, in priority order.
+    // Pickups and deliveries after production share the same per-day limits.
+    dispatchFromYard();
     for (const state of states) {
-      const delivery = state.project.delivery;
-      const allBuilt = state.produced === state.project.modules;
-      if (delivery.kind === "fob") {
-        const pickupDay = dayOf(delivery.pickupDate) ?? Infinity;
-        const batch = Math.max(0, Math.round(delivery.batchSize ?? 0));
-        // A batch is ready once enough modules wait (or the last few, once all are built).
-        const ready =
-          state.completion === undefined &&
-          day >= pickupDay &&
-          state.inYard > 0 &&
-          (batch ? state.inYard >= batch || allBuilt : allBuilt);
-        if (!ready) continue;
-        const taken = batch ? Math.min(batch, state.inYard) : state.inYard;
-        state.inYard -= taken;
-        yardTotal -= taken;
-        state.collected += taken;
-        pickedToday.push(state.project.id);
-        departures[state.project.id] = taken;
-        events.push(
-          `${state.project.name}: customer collected ${taken} module${taken === 1 ? "" : "s"} from the FOB yard.`,
-        );
-        if (state.collected >= state.project.modules) {
-          state.pickup = day;
-          state.completion = day;
-        }
-        continue;
-      }
-      // Site delivery: ship on factory working days.
-      const readyDay = dayOf(delivery.siteReadyDate ?? "") ?? -Infinity;
-      const mayShip =
-        delivery.transport === "as-built" ||
-        (delivery.transport === "all-done" && allBuilt) ||
-        (delivery.transport === "site-ready" && day >= readyDay);
-      if (working && mayShip && state.inYard > 0) {
-        const count = Math.min(state.inYard, Math.max(1, delivery.modulesPerDay));
-        state.inYard -= count;
-        yardTotal -= count;
-        state.departed += count;
-        departures[state.project.id] = count;
-        state.arrivals.push({ day: day + Math.max(0, delivery.transportDays), count });
-      }
       for (const arrival of state.arrivals) {
         if (arrival.day === day) {
           state.arrived += arrival.count;
