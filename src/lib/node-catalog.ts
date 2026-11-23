@@ -33,6 +33,7 @@ import type { WorkflowNodeType } from "@/types/workflow";
 export const PALETTE_NODE_TYPES = [
   "qualification",
   "estimation",
+  "commercialRule",
   "general",
   "gate",
   "terminal",
@@ -160,12 +161,12 @@ export const NODE_CATALOG: NodeDefinition[] = [
   },
   {
     type: "commercialRule",
-    label: "Commercial Rule",
-    description: "Commercial constraint",
+    label: "CSA / PCS / LOI",
+    description: "Three agreement routes in one node",
     icon: Landmark,
     color: "#9a5c24",
     category: "Governance",
-    defaultSize: { width: 240, height: 132 },
+    defaultSize: { width: 380, height: 650 },
   },
   {
     type: "continuousControl",

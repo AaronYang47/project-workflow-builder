@@ -2,6 +2,11 @@ import type { DomainNode } from "@/types/workflow";
 
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
 export type CommercialRoute = (typeof COMMERCIAL_ROUTES)[number];
+export const COMMERCIAL_ROUTE_GROUP_ID = "commercial-route-group";
+
+export function isCommercialRouteGroupNode(node: DomainNode) {
+  return node.id === COMMERCIAL_ROUTE_GROUP_ID || node.config.commercialRouteGroup === true;
+}
 
 export const COMMERCIAL_ROUTE_STYLE: Record<
   CommercialRoute,

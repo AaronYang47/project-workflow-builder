@@ -200,6 +200,16 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
           return existing.id;
         }
       }
+      if (type === "commercialRule") {
+        const existing = get().file.graph.nodes.find(
+          (node) =>
+            node.id === "commercial-route-group" || node.config.commercialRouteGroup === true,
+        );
+        if (existing) {
+          set({ selection: { nodeIds: [existing.id] } });
+          return existing.id;
+        }
+      }
       if (type === "projectStart") {
         const existing = get().file.graph.nodes.find((node) => node.type === "projectStart");
         if (existing) {
@@ -236,8 +246,10 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
         selection: { nodeIds: [] },
       }));
       if (type === "qualification") placeQualificationFirst(id);
-      if (type === "qualification" || type === "estimation") {
-        get().commitTransient((current) => ensureEstimationWorkflow(current, type === "estimation" ? id : undefined));
+      if (type === "qualification" || type === "estimation" || type === "commercialRule") {
+        get().commitTransient((current) =>
+          ensureEstimationWorkflow(current, type === "estimation" ? id : undefined),
+        );
       }
       if (
         typeof window !== "undefined" &&

@@ -296,13 +296,13 @@ export function useCanvasDrop({
 
       addNode(
         type,
-        phase
+        phase && type !== "estimation"
           ? {
               x: Math.max(24, position.x - phase.x),
               y: Math.max(112, position.y - phase.y),
             }
           : position,
-        phase?.nodeId,
+        type === "estimation" ? undefined : phase?.nodeId,
       );
     },
     [

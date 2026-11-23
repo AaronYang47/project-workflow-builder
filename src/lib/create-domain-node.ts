@@ -50,6 +50,20 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
       customFields: {},
       config: { stage: "Estimation", iconKey: "document" },
     };
+  if (type === "commercialRule")
+    return {
+      id,
+      type,
+      title: "CSA / PCS / LOI",
+      description: "Choose and complete the applicable commercial agreement.",
+      color: def.color,
+      metadata: {},
+      conditions: [],
+      documents: [],
+      criteria: [],
+      customFields: {},
+      config: { commercialRouteGroup: true, stage: "Qualification", iconKey: "document" },
+    };
   const matrixKind = matrixKindForNode({ type });
   return {
     id,

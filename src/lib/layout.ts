@@ -4,6 +4,7 @@ import { isReferenceNodeType } from "@/types/workflow";
 import { getAdaptiveNodeSize, getL1FallbackColor } from "@/lib/node-layout";
 import { synchronizeLinkedWorkflowOrder } from "@/lib/high-level-workflow";
 import { normalizeGateHandles, restoreChildCoordinates } from "@/lib/layout-pack";
+import { estimatePhaseHeaderHeight, PHASE_HEADER_GUTTER } from "@/lib/phase-layout";
 
 // `unnecessaryBendpoints` is missing from elkjs' typed `LayoutOptions`; cast
 // through `Record<string, unknown>` so the option actually reaches ELK.
@@ -237,15 +238,16 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 24;
-      const GATE_PAD_TOP = 200;
       const PAD_BOTTOM = 44;
+      const minY = Math.min(...gateChildren.map((child) => child.y));
+      const gateY = Math.max(20, minY - 112);
 
       nodes[gate.id] = {
         ...nodes[gate.id],
         x: minX - PAD_X,
-        y: COMMON_STEP_Y - GATE_PAD_TOP,
+        y: gateY,
         width: Math.max(340, maxX - minX + PAD_X * 2),
-        height: Math.max(240, maxY - (COMMON_STEP_Y - GATE_PAD_TOP) + PAD_BOTTOM),
+        height: Math.max(240, maxY - gateY + PAD_BOTTOM),
         zIndex: 1,
       };
     }
@@ -265,7 +267,9 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       .filter(Boolean);
 
     if (memberNodes.length > 0) {
-      const containsGate = memberNodes.some((m) => nodeMap.get(m.nodeId)?.type === "gate");
+      const containsGate = memberNodes.some(
+        (member) => nodeMap.get(member.nodeId)?.type === "gate",
+      );
       const minX = Math.min(
         ...memberNodes.map((c) => {
           const domain = nodeMap.get(c.nodeId);
@@ -297,8 +301,12 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       );
 
       const PAD_X = 36;
-      const PHASE_PAD_TOP = containsGate ? 360 : 180;
-      const phaseY = COMMON_STEP_Y - PHASE_PAD_TOP;
+      const minMemberTop = Math.min(...memberNodes.map((member) => member.y));
+      const frameWidth = Math.max(380, maxX - minX + PAD_X * 2);
+      const phaseY = Math.max(
+        0,
+        minMemberTop - estimatePhaseHeaderHeight(phase, frameWidth) - PHASE_HEADER_GUTTER,
+      );
       // Guarantee Phase extends at least 40px below the bottom of any member, including Gate!
       const phaseBottom = maxMemberBottom + (containsGate ? 40 : 48);
 
@@ -306,7 +314,7 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
         ...nodes[phase.id],
         x: minX - PAD_X,
         y: phaseY,
-        width: Math.max(380, maxX - minX + PAD_X * 2),
+        width: frameWidth,
         height: Math.max(280, phaseBottom - phaseY),
         zIndex: 0,
       };

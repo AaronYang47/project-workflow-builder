@@ -18,6 +18,7 @@ import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
+import { isCommercialRouteGroupNode } from "@/lib/commercial-routes";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
@@ -223,6 +224,7 @@ export function nodeReleaseReady(
   if (node.type === "qualification") {
     return qualificationNodeReady(node);
   }
+  if (isCommercialRouteGroupNode(node)) return true;
   if (node.type === "estimation") return preliminaryEstimationReady(node);
   if (node.type === "gate") {
     const checklistReady = gateApprovalReady(node);
@@ -398,6 +400,17 @@ export function getWorkflowProgress(
         ["CSA", "PCS", "LOI"].includes(edge.sourceHandle ?? "")
       ) {
         allowed = edge.sourceHandle === qualificationRoute(qualificationOf(source));
+      }
+      if (isCommercialRouteGroupNode(source)) {
+        const qualification = nodes.find((node) => node.type === "qualification");
+        const route = qualification
+          ? qualificationRoute(qualificationOf(qualification))
+          : undefined;
+        const loiSigned = source.conditions.some(
+          (condition) =>
+            condition.id === "loi-ceo-signature-required" && condition.checked === true,
+        );
+        allowed = Boolean(route && (route !== "LOI" || loiSigned));
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);
