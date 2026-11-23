@@ -597,17 +597,19 @@ export function SemanticEdge({
     Boolean(routed && automaticRoute) &&
     (routedCollides || pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40);
   const chapterConnection = data?.chapterConnection;
-  // Agreement branches have dedicated left/right ports. A direct segment
-  // keeps the three routes legible and avoids the generic orthogonal detours.
-  const straightCommercialRoute =
+  // Agreement branches leave and enter their cards horizontally. If the
+  // ports have different heights, change height once in the gap between them.
+  const orthogonalCommercialRoute =
     isCommercialRouteColor(domain.customFields.routeColor) &&
     sourcePosition === Position.Right &&
     targetPosition === Position.Left &&
     targetX > sourceX
-      ? [
+      ? compact([
           { x: sourceX, y: sourceY },
+          { x: (sourceX + targetX) / 2, y: sourceY },
+          { x: (sourceX + targetX) / 2, y: targetY },
           { x: targetX, y: targetY },
-        ]
+        ])
       : undefined;
   const chapterRoute = chapterConnection?.points.map((point, index, points) => {
     if (index === 0) return { x: sourceX, y: sourceY };
@@ -617,7 +619,7 @@ export function SemanticEdge({
     return point;
   });
   const visibleRoute =
-    straightCommercialRoute ??
+    orthogonalCommercialRoute ??
     chapterRoute ??
     withMinEndStub(
       preGateSalesRoute ??
