@@ -1,3 +1,4 @@
+import { isCommercialRouteGroupNode } from "@/lib/commercial-routes";
 import type { LayoutOptions } from "elkjs/lib/elk-api";
 import type { NodeLayout, WorkflowFile, WorkflowNodeType } from "@/types/workflow";
 import { isReferenceNodeType } from "@/types/workflow";
@@ -281,6 +282,19 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
       const dy = COMMON_STEP_Y - Math.min(...column.members.map((child) => child.y));
       if (dy) for (const child of column.members) shiftWithChildren(child.nodeId, dy);
     }
+  }
+
+  // Qualification → CSA / PCS / LOI → Estimation sit outside the Phases: give
+  // them the same top line as the cards inside the Phases.
+  for (const node of updatedGraphNodes) {
+    const layout = nodes[node.id];
+    if (!layout || original[node.id]?.parentId) continue;
+    if (
+      node.type === "qualification" ||
+      node.type === "estimation" ||
+      isCommercialRouteGroupNode(node)
+    )
+      nodes[node.id] = { ...layout, y: COMMON_STEP_Y };
   }
 
   // 2. Position all PHASE containers (enclosing both steps and nested gates)

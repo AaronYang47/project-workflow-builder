@@ -32,11 +32,12 @@ test("Qualification inserts one [1.06] Estimation before Project Start", () => {
   expect(estimation).toBeTruthy();
   const agreement = updated.graph.nodes.find((node) => node.config.commercialRouteGroup === true)!;
   expect(agreement).toBeTruthy();
+  // One link in from Qualification; the chosen route continues inside the agreement node.
   expect(
     updated.graph.edges.filter(
       (edge) => edge.source === qualification.id && edge.target === agreement.id,
     ),
-  ).toHaveLength(3);
+  ).toMatchObject([{ sourceHandle: "out", targetHandle: "in" }]);
   expect(
     updated.graph.edges.filter(
       (edge) => edge.source === agreement.id && edge.target === estimation.id,

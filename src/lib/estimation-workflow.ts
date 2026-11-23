@@ -151,8 +151,18 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
         ? { ...edge, source: id, sourceHandle: "out" }
         : edge,
     );
-  for (const route of COMMERCIAL_ROUTES)
-    file.graph.edges.push(routeEdge(qualification.id, groupId, route));
+  // One link in: Qualification's chosen route continues inside CSA / PCS / LOI.
+  file.graph.edges.push({
+    id: `edge-${qualification.id}-${groupId}`,
+    source: qualification.id,
+    target: groupId,
+    sourceHandle: "out",
+    targetHandle: "in",
+    type: "normal",
+    lineStyle: "solid",
+    arrowStyle: "closed",
+    customFields: {},
+  });
   for (const route of COMMERCIAL_ROUTES)
     file.graph.edges.push({ ...routeEdge(groupId, id, route), targetHandle: "in" });
   const start = file.graph.nodes.find((node) => node.type === "projectStart");

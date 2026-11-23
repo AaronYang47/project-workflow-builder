@@ -79,6 +79,14 @@ export function CommercialRouteGroupNode({
           {route ?? "No route selected"}
         </span>
       </div>
+      {/* One way in: Qualification's chosen route lights up below. */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in"
+        className="!size-3 !border-2 !border-background"
+        style={{ backgroundColor: route ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8" }}
+      />
       <div className="grid min-h-0 flex-1 grid-rows-3 gap-2">
         {COMMERCIAL_ROUTES.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
@@ -97,13 +105,6 @@ export function CommercialRouteGroupNode({
                 } as React.CSSProperties
               }
             >
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={path}
-                className="!left-[-6px] !size-3 !border-2 !border-background"
-                style={{ backgroundColor: active ? style.color : `${style.color}88` }}
-              />
               <Handle
                 type="source"
                 position={Position.Right}

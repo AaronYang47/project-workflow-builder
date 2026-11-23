@@ -23,7 +23,6 @@ import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 
 const routes = ["CSA", "PCS", "LOI"] as const;
-const routePositions = { CSA: "16%", PCS: "50%", LOI: "84%" } as const;
 
 export function QualificationNode({ node, selected }: { node: DomainNode; selected: boolean }) {
   const [formOpen, setFormOpen] = useState(false);
@@ -294,27 +293,16 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         id="in"
         className="!size-3 !border-2 !border-background !bg-slate-500"
       />
-      {routes.map((path) => (
-        <div
-          key={path}
-          className="pointer-events-none absolute right-0 z-20"
-          style={{ top: routePositions[path] }}
-        >
-          <span className="absolute right-4 -translate-y-1/2 rounded bg-card/95 px-1 text-[9px] font-bold text-muted-foreground">
-            {path}
-          </span>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id={path}
-            className={`!right-[-6px] !size-3 !border-2 !border-background ${route === path && gate.passed ? "commercial-route-handle-active" : ""}`}
-            style={{
-              backgroundColor:
-                route === path && gate.passed ? COMMERCIAL_ROUTE_STYLE[path].color : "#94a3b8",
-            }}
-          />
-        </div>
-      ))}
+      {/* One way out: the chosen route continues into CSA / PCS / LOI. */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="out"
+        className={`!size-3 !border-2 !border-background ${route && gate.passed ? "commercial-route-handle-active" : ""}`}
+        style={{
+          backgroundColor: route && gate.passed ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8",
+        }}
+      />
     </div>
   );
 }
