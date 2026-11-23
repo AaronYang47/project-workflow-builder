@@ -253,6 +253,36 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
     }
   }
 
+  // Start each independent column inside a Phase at the same content height.
+  // Nodes that overlap horizontally form a vertical branch and retain their
+  // spacing within that branch.
+  const shiftWithChildren = (id: string, dy: number) => {
+    const layout = nodes[id];
+    if (layout) nodes[id] = { ...layout, y: layout.y + dy };
+    for (const child of updatedGraphNodes.filter((item) => original[item.id]?.parentId === id))
+      shiftWithChildren(child.id, dy);
+  };
+  for (const phase of phaseNodes) {
+    const direct = updatedGraphNodes
+      .filter((node) => original[node.id]?.parentId === phase.id && nodes[node.id])
+      .map((node) => nodes[node.id])
+      .sort((a, b) => a.x - b.x);
+    const columns: Array<{ right: number; members: NodeLayout[] }> = [];
+    for (const child of direct) {
+      const previous = columns.at(-1);
+      if (previous && child.x < previous.right + 8) {
+        previous.members.push(child);
+        previous.right = Math.max(previous.right, child.x + child.width);
+      } else {
+        columns.push({ right: child.x + child.width, members: [child] });
+      }
+    }
+    for (const column of columns) {
+      const dy = COMMON_STEP_Y - Math.min(...column.members.map((child) => child.y));
+      if (dy) for (const child of column.members) shiftWithChildren(child.nodeId, dy);
+    }
+  }
+
   // 2. Position all PHASE containers (enclosing both steps and nested gates)
   for (const phase of phaseNodes) {
     const memberNodes = updatedGraphNodes
@@ -319,6 +349,22 @@ export async function autoLayout(file: WorkflowFile): Promise<WorkflowFile> {
         zIndex: 0,
       };
     }
+  }
+
+  const laidOutPhases = phaseNodes.filter((phase) => nodes[phase.id]);
+  const maxHeaderHeight = Math.max(
+    0,
+    ...laidOutPhases.map((phase) => estimatePhaseHeaderHeight(phase, nodes[phase.id].width)),
+  );
+  const alignedPhaseY = Math.max(0, COMMON_STEP_Y - maxHeaderHeight - PHASE_HEADER_GUTTER);
+  for (const phase of laidOutPhases) {
+    const current = nodes[phase.id];
+    const bottom = current.y + current.height;
+    nodes[phase.id] = {
+      ...current,
+      y: alignedPhaseY,
+      height: Math.max(280, bottom - alignedPhaseY),
+    };
   }
 
   return synchronizeLinkedWorkflowOrder({

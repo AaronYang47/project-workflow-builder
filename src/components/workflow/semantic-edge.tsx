@@ -597,8 +597,18 @@ export function SemanticEdge({
     Boolean(routed && automaticRoute) &&
     (routedCollides || pathLength(routed!) > pathLength(automaticRoute!) * 1.2 + 40);
   const chapterConnection = data?.chapterConnection;
-  // Agreement branches leave and enter their cards horizontally. If the
-  // ports have different heights, change height once in the gap between them.
+  // Agreement branches leave and enter their cards horizontally. The three
+  // outputs share one exact junction before the Estimation input.
+  const commercialOutput =
+    isCommercialRouteColor(domain.customFields.routeColor) && domain.targetHandle === "in";
+  const commercialSource = data?.obstacles?.find((item) => item.id === domain.source);
+  const commercialTarget = data?.obstacles?.find((item) => item.id === domain.target);
+  const sourceRight = commercialSource ? commercialSource.x + commercialSource.width : sourceX;
+  const targetLeft = commercialTarget?.x ?? targetX;
+  const junctionX =
+    commercialOutput && targetX - sourceX >= 48
+      ? Math.max(sourceX + 16, Math.min(targetX - 16, (sourceRight + targetLeft) / 2))
+      : (sourceX + targetX) / 2;
   const orthogonalCommercialRoute =
     isCommercialRouteColor(domain.customFields.routeColor) &&
     sourcePosition === Position.Right &&
@@ -606,8 +616,8 @@ export function SemanticEdge({
     targetX > sourceX
       ? compact([
           { x: sourceX, y: sourceY },
-          { x: (sourceX + targetX) / 2, y: sourceY },
-          { x: (sourceX + targetX) / 2, y: targetY },
+          { x: junctionX, y: sourceY },
+          { x: junctionX, y: targetY },
           { x: targetX, y: targetY },
         ])
       : undefined;
@@ -634,7 +644,8 @@ export function SemanticEdge({
         [],
       targetPosition,
     );
-  const path = visibleRoute.length >= 2 ? roundedPath(visibleRoute) : bezierPath;
+  const path =
+    visibleRoute.length >= 2 ? roundedPath(visibleRoute, commercialOutput ? 0 : 14) : bezierPath;
   const labelGuide =
     visibleRoute.length >= 2
       ? visibleRoute
@@ -700,6 +711,16 @@ export function SemanticEdge({
           style={{ color, stroke: color, opacity: selected ? 1 : 0.85 }}
         />
       ) : null}
+      {commercialOutput && orthogonalCommercialRoute && (
+        <circle
+          data-commercial-junction
+          cx={junctionX}
+          cy={targetY}
+          r={active ? 4 : 3}
+          fill={color}
+          className="pointer-events-none"
+        />
+      )}
       {!isCommercialRouteColor(domain.customFields.routeColor) && (
         <EdgeLabelRenderer>
           <EditableEdgeLabel

@@ -204,7 +204,12 @@ function HighLevelCanvasInner({
           linkedLayer2NodeIds.flatMap((id) => {
             const linked = layer2ById.get(id);
             return linked
-              ? [{ title: linkedWorkflowDisplayName(linked), hasSteps: linked.conditions.length > 0 }]
+              ? [
+                  {
+                    title: linkedWorkflowDisplayName(linked),
+                    hasSteps: linked.conditions.length > 0,
+                  },
+                ]
               : [];
           }),
         );

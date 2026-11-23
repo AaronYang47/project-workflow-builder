@@ -90,11 +90,15 @@ export function FactoryModuleInventory({
                     style={{ borderColor: project?.color }}
                   >
                     <span>#{module.module}</span>
+                    {/* Workdays share the top row so the card keeps its height. */}
+                    <span
+                      className="self-center text-[9px] font-normal text-muted-foreground"
+                      title={`${module.productionDays} of ${module.productionDaysRequired} production workdays`}
+                    >
+                      {module.productionDays}/{module.productionDaysRequired}d
+                    </span>
                     <span>{progress}%</span>
                   </div>
-                  <p className="px-2 pt-0.5 text-[9px] text-muted-foreground">
-                    {module.productionDays} / {module.productionDaysRequired} workdays
-                  </p>
                   <ModuleThumbnail finished={progress >= 85} />
                   <p
                     className="line-clamp-2 min-h-8 px-2 pb-2 text-[11px] leading-4"

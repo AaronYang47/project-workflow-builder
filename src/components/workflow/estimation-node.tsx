@@ -209,7 +209,8 @@ export function EstimationNode({
     state.file.graph.nodes.find((item) => item.type === "qualification"),
   );
   const estimate = estimateSummary(node, qualification);
-  const ready = preliminaryEstimationReady(node);
+  const saved = preliminaryEstimationReady(node);
+  const ready = reached && saved;
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <div
@@ -237,7 +238,7 @@ export function EstimationNode({
             data-estimation-status
             className={`rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
           >
-            {ready ? "Reviewed" : reached ? "Draft" : "Waiting for Qualification"}
+            {ready ? "Reviewed" : reached ? "Draft" : "Waiting for agreement"}
           </span>
         </div>
         <Dialog.Trigger asChild>
@@ -250,13 +251,14 @@ export function EstimationNode({
             Estimate
           </button>
         </Dialog.Trigger>
-        {ready ? (
+        {saved ? (
           <div
             data-estimation-result
             className="mt-4 rounded-lg bg-teal-50 p-3 text-sm dark:bg-teal-950/30"
           >
             <div className="flex items-center gap-1 text-xs text-teal-700 dark:text-teal-300">
-              <CheckCircle2 className="size-3.5" /> Confirmed estimate
+              <CheckCircle2 className="size-3.5" />{" "}
+              {ready ? "Confirmed estimate" : "Saved estimate · awaiting agreement"}
             </div>
             <div className="mt-1 font-bold">{money(estimate.total)}</div>
             <div className="text-xs text-muted-foreground">

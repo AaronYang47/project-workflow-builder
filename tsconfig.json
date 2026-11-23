@@ -30,5 +30,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "tests", "src/components/workflow/execution-view 3.tsx"]
+  "exclude": [
+    "node_modules",
+    "tests",
+    "src/components/workflow/execution-view 3.tsx",
+    "**/* ?.ts",
+    "**/* ?.tsx"
+  ]
 }

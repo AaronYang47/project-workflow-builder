@@ -115,7 +115,7 @@ test("Estimation renders Qualification context and stays locked before approval"
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   const card = page.locator("[data-estimation-node]");
   await expect(card).toBeVisible();
-  await expect(card.locator("[data-estimation-status]")).toHaveText("Waiting for Qualification");
+  await expect(card.locator("[data-estimation-status]")).toHaveText("Waiting for agreement");
   await expect(card.getByRole("button", { name: "Estimate" })).toBeDisabled();
   const connector = page.locator(
     `.react-flow__edge[data-id="edge-commercial-route-group-estimation-1-06-csa"]`,

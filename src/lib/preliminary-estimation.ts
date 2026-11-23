@@ -47,6 +47,10 @@ export function estimateSummary(node: DomainNode, qualification?: DomainNode) {
 
 export function preliminaryEstimationReady(node: DomainNode) {
   const estimate = estimateSummary(node);
-  return estimate.reviewed && estimate.basePrice > 0 &&
-    estimate.preparedBy.length > 0 && estimate.budgetFits !== false;
+  return (
+    estimate.reviewed &&
+    estimate.basePrice > 0 &&
+    estimate.preparedBy.length > 0 &&
+    estimate.budgetFits !== false
+  );
 }

@@ -15,10 +15,17 @@ import { createDomainNode } from "../src/lib/create-domain-node";
 import { ensureEstimationWorkflow } from "../src/lib/estimation-workflow";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
-test("Plans Available? decides the route after Qualification", () => {
+test("customer history and plans decide the route after Qualification", () => {
   expect(qualificationRoute({})).toBeUndefined();
-  expect(qualificationRoute({ plansAvailable: "no" })).toBe("CSA (Concept Consultation)");
-  expect(qualificationRoute({ plansAvailable: "yes" })).toBe("LOI / CSA / PCS (choose one)");
+  // New customers: no plans → CSA, plans → PCS.
+  expect(qualificationRoute({ customerHistory: "new", plansAvailable: "no" })).toBe("CSA");
+  expect(qualificationRoute({ customerHistory: "new", plansAvailable: "yes" })).toBe("PCS");
+  expect(qualificationRoute({ customerHistory: "new" })).toBeUndefined();
+  // Existing customers choose CSA, PCS or LOI.
+  expect(qualificationRoute({ customerHistory: "existing", commercialPath: "LOI" })).toBe("LOI");
+  expect(qualificationRoute({ customerHistory: "existing" })).toBeUndefined();
+  // Older saved answers still read.
+  expect(qualificationRoute({ plansAvailable: "no" })).toBe("CSA");
   expect(qualificationRoute({ plansAvailable: "yes", commercialPath: "PCS" })).toBe("PCS");
 });
 
@@ -69,12 +76,13 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await libraryItem.dblclick();
   const node = page.locator("[data-qualification-node]");
   await expect(node).toBeVisible();
-  await expect(node.locator("[data-qualification-flow-step]")).toHaveCount(4);
-  await expect(node.locator("[data-qualification-flow-arrow]")).toHaveCount(3);
+  // Two steps inside: Form [1.01], then the CSA / PCS / LOI route.
+  await expect(node.locator("[data-qualification-flow-step]")).toHaveCount(2);
+  await expect(node.locator("[data-qualification-flow-arrow]")).toHaveCount(1);
   // Only one per project.
   await expect(libraryItem).toBeDisabled();
 
-  // Qualification remains first, followed by [1.06] Estimation and Project Start.
+  // Qualification stays at the far left of the flow.
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -90,83 +98,63 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
 
   await page.getByRole("button", { name: /fit view/i }).click();
   await page.waitForTimeout(400);
-  // Step 1: Basics (client, GC pending still allowed).
-  await node.getByLabel("Client Type").selectOption("GC");
-  await node.getByLabel("GC Status").selectOption("Pending");
-  await expect(node.locator("[data-gc-pending]")).toContainText("can still go ahead");
-  await node.getByLabel("Contracting Client").selectOption("TBD");
-  await node.getByLabel("Project Type").selectOption("FOB Yard");
+  const route = node.locator("[data-qualification-route]");
+  // New customer: no plans → CSA, plans → PCS.
+  await node.getByRole("button", { name: "New customer" }).click();
+  await node.getByRole("button", { name: "No plans" }).click();
+  await expect(route).toHaveText("Route: CSA");
+  await node.getByRole("button", { name: "Has plans" }).click();
+  await expect(route).toHaveText("Route: PCS");
+  // Existing customer: choose CSA, PCS or LOI; every choice can change later.
+  await node.getByRole("button", { name: "Existing customer" }).click();
+  await expect(route).toHaveText("Route: Select customer history and plans");
+  await node
+    .getByRole("group", { name: "Existing customer route" })
+    .getByRole("button", { name: "LOI" })
+    .click();
+  await expect(route).toHaveText("Route: LOI");
 
-  // Step 2: Plans & Route (all 4 internal sub-nodes are visible side-by-side).
-  await node.getByRole("button", { name: "No", exact: true }).click();
-  await expect(node.locator("[data-qualification-route]")).toHaveText(
-    "Route: CSA (Concept Consultation)",
-  );
-  await node.getByRole("button", { name: "Yes", exact: true }).click();
-  await node.getByRole("radio", { name: "PCS" }).click();
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: PCS");
-  // Every choice can be changed later.
-  await node.getByRole("radio", { name: "LOI" }).click();
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
-  await node.getByLabel("GC Status").selectOption("Confirmed");
-  await expect(node.locator("[data-gc-pending]")).toHaveCount(0);
-
-  // Saved with the project.
+  // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.
   await expect
     .poll(() =>
       page.evaluate((key) => {
         const file = JSON.parse(localStorage.getItem(key)!).state.file;
-        const qualification = file.graph.nodes.find(
-          (item: { type: string }) => item.type === "qualification",
+        const byType = (type: string) =>
+          file.graph.nodes.find((item: { type: string }) => item.type === type);
+        const qualification = byType("qualification");
+        const estimation = byType("estimation");
+        const start = byType("projectStart");
+        const group = file.graph.nodes.find(
+          (item: { id: string }) => item.id === "commercial-route-group",
         );
-        const start = file.graph.nodes.find(
-          (item: { type: string }) => item.type === "projectStart",
-        );
-        const estimation = file.graph.nodes.find(
-          (item: { type: string }) => item.type === "estimation",
-        );
+        const linked = (source?: { id: string }, target?: { id: string }) =>
+          file.graph.edges.some(
+            (edge: { source: string; target: string }) =>
+              edge.source === source?.id && edge.target === target?.id,
+          );
         return {
-          route: qualification?.config.qualification,
-          linked: file.graph.edges.some(
-            (edge: { source: string; target: string }) =>
-              edge.source === qualification?.id && edge.target === estimation?.id,
-          ) && file.graph.edges.some(
-            (edge: { source: string; target: string }) =>
-              edge.source === estimation?.id && edge.target === start?.id,
-          ),
+          customerHistory: qualification?.config.qualification.customerHistory,
+          commercialPath: qualification?.config.qualification.commercialPath,
+          linked:
+            linked(qualification, group) && linked(group, estimation) && linked(estimation, start),
         };
       }, WORKFLOW_STORAGE_KEY),
     )
-    .toEqual({
-      route: {
-        clientType: "GC",
-        gcStatus: "Confirmed",
-        contractingClient: "TBD",
-        projectType: "FOB Yard",
-        plansAvailable: "yes",
-        commercialPath: "LOI",
-      },
-      linked: true,
-    });
-  // Printed (L2 PDF) copies show the choices as text.
-  await expect(node.locator('[data-qualification-print-value="clientType"]')).toHaveText("GC");
-  await expect(node.locator('[data-qualification-print-value="projectType"]')).toHaveText(
-    "FOB Yard",
-  );
+    .toEqual({ customerHistory: "existing", commercialPath: "LOI", linked: true });
 });
 
-test("Form [1.01] completeness scoring handles LOI exemption, Q12 evidence, Annex rules, and absolute plans score", () => {
+test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () => {
   const emptyEval = evaluateQualificationForm101({});
   expect(emptyEval.totalScore).toBe(0);
   expect(emptyEval.grade).toBe("D");
 
-  // LOI path exempts Q9 (CSA/PCS deposit), and Option 1 keeps missing drawings unscaled.
+  // LOI exempts Q9 (CSA/PCS deposit). Q9 carries no points, so an empty form is still 0.
   const loiEmpty = evaluateQualificationForm101({
     plansAvailable: "yes",
     commercialPath: "LOI",
   });
   expect(loiEmpty.q9DepositExempt).toBe(true);
-  expect(loiEmpty.totalScore).toBe(4);
+  expect(loiEmpty.totalScore).toBe(0);
 
   const form = createEmptyQualificationForm101();
   form.revision = "1";
@@ -223,13 +211,14 @@ test("Form [1.01] completeness scoring handles LOI exemption, Q12 evidence, Anne
     form101: form,
   });
   expect(partial.q9DepositExempt).toBe(false);
-  // Missing Q9 (4), 1 pt on permit location (1), Q13 drawings (9), B8 supply code (3) => 100 - 17 = 83
-  expect(partial.totalScore).toBe(83);
+  // Q9 deposit and Q13 drawings are still missing: 60/84 is a pass (52+) but not complete.
+  expect(partial.totalScore).toBe(60);
   expect(partial.grade).toBe("B");
+  expect(partial.missingItems.map((item) => item.id)).toEqual(["q9", "q13"]);
   expect(partial.openRfiCount).toBe(1);
   expect(partial.incompleteRfiCount).toBe(1);
 
-  // Switch to LOI + supply Q12 permit path + Q13 drawing set + B8 supply scope => 100/100 Grade A.
+  // Switch to LOI + supply Q12 permit path + Q13 drawing set + B8 supply scope => Grade A.
   form.sectionA.documents.permit = {
     available: "yes",
     locationOrDate: "SharePoint/Permits/2026-11-10",
@@ -252,7 +241,7 @@ test("Form [1.01] completeness scoring handles LOI exemption, Q12 evidence, Anne
     form101: form,
   };
   const fullEval = evaluateQualificationForm101(fullLoi);
-  expect(fullEval.totalScore).toBe(100);
+  expect(fullEval.totalScore).toBe(80);
   expect(fullEval.grade).toBe("A");
   expect(fullEval.missingItems).toHaveLength(0);
 });
@@ -284,13 +273,17 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(node).toBeVisible();
   await page.getByRole("button", { name: /fit view/i }).click();
   await page.waitForTimeout(300);
-  await expect(node.locator("[data-qualification-score]")).toContainText("Score: 0/100 (D)");
+  const score = node.locator("[data-qualification-score]");
+  await expect(score).toHaveText("0/84 · 0%");
 
-  // Select LOI path first on Step 2 (Plans & Route).
-  await node.getByRole("button", { name: "Yes", exact: true }).click();
-  await node.getByRole("radio", { name: "LOI" }).click();
+  // Choose the LOI route first: an existing customer.
+  await node.getByRole("button", { name: "Existing customer" }).click();
+  await node
+    .getByRole("group", { name: "Existing customer route" })
+    .getByRole("button", { name: "LOI" })
+    .click();
   await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
-  await expect(node.locator("[data-qualification-score]")).toContainText("Score: 4/100 (D)");
+  await expect(score).toHaveText("0/84 · 0%");
 
   // Open Form [1.01] from inside the Qualification node (opens in step-by-step wizard).
   await node.getByRole("button", { name: "Open Form [1.01]" }).click();
@@ -316,14 +309,14 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await dialog.getByRole("button", { name: "Pick from Annex 2" }).first().click();
   await dialog.getByRole("button", { name: /\+ 1\.1\. Current site plan/ }).click();
 
-  await expect(dialog.locator("[data-form101-grade]")).not.toContainText("Score: 4/100");
+  await expect(dialog.locator("[data-form101-grade]")).not.toContainText(" 0/84");
   await dialog.getByRole("button", { name: "Save Form" }).click();
   await expect(dialog).toHaveCount(0);
 
   // Node retains LOI route and reflects updated Form [1.01] score & revision.
   await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
-  await expect(node).toContainText("Rev 2");
-  await expect(node.locator("[data-qualification-score]")).not.toContainText("Score: 4/100");
+  await expect(score).toHaveText("7/84 · 8%");
+  await expect(score).not.toHaveText("0/84 · 0%");
 
   const stored = await page.evaluate((key) => {
     const saved = JSON.parse(localStorage.getItem(key)!).state.file;
@@ -376,8 +369,8 @@ function build83PercentForm101() {
   return form;
 }
 
-test("scores below 70% auto-fail, and >= 70% requires Tech Review approval to unlock downstream steps", () => {
-  // Below 70% cannot pass even if techReview.status was previously marked approved.
+test("Qualification passes at 52/84 with a route; below 52 it blocks the next steps", () => {
+  // Below 52 points cannot pass, even with an old Tech Review approval saved.
   const lowGate = evaluateQualificationGate({
     plansAvailable: "yes",
     commercialPath: "PCS",
@@ -385,29 +378,26 @@ test("scores below 70% auto-fail, and >= 70% requires Tech Review approval to un
   });
   expect(lowGate.totalScore).toBe(0);
   expect(lowGate.scorePassed).toBe(false);
-  expect(lowGate.techReviewApproved).toBe(false);
   expect(lowGate.passed).toBe(false);
   expect(lowGate.state).toBe("failed_score");
 
+  // 52+ points but no route yet: waiting for the route.
   const passingForm = build83PercentForm101();
-  const pendingGate = evaluateQualificationGate({
-    plansAvailable: "yes",
-    commercialPath: "PCS",
-    form101: passingForm,
-  });
-  expect(pendingGate.totalScore).toBeGreaterThanOrEqual(70);
+  const pendingGate = evaluateQualificationGate({ form101: passingForm });
+  expect(pendingGate.totalScore).toBeGreaterThanOrEqual(52);
   expect(pendingGate.scorePassed).toBe(true);
   expect(pendingGate.passed).toBe(false);
-  expect(pendingGate.state).toBe("pending_review");
+  expect(pendingGate.state).toBe("pending_route");
 
-  const rejectedGate = evaluateQualificationGate({
+  // 52+ points and a route: passed, no Tech Review needed.
+  const passedGate = evaluateQualificationGate({
+    customerHistory: "new",
     plansAvailable: "yes",
-    commercialPath: "PCS",
     form101: passingForm,
-    techReview: { status: "rejected", reviewer: "Marc" },
   });
-  expect(rejectedGate.passed).toBe(false);
-  expect(rejectedGate.state).toBe("rejected");
+  expect(passedGate.passed).toBe(true);
+  expect(passedGate.state).toBe("passed");
+  expect(passedGate.statusLabel).toBe("PCS → Estimation");
 
   const file = createE2EWorkflow();
   const qNode = createDomainNode("qualification", "qualification-1");
@@ -426,32 +416,26 @@ test("scores below 70% auto-fail, and >= 70% requires Tech Review approval to un
     customFields: {},
   });
 
-  // 1. Score < 70% blocks Project Start steps.
-  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("minimum 70% required");
+  // 1. Below 52 points blocks the next steps.
+  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("At least 52 points");
   expect(releaseConditionBlocker(file, startNode.id, 1)?.title).toBe(
     "Complete Qualification first",
   );
 
-  // 2. Score >= 70% without Tech Review approval still blocks Project Start steps.
-  qNode.config.qualification = {
-    plansAvailable: "yes",
-    commercialPath: "PCS",
-    form101: passingForm,
-    techReview: { status: "pending" },
-  };
-  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("Approve Tech Review");
+  // 2. Enough points but no route still blocks.
+  qNode.config.qualification = { form101: passingForm };
+  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("new or existing");
 
-  // 3. Approved Tech Review with >= 70% score unlocks downstream steps.
+  // 3. Enough points and a route unlocks the next steps.
   qNode.config.qualification = {
+    customerHistory: "new",
     plansAvailable: "yes",
-    commercialPath: "PCS",
     form101: passingForm,
-    techReview: { status: "approved", reviewer: "Marc T." },
   };
   expect(sequentialExecutionBlocker(file, startNode.id)).toBeUndefined();
 });
 
-test("Tech Review gate in QualificationNode blocks next step below 70% and unlocks upon >= 70% + approval", async ({
+test("Qualification blocks the next Department until it passes with a route, and again when the form drops", async ({
   page,
 }) => {
   const file = createE2EWorkflow();
@@ -465,11 +449,8 @@ test("Tech Review gate in QualificationNode blocks next step below 70% and unloc
   delete startNode.customFields["customerDocuments::release-condition::nda-edat"];
   delete startNode.customFields["legalDocuments::release-condition::nda-edat"];
 
-  qNode.config.qualification = {
-    plansAvailable: "yes",
-    commercialPath: "CSA",
-    form101: build83PercentForm101(),
-  };
+  // Enough points, but no route chosen yet.
+  qNode.config.qualification = { form101: build83PercentForm101() };
   file.graph.nodes.unshift(qNode);
   file.layout.nodes[qNode.id] = { nodeId: qNode.id, x: -1350, y: 0, width: 1180, height: 445 };
   file.graph.edges.unshift({
@@ -487,6 +468,9 @@ test("Tech Review gate in QualificationNode blocks next step below 70% and unloc
 
   const estimationFile = ensureEstimationWorkflow(file);
   const estimation = estimationFile.graph.nodes.find((node) => node.type === "estimation")!;
+  // The CSA route has its hours, so CSA → Estimation can go through.
+  const group = estimationFile.graph.nodes.find((node) => node.id === "commercial-route-group")!;
+  group.customFields = { ...group.customFields, commercialRouteCsaHours: 12 };
   estimation.customFields = {
     estimationBasePrice: 2400000,
     estimationModuleBudget: 5000000,
@@ -513,37 +497,30 @@ test("Tech Review gate in QualificationNode blocks next step below 70% and unloc
 
   const qualCard = page.locator("[data-qualification-node]");
   const salesCard = page.locator(`.react-flow__node[data-id="${startNode.id}"]`);
-  const reviewPanel = qualCard.locator("[data-tech-review-panel]");
+  const status = qualCard.locator("[data-qualification-gate-status]");
 
-  // Even with >= 70% score, pending Tech Review blocks ticking SALES step 2.
-  await expect(qualCard.locator("[data-qualification-gate-status]")).toHaveText(
-    "Awaiting Tech Review",
-  );
+  // Enough points but no route: SALES step 2 can't be ticked yet.
+  await expect(status).toHaveText("Choose CSA / PCS / LOI");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   const blocker = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(blocker.getByText("Complete Qualification first")).toBeVisible();
-  await expect(blocker).toContainText("Approve Tech Review");
+  await expect(blocker).toContainText("new or existing");
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
-  // Approve Tech Review on QualificationNode -> clears gate and unlocks SALES step 2.
-  await reviewPanel.getByRole("textbox", { name: "Tech reviewer" }).fill("Marc T.");
-  await reviewPanel.getByRole("button", { name: "Approve" }).click();
-  await expect(qualCard.locator("[data-qualification-gate-status]")).toHaveText(
-    "Tech Review Passed",
-  );
+  // New customer without plans → CSA: Qualification passes and SALES opens up.
+  await qualCard.getByRole("button", { name: "New customer" }).click();
+  await qualCard.getByRole("button", { name: "No plans" }).click();
+  await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   await expect(salesCard.getByRole("button", { name: "Uncheck step 2" })).toBeVisible();
 
-  // Lowering Form [1.01] below 70% automatically disables Approve and re-locks the gate.
+  // Clearing Form [1.01] drops it below 52 points and Qualification blocks again.
   await qualCard.getByRole("button", { name: "Open Form [1.01]" }).click();
   const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
   await dialog.getByRole("button", { name: "Reset Form" }).click();
   await expect(dialog.locator("[data-form101-gate-badge]")).toContainText("Cannot Pass");
   await dialog.getByRole("button", { name: "Save Form" }).click();
 
-  await expect(qualCard.locator("[data-qualification-gate-status]")).toHaveText(
-    "Auto-Fail (< 70%)",
-  );
-  await expect(reviewPanel.getByRole("button", { name: "Approve" })).toBeDisabled();
+  await expect(status).toHaveText("Below 52/84");
 });

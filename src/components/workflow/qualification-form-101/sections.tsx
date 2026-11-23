@@ -225,7 +225,9 @@ export function SectionAIntake({
     <div className="space-y-4">
       {!onlyStep ? (
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">A. Sales Intake</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+            A. Sales Intake
+          </h3>
           <p className="text-[11px] text-muted-foreground">
             Project identification, stakeholders, commercial readiness, target dates, and available
             documentation.
@@ -304,59 +306,59 @@ export function SectionAIntake({
               title="Who are the project parties?"
               complete={partiesComplete}
             >
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="py-1.5 pr-2">Role</th>
-                  <th className="py-1.5 px-2">Company</th>
-                  <th className="py-1.5 pl-2">Contact</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {PROJECT_PARTY_ROLES.map((role) => (
-                  <tr key={role.key}>
-                    <td className="py-1.5 pr-2 font-medium whitespace-nowrap">{role.label}</td>
-                    <td className="py-1.5 px-2">
-                      <input
-                        aria-label={`${role.label} company`}
-                        value={sectionA.parties[role.key].company}
-                        onChange={(e) =>
-                          patchA((p) => ({
-                            ...p,
-                            parties: {
-                              ...p.parties,
-                              [role.key]: { ...p.parties[role.key], company: e.target.value },
-                            },
-                          }))
-                        }
-                        placeholder="Company name"
-                        className={cellInputCls}
-                      />
-                    </td>
-                    <td className="py-1.5 pl-2">
-                      <input
-                        aria-label={`${role.label} contact`}
-                        value={sectionA.parties[role.key].contact}
-                        onChange={(e) =>
-                          patchA((p) => ({
-                            ...p,
-                            parties: {
-                              ...p.parties,
-                              [role.key]: { ...p.parties[role.key], contact: e.target.value },
-                            },
-                          }))
-                        }
-                        placeholder="Name, email or phone"
-                        className={cellInputCls}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </QuestionCard>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <th className="py-1.5 pr-2">Role</th>
+                      <th className="py-1.5 px-2">Company</th>
+                      <th className="py-1.5 pl-2">Contact</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {PROJECT_PARTY_ROLES.map((role) => (
+                      <tr key={role.key}>
+                        <td className="py-1.5 pr-2 font-medium whitespace-nowrap">{role.label}</td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            aria-label={`${role.label} company`}
+                            value={sectionA.parties[role.key].company}
+                            onChange={(e) =>
+                              patchA((p) => ({
+                                ...p,
+                                parties: {
+                                  ...p.parties,
+                                  [role.key]: { ...p.parties[role.key], company: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="Company name"
+                            className={cellInputCls}
+                          />
+                        </td>
+                        <td className="py-1.5 pl-2">
+                          <input
+                            aria-label={`${role.label} contact`}
+                            value={sectionA.parties[role.key].contact}
+                            onChange={(e) =>
+                              patchA((p) => ({
+                                ...p,
+                                parties: {
+                                  ...p.parties,
+                                  [role.key]: { ...p.parties[role.key], contact: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="Name, email or phone"
+                            className={cellInputCls}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </QuestionCard>
           ) : null}
 
           {show("q4") ? (
@@ -366,70 +368,70 @@ export function SectionAIntake({
               title="Who is the main project contact?"
               complete={contactComplete}
             >
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="space-y-1 text-[11px]">
-              <span className="font-medium text-muted-foreground">Name</span>
-              <input
-                aria-label="Main contact name"
-                value={sectionA.mainContact.name}
-                onChange={(e) =>
-                  patchA((p) => ({
-                    ...p,
-                    mainContact: { ...p.mainContact, name: e.target.value },
-                  }))
-                }
-                placeholder="Full name"
-                className={inputCls}
-              />
-            </label>
-            <label className="space-y-1 text-[11px]">
-              <span className="font-medium text-muted-foreground">Company &amp; role</span>
-              <input
-                aria-label="Main contact company and role"
-                value={sectionA.mainContact.companyRole}
-                onChange={(e) =>
-                  patchA((p) => ({
-                    ...p,
-                    mainContact: { ...p.mainContact, companyRole: e.target.value },
-                  }))
-                }
-                placeholder="Company / role"
-                className={inputCls}
-              />
-            </label>
-            <label className="space-y-1 text-[11px]">
-              <span className="font-medium text-muted-foreground">Email</span>
-              <input
-                aria-label="Main contact email"
-                type="email"
-                value={sectionA.mainContact.email}
-                onChange={(e) =>
-                  patchA((p) => ({
-                    ...p,
-                    mainContact: { ...p.mainContact, email: e.target.value },
-                  }))
-                }
-                placeholder="email@example.com"
-                className={inputCls}
-              />
-            </label>
-            <label className="space-y-1 text-[11px]">
-              <span className="font-medium text-muted-foreground">Phone</span>
-              <input
-                aria-label="Main contact phone"
-                value={sectionA.mainContact.phone}
-                onChange={(e) =>
-                  patchA((p) => ({
-                    ...p,
-                    mainContact: { ...p.mainContact, phone: e.target.value },
-                  }))
-                }
-                placeholder="000.000.0000"
-                className={inputCls}
-              />
-            </label>
-          </div>
-        </QuestionCard>
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="space-y-1 text-[11px]">
+                  <span className="font-medium text-muted-foreground">Name</span>
+                  <input
+                    aria-label="Main contact name"
+                    value={sectionA.mainContact.name}
+                    onChange={(e) =>
+                      patchA((p) => ({
+                        ...p,
+                        mainContact: { ...p.mainContact, name: e.target.value },
+                      }))
+                    }
+                    placeholder="Full name"
+                    className={inputCls}
+                  />
+                </label>
+                <label className="space-y-1 text-[11px]">
+                  <span className="font-medium text-muted-foreground">Company &amp; role</span>
+                  <input
+                    aria-label="Main contact company and role"
+                    value={sectionA.mainContact.companyRole}
+                    onChange={(e) =>
+                      patchA((p) => ({
+                        ...p,
+                        mainContact: { ...p.mainContact, companyRole: e.target.value },
+                      }))
+                    }
+                    placeholder="Company / role"
+                    className={inputCls}
+                  />
+                </label>
+                <label className="space-y-1 text-[11px]">
+                  <span className="font-medium text-muted-foreground">Email</span>
+                  <input
+                    aria-label="Main contact email"
+                    type="email"
+                    value={sectionA.mainContact.email}
+                    onChange={(e) =>
+                      patchA((p) => ({
+                        ...p,
+                        mainContact: { ...p.mainContact, email: e.target.value },
+                      }))
+                    }
+                    placeholder="email@example.com"
+                    className={inputCls}
+                  />
+                </label>
+                <label className="space-y-1 text-[11px]">
+                  <span className="font-medium text-muted-foreground">Phone</span>
+                  <input
+                    aria-label="Main contact phone"
+                    value={sectionA.mainContact.phone}
+                    onChange={(e) =>
+                      patchA((p) => ({
+                        ...p,
+                        mainContact: { ...p.mainContact, phone: e.target.value },
+                      }))
+                    }
+                    placeholder="000.000.0000"
+                    className={inputCls}
+                  />
+                </label>
+              </div>
+            </QuestionCard>
           ) : null}
 
           {show("q5") || show("q6") ? (
@@ -716,7 +718,8 @@ export function SectionAIntake({
                     <tbody className="divide-y divide-border/60">
                       {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
                         const entry = sectionA.documents[doc.key];
-                        const missingLoc = entry.available === "yes" && !entry.locationOrDate.trim();
+                        const missingLoc =
+                          entry.available === "yes" && !entry.locationOrDate.trim();
                         return (
                           <tr key={doc.key}>
                             <td className="py-1.5 pr-2 font-medium">{doc.label}</td>
@@ -1131,233 +1134,233 @@ export function SectionBIntake({
       {/* B.8 Special products and items */}
       {showSpecial ? (
         <div id="q101-b8" className="scroll-mt-4 rounded-xl border bg-card/60 p-3.5 space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="max-w-2xl space-y-1">
-            <p className="text-xs font-bold text-foreground">
-              8. Special products and items (all disciplines)
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Is there anything special, by us or by others, that impacts the PROFAB scope? This
-              list must match the options entered in the Preliminary Estimation (PE).
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              SI = supplied &amp; installed by PROFAB · S = supplied only by PROFAB · SIO = supplied
-              &amp; installed by others
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="max-w-2xl space-y-1">
+              <p className="text-xs font-bold text-foreground">
+                8. Special products and items (all disciplines)
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Is there anything special, by us or by others, that impacts the PROFAB scope? This
+                list must match the options entered in the Preliminary Estimation (PE).
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                SI = supplied &amp; installed by PROFAB · S = supplied only by PROFAB · SIO =
+                supplied &amp; installed by others
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium">
+              <input
+                type="checkbox"
+                checked={Boolean(sectionB.specialProducts.reviewedNone)}
+                onChange={(e) => patchSpecial((s) => ({ ...s, reviewedNone: e.target.checked }))}
+                className="size-3.5 accent-primary"
+              />
+              <span>Reviewed · No special items</span>
+            </label>
           </div>
-          <label className="flex cursor-pointer items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium">
-            <input
-              type="checkbox"
-              checked={Boolean(sectionB.specialProducts.reviewedNone)}
-              onChange={(e) => patchSpecial((s) => ({ ...s, reviewedNone: e.target.checked }))}
-              className="size-3.5 accent-primary"
-            />
-            <span>Reviewed · No special items</span>
-          </label>
-        </div>
 
-        {sectionB.specialProducts.items.length > 0 ? (
-          <div className="space-y-2">
-            {sectionB.specialProducts.items.map((row, idx) => (
-              <div
-                key={row.id}
-                className="grid gap-2 rounded-lg border bg-background/70 p-2.5 md:grid-cols-12"
-              >
-                <input
-                  aria-label={`Special product ${idx + 1} item`}
-                  value={row.item}
-                  onChange={(e) =>
-                    patchSpecial((s) => ({
-                      ...s,
-                      reviewedNone: false,
-                      items: s.items.map((it) =>
-                        it.id === row.id ? { ...it, item: e.target.value } : it,
-                      ),
-                    }))
-                  }
-                  placeholder="Item"
-                  className={cn(cellInputCls, "md:col-span-3")}
-                />
-                <input
-                  aria-label={`Special product ${idx + 1} description`}
-                  value={row.description}
-                  onChange={(e) =>
-                    patchSpecial((s) => ({
-                      ...s,
-                      items: s.items.map((it) =>
-                        it.id === row.id ? { ...it, description: e.target.value } : it,
-                      ),
-                    }))
-                  }
-                  placeholder="Specification / description"
-                  className={cn(cellInputCls, "md:col-span-4")}
-                />
+          {sectionB.specialProducts.items.length > 0 ? (
+            <div className="space-y-2">
+              {sectionB.specialProducts.items.map((row, idx) => (
                 <div
-                  className="flex flex-wrap items-center gap-1 md:col-span-3"
-                  role="radiogroup"
-                  aria-label={`Special product ${idx + 1} supply scope`}
+                  key={row.id}
+                  className="grid gap-2 rounded-lg border bg-background/70 p-2.5 md:grid-cols-12"
                 >
-                  {SUPPLY_SCOPE_OPTIONS.map((opt) => {
-                    const active = row.supply === opt.code;
-                    return (
-                      <button
-                        key={opt.code}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        title={opt.description}
-                        onClick={() =>
-                          patchSpecial((s) => ({
-                            ...s,
-                            items: s.items.map((it) =>
-                              it.id === row.id
-                                ? { ...it, supply: active ? undefined : opt.code }
-                                : it,
-                            ),
-                          }))
-                        }
-                        className={cn(
-                          "rounded border px-2 py-1 text-[10px] font-bold transition-colors",
-                          active
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "bg-background text-muted-foreground hover:bg-muted",
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1 md:col-span-2">
                   <input
-                    aria-label={`Special product ${idx + 1} related files`}
-                    value={row.relatedFiles}
+                    aria-label={`Special product ${idx + 1} item`}
+                    value={row.item}
+                    onChange={(e) =>
+                      patchSpecial((s) => ({
+                        ...s,
+                        reviewedNone: false,
+                        items: s.items.map((it) =>
+                          it.id === row.id ? { ...it, item: e.target.value } : it,
+                        ),
+                      }))
+                    }
+                    placeholder="Item"
+                    className={cn(cellInputCls, "md:col-span-3")}
+                  />
+                  <input
+                    aria-label={`Special product ${idx + 1} description`}
+                    value={row.description}
                     onChange={(e) =>
                       patchSpecial((s) => ({
                         ...s,
                         items: s.items.map((it) =>
-                          it.id === row.id ? { ...it, relatedFiles: e.target.value } : it,
+                          it.id === row.id ? { ...it, description: e.target.value } : it,
                         ),
                       }))
                     }
-                    placeholder="Related files"
-                    className={cellInputCls}
+                    placeholder="Specification / description"
+                    className={cn(cellInputCls, "md:col-span-4")}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-destructive hover:bg-destructive/10"
-                    aria-label={`Delete special product ${idx + 1}`}
-                    onClick={() =>
-                      patchSpecial((s) => ({
-                        ...s,
-                        items: s.items.filter((it) => it.id !== row.id),
-                      }))
-                    }
+                  <div
+                    className="flex flex-wrap items-center gap-1 md:col-span-3"
+                    role="radiogroup"
+                    aria-label={`Special product ${idx + 1} supply scope`}
                   >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              patchSpecial((s) => ({
-                ...s,
-                reviewedNone: false,
-                items: [
-                  ...s.items,
-                  {
-                    id: uid(),
-                    item: "",
-                    description: "",
-                    supply: undefined,
-                    relatedFiles: "",
-                  } satisfies SpecialProductItem,
-                ],
-              }))
-            }
-          >
-            <Plus className="mr-1 size-3.5" />
-            Add special product
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setOpenAnnexFor(openAnnexFor === "special" ? null : "special")}
-          >
-            <Sparkles className="mr-1 size-3.5 text-primary" />
-            {openAnnexFor === "special" ? "Hide Annex 1 examples" : "Pick from Annex 1"}
-          </Button>
-          {onlyStep &&
-          onAdvance &&
-          !sectionB.specialProducts.items.some((r) => r.item.trim().length > 0) ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="ml-auto"
-              onClick={() => {
-                patchSpecial((s) => ({ ...s, reviewedNone: true }));
-                onAdvance();
-              }}
-            >
-              No special items
-              <ArrowRight className="ml-1 size-3.5" />
-            </Button>
-          ) : null}
-        </div>
-
-        {openAnnexFor === "special" ? (
-          <div className="rounded-lg border bg-muted/30 p-3 space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Annex 1 examples — click any item to add to B.8
-            </p>
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              {ANNEX_1_CATEGORIES.map((group) => (
-                <div key={group.category} className="space-y-1">
-                  <p className="text-[11px] font-bold text-foreground">{group.category}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {group.items.map((itemLabel) => (
-                      <button
-                        key={itemLabel}
-                        type="button"
-                        onClick={() =>
-                          patchSpecial((s) => ({
-                            ...s,
-                            reviewedNone: false,
-                            items: [
-                              ...s.items,
-                              {
-                                id: uid(),
-                                item: itemLabel,
-                                description: "",
-                                supply: undefined,
-                                relatedFiles: "",
-                              },
-                            ],
-                          }))
-                        }
-                        className="rounded border bg-background px-2 py-0.5 text-left text-[11px] hover:border-primary hover:bg-primary/5"
-                      >
-                        + {itemLabel}
-                      </button>
-                    ))}
+                    {SUPPLY_SCOPE_OPTIONS.map((opt) => {
+                      const active = row.supply === opt.code;
+                      return (
+                        <button
+                          key={opt.code}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          title={opt.description}
+                          onClick={() =>
+                            patchSpecial((s) => ({
+                              ...s,
+                              items: s.items.map((it) =>
+                                it.id === row.id
+                                  ? { ...it, supply: active ? undefined : opt.code }
+                                  : it,
+                              ),
+                            }))
+                          }
+                          className={cn(
+                            "rounded border px-2 py-1 text-[10px] font-bold transition-colors",
+                            active
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:bg-muted",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1 md:col-span-2">
+                    <input
+                      aria-label={`Special product ${idx + 1} related files`}
+                      value={row.relatedFiles}
+                      onChange={(e) =>
+                        patchSpecial((s) => ({
+                          ...s,
+                          items: s.items.map((it) =>
+                            it.id === row.id ? { ...it, relatedFiles: e.target.value } : it,
+                          ),
+                        }))
+                      }
+                      placeholder="Related files"
+                      className={cellInputCls}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0 text-destructive hover:bg-destructive/10"
+                      aria-label={`Delete special product ${idx + 1}`}
+                      onClick={() =>
+                        patchSpecial((s) => ({
+                          ...s,
+                          items: s.items.filter((it) => it.id !== row.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                patchSpecial((s) => ({
+                  ...s,
+                  reviewedNone: false,
+                  items: [
+                    ...s.items,
+                    {
+                      id: uid(),
+                      item: "",
+                      description: "",
+                      supply: undefined,
+                      relatedFiles: "",
+                    } satisfies SpecialProductItem,
+                  ],
+                }))
+              }
+            >
+              <Plus className="mr-1 size-3.5" />
+              Add special product
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenAnnexFor(openAnnexFor === "special" ? null : "special")}
+            >
+              <Sparkles className="mr-1 size-3.5 text-primary" />
+              {openAnnexFor === "special" ? "Hide Annex 1 examples" : "Pick from Annex 1"}
+            </Button>
+            {onlyStep &&
+            onAdvance &&
+            !sectionB.specialProducts.items.some((r) => r.item.trim().length > 0) ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="ml-auto"
+                onClick={() => {
+                  patchSpecial((s) => ({ ...s, reviewedNone: true }));
+                  onAdvance();
+                }}
+              >
+                No special items
+                <ArrowRight className="ml-1 size-3.5" />
+              </Button>
+            ) : null}
           </div>
-        ) : null}
+
+          {openAnnexFor === "special" ? (
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Annex 1 examples — click any item to add to B.8
+              </p>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {ANNEX_1_CATEGORIES.map((group) => (
+                  <div key={group.category} className="space-y-1">
+                    <p className="text-[11px] font-bold text-foreground">{group.category}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {group.items.map((itemLabel) => (
+                        <button
+                          key={itemLabel}
+                          type="button"
+                          onClick={() =>
+                            patchSpecial((s) => ({
+                              ...s,
+                              reviewedNone: false,
+                              items: [
+                                ...s.items,
+                                {
+                                  id: uid(),
+                                  item: itemLabel,
+                                  description: "",
+                                  supply: undefined,
+                                  relatedFiles: "",
+                                },
+                              ],
+                            }))
+                          }
+                          className="rounded border bg-background px-2 py-0.5 text-left text-[11px] hover:border-primary hover:bg-primary/5"
+                        >
+                          + {itemLabel}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
