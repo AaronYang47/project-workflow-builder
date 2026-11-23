@@ -77,7 +77,11 @@ export function FactoryModuleInventory({
                     module.module +
                     ", " +
                     progress +
-                    "% complete"
+                    "% complete, " +
+                    module.productionDays +
+                    " of " +
+                    module.productionDaysRequired +
+                    " production workdays"
                   }
                   className="overflow-hidden rounded-lg border border-border bg-card"
                 >
@@ -88,6 +92,9 @@ export function FactoryModuleInventory({
                     <span>#{module.module}</span>
                     <span>{progress}%</span>
                   </div>
+                  <p className="px-2 pt-0.5 text-[9px] text-muted-foreground">
+                    {module.productionDays} / {module.productionDaysRequired} workdays
+                  </p>
                   <ModuleThumbnail finished={progress >= 85} />
                   <p
                     className="line-clamp-2 min-h-8 px-2 pb-2 text-[11px] leading-4"

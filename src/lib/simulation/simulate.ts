@@ -241,7 +241,11 @@ export function simulateScenario(
           events.push("Line stopped: the yard is full.");
         } else {
           line = line
-            .map((item) => ({ ...item, progress: item.progress + step }))
+            .map((item) => ({
+              ...item,
+              progress: item.progress + step,
+              productionDays: item.productionDays + 1,
+            }))
             .filter((item) => item.progress < 1 - EPSILON);
           for (const item of leaving) {
             built[item.projectId] = (built[item.projectId] ?? 0) + 1;
@@ -287,6 +291,8 @@ export function simulateScenario(
             projectId: next.project.id,
             module: next.loaded,
             progress: line.length ? newest - gap : 0,
+            productionDays: 0,
+            productionDaysRequired: next.lineDays,
             lineDays: next.lineDays,
           });
           if (next.loaded === 1) events.push(`${next.project.name}: first module on the line.`);
@@ -367,7 +373,13 @@ export function simulateScenario(
       date: isoFromDay(day),
       working,
       ...(working ? {} : { closure: factoryCalendar.closure(day) }),
-      line: line.map(({ projectId, module, progress }) => ({ projectId, module, progress })),
+      line: line.map(({ projectId, module, progress, productionDays, productionDaysRequired }) => ({
+        projectId,
+        module,
+        progress,
+        productionDays,
+        productionDaysRequired,
+      })),
       paceDays,
       blocked,
       yard: Object.fromEntries(

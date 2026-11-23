@@ -52,6 +52,7 @@ export function FactoryScene({
   yardCapacity: number;
 }) {
   const [zoom, setZoom] = useState(1);
+  const [motionEnabled, setMotionEnabled] = useState(true);
   // The box's width ÷ height, so the scene can widen to fill it.
   const frame = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState<number>();
@@ -64,6 +65,13 @@ export function FactoryScene({
     });
     observer.observe(element);
     return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMotionEnabled(!preference.matches);
+    update();
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
   }, []);
   const rollers = useId();
   const byId = new Map(projects.map((project) => [project.id, project]));
@@ -136,6 +144,16 @@ export function FactoryScene({
             <pattern id={rollers} width="16" height="8" patternUnits="userSpaceOnUse">
               <rect width="16" height="8" fill="var(--scene-roller-base)" />
               <rect x="4" width="7" height="8" rx="2" fill="var(--scene-roller-highlight)" />
+              {shipments.length && motionEnabled ? (
+                <animateTransform
+                  attributeName="patternTransform"
+                  type="translate"
+                  from="0 0"
+                  to="-16 0"
+                  dur="0.7s"
+                  repeatCount="indefinite"
+                />
+              ) : null}
             </pattern>
           </defs>
 
@@ -176,10 +194,12 @@ export function FactoryScene({
                   data-scene-line-module={item.projectId}
                   style={{
                     transform: `translate(${x}px, ${TRACK.center}px)`,
-                    transition: `transform ${stepMs}ms linear`,
+                    transition: motionEnabled
+                      ? `transform ${shipments.length ? departureMs : stepMs}ms linear`
+                      : "none",
                   }}
                 >
-                  <title>{`${project?.name ?? item.projectId} · Module #${item.module} · ${Math.round(progress * 100)}%`}</title>
+                  <title>{`${project?.name ?? item.projectId} · Module #${item.module} · ${Math.round(progress * 100)}% · ${item.productionDays}/${item.productionDaysRequired} production days`}</title>
                   <rect
                     x="-15"
                     y={-TRACK.height / 2}

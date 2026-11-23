@@ -104,7 +104,15 @@ export interface SimScenario {
 /** A run of one project's modules in the loading plan. */
 export type SimBlock = { projectId: string; modules: number };
 
-export type SimModuleOnLine = { projectId: string; module: number; progress: number };
+export type SimModuleOnLine = {
+  projectId: string;
+  module: number;
+  progress: number;
+  /** Working days this module has spent moving along the line. */
+  productionDays: number;
+  /** Planned working days for this project's modules on the line. */
+  productionDaysRequired: number;
+};
 
 export interface SimDay {
   date: string;
