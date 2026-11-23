@@ -575,6 +575,8 @@ const SERPENTINE_MAX_ROWS = 6;
 const SERPENTINE_ROW_GAP = 150;
 const SERPENTINE_MIN_GAP = 96;
 const CONNECTOR_STUB = 24;
+/** How far out from CSA / PCS / LOI its three branches join (matches the canvas). */
+const BRANCH_BUS_OFFSET = 28;
 /** How far outside the cards the line turning down to the next row runs. */
 const ROW_TURN_OFFSET = 36;
 
@@ -840,6 +842,17 @@ function routeSerpentineLinks(
   };
   const origin = viewport.getBoundingClientRect();
   const sameRowLanes = new Map<number, number>();
+  // CSA / PCS / LOI branches (marked by their junction dot) join on a bus
+  // level with the middle branch, then run on as one trunk.
+  const branchKey = (link: CanvasLink) => `${link.source}->${link.target}`;
+  const branchYs = new Map<string, number[]>();
+  for (const link of links) {
+    const marked = copy.querySelector(
+      `.react-flow__edge[data-id="${CSS.escape(link.id)}"] [data-commercial-junction]`,
+    );
+    const point = marked && handlePoint(copy, viewport, link.source, "source", link.sourceHandle);
+    if (point) branchYs.set(branchKey(link), [...(branchYs.get(branchKey(link)) ?? []), point.y]);
+  }
   for (const link of links) {
     const group = copy.querySelector<SVGGElement>(
       `.react-flow__edge[data-id="${CSS.escape(link.id)}"]`,
@@ -890,13 +903,37 @@ function routeSerpentineLinks(
       fromRow !== toRow && !link.passUnder?.length
         ? { from: edgeX(fromSide, from.x), to: edgeX(toSide, to.x) }
         : undefined;
-    const points = orthogonalRoute(from, fromSide, to, toSide, lane, forceLane, turnX);
+    const ys = [...(branchYs.get(branchKey(link)) ?? [])].sort((left, right) => left - right);
+    const out = SIDE_VECTOR[fromSide].x;
+    const busX = from.x + out * BRANCH_BUS_OFFSET;
+    const trunkX = (busX + to.x) / 2;
+    const bus =
+      ys.length > 1 &&
+      fromRow === toRow &&
+      out !== 0 &&
+      SIDE_VECTOR[toSide].x === -out &&
+      out * (trunkX - busX) > 8
+        ? { x: busX, y: ys[Math.floor((ys.length - 1) / 2)] }
+        : null;
+    const points = bus
+      ? compactRoute([
+          from,
+          { x: bus.x, y: from.y },
+          bus,
+          { x: trunkX, y: bus.y },
+          { x: trunkX, y: to.y },
+          to,
+        ])
+      : orthogonalRoute(from, fromSide, to, toSide, lane, forceLane, turnX);
     const path = roundedPath(points);
     group.querySelectorAll("path").forEach((element) => element.setAttribute("d", path));
 
     const junction = group.querySelector<SVGCircleElement>("[data-commercial-junction]");
     const corner = points.at(-2);
-    if (junction && corner && Math.abs(corner.y - to.y) < 0.5) {
+    if (junction && bus) {
+      junction.setAttribute("cx", String(bus.x));
+      junction.setAttribute("cy", String(bus.y));
+    } else if (junction && corner && Math.abs(corner.y - to.y) < 0.5) {
       const run = to.x - corner.x;
       junction.setAttribute(
         "cx",

@@ -2,6 +2,9 @@ import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
+/** The trunk after the branches join: the path's last two bends and its end. */
+const trunkOf = (d: string) => d.split("Q").slice(-2).join("Q");
+
 /** A path bends with a sharp corner when it turns between two straight segments. */
 const SHARP_BEND = /L\s*[-\d.]+[ ,][-\d.]+\s*L\s*[-\d.]+[ ,][-\d.]+\s*L/;
 
@@ -33,7 +36,9 @@ test("CSA / PCS / LOI branches bend with arcs on the canvas and in the L2 PDF", 
         const root = document.getElementById("vector-canvas-print")!;
         (window as unknown as { printed: string[][] }).printed.push(
           Array.from(
-            root.querySelectorAll('.react-flow__edge[data-id*="commercial-route-group"] path'),
+            root.querySelectorAll(
+              '.react-flow__edge[data-id*="commercial-route-group-"][data-id*="estimation"] path',
+            ),
           ).map((path) => path.getAttribute("d") ?? ""),
         );
       };
@@ -52,6 +57,8 @@ test("CSA / PCS / LOI branches bend with arcs on the canvas and in the L2 PDF", 
   );
   expect(canvasPaths.some((d) => d.includes("Q"))).toBe(true);
   expect(canvasPaths.filter((d) => SHARP_BEND.test(d))).toEqual([]);
+  // The three branches join on one bus and share a single trunk into Estimation.
+  expect(new Set(canvasPaths.map(trunkOf)).size).toBe(1);
 
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
@@ -61,4 +68,5 @@ test("CSA / PCS / LOI branches bend with arcs on the canvas and in the L2 PDF", 
   );
   expect(printed.length).toBeGreaterThan(0);
   expect(printed.filter((d) => SHARP_BEND.test(d))).toEqual([]);
+  expect(new Set(printed.map(trunkOf)).size).toBe(1);
 });

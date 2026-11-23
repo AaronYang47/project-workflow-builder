@@ -6,6 +6,7 @@ import {
   EdgeLabelRenderer,
   Position,
   getBezierPath,
+  useInternalNode,
   type EdgeProps,
 } from "@xyflow/react";
 import { Pencil } from "lucide-react";
@@ -149,6 +150,9 @@ function EditableEdgeLabel({
     </div>
   );
 }
+
+/** How far right of CSA / PCS / LOI the three branches join. */
+const BRANCH_BUS_OFFSET = 28;
 
 export function SemanticEdge({
   id,
@@ -602,6 +606,13 @@ export function SemanticEdge({
   // outputs share one exact junction before the Estimation input.
   const commercialOutput =
     isCommercialRouteColor(domain.customFields.routeColor) && domain.targetHandle === "in";
+  // The three branches join on a short bus beside CSA / PCS / LOI, level with
+  // the middle one, and one trunk line carries on to Estimation.
+  const branchSource = useInternalNode(domain.source);
+  const branchYs = (branchSource?.internals.handleBounds?.source ?? [])
+    .map((handle) => branchSource!.internals.positionAbsolute.y + handle.y + handle.height / 2)
+    .sort((left, right) => left - right);
+  const trunkY = branchYs.length ? branchYs[Math.floor((branchYs.length - 1) / 2)] : sourceY;
   const commercialSource = data?.obstacles?.find((item) => item.id === domain.source);
   const commercialTarget = data?.obstacles?.find((item) => item.id === domain.target);
   const sourceRight = commercialSource ? commercialSource.x + commercialSource.width : sourceX;
@@ -610,17 +621,27 @@ export function SemanticEdge({
     commercialOutput && targetX - sourceX >= 48
       ? Math.max(sourceX + 16, Math.min(targetX - 16, (sourceRight + targetLeft) / 2))
       : (sourceX + targetX) / 2;
+  const busX = sourceRight + BRANCH_BUS_OFFSET;
   const orthogonalCommercialRoute =
     isCommercialRouteColor(domain.customFields.routeColor) &&
     sourcePosition === Position.Right &&
     targetPosition === Position.Left &&
     targetX > sourceX
-      ? compact([
-          { x: sourceX, y: sourceY },
-          { x: junctionX, y: sourceY },
-          { x: junctionX, y: targetY },
-          { x: targetX, y: targetY },
-        ])
+      ? commercialOutput && busX < junctionX - 8
+        ? compact([
+            { x: sourceX, y: sourceY },
+            { x: busX, y: sourceY },
+            { x: busX, y: trunkY },
+            { x: junctionX, y: trunkY },
+            { x: junctionX, y: targetY },
+            { x: targetX, y: targetY },
+          ])
+        : compact([
+            { x: sourceX, y: sourceY },
+            { x: junctionX, y: sourceY },
+            { x: junctionX, y: targetY },
+            { x: targetX, y: targetY },
+          ])
       : undefined;
   const chapterRoute = chapterConnection?.points.map((point, index, points) => {
     if (index === 0) return { x: sourceX, y: sourceY };
@@ -715,9 +736,9 @@ export function SemanticEdge({
       {commercialOutput && orthogonalCommercialRoute && (
         <circle
           data-commercial-junction
-          // The rounded corners of all three branches meet just after the bend.
-          cx={junctionX + Math.min(EDGE_CORNER_RADIUS, (targetX - junctionX) / 2)}
-          cy={targetY}
+          // Where the branches meet the trunk.
+          cx={busX < junctionX - 8 ? busX : junctionX}
+          cy={busX < junctionX - 8 ? trunkY : targetY}
           r={active ? 4 : 3}
           fill={color}
           className="pointer-events-none"
