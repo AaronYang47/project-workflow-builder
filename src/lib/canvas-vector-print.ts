@@ -866,7 +866,13 @@ function routeSerpentineLinks(
     const toRow = layout.rowOf.get(link.target) ?? 0;
     let lane: number;
     let forceLane = false;
-    if (link.passUnder?.length) {
+    const skippedRows = (link.passUnder ?? []).map((id) => layout.rowOf.get(id) ?? fromRow);
+    if (link.passUnder?.length && toRow > fromRow && skippedRows.includes(toRow)) {
+      // The skipped cards sit beside the target on its row: come in through
+      // the gap above that row instead of dropping under them and doubling back.
+      lane = layout.rowBottoms[toRow - 1] + SERPENTINE_ROW_GAP / 2;
+      forceLane = true;
+    } else if (link.passUnder?.length) {
       // FOB yard bypass: underneath every skipped card.
       lane =
         Math.max(

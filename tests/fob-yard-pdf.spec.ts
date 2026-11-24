@@ -85,7 +85,9 @@ for (const [name, label] of [
   });
 }
 
-test("L2 PDF routes the FOB yard line underneath the skipped cards", async ({ page }, testInfo) => {
+test("L2 PDF routes the FOB yard line around the skipped cards, never through them", async ({
+  page,
+}, testInfo) => {
   test.setTimeout(90_000);
   await page.addInitScript(
     ({ key, file }) => {
@@ -109,9 +111,35 @@ test("L2 PDF routes the FOB yard line underneath the skipped cards", async ({ pa
             root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped"),
           ).map((card) => card.getBoundingClientRect().bottom),
         );
+        // Sample the drawn line and check it never runs through a skipped card.
+        const path = bypass?.querySelector<SVGPathElement>("path");
+        const skippedBoxes = Array.from(
+          root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped"),
+        ).map((card) => card.getBoundingClientRect());
+        let crossesSkipped = !path;
+        if (path) {
+          const matrix = path.getScreenCTM()!;
+          const length = path.getTotalLength();
+          for (let at = 0; at <= length; at += 4) {
+            const point = new DOMPoint(
+              path.getPointAtLength(at).x,
+              path.getPointAtLength(at).y,
+            ).matrixTransform(matrix);
+            if (
+              skippedBoxes.some(
+                (box) =>
+                  point.x > box.left + 2 &&
+                  point.x < box.right - 2 &&
+                  point.y > box.top + 2 &&
+                  point.y < box.bottom - 2,
+              )
+            )
+              crossesSkipped = true;
+          }
+        }
         (window as unknown as { printed: unknown[] }).printed.push({
           hasBypass: Boolean(bypass),
-          laneBelowSkipped: pathBox ? pathBox.bottom > skippedBottom : false,
+          clearOfSkipped: !crossesSkipped,
           debug: {
             d: bypass?.querySelector("path")?.getAttribute("d"),
             pathBottom: pathBox?.bottom,
@@ -134,11 +162,11 @@ test("L2 PDF routes the FOB yard line underneath the skipped cards", async ({ pa
     () =>
       (
         window as unknown as {
-          printed: { hasBypass: boolean; laneBelowSkipped: boolean; debug: unknown }[];
+          printed: { hasBypass: boolean; clearOfSkipped: boolean; debug: unknown }[];
         }
       ).printed,
   );
-  expect(printed).toMatchObject({ hasBypass: true, laneBelowSkipped: true });
+  expect(printed).toMatchObject({ hasBypass: true, clearOfSkipped: true });
   await page.pdf({
     path: testInfo.outputPath("L2.pdf"),
     preferCSSPageSize: true,
