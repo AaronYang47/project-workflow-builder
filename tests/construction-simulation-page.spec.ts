@@ -604,12 +604,15 @@ test("factory inventory counts each finished module waiting in the yard", async 
   await expect(truck.locator("[data-loaded-flatbed]")).toBeVisible();
   const movement = truck.locator(":scope > g");
   await expect(movement).toHaveCSS("animation-name", "factory-truck-departure");
+  // The pickup follows the playback speed: 2.6 s at 1 day/s, a third of that at 3 days/s.
+  await expect(movement).toHaveCSS("animation-duration", "0.867s");
+  await page.getByRole("radio", { name: "1 d/s" }).click();
   await expect(movement).toHaveCSS("animation-duration", "2.6s");
-  // On normal playback the departure remains on screen past the regular day interval.
+  // At 1 day/s the pickup day stays on screen until the truck has left.
   await page.getByRole("button", { name: "Previous day" }).click();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(truck).toBeVisible();
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(1500);
   await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
 });
 

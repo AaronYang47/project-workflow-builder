@@ -17,6 +17,7 @@ import { dayOffPalette } from "@/lib/schedule-calendar";
 import { FactoryScene } from "./factory-scene";
 import { ProductionCalendar } from "./production-calendar";
 
+/** A truck pickup takes this long at 1 day/s; faster playback shortens it in step. */
 const TRUCK_DEPARTURE_MS = 2600;
 const SPEEDS = [1, 3, 7, 15] as const;
 /** Window event that opens or closes the production calendar ({ open }). */
@@ -88,6 +89,8 @@ export function FactoryPlayback({
   const index = Math.min(requestedIndex, last);
   const day = result.days[index];
   const stepMs = Math.round(1000 / speed);
+  // Pickups follow the chosen speed, so the line never seems to slow on pickup days.
+  const departureMs = Math.round(TRUCK_DEPARTURE_MS / speed);
   const palette = dayOffPalette(factory.calendar);
 
   const hasDepartures = day ? Object.keys(day.departures).length > 0 : false;
@@ -95,13 +98,13 @@ export function FactoryPlayback({
     if (!playing) return;
     const showDeparture =
       hasDepartures && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const delay = showDeparture ? Math.max(stepMs, TRUCK_DEPARTURE_MS) : stepMs;
+    const delay = showDeparture ? Math.max(stepMs, departureMs) : stepMs;
     const timer = window.setTimeout(() => {
       if (index >= last) setPlaying(false);
       else setDayIndex(index + 1);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [playing, stepMs, hasDepartures, index, last, setDayIndex]);
+  }, [playing, stepMs, departureMs, hasDepartures, index, last, setDayIndex]);
 
   if (!day) return null;
   const onLine = day.line.length;
@@ -221,7 +224,7 @@ export function FactoryPlayback({
           day={day}
           projects={projects}
           stepMs={playing ? stepMs : 250}
-          departureMs={TRUCK_DEPARTURE_MS}
+          departureMs={departureMs}
           yardCapacity={factory.yardCapacity}
           palette={palette}
         />
