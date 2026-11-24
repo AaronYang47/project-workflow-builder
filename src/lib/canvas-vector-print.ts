@@ -198,6 +198,28 @@ function solidifyTranslucentGradients(root: HTMLElement, pageColor: Rgba) {
   });
 }
 
+/**
+ * Phase and Gate frames draw a thin, see-through border on the canvas. Shrunk
+ * onto the sheet it falls below a printer dot and prints broken, so give the
+ * frames a solid border (pre-mixed with the page colour) that is thick enough
+ * to stay continuous on paper.
+ */
+function strengthenFrameBorders(root: HTMLElement, pageColor: Rgba, scale: number) {
+  const width = `${Math.max(2, 1.6 / Math.max(scale, 0.05))}px`;
+  root
+    .querySelectorAll<HTMLElement>('[data-testid="phase-card"], [data-testid="gate-card"]')
+    .forEach((frame) => {
+      const color = parseColor(getComputedStyle(frame).borderTopColor);
+      if (!color) return;
+      frame.style.setProperty(
+        "border-color",
+        css(over([color[0], color[1], color[2], Math.max(color[3], 0.85)], pageColor)),
+        "important",
+      );
+      frame.style.setProperty("border-width", width, "important");
+    });
+}
+
 /** Print engines discard CSS filters, so bake FOB yard grayscale into the cloned cards. */
 function desaturateSkippedCards(root: HTMLElement) {
   const properties = [
@@ -1395,6 +1417,7 @@ export function printCanvasVector(
   flattenBlurredEffects(copy);
   highlightConnectors(copy);
   solidifyTranslucentGradients(copy, pageColor);
+  strengthenFrameBorders(copy, pageColor, scale);
   desaturateSkippedCards(copy);
 
   const previousTitle = document.title;

@@ -29,6 +29,14 @@ for (const { item, startOnL2, title } of cases) {
           ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
           rows: Number(root?.dataset.printRows ?? 1),
+          // Phase frames print a solid border thick enough to stay unbroken on paper.
+          faintFrames: Array.from(
+            root?.querySelectorAll<HTMLElement>('[data-testid="phase-card"]') ?? [],
+          ).filter(
+            (frame) =>
+              !/^rgba\([^)]*, 1\)$|^rgb\(/.test(frame.style.getPropertyValue("border-color")) ||
+              Number.parseFloat(frame.style.getPropertyValue("border-width")) < 2,
+          ).length,
           // Every connector ends in the bold print arrowhead.
           missingArrows: Array.from(
             root?.querySelectorAll<SVGPathElement>(".react-flow__edge-path") ?? [],
@@ -99,6 +107,7 @@ for (const { item, startOnL2, title } of cases) {
               strayRefs: number;
               formPhases: number;
               rows: number;
+              faintFrames: number;
               missingArrows: number;
               stepTexts: number;
               hiddenStepTexts: number;
@@ -115,6 +124,7 @@ for (const { item, startOnL2, title } of cases) {
     expect(printed.controls).toBe(0);
     expect(printed.connectors).toBeGreaterThan(0);
     expect(printed.nonGreen).toBe(0);
+    expect(printed.faintFrames).toBe(0);
     expect(printed.missingArrows).toBe(0);
     expect(printed.hiddenStepTexts).toBe(0);
     expect(printed.strayRefs).toBe(0);
