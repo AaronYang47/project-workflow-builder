@@ -230,6 +230,50 @@ function desaturateSkippedCards(root: HTMLElement) {
   });
 }
 
+/** Every printed connector is drawn highlighted: solid green with a soft green halo. */
+const PRINT_CONNECTOR_GREEN = "#22c55e";
+
+/**
+ * The canvas highlights a connector with a blurred glow and a moving dash,
+ * neither of which prints. Draw each connector green instead, with a wider
+ * see-through green line beneath it as the glow, and green arrowheads.
+ */
+function highlightConnectors(root: HTMLElement) {
+  root.querySelectorAll(".workflow-edge-flow").forEach((element) => element.remove());
+  root.querySelectorAll<SVGPathElement>(".react-flow__edge-path").forEach((path) => {
+    const halo = path.cloneNode() as SVGPathElement;
+    halo.removeAttribute("id");
+    halo.removeAttribute("marker-end");
+    halo.removeAttribute("marker-start");
+    halo.classList.remove("react-flow__edge-path");
+    halo.setAttribute("data-print-connector-halo", "");
+    for (const [property, value] of [
+      ["stroke", PRINT_CONNECTOR_GREEN],
+      ["stroke-width", "10"],
+      ["stroke-opacity", "0.22"],
+      ["stroke-dasharray", "none"],
+      ["opacity", "1"],
+      ["fill", "none"],
+    ])
+      halo.style.setProperty(property, value, "important");
+    path.parentNode?.insertBefore(halo, path);
+    for (const [property, value] of [
+      ["stroke", PRINT_CONNECTOR_GREEN],
+      ["stroke-width", "4"],
+      ["opacity", "1"],
+    ])
+      path.style.setProperty(property, value, "important");
+  });
+  root.querySelectorAll<SVGElement>("marker path, marker polyline").forEach((shape) => {
+    shape.style.setProperty("stroke", PRINT_CONNECTOR_GREEN, "important");
+    if (getComputedStyle(shape).fill !== "none")
+      shape.style.setProperty("fill", PRINT_CONNECTOR_GREEN, "important");
+  });
+  root
+    .querySelectorAll<SVGCircleElement>("[data-commercial-junction]")
+    .forEach((dot) => dot.style.setProperty("fill", PRINT_CONNECTOR_GREEN, "important"));
+}
+
 /** Hidden rather than removed, so cards keep the exact layout of the canvas. */
 function hideEditingControls(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>(EDITING_CONTROLS).forEach((element) => {
@@ -1222,6 +1266,7 @@ export function printCanvasVector(
   `;
   const pageColor = parseColor(getComputedStyle(root).backgroundColor) ?? [255, 255, 255, 1];
   flattenBlurredEffects(copy);
+  highlightConnectors(copy);
   solidifyTranslucentGradients(copy, pageColor);
   desaturateSkippedCards(copy);
 

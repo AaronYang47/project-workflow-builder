@@ -29,6 +29,15 @@ for (const { item, startOnL2, title } of cases) {
           ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
           rows: Number(root?.dataset.printRows ?? 1),
+          // Every connector prints highlighted green.
+          connectors: root?.querySelectorAll(".react-flow__edge-path").length ?? 0,
+          nonGreen: Array.from(
+            root?.querySelectorAll<SVGPathElement>(".react-flow__edge-path") ?? [],
+          ).filter(
+            (path) =>
+              path.style.getPropertyValue("stroke") !== "rgb(34, 197, 94)" &&
+              path.style.getPropertyValue("stroke") !== "#22c55e",
+          ).length,
           // Top-level cards (Phase frames and stand-alone cards) must never overlap on the sheet.
           overlaps: (() => {
             if (!root) return 0;
@@ -77,6 +86,8 @@ for (const { item, startOnL2, title } of cases) {
               strayRefs: number;
               formPhases: number;
               rows: number;
+              connectors: number;
+              nonGreen: number;
               overlaps: number;
               formGroups: string[];
             }[];
@@ -86,6 +97,8 @@ for (const { item, startOnL2, title } of cases) {
     expect(printed.title).toBe(title);
     expect(printed.nodes).toBeGreaterThan(3);
     expect(printed.controls).toBe(0);
+    expect(printed.connectors).toBeGreaterThan(0);
+    expect(printed.nonGreen).toBe(0);
     expect(printed.strayRefs).toBe(0);
     // Every phase lists its legal forms, customer information and supporting forms.
     expect(printed.formPhases).toBeGreaterThan(0);
