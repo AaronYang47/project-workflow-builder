@@ -4,6 +4,7 @@ import {
   json,
   projectSnapshotHash,
   readJson,
+  secureEqual,
 } from "../../_lib";
 import { falconDb } from "../../_falcon-customers";
 import { getLead, upsertLead } from "../../_leads";
@@ -42,7 +43,7 @@ const requireSyncToken = (request: Request, env: Env) => {
   const expected = String(env.CMS_SYNC_TOKEN || "").trim();
   if (!expected) return json({ error: "CMS_SYNC_TOKEN is not configured." }, 503);
   const provided = request.headers.get("x-cms-sync-token") || "";
-  if (provided !== expected) return json({ error: "Unauthorized." }, 401);
+  if (!secureEqual(provided, expected)) return json({ error: "Unauthorized." }, 401);
   return null;
 };
 

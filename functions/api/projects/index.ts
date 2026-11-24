@@ -4,6 +4,7 @@ import {
   json,
   projectSnapshotHash,
   readJson,
+  projectTooLarge,
   requireUser,
   trimProjectVersionsStatement,
 } from "../_lib";
@@ -37,6 +38,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const projectNumber = body.projectNumber?.trim() || "";
   const workflowJson = JSON.stringify(body.workflow);
   if (!workflowJson) return json({ error: "Project workflow must be valid JSON." }, 400);
+  const tooLarge = projectTooLarge(name, projectNumber, workflowJson);
+  if (tooLarge) return tooLarge;
   const contentHash = await projectSnapshotHash(name, projectNumber, workflowJson);
   const userId = auth.user!.id;
 

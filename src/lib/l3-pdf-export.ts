@@ -5,6 +5,7 @@ import { orderHighLevelNodes } from "@/lib/high-level-workflow";
 import { chapterLabel } from "@/lib/chapter-label";
 import { chapterPhaseGradientColors } from "@/lib/chapter-phase-gradient";
 import { exportPixelRatio } from "@/lib/export/canvas-limits";
+import { escapeHtml } from "@/lib/html";
 
 interface DocItem {
   title: string;
@@ -104,15 +105,15 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
           L3 · Execution Requirements & Compliance Matrix
         </div>
         <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
-          ${projectName}
+          ${escapeHtml(projectName)}
         </h1>
         <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">
           Comprehensive 3-Box Architecture: Required Documents · Customer Information Forms · Supporting Attachments
         </p>
       </div>
       <div style="text-align: right; font-size: 11px; color: #475569;">
-        <p style="margin: 0; font-weight: 700; color: #0f172a;">Project ID: <span style="font-family: monospace;">${projectNumber}</span></p>
-        <p style="margin: 2px 0 0 0;">Version: <strong>${version}</strong> · Generated: ${timestamp}</p>
+        <p style="margin: 0; font-weight: 700; color: #0f172a;">Project ID: <span style="font-family: monospace;">${escapeHtml(projectNumber)}</span></p>
+        <p style="margin: 2px 0 0 0;">Version: <strong>${escapeHtml(version)}</strong> · Generated: ${timestamp}</p>
         <p style="margin: 2px 0 0 0; color: #059669; font-weight: 600;">Status: Ready for Print & Signoff</p>
       </div>
     </div>
@@ -146,11 +147,11 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
               PHASE
             </span>
             <h2 style="margin: 0; font-size: 16px; font-weight: 700;">
-              ${l1Node.title}
+              ${escapeHtml(l1Node.title)}
             </h2>
           </div>
           <span style="font-size: 11px; font-weight: 600; opacity: 0.9;">
-            ${l1Node.description || "Active Lifecycle Phase"}
+            ${escapeHtml(l1Node.description || "Active Lifecycle Phase")}
           </span>
         </div>
 
@@ -168,7 +169,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                   GATE CONTROL
                 </span>
                 <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #581c87;">
-                  ${gate.title}
+                  ${escapeHtml(gate.title)}
                 </h3>
               </div>
               <span style="font-size: 10px; color: #7e22ce; font-weight: 600;">
@@ -185,7 +186,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                           <span style="color: ${c.checked ? "#059669" : "#7c3aed"}; font-weight: bold;">
                             ${c.checked ? "✓" : "○"}
                           </span>
-                          <span style="font-weight: 600; color: #3b0764;">${c.label || "Gate Verification"}</span>
+                          <span style="font-weight: 600; color: #3b0764;">${escapeHtml(c.label || "Gate Verification")}</span>
                           <span style="font-size: 9px; color: #9333ea;">(${c.required ? "Mandatory" : "Optional"})</span>
                         </div>
                       `,
@@ -233,14 +234,14 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                     STEP
                   </span>
                   <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #0f172a;">
-                    ${step.title}
+                    ${escapeHtml(step.title)}
                   </h4>
                 </div>
-                ${step.description ? `<p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">${step.description}</p>` : ""}
+                ${step.description ? `<p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">${escapeHtml(step.description)}</p>` : ""}
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 10px; font-weight: 600; color: #475569; background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px;">
-                  ${departmentLabel}
+                  ${escapeHtml(departmentLabel)}
                 </span>
               </div>
             </div>
@@ -257,7 +258,7 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                         (c) => `
                         <span style="font-size: 10px; font-weight: 500; background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
                           <span style="color: ${c.checked ? "#059669" : "#64748b"}; font-weight: bold;">${c.checked ? "✓" : "○"}</span>
-                          <span>${c.label || "Condition"}</span>
+                          <span>${escapeHtml(c.label || "Condition")}</span>
                         </span>
                       `,
                       )
@@ -283,8 +284,8 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                           .map(
                             (d) => `
                             <li style="margin-bottom: 4px;">
-                              <strong>${d.title}</strong>
-                              <span style="color: #64748b; font-size: 9px;"> (${d.status})</span>
+                              <strong>${escapeHtml(d.title)}</strong>
+                              <span style="color: #64748b; font-size: 9px;"> (${escapeHtml(d.status)})</span>
                             </li>
                           `,
                           )
@@ -307,8 +308,8 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                           .map(
                             (d) => `
                             <li style="margin-bottom: 4px;">
-                              <strong>${d.title}</strong>
-                              <span style="color: #64748b; font-size: 9px;"> (${d.status})</span>
+                              <strong>${escapeHtml(d.title)}</strong>
+                              <span style="color: #64748b; font-size: 9px;"> (${escapeHtml(d.status)})</span>
                             </li>
                           `,
                           )
@@ -331,8 +332,8 @@ export async function exportL3ExecutionPdf(file: WorkflowFile): Promise<void> {
                           .map(
                             (d) => `
                             <li style="margin-bottom: 4px;">
-                              <strong>${d.title}</strong>
-                              <span style="color: #64748b; font-size: 9px;"> (${d.status})</span>
+                              <strong>${escapeHtml(d.title)}</strong>
+                              <span style="color: #64748b; font-size: 9px;"> (${escapeHtml(d.status)})</span>
                             </li>
                           `,
                           )

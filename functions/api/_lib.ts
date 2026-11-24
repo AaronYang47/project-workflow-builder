@@ -20,6 +20,21 @@ const sha256 = async (value: string) =>
 
 export const PROJECT_VERSION_RETENTION = 50;
 
+/** D1 rejects a row over 2 MB; stop well before so the user gets a clear message. */
+export const MAX_PROJECT_BYTES = 1_800_000;
+
+export const projectTooLarge = (...parts: string[]) =>
+  parts.reduce((total, part) => total + encoder.encode(part).length, 0) > MAX_PROJECT_BYTES
+    ? json(
+        {
+          error:
+            "This project is too large to save (limit about 1.8 MB). Remove large pasted content and try again.",
+          code: "PROJECT_TOO_LARGE",
+        },
+        413,
+      )
+    : null;
+
 export type ProjectVersionChangeKind = "baseline" | "created" | "updated" | "restored" | "approval";
 
 export type ProjectAuditAction =
