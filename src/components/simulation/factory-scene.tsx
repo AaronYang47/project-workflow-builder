@@ -6,6 +6,53 @@ import type { DayOffPalette } from "@/lib/schedule-calendar";
 import { FactoryModuleInventory } from "./factory-module-inventory";
 
 const TRACK = { start: 52, center: 126, height: 56 };
+
+/**
+ * One module on the line. It keeps its place between days with a linear
+ * slide; when it first appears it is drawn at `enterX` and then slides to `x`.
+ */
+function LineModule({
+  projectId,
+  x,
+  enterX,
+  durationMs,
+  children,
+}: {
+  projectId: string;
+  x: number;
+  enterX: number;
+  durationMs: number;
+  children: React.ReactNode;
+}) {
+  const [entered, setEntered] = useState(durationMs === 0);
+  useEffect(() => {
+    if (entered) return;
+    // Two frames: the browser must paint the entry position before the slide.
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setEntered(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [entered]);
+  return (
+    <g
+      data-scene-line-module={projectId}
+      style={{
+        transform: `translate(${entered ? x : enterX}px, ${TRACK.center}px)`,
+        opacity: entered ? 1 : 0,
+        transition:
+          entered && durationMs
+            ? `transform ${durationMs}ms linear, opacity ${Math.min(durationMs, 300)}ms ease-out`
+            : "none",
+      }}
+    >
+      {children}
+    </g>
+  );
+}
 const BAY_ROW = 52;
 const IDEAL_BAY_PITCH = 76;
 
@@ -188,16 +235,18 @@ export function FactoryScene({
               const project = byId.get(item.projectId);
               const progress = Math.min(1, Math.max(0, item.progress));
               const x = TRACK.start + progress * (trackEnd - TRACK.start);
+              // A module new to the line starts one day's travel further back
+              // (before the entry, keeping its spacing) and slides in with the
+              // others, rather than appearing on top of the modules ahead of it.
+              const dayStep = 1 / Math.max(1, item.productionDaysRequired);
+              const enterX = x - dayStep * (trackEnd - TRACK.start);
               return (
-                <g
+                <LineModule
                   key={`${item.projectId}-${item.module}`}
-                  data-scene-line-module={item.projectId}
-                  style={{
-                    transform: `translate(${x}px, ${TRACK.center}px)`,
-                    transition: motionEnabled
-                      ? `transform ${shipments.length ? departureMs : stepMs}ms linear`
-                      : "none",
-                  }}
+                  projectId={item.projectId}
+                  x={x}
+                  enterX={enterX}
+                  durationMs={motionEnabled ? (shipments.length ? departureMs : stepMs) : 0}
                 >
                   <title>{`${project?.name ?? item.projectId} · Module #${item.module} · ${Math.round(progress * 100)}% · ${item.productionDays}/${item.productionDaysRequired} production days`}</title>
                   <rect
@@ -226,7 +275,7 @@ export function FactoryScene({
                   >
                     {item.module}
                   </text>
-                </g>
+                </LineModule>
               );
             })}
             <text x="28" y="205" fill="var(--muted-foreground)" fontSize="15">
