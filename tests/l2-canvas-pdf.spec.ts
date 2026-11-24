@@ -29,6 +29,14 @@ for (const { item, startOnL2, title } of cases) {
           ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
           rows: Number(root?.dataset.printRows ?? 1),
+          // Step text is printed even though it is a button on the canvas.
+          stepTexts: Array.from(
+            root?.querySelectorAll<HTMLElement>('button[aria-label^="Edit step"]') ?? [],
+          ).filter((button) => button.textContent?.trim()).length,
+          hiddenStepTexts: Array.from(
+            root?.querySelectorAll<HTMLElement>('button[aria-label^="Edit step"]') ?? [],
+          ).filter((button) => button.textContent?.trim() && button.style.visibility === "hidden")
+            .length,
           // Every connector prints highlighted green.
           connectors: root?.querySelectorAll(".react-flow__edge-path").length ?? 0,
           nonGreen: Array.from(
@@ -86,6 +94,8 @@ for (const { item, startOnL2, title } of cases) {
               strayRefs: number;
               formPhases: number;
               rows: number;
+              stepTexts: number;
+              hiddenStepTexts: number;
               connectors: number;
               nonGreen: number;
               overlaps: number;
@@ -99,6 +109,7 @@ for (const { item, startOnL2, title } of cases) {
     expect(printed.controls).toBe(0);
     expect(printed.connectors).toBeGreaterThan(0);
     expect(printed.nonGreen).toBe(0);
+    expect(printed.hiddenStepTexts).toBe(0);
     expect(printed.strayRefs).toBe(0);
     // Every phase lists its legal forms, customer information and supporting forms.
     expect(printed.formPhases).toBeGreaterThan(0);

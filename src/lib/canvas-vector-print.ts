@@ -277,11 +277,11 @@ function highlightConnectors(root: HTMLElement) {
 /** Hidden rather than removed, so cards keep the exact layout of the canvas. */
 function hideEditingControls(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>(EDITING_CONTROLS).forEach((element) => {
-    (element.closest<HTMLElement>("button") ?? element).style.setProperty(
-      "visibility",
-      "hidden",
-      "important",
-    );
+    const control = element.closest<HTMLElement>("button") ?? element;
+    // A step's own text can be a button too ("Edit step 1 in Inspector");
+    // only icon buttons with no text of their own are editing controls.
+    if (control.textContent?.trim()) return;
+    control.style.setProperty("visibility", "hidden", "important");
   });
   root.querySelectorAll<HTMLElement>("button").forEach((button) => {
     if (EDITING_BUTTON_TEXT.test(button.textContent?.trim() ?? ""))
