@@ -116,6 +116,10 @@ test("L2 PDF routes the FOB yard line around the skipped cards, never through th
         const skippedBoxes = Array.from(
           root.querySelectorAll<HTMLElement>(".react-flow__node.fob-yard-skipped"),
         ).map((card) => card.getBoundingClientRect());
+        const tag = root
+          .querySelector<HTMLElement>("[data-print-fob-label]")
+          ?.getBoundingClientRect();
+        let tagOnLine = !tag;
         let crossesSkipped = !path;
         if (path) {
           const matrix = path.getScreenCTM()!;
@@ -125,6 +129,14 @@ test("L2 PDF routes the FOB yard line around the skipped cards, never through th
               path.getPointAtLength(at).x,
               path.getPointAtLength(at).y,
             ).matrixTransform(matrix);
+            if (
+              tag &&
+              point.x > tag.left &&
+              point.x < tag.right &&
+              point.y > tag.top &&
+              point.y < tag.bottom
+            )
+              tagOnLine = true;
             if (
               skippedBoxes.some(
                 (box) =>
@@ -140,6 +152,8 @@ test("L2 PDF routes the FOB yard line around the skipped cards, never through th
         (window as unknown as { printed: unknown[] }).printed.push({
           hasBypass: Boolean(bypass),
           clearOfSkipped: !crossesSkipped,
+          // The FOB yard tag sits beside its line, never on it.
+          tagClearOfLine: !tagOnLine,
           debug: {
             d: bypass?.querySelector("path")?.getAttribute("d"),
             pathBottom: pathBox?.bottom,
@@ -162,11 +176,16 @@ test("L2 PDF routes the FOB yard line around the skipped cards, never through th
     () =>
       (
         window as unknown as {
-          printed: { hasBypass: boolean; clearOfSkipped: boolean; debug: unknown }[];
+          printed: {
+            hasBypass: boolean;
+            clearOfSkipped: boolean;
+            tagClearOfLine: boolean;
+            debug: unknown;
+          }[];
         }
       ).printed,
   );
-  expect(printed).toMatchObject({ hasBypass: true, clearOfSkipped: true });
+  expect(printed).toMatchObject({ hasBypass: true, clearOfSkipped: true, tagClearOfLine: true });
   await page.pdf({
     path: testInfo.outputPath("L2.pdf"),
     preferCSSPageSize: true,

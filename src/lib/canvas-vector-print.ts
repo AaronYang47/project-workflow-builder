@@ -675,6 +675,10 @@ const SERPENTINE_MIN_GAP = 84;
 const SERPENTINE_SIDE_MARGIN = 48;
 const SERPENTINE_TOP_MARGIN = 16;
 const SERPENTINE_BOTTOM_MARGIN = 40;
+/** Room below the flow for the FOB yard tag printed under its line. */
+const FOB_LABEL_ROOM = 60;
+/** A level run at least this long can carry the FOB yard tag beneath it. */
+const FOB_LABEL_MIN_RUN = 220;
 const CONNECTOR_STUB = 24;
 /** How far out from CSA / PCS / LOI its three branches join (matches the canvas). */
 const BRANCH_BUS_OFFSET = 28;
@@ -781,6 +785,8 @@ function serpentineLayouts(
   canvasRects: Map<string, CanvasRect>,
   padding: number,
   labels: LabelSpan[],
+  /** Extra room under the last row, e.g. for the FOB yard tag below its line. */
+  extraBottom = 0,
 ): Serpentine[] {
   const rects = compactFrames(cards, canvasRects, labels);
   const byId = new Map(cards.map((card) => [card.id, card]));
@@ -900,7 +906,8 @@ function serpentineLayouts(
         height:
           rowBottoms.at(-1)! +
           Math.min(padding, SERPENTINE_TOP_MARGIN) +
-          Math.min(padding, SERPENTINE_BOTTOM_MARGIN),
+          Math.min(padding, SERPENTINE_BOTTOM_MARGIN) +
+          extraBottom,
       },
     });
   }
@@ -1142,13 +1149,54 @@ function routeSerpentineLinks(
       if (length > longest.length)
         longest = { length, point: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 } };
     }
-    copy
-      .querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`)
-      ?.style.setProperty(
+    const label = copy.querySelector<HTMLElement>(`[data-edge-label="${CSS.escape(link.id)}"]`);
+    if (label && link.passUnder?.length) {
+      // FOB yard: the tag sits beside its line, never on top of it — under a
+      // long level run, or else to the left of the longest upright run.
+      label.dataset.printFobLabel = "";
+      const runs = points.slice(1).map((end, index) => ({ start: points[index], end }));
+      const level = runs
+        .filter((run) => Math.abs(run.end.y - run.start.y) < 0.5)
+        .sort((a, b) => Math.abs(b.end.x - b.start.x) - Math.abs(a.end.x - a.start.x))[0];
+      const upright = runs
+        .filter((run) => Math.abs(run.end.x - run.start.x) < 0.5)
+        .sort((a, b) => Math.abs(b.end.y - b.start.y) - Math.abs(a.end.y - a.start.y))[0];
+      if (level && Math.abs(level.end.x - level.start.x) >= FOB_LABEL_MIN_RUN)
+        label.style.setProperty(
+          "transform",
+          `translate(-50%, 0) translate(${(level.start.x + level.end.x) / 2}px, ${level.start.y + 12}px)`,
+        );
+      else if (upright)
+        label.style.setProperty(
+          "transform",
+          `translate(-100%, -50%) translate(${upright.start.x - 12}px, ${(upright.start.y + upright.end.y) / 2}px)`,
+        );
+    } else
+      label?.style.setProperty(
         "transform",
         `translate(-50%, -50%) translate(${longest.point.x}px, ${longest.point.y}px)`,
       );
   }
+}
+
+/** The FOB yard tag, printed large and solid so it reads at a glance on paper. */
+function emphasizeFobLabels(root: HTMLElement, pageColor: Rgba, scale: number) {
+  const size = (points: number) => `${points / Math.max(scale, 0.05)}px`;
+  root.querySelectorAll<HTMLElement>("[data-print-fob-label]").forEach((label) => {
+    for (const [property, value] of [
+      ["background-color", css([pageColor[0], pageColor[1], pageColor[2], 1])],
+      ["color", "#15803d"],
+      ["border", `${size(1.2)} solid ${PRINT_CONNECTOR_GREEN}`],
+      ["font-size", size(9)],
+      ["font-weight", "800"],
+      ["letter-spacing", "0.12em"],
+      ["padding", `${size(2)} ${size(8)}`],
+      ["border-radius", size(10)],
+      ["line-height", "1.2"],
+      ["white-space", "nowrap"],
+    ])
+      label.style.setProperty(property, value, "important");
+  });
 }
 
 /**
@@ -1324,7 +1372,13 @@ export function printCanvasVector(
       const match = label.style.transform.match(/translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*$/);
       return match ? [{ x: Number(match[1]), width: label.offsetWidth }] : [];
     });
-    const options = serpentineLayouts(cards, original.positions, padding, labels).map((layout) => ({
+    const options = serpentineLayouts(
+      cards,
+      original.positions,
+      padding,
+      labels,
+      links.some((link) => link.passUnder?.length) ? FOB_LABEL_ROOM : 0,
+    ).map((layout) => ({
       layout,
       ...placeOn(layout.bounds),
     }));
@@ -1418,6 +1472,7 @@ export function printCanvasVector(
   highlightConnectors(copy);
   solidifyTranslucentGradients(copy, pageColor);
   strengthenFrameBorders(copy, pageColor, scale);
+  emphasizeFobLabels(copy, pageColor, scale);
   desaturateSkippedCards(copy);
 
   const previousTitle = document.title;
