@@ -32,6 +32,12 @@ test("workspace manual save and autosave survive a fresh cloud reload", async ({
   await page.route("**/api/projects/saved-project", async (route) => {
     if (route.request().method() === "PUT") {
       const body = route.request().postDataJSON();
+      // Same rule as the server: only a copy based on the latest save may write.
+      if (body.baseUpdatedAt !== cloud.updated_at)
+        return route.fulfill({
+          status: 409,
+          json: { error: "stale", code: "STALE_PROJECT", updated_at: cloud.updated_at },
+        });
       cloud = {
         ...cloud,
         name: body.name,

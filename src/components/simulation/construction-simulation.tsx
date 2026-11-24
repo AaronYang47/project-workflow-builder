@@ -52,7 +52,7 @@ import type { WorkflowFile } from "@/types/workflow";
 import {
   listCloudProjects,
   loadCloudProject,
-  saveCloudProject,
+  updateCloudProject,
   type CloudProjectSummary,
 } from "./cloud-projects";
 import { finalCloseFobYard, setFinalCloseFobYard } from "@/lib/fob-yard";
@@ -380,13 +380,10 @@ function SimulationWorkspace() {
     const id = project.source.projectId;
     const before = files[project.id];
     if (before) setFiles((current) => ({ ...current, [project.id]: change(before) }));
-    void loadCloudProject(id)
-      .then((latest) => {
-        const next = change(latest);
-        return saveCloudProject(id, next).then(() => {
-          setFiles((current) => ({ ...current, [project.id]: next }));
-          setNotice(messages.saved);
-        });
+    void updateCloudProject(id, change)
+      .then((next) => {
+        setFiles((current) => ({ ...current, [project.id]: next }));
+        setNotice(messages.saved);
       })
       .catch((error: unknown) => {
         if (before) setFiles((current) => ({ ...current, [project.id]: before }));

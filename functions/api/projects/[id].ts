@@ -109,6 +109,8 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     projectNumber?: string;
     workflow?: unknown;
     changeReason?: string;
+    /** The cloud `updated_at` this copy was loaded from or last saved as. */
+    baseUpdatedAt?: string;
   }>(request);
   if (!body?.name?.trim() || !body.workflow)
     return json({ error: "Project name and workflow are required." }, 400);
@@ -120,6 +122,18 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     .bind(id, userId)
     .first<StoredProject>();
   if (!existing) return json({ error: "Project not found." }, 404);
+  // Never let an older copy (another browser, a stale tab) overwrite a newer save.
+  if (body.baseUpdatedAt !== existing.updated_at) {
+    return json(
+      {
+        error:
+          "This project was saved more recently somewhere else. Reload to get the latest version.",
+        code: "STALE_PROJECT",
+        updated_at: existing.updated_at,
+      },
+      409,
+    );
+  }
 
   const updatedAt = new Date().toISOString();
   const name = body.name.trim();

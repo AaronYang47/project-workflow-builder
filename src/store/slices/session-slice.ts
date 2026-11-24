@@ -14,6 +14,8 @@ export type SessionSlice = Pick<
   | "authUser"
   | "setAuthUser"
   | "activeProjectId"
+  | "cloudUpdatedAt"
+  | "setCloudUpdatedAt"
   | "past"
   | "future"
   | "dirty"
@@ -80,6 +82,7 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
       }
     },
     activeProjectId: undefined,
+    cloudUpdatedAt: undefined,
     past: [],
     future: [],
     dirty: false,
@@ -132,6 +135,7 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
         return {
           file: normalized.file,
           activeProjectId: undefined,
+          cloudUpdatedAt: undefined,
           past: [],
           future: [],
           dirty: true,
@@ -150,13 +154,15 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
           highLevelSelection: { nodeIds: [] },
         };
       }),
-    loadProject: (file, activeProjectId, workspaceOwnerId) =>
+    setCloudUpdatedAt: (cloudUpdatedAt) => set({ cloudUpdatedAt }),
+    loadProject: (file, activeProjectId, workspaceOwnerId, cloudUpdatedAt) =>
       set(() => {
         const normalized = normalizeLoadedWorkflow(file);
         return {
           file: normalized.file,
           workspaceOwnerId,
           activeProjectId,
+          cloudUpdatedAt,
           past: [],
           future: [],
           dirty: normalized.clearedDefault,
@@ -168,6 +174,7 @@ export function createSessionSlice(set: StoreSet, get: StoreGet): SessionSlice {
         file: createEmptyWorkspace(),
         workspaceOwnerId: workspaceOwnerId ?? "dev-bypass",
         activeProjectId: undefined,
+        cloudUpdatedAt: undefined,
         past: [],
         future: [],
         dirty: false,

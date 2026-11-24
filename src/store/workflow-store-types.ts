@@ -35,6 +35,9 @@ export interface WorkflowState {
   authUser?: AuthUser | null;
   setAuthUser: (user: AuthUser | null) => void;
   activeProjectId?: string;
+  /** Cloud `updated_at` of the active project this copy is based on; sent with every save. */
+  cloudUpdatedAt?: string;
+  setCloudUpdatedAt: (updatedAt: string | undefined) => void;
   dirty: boolean;
   lastSavedAt?: string;
   hydrated: boolean;
@@ -60,7 +63,12 @@ export interface WorkflowState {
   recordSnapshot: (snapshot: WorkflowFile) => void;
   replaceFile: (file: WorkflowFile) => void;
   applyCollaborativeFile: (file: WorkflowFile) => void;
-  loadProject: (file: WorkflowFile, projectId: string, userId: string) => void;
+  loadProject: (
+    file: WorkflowFile,
+    projectId: string,
+    userId: string,
+    cloudUpdatedAt?: string,
+  ) => void;
   resetWorkspace: (userId?: string) => void;
   clearDetailedNodes: () => void;
   clearHighLevelNodes: () => void;

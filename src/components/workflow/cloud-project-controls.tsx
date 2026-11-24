@@ -19,6 +19,7 @@ import { createProjectWorkflow, duplicateWorkflowFile } from "@/lib/project-temp
 import { parseWorkflow } from "@/lib/serialization";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { normalizeLoadedWorkflow } from "@/store/workflow-store-helpers";
 
 type User = { id: string; email: string; name: string };
 type Project = {
@@ -35,6 +36,7 @@ class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -60,8 +62,8 @@ const api = async <T,>(url: string, options?: RequestInit): Promise<T> => {
     headers: { "content-type": "application/json", ...options?.headers },
     ...options,
   });
-  const body = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new ApiError(body.error || "Request failed.", response.status);
+  const body = (await response.json()) as T & { error?: string; code?: string };
+  if (!response.ok) throw new ApiError(body.error || "Request failed.", response.status, body.code);
   return body;
 };
 
@@ -101,6 +103,34 @@ export function CloudProjectControls({
   const file = store.file;
   const inFlight = useRef(false);
   const autosaveRetryTimer = useRef<number | undefined>(undefined);
+  /** Project whose local copy is older than the cloud; saving it is paused. */
+  const staleProjectId = useRef<string | undefined>(undefined);
+  const staleOfferOpen = useRef(false);
+  const offerLatestVersion = async (projectId: string) => {
+    if (staleOfferOpen.current) return;
+    staleOfferOpen.current = true;
+    try {
+      const latest = await api<{ project: Project }>(`/api/projects/${projectId}`);
+      const load = window.confirm(
+        `“${latest.project.name}” was saved more recently on another device or tab.\n\nLoad the latest saved version? Changes on this device that were not saved will be discarded. Choose Cancel to keep this copy on screen without saving it.`,
+      );
+      const current = useWorkflowStore.getState();
+      if (load && current.activeProjectId === projectId) {
+        current.loadProject(
+          parseWorkflow(JSON.stringify(latest.project.workflow)),
+          projectId,
+          current.workspaceOwnerId,
+          latest.project.updated_at,
+        );
+        staleProjectId.current = undefined;
+        setAutosaveError("");
+      }
+    } catch {
+      // Keep saving paused; the message on the save button explains why.
+    } finally {
+      staleOfferOpen.current = false;
+    }
+  };
   const userRef = useRef(user);
   const authUser = store.authUser;
   const confirmReplaceWorkspace = () =>
@@ -168,6 +198,20 @@ export function CloudProjectControls({
               `/api/projects/${workflow.activeProjectId}`,
             );
             const latest = useWorkflowStore.getState();
+            // A clean copy from before saves carried a base: if it matches the
+            // cloud, it is based on that save even when edits started meanwhile.
+            if (
+              !cancelled &&
+              !workflow.dirty &&
+              !workflow.cloudUpdatedAt &&
+              latest.activeProjectId === workflow.activeProjectId &&
+              !latest.cloudUpdatedAt &&
+              JSON.stringify(
+                normalizeLoadedWorkflow(parseWorkflow(JSON.stringify(restored.project.workflow)))
+                  .file,
+              ) === JSON.stringify(workflow.file)
+            )
+              latest.setCloudUpdatedAt(restored.project.updated_at);
             if (
               !cancelled &&
               !latest.dirty &&
@@ -179,6 +223,7 @@ export function CloudProjectControls({
                 parseWorkflow(JSON.stringify(restored.project.workflow)),
                 restored.project.id,
                 result.user.id,
+                restored.project.updated_at,
               );
             }
           } catch (caught) {
@@ -279,7 +324,7 @@ export function CloudProjectControls({
         method: "POST",
         body: JSON.stringify({ name: projectName, projectNumber, workflow }),
       });
-      store.loadProject(workflow, result.project.id, user!.id);
+      store.loadProject(workflow, result.project.id, user!.id, result.project.updated_at);
       setView(null);
       window.setTimeout(() => window.dispatchEvent(new Event("workflow:fit")), 100);
     } catch (caught) {
@@ -307,7 +352,7 @@ export function CloudProjectControls({
           workflow,
         }),
       });
-      store.loadProject(workflow, result.project.id, user.id);
+      store.loadProject(workflow, result.project.id, user.id, result.project.updated_at);
       window.setTimeout(() => window.dispatchEvent(new Event("workflow:fit")), 100);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Could not duplicate project.";
@@ -332,6 +377,7 @@ export function CloudProjectControls({
       return;
     }
     if (silent && !workflow.dirty) return;
+    if (staleProjectId.current === workflow.activeProjectId) return;
     inFlight.current = true;
     if (silent) setAutosaving(true);
     else {
@@ -342,15 +388,18 @@ export function CloudProjectControls({
     const projectId = workflow.activeProjectId;
     let wrote = false;
     try {
-      await api(`/api/projects/${projectId}`, {
+      const saved = await api<{ project: { updated_at: string } }>(`/api/projects/${projectId}`, {
         method: "PUT",
         body: JSON.stringify({
           name: savedFile.graph.metadata.name,
           projectNumber: workflowLegacyJobNumber(savedFile),
           workflow: savedFile,
+          baseUpdatedAt: workflow.cloudUpdatedAt,
         }),
       });
       wrote = true;
+      if (useWorkflowStore.getState().activeProjectId === projectId)
+        useWorkflowStore.getState().setCloudUpdatedAt(saved.project.updated_at);
       if (
         useWorkflowStore.getState().file === savedFile &&
         useWorkflowStore.getState().activeProjectId === projectId
@@ -359,6 +408,14 @@ export function CloudProjectControls({
       }
       setAutosaveError("");
     } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "STALE_PROJECT") {
+        // This copy is older than the cloud (another browser or tab saved since).
+        // Stop saving it and offer the latest version instead of overwriting it.
+        staleProjectId.current = projectId;
+        setAutosaveError(caught.message);
+        void offerLatestVersion(projectId);
+        return;
+      }
       const message = caught instanceof Error ? caught.message : "Could not save project.";
       setAutosaveError(message);
       if (!silent) {
@@ -421,7 +478,14 @@ export function CloudProjectControls({
     setError("");
     try {
       const result = await api<{ project: Project }>(`/api/projects/${id}`);
-      store.loadProject(parseWorkflow(JSON.stringify(result.project.workflow)), id, user!.id);
+      store.loadProject(
+        parseWorkflow(JSON.stringify(result.project.workflow)),
+        id,
+        user!.id,
+        result.project.updated_at,
+      );
+      staleProjectId.current = undefined;
+      setAutosaveError("");
       setView(null);
       window.setTimeout(() => window.dispatchEvent(new Event("workflow:fit")), 100);
     } catch (caught) {

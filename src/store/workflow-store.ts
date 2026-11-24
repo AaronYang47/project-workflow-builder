@@ -68,6 +68,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         file: state.file,
         workspaceOwnerId: state.workspaceOwnerId,
         activeProjectId: state.activeProjectId,
+        cloudUpdatedAt: state.cloudUpdatedAt,
         dirty: state.dirty,
         lastSavedAt: state.lastSavedAt,
       }),
