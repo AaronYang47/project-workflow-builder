@@ -5,7 +5,7 @@ import { EDGE_CORNER_RADIUS, roundedPath } from "@/lib/semantic-edge-geometry";
 /** 11 x 17 in at the CSS 96 px/in reference; the long side is 17 in. */
 const SHEET_LONG_PX = 17 * 96;
 const SHEET_SHORT_PX = 11 * 96;
-const PAGE_MARGIN_PX = 24;
+const PAGE_MARGIN_PX = 18;
 /** Narrowest card, as a share of its canvas width, the print may use. */
 const MIN_CARD_WIDTH_SHARE = 0.8;
 /** Narrowest gap between columns of cards, and the space kept around a connector label. */
@@ -14,7 +14,7 @@ const LABEL_CLEARANCE = 40;
 const ROOT_ID = "vector-canvas-print";
 const PANEL_GAP_PX = 14;
 /** The notes under the flowchart may use at most this share of the sheet. */
-const NOTES_MAX_SHARE = 0.2;
+const NOTES_MAX_SHARE = 0.14;
 
 export type CanvasRect = { x: number; y: number; width: number; height: number };
 export type CanvasCard = CanvasRect & { id: string; parentId?: string };
@@ -648,8 +648,11 @@ const MIRRORED_SIDE: Record<Side, Side> = {
 };
 /** S-shaped print: most rows to try, the space between rows, and the straight end of each connector. */
 const SERPENTINE_MAX_ROWS = 6;
-const SERPENTINE_ROW_GAP = 150;
-const SERPENTINE_MIN_GAP = 96;
+const SERPENTINE_ROW_GAP = 100;
+const SERPENTINE_MIN_GAP = 84;
+const SERPENTINE_SIDE_MARGIN = 48;
+const SERPENTINE_TOP_MARGIN = 16;
+const SERPENTINE_BOTTOM_MARGIN = 40;
 const CONNECTOR_STUB = 24;
 /** How far out from CSA / PCS / LOI its three branches join (matches the canvas). */
 const BRANCH_BUS_OFFSET = 28;
@@ -674,12 +677,90 @@ type Serpentine = {
  * rows, and every other row runs right to left. Returns one layout for each
  * number of rows; the caller keeps the one that prints largest.
  */
-function serpentineLayouts(
+/** Room kept inside a tightened Phase frame: at the sides, and below its cards (for their UUID tags). */
+const FRAME_SIDE_PADDING = 32;
+const FRAME_BOTTOM_PADDING = 48;
+
+/**
+ * Phase frames on the canvas often hold their cards far apart, with empty
+ * space below them. For print, close the gaps between the card columns
+ * inside each frame (keeping room for connector labels) and shrink the frame
+ * around its cards, so the whole flow prints larger.
+ */
+function compactFrames(
   cards: CanvasCard[],
   rects: Map<string, CanvasRect>,
+  labels: LabelSpan[],
+): Map<string, CanvasRect> {
+  const compacted = new Map(rects);
+  // The canvas draws cards on top of their Phase frame rather than nesting
+  // them, so a frame's cards are the ones lying wholly inside it.
+  const area = (id: string) => rects.get(id)!.width * rects.get(id)!.height;
+  const inside = (outer: CanvasRect, inner: CanvasRect) =>
+    inner.x >= outer.x - 1 &&
+    inner.y >= outer.y - 1 &&
+    inner.x + inner.width <= outer.x + outer.width + 1 &&
+    inner.y + inner.height <= outer.y + outer.height + 1;
+  const parentOf = new Map<string, string>();
+  for (const card of cards) {
+    const holder = cards
+      .filter(
+        (other) =>
+          other.id !== card.id &&
+          area(other.id) > area(card.id) &&
+          inside(rects.get(other.id)!, rects.get(card.id)!),
+      )
+      .sort((left, right) => area(left.id) - area(right.id))[0];
+    const parent = card.parentId ?? holder?.id;
+    if (parent) parentOf.set(card.id, parent);
+  }
+  const parents = new Set(parentOf.values());
+  for (const frame of cards) {
+    const children = cards.filter((card) => parentOf.get(card.id) === frame.id);
+    // Only frames whose cards have nothing nested inside them.
+    if (!children.length || children.some((child) => parents.has(child.id))) continue;
+    const box = rects.get(frame.id)!;
+    const childRects: CanvasCard[] = children.map((child) => ({
+      id: child.id,
+      ...rects.get(child.id)!,
+    }));
+    const columns = bands(childRects, "x");
+    const firstLeft = columns[0].start;
+    let cursor = box.x + Math.min(firstLeft - box.x, FRAME_SIDE_PADDING);
+    let previousEnd: number | null = null;
+    for (const column of columns) {
+      if (previousEnd !== null) {
+        const end = previousEnd;
+        const inside = labels.filter((label) => label.x > end && label.x < column.start);
+        const needed = Math.max(
+          SERPENTINE_MIN_GAP,
+          ...inside.map((label) => label.width + LABEL_CLEARANCE),
+        );
+        cursor += Math.min(column.start - end, needed);
+      }
+      for (const child of column.cards)
+        compacted.set(child.id, { ...rects.get(child.id)!, x: cursor + (child.x - column.start) });
+      cursor += column.end - column.start;
+      previousEnd = column.end;
+    }
+    const childBottom = Math.max(...childRects.map((child) => child.y + child.height));
+    const lastRight = box.x + box.width - columns.at(-1)!.end;
+    compacted.set(frame.id, {
+      ...box,
+      width: Math.max(cursor + Math.min(lastRight, FRAME_SIDE_PADDING) - box.x, 0) || box.width,
+      height: Math.min(box.height, childBottom + FRAME_BOTTOM_PADDING - box.y),
+    });
+  }
+  return compacted;
+}
+
+function serpentineLayouts(
+  cards: CanvasCard[],
+  canvasRects: Map<string, CanvasRect>,
   padding: number,
   labels: LabelSpan[],
 ): Serpentine[] {
+  const rects = compactFrames(cards, canvasRects, labels);
   const byId = new Map(cards.map((card) => [card.id, card]));
   const topOf = (card: CanvasCard) => {
     let current = card;
@@ -789,10 +870,15 @@ function serpentineLayouts(
       rowBottoms,
       sheetWidth,
       bounds: {
-        x: -padding,
-        y: -padding,
-        width: sheetWidth + padding * 2,
-        height: rowBottoms.at(-1)! + padding * 2,
+        // Sides keep room for the lines turning at the sheet edge; top and
+        // bottom only need a small margin.
+        x: -Math.min(padding, SERPENTINE_SIDE_MARGIN),
+        y: -Math.min(padding, SERPENTINE_TOP_MARGIN),
+        width: sheetWidth + Math.min(padding, SERPENTINE_SIDE_MARGIN) * 2,
+        height:
+          rowBottoms.at(-1)! +
+          Math.min(padding, SERPENTINE_TOP_MARGIN) +
+          Math.min(padding, SERPENTINE_BOTTOM_MARGIN),
       },
     });
   }
@@ -1163,7 +1249,7 @@ export function printCanvasVector(
     let fontSize = 0;
     if (panel) {
       panel.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
-      for (fontSize = 9; fontSize > 5; fontSize -= 0.5) {
+      for (fontSize = 8; fontSize > 6.5; fontSize -= 0.5) {
         panel.style.fontSize = `${fontSize}px`;
         panelHeight = panel.offsetHeight;
         if (panelHeight <= pageHeight * NOTES_MAX_SHARE) break;
@@ -1229,13 +1315,21 @@ export function printCanvasVector(
       reflowCards(copy, cards, 1, padding, null);
       for (const card of cards) {
         const position = best.layout.positions.get(card.id)!;
-        copy
-          .querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(card.id)}"]`)
-          ?.style.setProperty(
-            "transform",
-            `translate(${position.x}px, ${position.y}px)`,
-            "important",
-          );
+        const element = copy.querySelector<HTMLElement>(
+          `.react-flow__node[data-id="${CSS.escape(card.id)}"]`,
+        );
+        if (!element) continue;
+        element.style.setProperty(
+          "transform",
+          `translate(${position.x}px, ${position.y}px)`,
+          "important",
+        );
+        // Phase frames tightened around their cards.
+        const before = original.positions.get(card.id);
+        if (before && (before.width !== position.width || before.height !== position.height)) {
+          element.style.setProperty("width", `${position.width}px`, "important");
+          element.style.setProperty("height", `${position.height}px`, "important");
+        }
       }
       mirrorHandles(copy, best.layout.mirrored);
       routeSerpentineLinks(copy, viewport, links, best.layout);
@@ -1243,6 +1337,7 @@ export function printCanvasVector(
       bounds = best.layout.bounds;
       placement = best;
       root.dataset.printRows = String(best.layout.rows);
+      root.dataset.printScale = best.scale.toFixed(3);
     }
   }
   const page = { ...placement.area, scale: placement.scale };
