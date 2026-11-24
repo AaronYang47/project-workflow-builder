@@ -29,6 +29,11 @@ for (const { item, startOnL2, title } of cases) {
           ).length,
           formPhases: root?.querySelectorAll("[data-print-forms-phase]").length ?? 0,
           rows: Number(root?.dataset.printRows ?? 1),
+          // Every connector ends in the bold print arrowhead.
+          missingArrows: Array.from(
+            root?.querySelectorAll<SVGPathElement>(".react-flow__edge-path") ?? [],
+          ).filter((path) => path.getAttribute("marker-end") !== "url(#print-connector-arrow)")
+            .length,
           // Step text is printed even though it is a button on the canvas.
           stepTexts: Array.from(
             root?.querySelectorAll<HTMLElement>('button[aria-label^="Edit step"]') ?? [],
@@ -94,6 +99,7 @@ for (const { item, startOnL2, title } of cases) {
               strayRefs: number;
               formPhases: number;
               rows: number;
+              missingArrows: number;
               stepTexts: number;
               hiddenStepTexts: number;
               connectors: number;
@@ -109,6 +115,7 @@ for (const { item, startOnL2, title } of cases) {
     expect(printed.controls).toBe(0);
     expect(printed.connectors).toBeGreaterThan(0);
     expect(printed.nonGreen).toBe(0);
+    expect(printed.missingArrows).toBe(0);
     expect(printed.hiddenStepTexts).toBe(0);
     expect(printed.strayRefs).toBe(0);
     // Every phase lists its legal forms, customer information and supporting forms.

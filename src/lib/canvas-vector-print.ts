@@ -232,6 +232,7 @@ function desaturateSkippedCards(root: HTMLElement) {
 
 /** Every printed connector is drawn highlighted: solid green with a soft green halo. */
 const PRINT_CONNECTOR_GREEN = "#22c55e";
+const PRINT_ARROW_ID = "print-connector-arrow";
 
 /**
  * The canvas highlights a connector with a blurred glow and a moving dash,
@@ -264,6 +265,37 @@ function highlightConnectors(root: HTMLElement) {
     ])
       path.style.setProperty(property, value, "important");
   });
+  // A bold arrowhead of fixed size (not scaled down with the line), so the
+  // direction reads clearly on paper.
+  const arrowPaths = Array.from(
+    // Every connector, including those drawn without one on the canvas
+    // (the CSA / PCS / LOI branches into Estimation).
+    root.querySelectorAll<SVGPathElement>(".react-flow__edge-path"),
+  );
+  const host = arrowPaths[0]?.ownerSVGElement;
+  if (host) {
+    const svg = "http://www.w3.org/2000/svg";
+    const defs = document.createElementNS(svg, "defs");
+    const marker = document.createElementNS(svg, "marker");
+    marker.id = PRINT_ARROW_ID;
+    for (const [name, value] of [
+      ["viewBox", "0 0 12 12"],
+      ["refX", "11"],
+      ["refY", "6"],
+      ["markerWidth", "26"],
+      ["markerHeight", "26"],
+      ["markerUnits", "userSpaceOnUse"],
+      ["orient", "auto"],
+    ])
+      marker.setAttribute(name, value);
+    const head = document.createElementNS(svg, "path");
+    head.setAttribute("d", "M0,0 L12,6 L0,12 L3,6 Z");
+    head.setAttribute("fill", PRINT_CONNECTOR_GREEN);
+    marker.appendChild(head);
+    defs.appendChild(marker);
+    host.insertBefore(defs, host.firstChild);
+    for (const path of arrowPaths) path.setAttribute("marker-end", `url(#${PRINT_ARROW_ID})`);
+  }
   root.querySelectorAll<SVGElement>("marker path, marker polyline").forEach((shape) => {
     shape.style.setProperty("stroke", PRINT_CONNECTOR_GREEN, "important");
     if (getComputedStyle(shape).fill !== "none")
