@@ -64,6 +64,7 @@ function resizeInPlace(file: WorkflowFile, nodeId: string, width: number, height
 
 /** Maintain Qualification → one agreement node → one Estimation node for saved workflows. */
 export const ESTIMATION_STEP_ID = "estimation-step";
+export const QUALIFICATION_STEP_ID = "qualification-step";
 
 export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: string): WorkflowFile {
   const qualification = input.graph.nodes.find((node) => node.type === "qualification");
@@ -335,6 +336,12 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   if (estimationNode && !estimationNode.conditions.length)
     estimationNode.conditions = [
       { id: ESTIMATION_STEP_ID, label: estimationNode.title || "Estimation", required: true },
+    ];
+  // Qualification likewise is one step: filling in Form [1.01].
+  const qualificationNode = file.graph.nodes.find((node) => node.id === qualification.id);
+  if (qualificationNode && !qualificationNode.conditions.length)
+    qualificationNode.conditions = [
+      { id: QUALIFICATION_STEP_ID, label: "Qualification Form [1.01]", required: true },
     ];
   return file;
 }

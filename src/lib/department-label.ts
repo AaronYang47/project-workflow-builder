@@ -9,7 +9,7 @@ const isChapterNumber = (value: string) =>
 
 /** Display a department name without exposing its Chapter/Title identifier. */
 export function departmentDisplayName(node: DomainNode) {
-  if (!["general", "projectStart", "estimation", "commercialRule"].includes(node.type))
+  if (!["general", "projectStart", "qualification", "estimation", "commercialRule"].includes(node.type))
     return node.title;
 
   const stage = String(node.config.stage ?? "").trim();

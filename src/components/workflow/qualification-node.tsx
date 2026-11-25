@@ -21,6 +21,7 @@ import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-fo
 import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { DepartmentHeaderBar } from "./node-department-field";
 import type { DomainNode } from "@/types/workflow";
 
 export function QualificationNode({ node, selected }: { node: DomainNode; selected: boolean }) {
@@ -58,13 +59,13 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
       )}
       style={{ borderColor: node.color || "#2563a9" }}
     >
-      <div
-        data-node-header
-        className="flex h-12 shrink-0 cursor-grab items-center gap-2 rounded-t-2xl border-b bg-primary/10 px-3 active:cursor-grabbing"
-      >
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <ClipboardCheck className="size-4" />
-        </span>
+      <DepartmentHeaderBar
+        node={node}
+        icon={ClipboardCheck}
+        color={node.color || "#2563a9"}
+        className="shrink-0 rounded-t-2xl"
+      />
+      <div className="flex items-center gap-2 px-3 pt-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Qualification
