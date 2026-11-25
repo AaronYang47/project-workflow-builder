@@ -256,6 +256,8 @@ function desaturateSkippedCards(root: HTMLElement) {
 
 /** Every printed connector is drawn highlighted: solid green with a soft green halo. */
 const PRINT_CONNECTOR_GREEN = "#22c55e";
+const PRINT_HANDOFF_YELLOW = "#eab308";
+const SVG_NS = "http://www.w3.org/2000/svg";
 const PRINT_ARROW_ID = "print-connector-arrow";
 
 /**
@@ -288,6 +290,34 @@ function dashRouteSelectionLines(root: HTMLElement) {
     svg
       .querySelectorAll<SVGCircleElement>("circle")
       .forEach((dot) => dot.setAttribute("fill", PRINT_CONNECTOR_GREEN));
+    // An Owner with plans is handed to their GC: that line prints yellow,
+    // arrowhead included, so the hand-over stands out from the routes.
+    const handoffs = svg.querySelectorAll<SVGPathElement>("[data-qualification-route-handoff]");
+    if (!handoffs.length) return;
+    const defs =
+      svg.querySelector("defs") ??
+      svg.insertBefore(document.createElementNS(SVG_NS, "defs"), svg.firstChild);
+    const markerId = `print-route-handoff-arrow-${Math.random().toString(36).slice(2, 8)}`;
+    const marker = document.createElementNS(SVG_NS, "marker");
+    for (const [name, value] of Object.entries({
+      id: markerId,
+      viewBox: "0 0 10 10",
+      refX: "9",
+      refY: "5",
+      markerWidth: "5",
+      markerHeight: "5",
+      orient: "auto",
+    }))
+      marker.setAttribute(name, value);
+    const head = document.createElementNS(SVG_NS, "path");
+    head.setAttribute("d", "M1 1L9 5L1 9Z");
+    head.setAttribute("fill", PRINT_HANDOFF_YELLOW);
+    marker.appendChild(head);
+    defs.appendChild(marker);
+    handoffs.forEach((line) => {
+      line.setAttribute("stroke", PRINT_HANDOFF_YELLOW);
+      line.setAttribute("marker-end", `url(#${markerId})`);
+    });
   });
   root.querySelectorAll<HTMLElement>("[data-route-selection-exit-line]").forEach((line) => {
     line.style.backgroundColor = "transparent";

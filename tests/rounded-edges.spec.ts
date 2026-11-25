@@ -39,7 +39,11 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
         (window as unknown as { printed: unknown[] }).printed.push({
           flows: root.querySelectorAll("[data-route-selection-node] [data-qualification-route-bus]")
             .length,
-          // Route Selection's lines print thin, green and dashed.
+          // Route Selection's lines print thin and dashed: green, and the
+          // Owner's hand-over to their GC in yellow.
+          handoffYellow: root.querySelectorAll(
+            '[data-route-selection-node] [data-qualification-route-handoff][stroke="#eab308"]',
+          ).length,
           routeLines: Array.from(
             root.querySelectorAll<SVGElement>(
               "[data-route-selection-node] svg line, [data-route-selection-node] svg path[fill='none']",
@@ -48,7 +52,8 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
             .filter((line) => !line.closest("marker"))
             .every(
               (line) =>
-                line.getAttribute("stroke") === "#22c55e" &&
+                line.getAttribute("stroke") ===
+                  (line.hasAttribute("data-qualification-route-handoff") ? "#eab308" : "#22c55e") &&
                 line.getAttribute("stroke-width") === "1" &&
                 line.getAttribute("stroke-dasharray") === "4 3",
             ),
@@ -102,8 +107,11 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
   await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length);
   const [printed] = await page.evaluate(
     () =>
-      (window as unknown as { printed: { flows: number; exits: number; routeLines: boolean }[] })
-        .printed,
+      (
+        window as unknown as {
+          printed: { flows: number; exits: number; handoffYellow: number; routeLines: boolean }[];
+        }
+      ).printed,
   );
-  expect(printed).toEqual({ flows: 1, exits: 1, routeLines: true });
+  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 1, routeLines: true });
 });
