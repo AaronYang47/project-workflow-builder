@@ -41,7 +41,7 @@ test("client type, customer level and plans decide the route after Qualification
   // An Owner with plans is handed to their GC, who contacts ProFab, then PCS.
   expect(
     routeOf({ clientCategory: "Owner", customerTier: "regular", plansAvailable: "yes" }),
-  ).toEqual(["PCS", ["Owner's GC contacts ProFab", "PCS"]]);
+  ).toEqual(["PCS", ["Owner's GC", "PCS"]]);
   // Until enough is chosen there is no route, even with an older saved path.
   expect(qualificationRoute({ clientCategory: "GC", commercialPath: "LOI" })).toBeUndefined();
   expect(qualificationRoute({ clientCategory: "Owner", customerTier: "regular" })).toBeUndefined();
@@ -143,22 +143,22 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await node.getByRole("button", { name: "GC", exact: true }).click();
   await node.getByRole("button", { name: "Regular" }).click();
   await node.getByRole("button", { name: "No plans" }).click();
-  await expect(route).toHaveText("Route: CSA → PCS");
+  await expect(route).toHaveText("Route: GC → CSA → PCS");
   await node.getByRole("button", { name: "Has plans" }).click();
-  await expect(route).toHaveText("Route: PCS");
+  await expect(route).toHaveText("Route: GC → PCS");
   await expect(ownerNote).toHaveCount(0);
   // Owner with plans: their GC contacts ProFab, then PCS.
   await node.getByRole("button", { name: "Owner" }).click();
-  await expect(route).toHaveText("Route: Owner's GC contacts ProFab → PCS");
+  await expect(route).toHaveText("Route: Owner → Owner's GC → PCS");
   await expect(ownerNote).toBeVisible();
   // VIP goes through LOI and needs no plans answer.
   await node.getByRole("button", { name: "VIP" }).click();
   await expect(node.getByRole("group", { name: "Plans available" })).toHaveCount(0);
-  await expect(route).toHaveText("Route: LOI");
+  await expect(route).toHaveText("Route: Owner → LOI");
   // ProFab is our own company: LOI, nothing more to choose.
   await node.getByRole("button", { name: "ProFab" }).click();
   await expect(node.getByRole("group", { name: "Customer level" })).toHaveCount(0);
-  await expect(route).toHaveText("Route: LOI");
+  await expect(route).toHaveText("Route: ProFab → LOI");
 
   // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.
   await expect
@@ -325,7 +325,7 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   // Choose the LOI route first: a VIP GC.
   await node.getByRole("button", { name: "GC", exact: true }).click();
   await node.getByRole("button", { name: "VIP" }).click();
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
+  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: GC → LOI");
   await expect(score).toHaveText("0/84 · 0%");
 
   // Open Form [1.01] from inside the Qualification node (opens in step-by-step wizard).
@@ -357,7 +357,7 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(dialog).toHaveCount(0);
 
   // Node retains LOI route and reflects updated Form [1.01] score & revision.
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
+  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: GC → LOI");
   await expect(score).toHaveText("7/84 · 8%");
   await expect(score).not.toHaveText("0/84 · 0%");
 

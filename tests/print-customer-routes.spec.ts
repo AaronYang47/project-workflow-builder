@@ -2,7 +2,9 @@ import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
-test("the L2 PDF lists every customer route and marks the project's own", async ({ page }) => {
+test("the L2 PDF draws every customer route as a flowchart and marks the project's own", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   const file = createE2EWorkflow();
   const qualification = createDomainNode("qualification", "qualification-1");
@@ -41,7 +43,7 @@ test("the L2 PDF lists every customer route and marks the project's own", async 
             (row) => row.dataset.printRoute,
           ),
           current: Array.from(root.querySelectorAll<HTMLElement>("[data-print-route-current]")).map(
-            (row) => row.innerText.replace(/\s+/g, " ").trim(),
+            (row) => row.textContent?.replace(/\s+/g, " ").trim(),
           ),
           onPage: Boolean(
             box && box.width > 0 && box.top >= page.top && box.bottom <= page.bottom + 1,
@@ -54,7 +56,7 @@ test("the L2 PDF lists every customer route and marks the project's own", async 
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator("[data-qualification-route]")).toHaveText(
-    "Route: Owner's GC contacts ProFab → PCS",
+    "Route: Owner → Owner's GC → PCS",
   );
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
@@ -72,7 +74,7 @@ test("the L2 PDF lists every customer route and marks the project's own", async 
       "owner-no-plans",
       "owner-plans",
     ],
-    current: ["Owner Regular · has plans Owner's GC contacts ProFab → PCS This project"],
+    current: ["Regular · has plansOwner's GCPCSThis project"],
     onPage: true,
   });
 });

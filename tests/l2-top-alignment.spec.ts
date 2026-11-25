@@ -106,5 +106,9 @@ test("Qualification, CSA / PCS / LOI and Estimation start on the same top line a
   await expect(
     page.locator('.react-flow__node[data-id="commercial-route-group"] .react-flow__handle.target'),
   ).toHaveCount(1);
+  // One way out to Estimation: PCS and LOI join inside the node.
+  await expect(
+    page.locator('.react-flow__node[data-id="commercial-route-group"] .react-flow__handle.source'),
+  ).toHaveCount(1);
   await expect(page.locator("[data-qualification-node] .react-flow__handle.source")).toHaveCount(1);
 });

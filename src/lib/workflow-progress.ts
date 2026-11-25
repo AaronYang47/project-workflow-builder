@@ -406,7 +406,7 @@ export function getWorkflowProgress(
         const route = qualification
           ? qualificationRoute(qualificationOf(qualification))
           : undefined;
-        allowed = edge.sourceHandle === route && commercialRouteReady(source, route);
+        allowed = Boolean(route) && commercialRouteReady(source, route);
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

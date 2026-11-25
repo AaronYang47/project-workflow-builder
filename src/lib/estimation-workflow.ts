@@ -1,13 +1,12 @@
 import { createDomainNode } from "@/lib/create-domain-node";
 import {
-  COMMERCIAL_ROUTES,
-  COMMERCIAL_ROUTE_STYLE,
   COMMERCIAL_ROUTE_GROUP_ID,
+  COMMERCIAL_ROUTE_GROUP_SIZE,
   commercialRouteForNode,
   isCommercialRouteGroupNode,
 } from "@/lib/commercial-routes";
 import { getNodeDefinition } from "@/lib/node-catalog";
-import type { Condition, DomainEdge, DomainNode, WorkflowFile } from "@/types/workflow";
+import type { Condition, DomainNode, WorkflowFile } from "@/types/workflow";
 
 const CEO_SIGNATURE_CONDITION = "loi-ceo-signature-required";
 const BYPASS_EDGE_TYPES = new Set(["failure", "rework", "reopen", "hold"]);
@@ -19,24 +18,6 @@ function ceoCondition(previous?: Condition): Condition {
     description: "The company CEO must sign the LOI before this route can proceed to Estimation.",
     required: true,
     checked: previous?.checked === true,
-  };
-}
-
-function routeEdge(
-  source: string,
-  target: string,
-  route: (typeof COMMERCIAL_ROUTES)[number],
-): DomainEdge {
-  return {
-    id: `edge-${source}-${target}-${route.toLowerCase()}`,
-    source,
-    target,
-    sourceHandle: route,
-    targetHandle: route,
-    type: "normal",
-    lineStyle: "solid",
-    arrowStyle: "closed",
-    customFields: { routeColor: COMMERCIAL_ROUTE_STYLE[route].color },
   };
 }
 
@@ -102,23 +83,41 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   qLayout.width = qSize.width;
   qLayout.height = Math.max(qLayout.height, qSize.height);
   const groupLayout = file.layout.nodes[groupId];
+  const { width: groupWidth, height: groupHeight } = COMMERCIAL_ROUTE_GROUP_SIZE;
+  // The node grew wider: move what sits to its right over by the same amount,
+  // and widen any frame around it, so nothing ends up underneath it.
+  if (groupLayout && !oldIds.size && groupLayout.width < groupWidth) {
+    const grow = groupWidth - groupLayout.width;
+    const oldRight = groupLayout.x + groupLayout.width;
+    for (const layout of Object.values(file.layout.nodes)) {
+      if (layout.nodeId === groupId || layout.parentId) continue;
+      if (layout.x >= oldRight - 1) layout.x += grow;
+      else if (
+        layout.x < groupLayout.x &&
+        layout.x + layout.width >= oldRight - 1 &&
+        layout.y <= groupLayout.y &&
+        layout.y + layout.height >= groupLayout.y
+      )
+        layout.width += grow;
+    }
+  }
   file.layout.nodes[groupId] =
     !groupLayout || oldIds.size
       ? {
           nodeId: groupId,
           x: qLayout.x + qSize.width + 120,
           y: qLayout.y,
-          width: 380,
-          height: 650,
+          width: groupWidth,
+          height: groupHeight,
           zIndex: 10,
         }
-      : { ...groupLayout, parentId: undefined, width: 380, height: 650 };
+      : { ...groupLayout, parentId: undefined, width: groupWidth, height: groupHeight };
   const eLayout = file.layout.nodes[id];
   file.layout.nodes[id] =
     !eLayout || oldIds.size
       ? {
           nodeId: id,
-          x: file.layout.nodes[groupId].x + 520,
+          x: file.layout.nodes[groupId].x + groupWidth + 140,
           y: qLayout.y,
           width: eSize.width,
           height: eSize.height,
@@ -163,8 +162,18 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     arrowStyle: "closed",
     customFields: {},
   });
-  for (const route of COMMERCIAL_ROUTES)
-    file.graph.edges.push({ ...routeEdge(groupId, id, route), targetHandle: "in" });
+  // One link out: PCS and LOI join inside the node and carry on to Estimation.
+  file.graph.edges.push({
+    id: `edge-${groupId}-${id}`,
+    source: groupId,
+    target: id,
+    sourceHandle: "out",
+    targetHandle: "in",
+    type: "normal",
+    lineStyle: "solid",
+    arrowStyle: "closed",
+    customFields: {},
+  });
   const start = file.graph.nodes.find((node) => node.type === "projectStart");
   if (
     !directDownstream.length &&

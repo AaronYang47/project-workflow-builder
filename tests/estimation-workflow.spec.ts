@@ -42,7 +42,7 @@ test("Qualification inserts one [1.06] Estimation before Project Start", () => {
     updated.graph.edges.filter(
       (edge) => edge.source === agreement.id && edge.target === estimation.id,
     ),
-  ).toHaveLength(3);
+  ).toMatchObject([{ sourceHandle: "out", targetHandle: "in" }]);
   expect(
     updated.graph.edges.some((edge) => edge.source === estimation.id && edge.target === start.id),
   ).toBe(true);
@@ -119,7 +119,7 @@ test("Estimation renders Qualification context and stays locked before approval"
   await expect(card.locator("[data-estimation-status]")).toHaveText("Waiting for agreement");
   await expect(card.getByRole("button", { name: "Estimate" })).toBeDisabled();
   const connector = page.locator(
-    `.react-flow__edge[data-id="edge-commercial-route-group-estimation-1-06-csa"]`,
+    `.react-flow__edge[data-id="edge-commercial-route-group-estimation-1-06"]`,
   );
   await expect(connector).toBeVisible();
   await expect(connector.locator(".workflow-edge-flow")).toHaveCount(0);

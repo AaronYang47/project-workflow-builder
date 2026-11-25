@@ -256,27 +256,66 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
                 </div>
               </>
             )}
-          {customerCase?.id === "owner-plans" && (
-            <p
-              data-qualification-owner-gc
-              className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold leading-snug text-amber-800"
-            >
-              The Owner has plans: their GC must contact ProFab, then the project goes to PCS.
-            </p>
-          )}
           {!qualification.clientCategory && qualification.customerHistory && route && (
             <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
               Earlier choice: {qualification.customerHistory} customer. Choose the client type to
               update it.
             </p>
           )}
-          <p
+          <div
             data-qualification-route
             className="mt-auto pt-3 text-xs font-semibold text-foreground"
           >
-            Route:{" "}
-            {customerCase ? customerCase.steps.join(" → ") : (route ?? "Choose the client type")}
-          </p>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Route:{" "}
+            </span>
+            {customerCase ? (
+              <span
+                data-qualification-mini-flow
+                className="mt-1 flex flex-wrap items-center gap-y-1 text-[11px]"
+              >
+                {[customerCase.client, ...customerCase.steps].map((step, index) => {
+                  const routeStyle =
+                    step === "CSA" || step === "PCS" || step === "LOI"
+                      ? COMMERCIAL_ROUTE_STYLE[step]
+                      : undefined;
+                  const ownerGc = step === "Owner's GC";
+                  return (
+                    <span key={`${step}-${index}`} className="contents">
+                      {index > 0 && (
+                        <span aria-hidden="true" className="px-1 text-sm text-emerald-600">
+                          {" "}
+                          →{" "}
+                        </span>
+                      )}
+                      <span
+                        data-qualification-flow-box={step}
+                        {...(ownerGc ? { "data-qualification-owner-gc": "" } : {})}
+                        className={cn(
+                          "rounded-md border-2 px-2 py-1 font-bold leading-none",
+                          index === 0 && "border-slate-400 bg-slate-100 text-slate-700",
+                          ownerGc && "border-amber-500 bg-amber-50 text-amber-800",
+                        )}
+                        style={
+                          routeStyle
+                            ? {
+                                borderColor: routeStyle.color,
+                                color: routeStyle.color,
+                                backgroundColor: `${routeStyle.color}14`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {step}
+                      </span>
+                    </span>
+                  );
+                })}
+              </span>
+            ) : (
+              (route ?? "Choose the client type")
+            )}
+          </div>
         </section>
       </div>
 

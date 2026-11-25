@@ -74,7 +74,7 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
     id: "owner-plans",
     client: "Owner",
     situation: "Regular · has plans",
-    steps: ["Owner's GC contacts ProFab", "PCS"],
+    steps: ["Owner's GC", "PCS"],
     route: "PCS",
   },
 ];
