@@ -112,6 +112,10 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
               "nodrag mt-0.5 w-full resize-none overflow-hidden bg-transparent font-black uppercase tracking-[0.06em] outline-none",
               isGate ? "text-base leading-5 min-h-5" : "text-2xl leading-7 min-h-8",
             )}
+            // Textareas inherit the card's font, so the Phase heading's size and
+            // weight are set here to take effect.
+            style={isGate ? undefined : { fontSize: 24, lineHeight: "28px", fontWeight: 900 }}
+            data-phase-title
           />
           <textarea
             aria-label="Phase description"
@@ -122,6 +126,8 @@ function PhaseNodeComponent({ data, selected }: NodeProps<PhaseFlowNode>) {
               "nodrag mt-0.5 w-full resize-none overflow-hidden bg-transparent font-medium text-muted-foreground outline-none",
               isGate ? "text-xs leading-4 min-h-4 line-clamp-2" : "text-sm leading-6 min-h-6",
             )}
+            style={isGate ? undefined : { fontSize: 16, lineHeight: "22px", fontWeight: 700 }}
+            data-phase-description
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-2">
