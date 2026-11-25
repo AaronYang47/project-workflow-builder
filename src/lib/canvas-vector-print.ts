@@ -1267,10 +1267,6 @@ export function printCanvasVector(
   copy.querySelectorAll(".selected").forEach((element) => element.classList.remove("selected"));
   uniquifyIds(copy, "print-");
   hideEditingControls(copy);
-  // The agreement being filled in belongs to editing, not to the flowchart.
-  copy
-    .querySelectorAll<HTMLElement>("[data-route-agreements]")
-    .forEach((element) => element.style.setProperty("visibility", "hidden", "important"));
   const viewport = copy.querySelector<HTMLElement>(".react-flow__viewport");
   if (!viewport) throw new Error("The canvas could not be prepared for printing.");
   root.appendChild(copy);
@@ -1294,6 +1290,22 @@ export function printCanvasVector(
     height: "100000px",
   });
   viewport.style.setProperty("transform", "translate(0px, 0px) scale(1)", "important");
+
+  // The agreement being filled in belongs to editing, not to the flowchart:
+  // leave it out and let its card close up, so no empty space is printed.
+  cards = cards.map((card) => {
+    const element = copy.querySelector<HTMLElement>(
+      `.react-flow__node[data-id="${CSS.escape(card.id)}"]`,
+    );
+    const agreements = element?.querySelector<HTMLElement>("[data-route-agreements]");
+    if (!element || !agreements) return card;
+    const cut = agreements.offsetHeight + (parseFloat(getComputedStyle(agreements).marginTop) || 0);
+    agreements.style.setProperty("display", "none", "important");
+    const height = Math.max(0, Math.round(card.height - cut));
+    element.style.setProperty("height", `${height}px`, "important");
+    element.setAttribute("data-print-trimmed", String(Math.round(cut)));
+    return { ...card, height };
+  });
 
   // Cards nested inside other cards move with their parent; keep those as on the canvas.
   const canReflow = cards.length > 0 && cards.every((card) => !card.parentId);

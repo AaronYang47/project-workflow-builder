@@ -34,14 +34,27 @@ test("the L2 PDF shows the route chart in Route Selection only, without the rout
       window.print = () => {
         const root = document.getElementById("vector-canvas-print")!;
         const agreements = root.querySelector<HTMLElement>("[data-route-agreements]");
+        const printed = root.querySelector<HTMLElement>(
+          '.react-flow__node[data-id="commercial-route-group"]',
+        )!;
+        const canvas = document.querySelector<HTMLElement>(
+          '.react-flow__node[data-id="commercial-route-group"]:not(#vector-canvas-print *)',
+        )!;
+        const card = printed.querySelector<HTMLElement>("[data-route-selection-node]")!;
+        const chart = card.querySelector<SVGSVGElement>("[data-qualification-route-flow]")!;
+        root.style.setProperty("display", "block", "important");
+        const cardBox = card.getBoundingClientRect();
+        const chartBox = chart.getBoundingClientRect();
+        const scale = cardBox.height / card.offsetHeight || 1;
         (window as unknown as { printed: unknown[] }).printed.push({
           routesPanel: root.querySelectorAll("[data-print-routes]").length,
           routeChart: root.querySelectorAll(
             "[data-route-selection-node] [data-qualification-route-flow]",
           ).length,
-          agreementsHidden: agreements
-            ? getComputedStyle(agreements).visibility === "hidden"
-            : null,
+          agreementsGone: agreements ? getComputedStyle(agreements).display === "none" : null,
+          shorter: printed.offsetHeight < canvas.offsetHeight - 80,
+          // Little space left under the route line once the form is gone.
+          spaceBelow: Math.round((cardBox.bottom - chartBox.bottom) / scale) < 70,
         });
       };
     },
@@ -58,5 +71,11 @@ test("the L2 PDF shows the route chart in Route Selection only, without the rout
   );
   // The sheet shows the route chart inside Route Selection only: no separate
   // routes chart under the flowchart, and no agreement form being filled in.
-  expect(printed).toEqual({ routesPanel: 0, routeChart: 1, agreementsHidden: true });
+  expect(printed).toEqual({
+    routesPanel: 0,
+    routeChart: 1,
+    agreementsGone: true,
+    shorter: true,
+    spaceBelow: true,
+  });
 });
