@@ -16,6 +16,8 @@ export type RouteFlowRow = {
   steps: RouteFlowStep[];
   /** Arrows between consecutive steps. */
   links: [Point, Point][];
+  /** The way out on the right of the last step, where the route leaves the chart. */
+  exit?: Point;
   end: number;
 };
 export type RouteFlowClient = {
@@ -80,7 +82,7 @@ export function routeFlowLayout(
         x += stepWidth + gap;
       });
       const end = item.handoff ? labelEnd : x - gap;
-      width = Math.max(width, end);
+      width = Math.max(width, end + 5);
       rows.push({
         item,
         y: rowY,
@@ -99,6 +101,7 @@ export function routeFlowLayout(
             ],
         steps,
         links,
+        exit: item.handoff ? undefined : { x: end, y: rowY },
         end,
       });
     });

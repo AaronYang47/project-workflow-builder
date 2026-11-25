@@ -156,6 +156,17 @@ export function QualificationRouteFlow({
                 </g>
               );
             })}
+            {row.exit && (
+              <circle
+                data-qualification-route-exit={row.item.id}
+                cx={row.exit.x}
+                cy={row.exit.y}
+                r={3.5}
+                fill={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+                stroke="#ffffff"
+                strokeWidth={1.2}
+              />
+            )}
           </g>
         );
       })}

@@ -442,13 +442,17 @@ function routesPanel(routes: PrintRoutes) {
         `<text x="${step.x + step.width / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="${palette.text}">${escapeHtml(step.text)}</text>`,
       );
     }
+    if (row.exit)
+      parts.push(
+        `<circle data-print-route-exit cx="${row.exit.x}" cy="${row.exit.y}" r="3.5" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>`,
+      );
     if (row.item.id === finalId) {
       const tagWidth = 72;
       parts.push(
-        `<rect x="${row.end + 8}" y="${row.y - 7}" width="${tagWidth}" height="14" rx="7" fill="${ROUTE_FLOW_ON}"/>`,
-        `<text x="${row.end + 8 + tagWidth / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="800" fill="#ffffff">This project</text>`,
+        `<rect x="${row.end + 12}" y="${row.y - 7}" width="${tagWidth}" height="14" rx="7" fill="${ROUTE_FLOW_ON}"/>`,
+        `<text x="${row.end + 12 + tagWidth / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="800" fill="#ffffff">This project</text>`,
       );
-      width = Math.max(width, row.end + 8 + tagWidth + 2);
+      width = Math.max(width, row.end + 12 + tagWidth + 2);
     }
     parts.push("</g>");
   }

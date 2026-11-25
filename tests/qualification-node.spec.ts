@@ -141,6 +141,20 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
   // Every situation is on the flowchart, each with its own branch.
   await expect(flow.locator("[data-qualification-route-case]")).toHaveCount(7);
+  // Each branch that ends in a step has a way out on the right of its last box.
+  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(6);
+  expect(
+    await flow.locator("[data-qualification-route-case]").evaluateAll((rows) =>
+      rows.flatMap((row) => {
+        const exit = row.querySelector("[data-qualification-route-exit]");
+        const boxes = Array.from(row.querySelectorAll("rect[x]")).slice(1);
+        const last = boxes.at(-1);
+        if (!exit || !last) return [];
+        const right = Number(last.getAttribute("x")) + Number(last.getAttribute("width"));
+        return [Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5];
+      }),
+    ),
+  ).toEqual([true, true, true, true, true, true]);
   await expect(route).toHaveText("Route: Choose the customer's situation");
   await expect(chosen).toHaveCount(0);
   // Regular GC: no plans → CSA then PCS, plans → PCS.
