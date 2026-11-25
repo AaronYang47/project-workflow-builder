@@ -40,7 +40,7 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
     return {
       id,
       type,
-      title: "Estimation",
+      title: "Pre-Estimation",
       description: "Preliminary Estimation [1.06] · budgeting only, not a price or offer.",
       color: def.color,
       metadata: {},

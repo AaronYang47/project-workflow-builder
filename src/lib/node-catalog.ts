@@ -62,7 +62,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
   },
   {
     type: "estimation",
-    label: "Estimation",
+    label: "Pre-Estimation",
     description: "Preliminary estimate [1.06] after Qualification approval",
     icon: Calculator,
     color: "#0f766e",
