@@ -1,3 +1,4 @@
+import { JOB_NUMBER_CONDITION_ID, LEGACY_JOB_NUMBER_CONDITION_ID } from "@/lib/project-id";
 import { normalizePreviousPhaseDependencies } from "@/lib/process-dependencies";
 import { normalizeScheduleCalendar } from "@/lib/schedule-calendar";
 import { parseGateServiceTypeId } from "@/lib/gate-service-types";
@@ -140,7 +141,16 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
     (Boolean(node.config.paidServiceType) ? "Paid Service" : "Standard");
   const buildingCode = String(node.config.buildingCode || "");
   const moduleCode = String(node.config.moduleCode || "");
-  const { projectNumber: _legacy, ...restCustomFields } = node.customFields;
+  const { projectNumber: _legacy, ...ownCustomFields } = node.customFields;
+  // Forms filed under the Job Number condition's old id move with it.
+  const restCustomFields = Object.fromEntries(
+    Object.entries(ownCustomFields).map(([key, value]) => [
+      key.endsWith(`::${LEGACY_JOB_NUMBER_CONDITION_ID}`)
+        ? `${key.slice(0, -LEGACY_JOB_NUMBER_CONDITION_ID.length)}${JOB_NUMBER_CONDITION_ID}`
+        : key,
+      value,
+    ]),
+  );
   void _legacy;
   const config: DomainNode["config"] = {
     ...node.config,
@@ -150,23 +160,18 @@ function migrateProjectStartNode(node: DomainNode): DomainNode {
     buildingCode,
     moduleCode,
   };
-  const baseConditions = node.conditions?.length
-    ? node.conditions
-    : [
-        {
-          id: "project-id-required",
-          label: "Job Number is entered",
-          required: false,
-          checked: false,
-          locked: true,
-        },
-      ];
-  // Update only the old built-in wording; preserve any custom condition label.
+  const baseConditions = node.conditions ?? [];
+  // "Job Number is entered" used to be a built-in condition ticked from the Job
+  // Number field. It is now an ordinary release condition: same label, ticked
+  // state and forms, under an ordinary id.
   const normalizedBaseConditions = baseConditions.map((condition) =>
-    condition.id === "project-id-required"
+    condition.id === LEGACY_JOB_NUMBER_CONDITION_ID
       ? {
           ...condition,
-          required: false,
+          id: JOB_NUMBER_CONDITION_ID,
+          // It stays optional, as it always was: it never holds up the steps after it.
+          required: condition.required ?? false,
+          locked: false,
           label:
             condition.label === "Project ID is entered" ? "Job Number is entered" : condition.label,
         }
@@ -545,18 +550,6 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
     .map(migrateNode)
     .map((node) => {
       const conditions = [...(node.conditions || [])];
-      if (
-        node.type === "projectStart" &&
-        !conditions.some((item) => item.id === "project-id-required")
-      ) {
-        conditions.unshift({
-          id: "project-id-required",
-          label: "Job Number is entered",
-          required: false,
-          checked: false,
-          locked: true,
-        });
-      }
       if (node.type === "terminal" && conditions.length === 0) {
         conditions.push(...createDefaultTerminalConditions());
       }
@@ -586,11 +579,10 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
         metadata: {},
         conditions: [
           {
-            id: "project-id-required",
+            id: JOB_NUMBER_CONDITION_ID,
             label: "Job Number is entered",
             required: false,
             checked: false,
-            locked: true,
           },
         ],
         documents: [],

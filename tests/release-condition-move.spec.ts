@@ -280,29 +280,3 @@ test("L1 links reject an L2 phase container", () => {
   ]);
 });
 
-test("Job Number condition can be reordered within Project Start but cannot leave it", () => {
-  const file = createProjectWorkflow("Job Number ordering");
-  const start = createDomainNode("projectStart", "start");
-  const other = createDomainNode("general", "other");
-  start.conditions.push({ id: "second", label: "Gather details" });
-  file.graph.nodes = [start, other];
-  useWorkflowStore.getState().replaceFile(file);
-  useWorkflowStore.getState().moveNodeCondition(start.id, 0, start.id, 1);
-  expect(
-    useWorkflowStore
-      .getState()
-      .file.graph.nodes.find((node) => node.id === start.id)
-      ?.conditions.map((item) => item.id),
-  ).toEqual(["second", "project-id-required"]);
-  useWorkflowStore.getState().moveNodeCondition(start.id, 1, other.id, 0);
-  expect(
-    useWorkflowStore
-      .getState()
-      .file.graph.nodes.find((node) => node.id === start.id)
-      ?.conditions.map((item) => item.id),
-  ).toEqual(["second", "project-id-required"]);
-  useWorkflowStore.getState().deleteNodeCondition(start.id, "project-id-required");
-  expect(
-    useWorkflowStore.getState().file.graph.nodes.find((node) => node.id === start.id)?.conditions,
-  ).toHaveLength(2);
-});

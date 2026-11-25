@@ -79,11 +79,10 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
     conditions: projectStart
       ? [
           {
-            id: "project-id-required",
+            id: "job-number-entered",
             label: "Job Number is entered",
             required: false,
             checked: false,
-            locked: true,
           },
         ]
       : type === "terminal"

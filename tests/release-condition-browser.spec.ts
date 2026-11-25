@@ -61,7 +61,6 @@ test("five-digit project display and release condition drag across stages", asyn
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
   await expect(page.locator('[data-id="project-start"]')).toContainText("27084 FDBR");
-  await expect(page.getByRole("textbox", { name: "Job Number (5 digits)" })).toHaveValue("27084");
   const source = page.locator('[data-id="stage-one"]');
   const target = page.locator('[data-id="stage-two"]');
   await expect(source.getByRole("textbox", { name: "Department" })).toHaveValue("Department");
@@ -195,5 +194,4 @@ test("Job Number condition can be dragged within the first Chapter", async ({ pa
   await expect(card.locator('[data-drop-target="true"]')).toHaveCount(1);
   await page.mouse.up();
   await expect(rows.nth(1)).toContainText("Job Number is entered");
-  await expect(card.getByRole("textbox", { name: "Job Number (5 digits)" })).toHaveValue("27084");
 });

@@ -80,6 +80,11 @@ export function buildProjectIdFromJobNumber(
   return buildProjectId(digits.slice(2), prefix, digits.slice(0, 2));
 }
 
+/** "Job Number is entered" is an ordinary release condition, ticked by hand. */
+export const JOB_NUMBER_CONDITION_ID = "job-number-entered";
+/** Its id while it was a built-in condition ticked from the Job Number field. */
+export const LEGACY_JOB_NUMBER_CONDITION_ID = "project-id-required";
+
 export function syncJobNumberCondition(
   conditions: DomainNode["conditions"],
   hasJobNumber: boolean,

@@ -46,7 +46,6 @@ export function GeneralNode({
   const deleteNodeCondition = useWorkflowStore((state) => state.deleteNodeCondition);
   const updateExecutionItem = useWorkflowStore((state) => state.updateExecutionItem);
   const commitTransient = useWorkflowStore((state) => state.commitTransient);
-  const recordSnapshot = useWorkflowStore((state) => state.recordSnapshot);
   const fileNodes = useWorkflowStore((state) => state.file.graph.nodes);
   const executionItems = useWorkflowStore((state) => state.file.execution?.items ?? []);
   const operations = useWorkflowStore((state) => state.file.operations);
@@ -55,15 +54,7 @@ export function GeneralNode({
     [fileNodes],
   );
 
-  const {
-    nodeUuid,
-    projectIdDraft,
-    setProjectIdDraft,
-    projectIdSnapshotRef,
-    projectIdValid,
-    projectIdError,
-    writeCustomFields,
-  } = useProjectIdDraft({
+  const { nodeUuid } = useProjectIdDraft({
     node,
     projectStartNode,
     commitTransient,
@@ -230,80 +221,6 @@ export function GeneralNode({
                 className="min-h-8 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-semibold leading-6 outline-none placeholder:text-muted-foreground"
               />
             </label>
-            {node.type === "projectStart" ? (
-              <div className="my-3 space-y-2">
-                <label className="block rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-3">
-                  <span className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-                    <span>Job Number</span>
-                    <span
-                      className={cn(
-                        "font-mono text-xs",
-                        projectIdValid ? "text-emerald-600" : "text-amber-600 dark:text-amber-400",
-                      )}
-                    >
-                      {projectIdValid ? "OK" : "Not set"}
-                    </span>
-                  </span>
-                  <input
-                    aria-label="Job Number (5 digits)"
-                    value={projectIdDraft}
-                    inputMode="numeric"
-                    maxLength={5}
-                    placeholder="27084"
-                    onFocus={(event) => {
-                      event.stopPropagation();
-                      projectIdSnapshotRef.current = structuredClone(
-                        useWorkflowStore.getState().file,
-                      );
-                    }}
-                    onChange={(event) => {
-                      event.stopPropagation();
-                      const digits = event.target.value.replace(/\D/g, "").slice(0, 5);
-                      setProjectIdDraft(digits);
-                      const prefix = String(node.customFields.projectId || "").startsWith("P-")
-                        ? "P"
-                        : "L";
-                      writeCustomFields({
-                        projectId:
-                          digits.length === 5
-                            ? `${prefix}-${digits.slice(0, 2)}-${digits.slice(2)}`
-                            : digits,
-                      });
-                    }}
-                    onBlur={(event) => {
-                      event.stopPropagation();
-                      const before = projectIdSnapshotRef.current;
-                      const prevNode = before?.graph.nodes.find((item) => item.id === node.id);
-                      const currentNode = useWorkflowStore
-                        .getState()
-                        .file.graph.nodes.find((item) => item.id === node.id);
-                      if (
-                        before &&
-                        prevNode &&
-                        String(prevNode.customFields.projectId || "") !==
-                          String(currentNode?.customFields.projectId || "")
-                      ) {
-                        recordSnapshot(before);
-                      }
-                      projectIdSnapshotRef.current = null;
-                    }}
-                    aria-describedby="job-number-hint"
-                    className="h-7 w-full border-0 bg-transparent p-0 font-mono text-sm font-bold leading-6 outline-none"
-                  />
-                  {!projectIdValid ? (
-                    <span
-                      id="job-number-hint"
-                      role="status"
-                      className="mt-1 block rounded border border-amber-500/50 bg-amber-100 px-2 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-                    >
-                      {projectIdError
-                        ? "Enter all 5 digits, or leave blank for now."
-                        : "Job Number not set. You can add it later."}
-                    </span>
-                  ) : null}
-                </label>
-              </div>
-            ) : null}
             <label className="block">
               <span className="sr-only">Node content</span>
               <textarea
