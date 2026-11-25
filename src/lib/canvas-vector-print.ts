@@ -418,7 +418,7 @@ function formsPanel(forms: PhaseForms[]) {
   panel.className = "vector-print-forms";
   panel.setAttribute("data-print-forms", "");
   const line = (kind: string, label: string, titles: string[]) => `
-    <div class="vpf-line" data-print-forms-group="${kind}"><b class="vpf-${kind}">${label} (${titles.length})</b> ${titles.length ? titles.map(escapeHtml).join('<span class="vpf-sep"> · </span>') : "<i>None</i>"}</div>`;
+    <div class="vpf-line" data-print-forms-group="${kind}"><b class="vpf-${kind}">${label} (${titles.length})</b> ${titles.length ? `<ul class="vpf-list">${titles.map((title) => `<li>${escapeHtml(title)}</li>`).join("")}</ul>` : "<i>None</i>"}</div>`;
   panel.innerHTML = `
     <div class="vpf-heading">Forms by phase</div>
     <div class="vpf-grid" style="grid-template-columns: repeat(${forms.length}, minmax(0, 1fr));">
@@ -444,7 +444,16 @@ function formsPanel(forms: PhaseForms[]) {
       .vpf-line { margin-top: .15em; overflow-wrap: anywhere; }
       .vpf-line b { font-weight: 800; }
       .vpf-line i { opacity: .8; }
-      .vpf-sep { opacity: .6; }
+      /* Under the flowchart the forms run on one line, separated by dots;
+         beside it, each form is its own list item. */
+      .vpf-list { display: inline; margin: 0; padding: 0; }
+      .vpf-list li { display: inline; }
+      .vpf-list li + li::before { content: " · "; opacity: .6; }
+      .vpf-side .vpf-line b { display: block; }
+      .vpf-side .vpf-list { display: block; margin: .1em 0 .25em; padding-left: 1.1em; }
+      .vpf-side .vpf-list li { display: list-item; list-style: disc outside; }
+      .vpf-side .vpf-list li + li::before { content: none; }
+      .vpf-side .vpf-list li::marker { color: color-mix(in srgb, var(--vpf-color) 70%, var(--foreground)); }
       .vpf-legal { color: color-mix(in srgb, #f59e0b 75%, var(--foreground)); }
       .vpf-customer { color: color-mix(in srgb, #0ea5e9 75%, var(--foreground)); }
       .vpf-supporting { color: var(--foreground); }
@@ -1413,6 +1422,7 @@ export function printCanvasVector(
       panel.style.width = `${panelWidth}px`;
       if (notesGrid)
         notesGrid.style.gridTemplateColumns = side ? "minmax(0, 1fr)" : notesColumns;
+      panel.classList.toggle("vpf-side", side);
       const room = side ? fullHeight : pageHeight * NOTES_MAX_SHARE;
       // Beside the flowchart the notes have the whole height: use the largest
       // text that still fits, so the column is filled instead of crowded at the top.
