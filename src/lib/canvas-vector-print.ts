@@ -736,7 +736,7 @@ const MIRRORED_SIDE: Record<Side, Side> = {
 };
 /** S-shaped print: most rows to try, the space between rows, and the straight end of each connector. */
 const SERPENTINE_MAX_ROWS = 6;
-const SERPENTINE_ROW_GAP = 64;
+const SERPENTINE_ROW_GAP = 100;
 const SERPENTINE_MIN_GAP = 84;
 const SERPENTINE_SIDE_MARGIN = 48;
 const SERPENTINE_TOP_MARGIN = 16;
@@ -771,7 +771,7 @@ type Serpentine = {
  */
 /** Room kept inside a tightened Phase frame: at the sides, and below its cards (for their UUID tags). */
 const FRAME_SIDE_PADDING = 32;
-const FRAME_BOTTOM_PADDING = 32;
+const FRAME_BOTTOM_PADDING = 48;
 
 /**
  * Phase frames on the canvas often hold their cards far apart, with empty
