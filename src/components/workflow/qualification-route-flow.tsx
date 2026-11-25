@@ -29,6 +29,9 @@ export function QualificationRouteFlow({
   onPickClient: (client: string) => void;
 }) {
   const layout = useMemo(() => routeFlowLayout(QUALIFICATION_CASES, { row: 26 }), []);
+  // A handed-over situation lights up the situation that carries it on too.
+  const handoff = QUALIFICATION_CASES.find((item) => item.id === currentId)?.handoff;
+  const lit = new Set([currentId, handoff].filter(Boolean));
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
   const keyPick = (action: () => void) => (event: React.KeyboardEvent) => {
@@ -64,7 +67,7 @@ export function QualificationRouteFlow({
         ))}
       </defs>
       {layout.rows.map((row) => {
-        const on = row.item.id === currentId;
+        const on = lit.has(row.item.id);
         const dim = Boolean(currentId) && !on;
         const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
         const stroke = on ? 2.2 : 1.2;
@@ -102,15 +105,17 @@ export function QualificationRouteFlow({
             >
               {row.item.situation}
             </text>
-            <line
-              x1={row.lead[0].x}
-              y1={row.y}
-              x2={row.lead[1].x}
-              y2={row.y}
-              stroke={color}
-              strokeWidth={stroke}
-              markerEnd={marker}
-            />
+            {row.lead && (
+              <line
+                x1={row.lead[0].x}
+                y1={row.y}
+                x2={row.lead[1].x}
+                y2={row.y}
+                stroke={color}
+                strokeWidth={stroke}
+                markerEnd={marker}
+              />
+            )}
             {row.links.map(([from, to]) => (
               <line
                 key={from.x}
@@ -154,8 +159,27 @@ export function QualificationRouteFlow({
           </g>
         );
       })}
+      {/* Hand-over lines sit outside the rows so each row stays its own click target. */}
+      {layout.rows.map((row) => {
+        if (!row.handoff) return null;
+        const on = lit.has(row.item.id);
+        return (
+          <path
+            key={`handoff-${row.item.id}`}
+            data-qualification-route-handoff={row.item.id}
+            pointerEvents="none"
+            d={roundedPath(row.handoff, 5)}
+            fill="none"
+            stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+            strokeWidth={on ? 2.2 : 1.2}
+            strokeDasharray={on ? undefined : "3 2"}
+            markerEnd={`url(#${on ? markerOn : markerOff})`}
+            className={currentId && !on ? "opacity-55" : undefined}
+          />
+        );
+      })}
       {layout.clients.map((item) => {
-        const on = item.client === client;
+        const on = item.client === client || item.ids.some((caseId) => lit.has(caseId));
         const pick = () => onPickClient(item.client);
         return (
           <g

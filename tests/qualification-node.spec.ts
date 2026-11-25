@@ -41,7 +41,7 @@ test("client type, customer level and plans decide the route after Qualification
   // An Owner with plans is handed to their GC, who contacts ProFab, then PCS.
   expect(
     routeOf({ clientCategory: "Owner", customerTier: "regular", plansAvailable: "yes" }),
-  ).toEqual(["PCS", ["Owner's GC", "PCS"]]);
+  ).toEqual(["PCS", ["GC", "PCS"]]);
   // Until enough is chosen there is no route, even with an older saved path.
   expect(qualificationRoute({ clientCategory: "GC", commercialPath: "LOI" })).toBeUndefined();
   expect(qualificationRoute({ clientCategory: "Owner", customerTier: "regular" })).toBeUndefined();
@@ -151,8 +151,16 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(route).toHaveText("Route: GC → PCS");
   // Owner with plans goes to their GC, then PCS — drawn as its own branch.
   await flow.getByRole("button", { name: "Owner · Regular · has plans" }).click();
-  await expect(route).toHaveText("Route: Owner → Owner's GC → PCS");
-  await expect(chosen.locator('[data-qualification-flow-box="Owner\'s GC"]')).toHaveCount(1);
+  await expect(route).toHaveText("Route: Owner → GC → PCS");
+  // There is only one GC: the Owner's branch hands over to it and its "has plans" branch carries on.
+  await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
+  await expect(flow).not.toContainText("Owner's GC");
+  await expect(chosen).toHaveCount(2);
+  await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
+  await expect(flow.locator('[data-qualification-route-case="gc-plans"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
   // VIP goes through LOI.
   await flow.getByRole("button", { name: "Owner · VIP" }).click();
   await expect(route).toHaveText("Route: Owner → LOI");

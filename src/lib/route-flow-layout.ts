@@ -10,7 +10,9 @@ export type RouteFlowRow = {
   branch: Point[];
   labelX: number;
   /** Arrow from the end of the label to the first step. */
-  lead: [Point, Point];
+  lead?: [Point, Point];
+  /** For a handed-over situation: the arrow from its label to the client box that carries on. */
+  handoff?: Point[];
   steps: RouteFlowStep[];
   /** Arrows between consecutive steps. */
   links: [Point, Point][];
@@ -40,7 +42,7 @@ export type RouteFlowLayout = {
  */
 export function routeFlowLayout(
   cases: QualificationCase[],
-  { row = 24, groupGap = 8, charWidth = 5.6, labelCharWidth = 5.4 } = {},
+  { row = 24, groupGap = 12, charWidth = 5.6, labelCharWidth = 5.4 } = {},
 ): RouteFlowLayout {
   const clientWidth = 56;
   const busX = clientWidth + 10;
@@ -66,7 +68,8 @@ export function routeFlowLayout(
       let x = stepsX;
       const steps: RouteFlowStep[] = [];
       const links: [Point, Point][] = [];
-      item.steps.forEach((text, stepIndex) => {
+      // A handed-over situation has no steps of its own: it points at the client that carries on.
+      (item.handoff ? [] : item.steps).forEach((text, stepIndex) => {
         if (stepIndex > 0)
           links.push([
             { x: x - gap + 1, y: rowY },
@@ -76,7 +79,7 @@ export function routeFlowLayout(
         steps.push({ text, x, width: stepWidth });
         x += stepWidth + gap;
       });
-      const end = x - gap;
+      const end = item.handoff ? labelEnd : x - gap;
       width = Math.max(width, end);
       rows.push({
         item,
@@ -88,16 +91,36 @@ export function routeFlowLayout(
           { x: labelX - 2, y: rowY },
         ],
         labelX,
-        lead: [
-          { x: labelEnd, y: rowY },
-          { x: stepsX - 2, y: rowY },
-        ],
+        lead: item.handoff
+          ? undefined
+          : [
+              { x: labelEnd, y: rowY },
+              { x: stepsX - 2, y: rowY },
+            ],
         steps,
         links,
         end,
       });
     });
     y = bottom + groupGap;
+  }
+  // Handed-over situations: right past every route, back along the gap under
+  // the receiving client's group, and up into that client's box.
+  const returnX = width + 14;
+  for (const row of rows) {
+    if (!row.item.handoff) continue;
+    const target = clients.find((client) => client.ids.includes(row.item.handoff!));
+    if (!target) continue;
+    const gapY = target.bottom + groupGap / 2;
+    const boxX = clientWidth / 2;
+    row.handoff = [
+      { x: row.end, y: row.y },
+      { x: returnX, y: row.y },
+      { x: returnX, y: gapY },
+      { x: boxX, y: gapY },
+      { x: boxX, y: target.bottom - 1 },
+    ];
+    width = Math.max(width, returnX + 2);
   }
   return {
     clients,

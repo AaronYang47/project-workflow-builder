@@ -55,9 +55,7 @@ test("the L2 PDF draws every customer route as a flowchart and marks the project
   );
   await page.goto("/");
   await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
-  await expect(page.locator("[data-qualification-route]")).toHaveText(
-    "Route: Owner → Owner's GC → PCS",
-  );
+  await expect(page.locator("[data-qualification-route]")).toHaveText("Route: Owner → GC → PCS");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
   await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length);
@@ -74,7 +72,8 @@ test("the L2 PDF draws every customer route as a flowchart and marks the project
       "owner-no-plans",
       "owner-plans",
     ],
-    current: ["Regular · has plansOwner's GCPCSThis project"],
+    // The Owner's branch hands over to the one GC box, whose "has plans" branch carries on to PCS.
+    current: ["Regular · has plansPCSThis project", "Regular · has plans"],
     onPage: true,
   });
 });

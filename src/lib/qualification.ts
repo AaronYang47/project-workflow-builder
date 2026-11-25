@@ -48,6 +48,8 @@ export type QualificationCase = {
   steps: string[];
   /** The CSA / PCS / LOI card the workflow continues into. */
   route: (typeof COMMERCIAL_PATHS)[number];
+  /** Handed over to another situation, which carries on from there. */
+  handoff?: string;
 };
 
 /** Every customer situation and the route it takes. */
@@ -74,8 +76,10 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
     id: "owner-plans",
     client: "Owner",
     situation: "Regular · has plans",
-    steps: ["Owner's GC", "PCS"],
+    // The Owner passes the project to their GC, who goes straight to PCS.
+    steps: ["GC", "PCS"],
     route: "PCS",
+    handoff: "gc-plans",
   },
 ];
 

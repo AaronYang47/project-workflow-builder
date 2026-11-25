@@ -415,14 +415,24 @@ function routesPanel(routes: PrintRoutes) {
   const line = (from: { x: number; y: number }, to: { x: number; y: number }, on: boolean) =>
     `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}" stroke-width="${on ? 2 : 1}" marker-end="url(#print-routes-arrow-${on ? "on" : "off"})"/>`;
   let width = layout.width;
+  // A handed-over situation lights up the situation that carries it on too;
+  // the "This project" tag sits where the route ends.
+  const handoff = routes.cases.find((item) => item.id === routes.currentId)?.handoff;
+  const lit = new Set([routes.currentId, handoff].filter(Boolean));
+  const finalId = handoff ?? routes.currentId;
   for (const row of layout.rows) {
-    const on = row.item.id === routes.currentId;
+    const on = lit.has(row.item.id);
     const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
     parts.push(
       `<g data-print-route="${escapeHtml(row.item.id)}"${on ? " data-print-route-current" : ""}>`,
       `<path d="${roundedPath(row.branch, 4)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"/>`,
       `<text x="${row.labelX}" y="${row.y}" dominant-baseline="central" font-size="9" fill="${on ? ROUTE_FLOW_ON : "currentColor"}" font-weight="${on ? 800 : 500}">${escapeHtml(row.item.situation)}</text>`,
-      line(row.lead[0], row.lead[1], on),
+      ...(row.lead ? [line(row.lead[0], row.lead[1], on)] : []),
+      ...(row.handoff
+        ? [
+            `<path d="${roundedPath(row.handoff, 5)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"${on ? "" : ' stroke-dasharray="3 2"'} marker-end="url(#print-routes-arrow-${on ? "on" : "off"})"/>`,
+          ]
+        : []),
       ...row.links.map(([from, to]) => line(from, to, on)),
     );
     for (const step of row.steps) {
@@ -432,7 +442,7 @@ function routesPanel(routes: PrintRoutes) {
         `<text x="${step.x + step.width / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="${palette.text}">${escapeHtml(step.text)}</text>`,
       );
     }
-    if (on) {
+    if (row.item.id === finalId) {
       const tagWidth = 72;
       parts.push(
         `<rect x="${row.end + 8}" y="${row.y - 7}" width="${tagWidth}" height="14" rx="7" fill="${ROUTE_FLOW_ON}"/>`,
@@ -443,7 +453,7 @@ function routesPanel(routes: PrintRoutes) {
     parts.push("</g>");
   }
   for (const client of layout.clients) {
-    const on = client.ids.includes(routes.currentId ?? "");
+    const on = client.ids.some((id) => lit.has(id));
     parts.push(
       `<rect x="1" y="${client.top + 3}" width="${layout.clientWidth - 2}" height="${client.bottom - client.top - 6}" rx="4" fill="${on ? "#dcfce7" : "#f8fafc"}" stroke="${on ? ROUTE_FLOW_ON : "#64748b"}" stroke-width="${on ? 1.6 : 1}"/>`,
       `<text x="${layout.clientWidth / 2}" y="${client.mid}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="800" fill="${on ? "#14532d" : "#0f172a"}">${escapeHtml(client.client)}</text>`,
