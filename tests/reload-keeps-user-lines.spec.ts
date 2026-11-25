@@ -86,3 +86,21 @@ test("Estimation and Route Selection keep their Phase and Department on reload a
   expect(isReleaseConditionChapter(byId(group.id))).toBe(true);
   expect(isReleaseConditionChapter(byId(estimation.id))).toBe(true);
 });
+
+test("reloading keeps Route Selection and Estimation inside their Phase frame at their arranged size", () => {
+  const base = createE2EWorkflow();
+  const qualification = createDomainNode("qualification", "qualification-1");
+  base.graph.nodes.unshift(qualification);
+  base.layout.nodes[qualification.id] = { nodeId: qualification.id, x: 0, y: 100, width: 440, height: 460 };
+  const file = ensureEstimationWorkflow(base);
+  const group = file.graph.nodes.find((node) => node.config.commercialRouteGroup === true)!;
+  const estimation = file.graph.nodes.find((node) => node.type === "estimation")!;
+  const frame = createDomainNode("phase", "phase-frame-1");
+  file.graph.nodes.push(frame);
+  file.layout.nodes[frame.id] = { nodeId: frame.id, x: -100, y: 0, width: 3000, height: 1200 };
+  file.layout.nodes[group.id] = { ...file.layout.nodes[group.id], parentId: frame.id, height: 900 };
+  file.layout.nodes[estimation.id] = { ...file.layout.nodes[estimation.id], parentId: frame.id, height: 330 };
+  const reloaded = migrateWorkflowFile(structuredClone(file));
+  expect(reloaded.layout.nodes[group.id]).toMatchObject({ parentId: frame.id, height: 900 });
+  expect(reloaded.layout.nodes[estimation.id]).toMatchObject({ parentId: frame.id, height: 330 });
+});

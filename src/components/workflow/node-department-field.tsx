@@ -40,7 +40,7 @@ export function DepartmentHeaderBar({
       >
         <Icon className="size-4" />
       </span>
-      <label className="flex min-w-0 shrink items-center gap-2">
+      <label className="flex min-w-0 flex-1 items-center gap-2">
         <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
           Department
         </span>
@@ -50,7 +50,6 @@ export function DepartmentHeaderBar({
           aria-label={`${node.title || "Node"} department`}
           data-node-department
           defaultValue={chapterLabel(value)}
-          size={Math.max(7, chapterLabel(value).length)}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
@@ -61,7 +60,7 @@ export function DepartmentHeaderBar({
               config: { ...node.config, stage: department },
             });
           }}
-          className="nodrag h-8 w-auto min-w-[4.5rem] border-0 bg-transparent p-0 text-xs font-bold outline-none"
+          className="nodrag h-8 w-full min-w-[3rem] border-0 bg-transparent p-0 text-xs font-bold outline-none"
         />
       </label>
       {children ? <div className="ml-auto shrink-0">{children}</div> : null}

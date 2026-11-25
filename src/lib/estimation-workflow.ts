@@ -155,7 +155,11 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
           height: groupHeight,
           zIndex: 10,
         }
-      : { ...groupLayout, parentId: undefined, width: groupWidth, height: groupHeight };
+      : {
+          ...file.layout.nodes[groupId],
+          width: Math.max(file.layout.nodes[groupId].width, groupWidth),
+          height: Math.max(file.layout.nodes[groupId].height, groupHeight),
+        };
   const eLayout = file.layout.nodes[id];
   file.layout.nodes[id] =
     !eLayout || oldIds.size
@@ -169,9 +173,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
         }
       : {
           ...eLayout,
-          parentId: undefined,
-          width: eSize.width,
-          height: eSize.height,
+          width: Math.max(eLayout.width, eSize.width),
+          height: Math.max(eLayout.height, eSize.height),
         };
 
   // Route Selection and Estimation were just added after Qualification: move

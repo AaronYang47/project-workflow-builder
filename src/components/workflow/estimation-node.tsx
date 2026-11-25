@@ -232,15 +232,16 @@ export function EstimationNode({
           icon={Calculator}
           color={reached ? node.color || "#0f766e" : "#64748b"}
           className="-mx-4 -mt-4 mb-3 rounded-t-[10px]"
-        >
+        />
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold">{node.title || "Estimation"}</div>
           <span
             data-estimation-status
             className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
           >
             {ready ? "Reviewed" : reached ? "Draft" : "Waiting for agreement"}
           </span>
-        </DepartmentHeaderBar>
-        <div className="text-sm font-semibold">{node.title || "Estimation"}</div>
+        </div>
         <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
         {node.description ? (
           <p data-node-description className="mt-1 text-xs leading-relaxed text-muted-foreground">
