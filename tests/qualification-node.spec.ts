@@ -36,15 +36,18 @@ async function answerParty(page: Page, label: string, value: string, impact?: Re
   await dismissRouteImpact(page, impact);
 }
 
-async function openSalesQuestion(page: Page, question: string) {
-  const button = page.getByRole("button", { name: question, exact: true });
-  if (!(await button.isVisible()))
-    await page.getByRole("button", { name: /^A\. Sales Intake/ }).click();
-  await button.click();
+async function openQuestionGroup(
+  page: Page,
+  group: "Written answers" | "Single choice" | "Yes / No",
+) {
+  await page
+    .getByRole("navigation", { name: "Question groups" })
+    .getByRole("button", { name: group, exact: true })
+    .click();
 }
 
 async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) {
-  await openSalesQuestion(page, "Q12");
+  await openQuestionGroup(page, "Yes / No");
   await page
     .getByRole("group", { name: "Latest architectural drawing set available" })
     .getByRole("button", { name: value.toLowerCase(), exact: true })
@@ -213,6 +216,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   const qualification = createDomainNode("qualification", "qualification-1");
   const intake = build83PercentForm101();
   intake.sectionA.parties = createEmptyQualificationForm101().sectionA.parties;
+  intake.sectionA.occupancyGroups = ["A", "C"];
   qualification.config.qualification = { form101: intake };
   file.graph.nodes.unshift(qualification);
   file.layout.nodes[qualification.id] = {
@@ -249,7 +253,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   };
   let form = await openForm();
   await expect(form.getByRole("button", { name: "Route", exact: true })).toHaveCount(0);
-  await openSalesQuestion(page, "Q3");
+  await openQuestionGroup(page, "Written answers");
   await answerParty(page, "Owner company", "Example Owner", /Owner: add a contact/);
   await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
   await answerParty(page, "Owner contact", "Owner rep");
@@ -265,6 +269,33 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(route).toHaveText("Route: Complete Form [1.01]");
 
   form = await openForm();
+  await expect(form.locator('[data-form101-wizard-step="choice"]')).toBeVisible();
+  await expect(
+    form.getByText("Multiple groups were saved. Select the one main occupancy group."),
+  ).toBeVisible();
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  const assembly = form.getByRole("radio", { name: /Group A/ });
+  const residential = form.getByRole("radio", { name: /Group C/ });
+  await assembly.check();
+  await residential.check();
+  await expect(assembly).not.toBeChecked();
+  await expect(residential).toBeChecked();
+  await openQuestionGroup(page, "Yes / No");
+  const budgetStatus = form.getByRole("group", { name: "Project budget established" });
+  const budgetAmount = form.getByRole("textbox", { name: "Project budget amount (CAD)" });
+  await budgetStatus.getByRole("button", { name: "no", exact: true }).click();
+  await expect(budgetAmount).toHaveCount(0);
+  await budgetStatus.getByRole("button", { name: "yes", exact: true }).click();
+  await expect(budgetAmount).toHaveValue("");
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await budgetAmount.fill("0");
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await budgetAmount.fill("1,250,000.00");
+  await expect(form.getByRole("group", { name: "CSA or PCS deposit received" })).toBeVisible();
+  await expect(form.getByRole("group", { name: "Permit available" })).toBeVisible();
+  await expect(form.locator("#q101-q10")).toHaveCount(0);
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+
   await answerDrawings(page, "No", /starts with CSA for consultation/);
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: GC → CSA → PCS");
@@ -276,7 +307,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(route).toHaveText("Route: GC → PCS");
 
   form = await openForm();
-  await openSalesQuestion(page, "Q3");
+  await openQuestionGroup(page, "Written answers");
   await answerParty(page, "General Contractor company", "", /add a company/);
   await answerParty(page, "General Contractor contact", "", /hands the project over/);
   await form.getByRole("button", { name: "Save Form" }).click();
@@ -286,7 +317,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
 
   form = await openForm();
-  await openSalesQuestion(page, "Q3");
+  await openQuestionGroup(page, "Written answers");
   await answerParty(page, "General Contractor company", "Example GC");
   await answerParty(page, "General Contractor contact", "GC rep");
   await answerParty(page, "Our client (PROFAB) company", "Internal");
@@ -317,12 +348,20 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
           clientContact:
             qualification?.config.qualification.form101.sectionA.parties.client.contact,
           commercialPath: qualification?.config.qualification.commercialPath,
+          occupancyGroups: qualification?.config.qualification.form101.sectionA.occupancyGroups,
+          projectBudgetCad: qualification?.config.qualification.form101.sectionA.projectBudgetCad,
           linked:
             linked(qualification, group) && linked(group, estimation) && linked(estimation, start),
         };
       }, WORKFLOW_STORAGE_KEY),
     )
-    .toEqual({ clientContact: "Alex", commercialPath: "LOI", linked: true });
+    .toEqual({
+      clientContact: "Alex",
+      commercialPath: "LOI",
+      occupancyGroups: ["C"],
+      projectBudgetCad: "1,250,000.00",
+      linked: true,
+    });
 });
 
 test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () => {
@@ -364,7 +403,7 @@ test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () 
     };
   }
   form.sectionA.budgetEstablished = "yes";
-  form.sectionA.permitStatus = "Submitted for review";
+  form.sectionA.projectBudgetCad = "1,000,000";
   for (const field of TARGET_DATE_FIELDS) {
     form.sectionA.targetDates[field.key] = "2026.12.15";
   }
@@ -372,7 +411,7 @@ test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () 
     form.sectionA.documents[doc.key] = { available: "no", locationOrDate: "" };
   }
   form.sectionA.documents.archDrawings.available = "yes";
-  // Choosing "yes" without locationOrDate gives partial (1/2) credit for that document.
+  // The permit availability answer earns its point without a file location.
   form.sectionA.documents.permit = { available: "yes", locationOrDate: "" };
 
   for (const discipline of DISCIPLINE_DEFINITIONS) {
@@ -468,27 +507,28 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
 
   await node.getByRole("button", { name: "Open Form [1.01]" }).click();
   const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
-  await expect(dialog.locator('[data-form101-wizard-step="q1"]')).toBeVisible();
+  await expect(dialog.locator('[data-form101-wizard-step="written"]')).toBeVisible();
   await dialog.locator("[data-form101-grade]").hover();
   await expect(dialog.getByRole("tooltip")).toContainText("Initial intake");
   await dialog.getByText("How scores are interpreted").click();
   await expect(dialog.getByText("A · 76–84 points · Ready for drafter review")).toBeVisible();
   await dialog.getByText("How scores are interpreted").click();
 
-  await expect(dialog.getByRole("button", { name: "Q3", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Single choice", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: /^B\. Disciplines/ })).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Technical intake", exact: true }),
+  ).toBeDisabled();
   await dialog.getByRole("tab", { name: "All", exact: true }).click();
   await expect(dialog.getByRole("textbox", { name: "Full project address" })).toBeDisabled();
   await dialog.getByRole("tab", { name: "Step-by-step" }).click();
 
   await dialog.getByRole("textbox", { name: "Form revision" }).fill("2");
   await dialog.getByRole("textbox", { name: "Project name" }).fill("Montréal Residence");
-  await dialog.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(dialog.locator('[data-form101-wizard-step="q2"]')).toBeVisible();
   await dialog.getByRole("textbox", { name: "Full project address" }).fill("100 Rue Principale");
-  await dialog.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(dialog.locator('[data-form101-wizard-step="q3"]')).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await expect(dialog.locator("#q101-q3")).toBeVisible();
+  await expect(dialog.locator("#q101-q5")).toHaveCount(0);
   await answerParty(page, "Our client (PROFAB) company", "ProFab");
   await answerParty(page, "Our client (PROFAB) contact", "Alex");
   await expect(dialog.getByText("Q9 Deposit exempt (LOI)")).toBeVisible();
@@ -542,8 +582,8 @@ function build83PercentForm101() {
     };
   }
   form.sectionA.budgetEstablished = "yes";
+  form.sectionA.projectBudgetCad = "1,000,000";
   form.sectionA.depositReceived = "no";
-  form.sectionA.permitStatus = "Submitted";
   for (const field of TARGET_DATE_FIELDS) {
     form.sectionA.targetDates[field.key] = "2026.12.15";
   }

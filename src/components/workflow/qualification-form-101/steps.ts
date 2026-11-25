@@ -3,11 +3,10 @@ import {
   DISCIPLINE_DEFINITIONS,
   PROJECT_DOCUMENT_DEFINITIONS,
   TARGET_DATE_FIELDS,
+  qualificationBudgetComplete,
   type DisciplineKey,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
-
-export type FormStepSection = "a" | "b" | "c";
 
 export type FormStepId =
   | "q1"
@@ -19,7 +18,6 @@ export type FormStepId =
   | "q7"
   | "q8"
   | "q9"
-  | "q10"
   | "q11"
   | "q12"
   | "q13"
@@ -27,147 +25,44 @@ export type FormStepId =
   | "b-special"
   | "c-rfis";
 
-export type FormStepMeta = {
-  id: FormStepId;
-  section: FormStepSection;
-  subsection: string;
-  shortLabel: string;
-  title: string;
-  anchorId: string;
-  disciplineKey?: DisciplineKey;
-};
-
-export const FORM_101_STEPS: FormStepMeta[] = [
+export const FORM_101_GROUPS = [
   {
-    id: "q1",
+    id: "written",
+    title: "Written answers",
     section: "a",
-    subsection: "Project information",
-    shortLabel: "Q1",
-    title: "Project name",
-    anchorId: "q101-q1",
+    questions: ["q1", "q2", "q3", "q4", "q6", "q7", "q11"],
   },
+  { id: "choice", title: "Single choice", section: "a", questions: ["q5"] },
+  { id: "yes-no", title: "Yes / No", section: "a", questions: ["q8", "q9", "q12"] },
+  { id: "drawings", title: "Drawing details", section: "a", questions: ["q13"] },
   {
-    id: "q2",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q2",
-    title: "Project address",
-    anchorId: "q101-q2",
-  },
-  {
-    id: "q3",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q3",
-    title: "Project parties",
-    anchorId: "q101-q3",
-  },
-  {
-    id: "q4",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q4",
-    title: "Main contact",
-    anchorId: "q101-q4",
-  },
-  {
-    id: "q5",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q5",
-    title: "Occupancy group",
-    anchorId: "q101-q5",
-  },
-  {
-    id: "q6",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q6",
-    title: "Gross building area",
-    anchorId: "q101-q6",
-  },
-  {
-    id: "q7",
-    section: "a",
-    subsection: "Project information",
-    shortLabel: "Q7",
-    title: "Consultants",
-    anchorId: "q101-q7",
-  },
-  {
-    id: "q8",
-    section: "a",
-    subsection: "Commercial status & schedule",
-    shortLabel: "Q8",
-    title: "Budget established",
-    anchorId: "q101-q8",
-  },
-  {
-    id: "q9",
-    section: "a",
-    subsection: "Commercial status & schedule",
-    shortLabel: "Q9",
-    title: "CSA / PCS deposit",
-    anchorId: "q101-q9",
-  },
-  {
-    id: "q10",
-    section: "a",
-    subsection: "Commercial status & schedule",
-    shortLabel: "Q10",
-    title: "Permit status",
-    anchorId: "q101-q10",
-  },
-  {
-    id: "q11",
-    section: "a",
-    subsection: "Commercial status & schedule",
-    shortLabel: "Q11",
-    title: "Target dates",
-    anchorId: "q101-q11",
-  },
-  {
-    id: "q12",
-    section: "a",
-    subsection: "Project documents",
-    shortLabel: "Q12",
-    title: "Available documents",
-    anchorId: "q101-q12",
-  },
-  {
-    id: "q13",
-    section: "a",
-    subsection: "Project documents",
-    shortLabel: "Q13",
-    title: "Latest drawings",
-    anchorId: "q101-q13",
-  },
-  ...DISCIPLINE_DEFINITIONS.map((discipline) => ({
-    id: `b-${discipline.key}` as FormStepId,
-    section: "b" as const,
-    subsection: "Customer intake by discipline",
-    shortLabel: `B${discipline.number}`,
-    title: discipline.sectionTitle,
-    anchorId: `q101-b-${discipline.key}`,
-    disciplineKey: discipline.key,
-  })),
-  {
-    id: "b-special",
+    id: "technical",
+    title: "Technical intake",
     section: "b",
-    subsection: "Customer intake by discipline",
-    shortLabel: "B8",
-    title: "8. Special products",
-    anchorId: "q101-b8",
+    questions: [...DISCIPLINE_DEFINITIONS.map((item) => `b-${item.key}` as const), "b-special"],
   },
-  {
-    id: "c-rfis",
-    section: "c",
-    subsection: "Technical intake summary",
-    shortLabel: "C",
-    title: "Open RFIs & next actions",
-    anchorId: "q101-section-c",
-  },
-];
+  { id: "rfis", title: "RFIs & next actions", section: "c", questions: ["c-rfis"] },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  title: string;
+  section: "a" | "b" | "c";
+  questions: readonly FormStepId[];
+}>;
+
+export type FormGroup = (typeof FORM_101_GROUPS)[number];
+export type FormGroupId = FormGroup["id"];
+
+export function form101GroupIndex(questionId: FormStepId) {
+  return FORM_101_GROUPS.findIndex((group) => group.questions.some((id) => id === questionId));
+}
+
+export function isForm101GroupComplete(
+  group: FormGroup,
+  form: QualificationForm101,
+  isLoi: boolean,
+) {
+  return group.questions.every((id) => isForm101StepComplete(id, form, isLoi));
+}
 
 export function isForm101StepComplete(
   stepId: FormStepId,
@@ -190,7 +85,7 @@ export function isForm101StepComplete(
         sectionA.mainContact.phone,
       ].every((v) => v.trim().length > 0);
     case "q5":
-      return sectionA.occupancyGroups.length > 0;
+      return sectionA.occupancyGroups.length === 1;
     case "q6":
       return Boolean(sectionA.grossAreaSqFt.trim());
     case "q7":
@@ -200,11 +95,9 @@ export function isForm101StepComplete(
           sectionA.consultants[d.key].contact.trim(),
       );
     case "q8":
-      return Boolean(sectionA.budgetEstablished);
+      return qualificationBudgetComplete(sectionA);
     case "q9":
       return isLoi || Boolean(sectionA.depositReceived);
-    case "q10":
-      return Boolean(sectionA.permitStatus.trim());
     case "q11":
       return TARGET_DATE_FIELDS.every((f) => sectionA.targetDates[f.key].trim().length > 0);
     case "q12":
@@ -241,31 +134,15 @@ export function isForm101StepComplete(
   }
 }
 
-export function findStepIndexForAnchor(anchorId: string, itemId?: string): number {
-  const exact = FORM_101_STEPS.findIndex((step) => step.anchorId === anchorId);
-  if (exact >= 0) return exact;
-  if (itemId) {
-    // Missing items for Section B disciplines may use anchorId "q101-section-b" and id "b-civil" etc.
-    const byId = FORM_101_STEPS.findIndex((step) => step.id === itemId);
-    if (byId >= 0) return byId;
-    const byPrefix = FORM_101_STEPS.findIndex((step) => itemId.startsWith(step.id));
-    if (byPrefix >= 0) return byPrefix;
-  }
-  if (anchorId === "q101-section-b") {
-    return FORM_101_STEPS.findIndex((step) => step.section === "b");
-  }
-  return 0;
-}
-
-export function firstUnfinishedStep(
+export function firstUnfinishedGroup(
   form: QualificationForm101,
   isLoi: boolean,
-  skipped: ReadonlySet<FormStepId>,
+  skipped: ReadonlySet<FormGroupId>,
 ) {
-  const index = FORM_101_STEPS.findIndex(
-    (step) =>
-      (step.section === "a" || !skipped.has(step.id)) &&
-      !isForm101StepComplete(step.id, form, isLoi),
+  const index = FORM_101_GROUPS.findIndex(
+    (group) =>
+      (group.section === "a" || !skipped.has(group.id)) &&
+      !isForm101GroupComplete(group, form, isLoi),
   );
-  return index >= 0 ? index : FORM_101_STEPS.length - 1;
+  return index >= 0 ? index : FORM_101_GROUPS.length - 1;
 }

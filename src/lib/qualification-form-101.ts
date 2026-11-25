@@ -323,7 +323,9 @@ export interface QualificationForm101 {
     grossAreaSqFt: string;
     consultants: Record<DisciplineKey, ConsultantEntry>;
     budgetEstablished?: "yes" | "no";
+    projectBudgetCad?: string;
     depositReceived?: "yes" | "no";
+    /** Legacy Q10 answer retained when opening older forms. */
     permitStatus: string;
     targetDates: Record<TargetDateKey, string>;
     documents: Record<ProjectDocumentKey, DocumentEntry>;
@@ -531,12 +533,14 @@ export function normalizeQualificationForm101(
         phone: str(rawA.mainContact?.phone),
       },
       occupancyGroups: Array.isArray(rawA.occupancyGroups)
-        ? rawA.occupancyGroups.filter((code): code is OccupancyGroupCode =>
-            validOccupancy.has(code),
-          )
+        ? [...new Set(rawA.occupancyGroups.filter((code) => validOccupancy.has(code)))]
         : [],
       grossAreaSqFt: str(rawA.grossAreaSqFt),
       budgetEstablished: yesNo(rawA.budgetEstablished),
+      projectBudgetCad:
+        rawA.budgetEstablished === "yes"
+          ? str(rawA.projectBudgetCad).trim() || undefined
+          : undefined,
       depositReceived: yesNo(rawA.depositReceived),
       permitStatus: str(rawA.permitStatus),
       latestDrawings: Array.isArray(rawA.latestDrawings)
@@ -630,6 +634,18 @@ export function compactQualificationForm101(form: QualificationForm101): Qualifi
 
 const filled = (value: string | undefined) => Boolean(value && value.trim().length > 0);
 
+export function qualificationBudgetComplete({
+  budgetEstablished,
+  projectBudgetCad,
+}: Pick<QualificationForm101["sectionA"], "budgetEstablished" | "projectBudgetCad">) {
+  if (budgetEstablished === "no") return true;
+  if (budgetEstablished !== "yes") return false;
+  const amount = projectBudgetCad?.trim() ?? "";
+  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(amount)) return false;
+  const value = Number(amount.replace(/,/g, ""));
+  return Number.isFinite(value) && value > 0;
+}
+
 /**
  * Paper Form [1.01] has 84 available points. The circled required portions
  * total 52 points; 52/84 is the 62% pass threshold. Optional portions may
@@ -710,7 +726,7 @@ export function evaluateQualificationForm101(
     });
   }
 
-  if (sectionA.occupancyGroups.length > 0) {
+  if (sectionA.occupancyGroups.length === 1) {
     a1 += 1;
     requiredScore += 1;
     aCompleted += 1;
@@ -719,7 +735,7 @@ export function evaluateQualificationForm101(
       id: "q5",
       section: "A1",
       anchorId: "q101-q5",
-      label: "Q5 Occupancy group",
+      label: "Q5 Select one main occupancy group",
     });
   }
 
@@ -758,9 +774,9 @@ export function evaluateQualificationForm101(
     });
   }
 
-  // --- Section A2 (9 pts) ---
+  // --- Section A2 (8 pts) ---
   let a2 = 0;
-  if (sectionA.budgetEstablished) {
+  if (qualificationBudgetComplete(sectionA)) {
     a2 += 2;
     requiredScore += 2;
     aCompleted += 1;
@@ -769,7 +785,10 @@ export function evaluateQualificationForm101(
       id: "q8",
       section: "A2",
       anchorId: "q101-q8",
-      label: "Q8 Project budget status (Yes / No)",
+      label:
+        sectionA.budgetEstablished === "yes"
+          ? "Q8 Enter the project budget amount (CAD)"
+          : "Q8 Project budget status (Yes / No)",
     });
   }
 
@@ -782,19 +801,6 @@ export function evaluateQualificationForm101(
       section: "A2",
       anchorId: "q101-q9",
       label: "Q9 CSA/PCS deposit status (Yes / No)",
-    });
-  }
-
-  if (filled(sectionA.permitStatus)) {
-    a2 += 1;
-    requiredScore += 1;
-    aCompleted += 1;
-  } else {
-    missingItems.push({
-      id: "q10",
-      section: "A2",
-      anchorId: "q101-q10",
-      label: "Q10 Permit status",
     });
   }
 
@@ -813,21 +819,13 @@ export function evaluateQualificationForm101(
     });
   }
 
-  // --- Section A3 (17 pts) ---
-  let a3DocsPts = 0;
-  let completeDocs = 0;
-  for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
-    const entry = sectionA.documents[doc.key];
-    if (entry.available === "no") {
-      completeDocs += 1;
-    } else if (entry.available === "yes" && filled(entry.locationOrDate)) {
-      completeDocs += 1;
-    } else if (entry.available === "yes") {
-      completeDocs += 1;
-    }
-  }
-  // Only the availability answer is scored; file location/email date is optional.
-  a3DocsPts = completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length ? 1 : 0;
+  // --- Section A3 (18 pts) ---
+  const completeDocs = PROJECT_DOCUMENT_DEFINITIONS.filter(
+    (doc) => sectionA.documents[doc.key].available,
+  ).length;
+  // The former Q10 point is earned by answering the permit row in Q12.
+  const permitPoint = sectionA.documents.permit.available ? 1 : 0;
+  const a3DocsPts = permitPoint + Number(completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length);
   requiredScore += a3DocsPts;
   if (completeDocs === PROJECT_DOCUMENT_DEFINITIONS.length) {
     aCompleted += 1;
@@ -919,6 +917,7 @@ export function evaluateQualificationForm101(
     Boolean(qualification.form101) &&
     (filled(form.revision) ||
       filled(sectionA.projectAddress) ||
+      Boolean(sectionA.budgetEstablished) ||
       Boolean(sectionA.depositReceived) ||
       completeDocs > 0 ||
       a1 > 0 ||
@@ -935,8 +934,8 @@ export function evaluateQualificationForm101(
     scoreStage,
     sections: [
       { id: "A1", label: "Project & Parties", score: a1, maxScore: 36 },
-      { id: "A2", label: "Commercial & Schedule", score: a2, maxScore: 9 },
-      { id: "A3", label: "Docs & Drawings", score: a3, maxScore: 17 },
+      { id: "A2", label: "Commercial & Schedule", score: a2, maxScore: 8 },
+      { id: "A3", label: "Docs & Drawings", score: a3, maxScore: 18 },
       { id: "B", label: "Technical Intake", score: b, maxScore: 18 },
       { id: "C", label: "RFIs", score: c, maxScore: 4 },
     ],

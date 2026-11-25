@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   AlertCircle,
@@ -42,17 +42,24 @@ import {
   SectionCIntake,
 } from "./qualification-form-101/sections";
 import {
-  FORM_101_STEPS,
-  firstUnfinishedStep,
-  findStepIndexForAnchor,
-  isForm101StepComplete,
+  FORM_101_GROUPS,
+  firstUnfinishedGroup,
+  form101GroupIndex,
+  isForm101GroupComplete,
+  type FormGroup,
+  type FormGroupId,
   type FormStepId,
-  type FormStepSection,
 } from "./qualification-form-101/steps";
 
 import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 
 type ViewMode = "wizard" | "all" | "annex";
+
+function newAnnexItemId() {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+}
 
 export function gradeToneClasses(grade: QualificationGrade) {
   if (grade === "A") {
@@ -85,8 +92,8 @@ function QualificationForm101DialogBody({
   const route = qualificationRoute(previewQualification);
   const isLoi = route === "LOI";
   const [viewMode, setViewMode] = useState<ViewMode>("wizard");
-  const [skippedSteps, setSkippedSteps] = useState<ReadonlySet<FormStepId>>(() => new Set());
-  const unlockedStep = firstUnfinishedStep(draft, isLoi, skippedSteps);
+  const [skippedSteps, setSkippedSteps] = useState<ReadonlySet<FormGroupId>>(() => new Set());
+  const unlockedStep = firstUnfinishedGroup(draft, isLoi, skippedSteps);
   const [requestedStep, setStepIndex] = useState(unlockedStep);
   const stepIndex = Math.min(requestedStep, unlockedStep);
   const [showMissing, setShowMissing] = useState(false);
@@ -94,18 +101,17 @@ function QualificationForm101DialogBody({
   const evaluation = evaluateQualificationForm101(previewQualification);
   const gate = evaluateQualificationGate(previewQualification);
 
-  const totalSteps = FORM_101_STEPS.length;
-  const currentStep = FORM_101_STEPS[stepIndex] ?? FORM_101_STEPS[0];
-  const sectionSteps = FORM_101_STEPS.filter((step) => step.section === currentStep.section);
-  const completedCount = FORM_101_STEPS.filter(
-    (step) => step.section !== "c" && isForm101StepComplete(step.id, draft, isLoi),
-  ).length;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const totalSteps = FORM_101_GROUPS.length;
+  const currentStep = FORM_101_GROUPS[stepIndex];
   const progressPct = Math.round(((stepIndex + 1) / totalSteps) * 100);
   const isLastStep = stepIndex === totalSteps - 1;
-  const currentStepDone = isForm101StepComplete(currentStep.id, draft, isLoi);
+  const currentStepDone = isForm101GroupComplete(currentStep, draft, isLoi);
   const nextBlocked = currentStep.section === "a" && !currentStepDone;
-  const stepIsUnlocked = (id: FormStepId) =>
-    FORM_101_STEPS.findIndex((step) => step.id === id) <= unlockedStep;
+  const stepIsUnlocked = (id: FormStepId) => {
+    const target = form101GroupIndex(id);
+    return target >= 0 && target <= unlockedStep;
+  };
 
   const handleSave = () => {
     const compacted = compactQualificationForm101(draft);
@@ -122,39 +128,37 @@ function QualificationForm101DialogBody({
     setDraft(createEmptyQualificationForm101());
     setSkippedSteps(new Set());
     setStepIndex(0);
+    scrollRef.current?.scrollTo({ top: 0 });
   };
 
-  const goPrev = () => setStepIndex(Math.max(0, stepIndex - 1));
+  const goToGroup = (index: number, anchorId?: string) => {
+    setStepIndex(index);
+    setViewMode("wizard");
+    requestAnimationFrame(() => {
+      const anchor = anchorId ? document.getElementById(anchorId) : null;
+      if (anchor) anchor.scrollIntoView({ block: "start" });
+      else scrollRef.current?.scrollTo({ top: 0 });
+    });
+  };
+
+  const goPrev = () => goToGroup(Math.max(0, stepIndex - 1));
   const goNext = () => {
     if (nextBlocked || isLastStep) return;
     if (!currentStepDone) setSkippedSteps((previous) => new Set([...previous, currentStep.id]));
-    setStepIndex(stepIndex + 1);
-  };
-
-  const jumpToSection = (section: FormStepSection) => {
-    const firstIncomplete = FORM_101_STEPS.findIndex(
-      (step) =>
-        step.section === section &&
-        !skippedSteps.has(step.id) &&
-        !isForm101StepComplete(step.id, draft, isLoi),
-    );
-    const firstInSection = FORM_101_STEPS.findIndex((step) => step.section === section);
-    setStepIndex(Math.min(unlockedStep, firstIncomplete >= 0 ? firstIncomplete : firstInSection));
-    setViewMode("wizard");
+    // Skipping the current optional group unlocks the following group in the same update.
+    goToGroup(stepIndex + 1);
   };
 
   const jumpToMissingItem = (anchorId: string, itemId: string) => {
-    setStepIndex(Math.min(unlockedStep, findStepIndexForAnchor(anchorId, itemId)));
-    setViewMode("wizard");
+    const target = form101GroupIndex(itemId as FormStepId);
+    if (target >= 0)
+      goToGroup(Math.min(unlockedStep, target), target <= unlockedStep ? anchorId : undefined);
     setShowMissing(false);
   };
 
   const insertDisciplineItem = (key: DisciplineKey, itemLabel: string) => {
     if (!stepIsUnlocked(`b-${key}`)) return;
-    const id =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
+    const id = newAnnexItemId();
     setDraft((prev) => ({
       ...prev,
       sectionB: {
@@ -168,17 +172,12 @@ function QualificationForm101DialogBody({
         },
       },
     }));
-    const targetIdx = FORM_101_STEPS.findIndex((step) => step.id === `b-${key}`);
-    if (targetIdx >= 0) setStepIndex(targetIdx);
-    setViewMode("wizard");
+    goToGroup(form101GroupIndex(`b-${key}`), `q101-b-${key}`);
   };
 
   const insertSpecialItem = (itemLabel: string) => {
     if (!stepIsUnlocked("b-special")) return;
-    const id =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
+    const id = newAnnexItemId();
     setDraft((prev) => ({
       ...prev,
       sectionB: {
@@ -192,16 +191,28 @@ function QualificationForm101DialogBody({
         },
       },
     }));
-    const targetIdx = FORM_101_STEPS.findIndex((step) => step.id === "b-special");
-    if (targetIdx >= 0) setStepIndex(targetIdx);
-    setViewMode("wizard");
+    goToGroup(form101GroupIndex("b-special"), "q101-b8");
   };
 
-  const sectionTabs: Array<{ id: FormStepSection; label: string }> = [
-    { id: "a", label: `A. Sales Intake (${evaluation.sectionACompletedCount}/13)` },
-    { id: "b", label: `B. Disciplines (${evaluation.sectionBCompletedCount}/8)` },
-    { id: "c", label: `C. RFIs (${evaluation.openRfiCount})` },
-  ];
+  const renderGroup = (group: FormGroup, editable: boolean) => (
+    <section key={group.id} className="space-y-3">
+      <h2 className="text-sm font-bold text-primary">{group.title}</h2>
+      {group.section === "a" ? (
+        <SectionAIntake
+          form={draft}
+          onChange={setDraft}
+          isLoi={isLoi}
+          workflowTitleHint={workflowTitleHint}
+          questions={group.questions}
+          onAdvance={editable ? goNext : undefined}
+        />
+      ) : group.section === "b" ? (
+        <SectionBIntake form={draft} onChange={setDraft} hideHeader />
+      ) : (
+        <SectionCIntake form={draft} onChange={setDraft} hideHeader />
+      )}
+    </section>
+  );
 
   return (
     <Dialog.Content
@@ -379,81 +390,50 @@ function QualificationForm101DialogBody({
           </div>
         ) : null}
 
-        {/* Step-by-step Navigation Bar */}
-        {viewMode === "wizard" ? (
-          <div className="space-y-2 pt-0.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1">
-                {sectionTabs.map((tab) => {
-                  const active = currentStep.section === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      disabled={
-                        FORM_101_STEPS.findIndex((step) => step.section === tab.id) > unlockedStep
-                      }
-                      onClick={() => jumpToSection(tab.id)}
-                      className={cn(
-                        "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
-                        active
-                          ? "border-primary/50 bg-primary/12 text-primary"
-                          : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-                Step {stepIndex + 1} / {totalSteps} · {completedCount}/21 done
-              </span>
-            </div>
-
-            {/* Smooth Progress Line */}
-            <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-200"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-
-            {/* Compact Step Pills for Active Section */}
-            <div className="flex flex-wrap gap-1" aria-label="Section questions">
-              {sectionSteps.map((step) => {
-                const idx = FORM_101_STEPS.findIndex((s) => s.id === step.id);
-                const active = idx === stepIndex;
-                const done = isForm101StepComplete(step.id, draft, isLoi);
+        {viewMode === "wizard" && (
+          <div className="space-y-2">
+            <nav className="flex flex-wrap items-center gap-1" aria-label="Question groups">
+              {FORM_101_GROUPS.map((group, index) => {
+                const active = index === stepIndex;
+                const done = isForm101GroupComplete(group, draft, isLoi);
                 return (
                   <button
-                    key={step.id}
+                    key={group.id}
                     type="button"
-                    title={step.title}
                     aria-current={active ? "step" : undefined}
-                    disabled={idx > unlockedStep}
-                    onClick={() => setStepIndex(Math.min(idx, unlockedStep))}
+                    disabled={index > unlockedStep}
+                    onClick={() => goToGroup(index)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-50",
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold disabled:opacity-50",
                       active
-                        ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                        : done
-                          ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted",
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground",
                     )}
                   >
-                    {done && !active ? <Check className="size-2.5" /> : null}
-                    <span>{step.shortLabel}</span>
+                    {done && !active && <Check className="size-2.5" aria-hidden="true" />}
+                    {group.title}
                   </button>
                 );
               })}
+              <span className="ml-auto text-[11px] text-muted-foreground">
+                Step {stepIndex + 1} / {totalSteps}
+              </span>
+            </nav>
+            <div className="h-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* Scrollable Body */}
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+      <div
+        ref={scrollRef}
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6"
+      >
         <details className="mb-3 rounded-lg border px-3 py-2 text-xs">
           <summary className="cursor-pointer font-semibold">How scores are interpreted</summary>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -468,49 +448,15 @@ function QualificationForm101DialogBody({
           </ul>
         </details>
         {viewMode === "wizard" ? (
-          <div data-form101-wizard-step={currentStep.id} className="mx-auto max-w-2xl space-y-3">
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span className="font-semibold uppercase tracking-wider text-primary">
-                {currentStep.subsection}
-              </span>
-              <span className="tabular-nums">
-                Question {stepIndex + 1} of {totalSteps}
-              </span>
-            </div>
-
-            {currentStep.section === "a" ? (
-              <SectionAIntake
-                form={draft}
-                onChange={setDraft}
-                isLoi={isLoi}
-                workflowTitleHint={workflowTitleHint}
-                onlyStep={currentStep.id}
-                onAdvance={goNext}
-              />
-            ) : currentStep.section === "b" ? (
-              <SectionBIntake
-                form={draft}
-                onChange={setDraft}
-                onlyStep={currentStep.id}
-                onAdvance={goNext}
-              />
-            ) : (
-              <SectionCIntake form={draft} onChange={setDraft} hideHeader />
-            )}
+          <div data-form101-wizard-step={currentStep.id} className="mx-auto max-w-2xl">
+            {renderGroup(currentStep, true)}
           </div>
         ) : viewMode === "all" ? (
           <fieldset disabled className="space-y-6">
             <legend className="text-xs text-muted-foreground">
               Review only. Use Step-by-step to fill in answers in order.
             </legend>
-            <SectionAIntake
-              form={draft}
-              onChange={setDraft}
-              isLoi={isLoi}
-              workflowTitleHint={workflowTitleHint}
-            />
-            <SectionBIntake form={draft} onChange={setDraft} />
-            <SectionCIntake form={draft} onChange={setDraft} />
+            {FORM_101_GROUPS.map((group) => renderGroup(group, false))}
           </fieldset>
         ) : (
           <AnnexReferenceTab
@@ -545,7 +491,7 @@ function QualificationForm101DialogBody({
               </Button>
               {nextBlocked && (
                 <span className="text-xs text-muted-foreground" role="status">
-                  Complete {currentStep.shortLabel} to continue.
+                  Complete the required answers in this group to continue.
                 </span>
               )}
               {!isLastStep ? (

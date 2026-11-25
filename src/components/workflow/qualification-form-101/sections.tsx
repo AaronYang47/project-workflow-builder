@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,9 @@ import {
   PROJECT_PARTY_ROLES,
   SUPPLY_SCOPE_OPTIONS,
   TARGET_DATE_FIELDS,
+  qualificationBudgetComplete,
   type DisciplineKey,
   type LatestDrawingEntry,
-  type OccupancyGroupCode,
   type QualificationForm101,
   type SpecialProductItem,
   type TechnicalRfiItem,
@@ -151,17 +151,18 @@ export function SectionAIntake({
   onChange,
   isLoi,
   workflowTitleHint,
-  onlyStep,
+  questions,
   onAdvance,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
   isLoi: boolean;
   workflowTitleHint?: string;
-  onlyStep?: FormStepId;
+  questions: readonly FormStepId[];
   onAdvance?: () => void;
 }) {
   const { sectionA } = form;
+  const occupancyRadioName = useId();
   const [routeImpactOpen, setRouteImpactOpen] = useState(false);
   const routeQuestionRef = useRef<HTMLElement | null>(null);
   const initialPartyValue = useRef("");
@@ -180,7 +181,7 @@ export function SectionAIntake({
         showRouteImpact(event.currentTarget);
     },
   };
-  const show = (step: FormStepId) => !onlyStep || onlyStep === step;
+  const show = (step: FormStepId) => questions.includes(step);
   const handleEnterAdvance = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && onAdvance) {
       event.preventDefault();
@@ -195,18 +196,6 @@ export function SectionAIntake({
       ...prev,
       sectionA: updater(prev.sectionA),
     }));
-
-  const toggleOccupancy = (code: OccupancyGroupCode) => {
-    patchA((prevA) => {
-      const exists = prevA.occupancyGroups.includes(code);
-      return {
-        ...prevA,
-        occupancyGroups: exists
-          ? prevA.occupancyGroups.filter((item) => item !== code)
-          : [...prevA.occupancyGroups, code],
-      };
-    });
-  };
 
   const addDrawingRow = () => {
     const emptyRow: LatestDrawingEntry = {
@@ -265,18 +254,6 @@ export function SectionAIntake({
 
   return (
     <div className="space-y-4">
-      {!onlyStep ? (
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-            A. Sales Intake
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
-            Project identification, stakeholders, commercial readiness, target dates, and available
-            documentation.
-          </p>
-        </div>
-      ) : null}
-
       <Dialog.Root open={routeImpactOpen} onOpenChange={setRouteImpactOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[80] bg-black/50" />
@@ -315,16 +292,10 @@ export function SectionAIntake({
       </Dialog.Root>
 
       {/* Subsection: Project information (Q1-Q7) */}
-      {!onlyStep || ["q1", "q2", "q3", "q4", "q5", "q6", "q7"].includes(onlyStep) ? (
+      {(["q1", "q2", "q3", "q4", "q5", "q6", "q7"] as const).some(show) ? (
         <div className="space-y-3">
-          {!onlyStep ? (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Project information
-            </p>
-          ) : null}
-
           {show("q1") || show("q2") ? (
-            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-2")}>
+            <div className="grid gap-3 md:grid-cols-2">
               {show("q1") ? (
                 <QuestionCard
                   id="q101-q1"
@@ -335,7 +306,6 @@ export function SectionAIntake({
                   <div className="flex gap-2">
                     <input
                       aria-label="Project name"
-                      autoFocus={onlyStep === "q1"}
                       value={sectionA.projectName}
                       onChange={(e) => patchA((p) => ({ ...p, projectName: e.target.value }))}
                       onKeyDown={handleEnterAdvance}
@@ -366,7 +336,6 @@ export function SectionAIntake({
                 >
                   <input
                     aria-label="Full project address"
-                    autoFocus={onlyStep === "q2"}
                     value={sectionA.projectAddress}
                     onChange={(e) => patchA((p) => ({ ...p, projectAddress: e.target.value }))}
                     onKeyDown={handleEnterAdvance}
@@ -518,19 +487,25 @@ export function SectionAIntake({
           ) : null}
 
           {show("q5") || show("q6") ? (
-            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-3")}>
+            <div className="grid gap-3">
               {show("q5") ? (
-                <div className={cn(!onlyStep && "md:col-span-2")}>
+                <div>
                   <QuestionCard
                     id="q101-q5"
                     number="Q5"
                     title="What is the main occupancy group of the building?"
-                    hint="Select all that apply."
-                    complete={sectionA.occupancyGroups.length > 0}
+                    hint={
+                      sectionA.occupancyGroups.length > 1
+                        ? "Multiple groups were saved. Select the one main occupancy group."
+                        : "Select one main occupancy group."
+                    }
+                    complete={sectionA.occupancyGroups.length === 1}
                   >
                     <div className="grid gap-2 sm:grid-cols-2">
                       {OCCUPANCY_GROUPS.map((group) => {
-                        const checked = sectionA.occupancyGroups.includes(group.code);
+                        const checked =
+                          sectionA.occupancyGroups.length === 1 &&
+                          sectionA.occupancyGroups[0] === group.code;
                         return (
                           <label
                             key={group.code}
@@ -542,9 +517,15 @@ export function SectionAIntake({
                             )}
                           >
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name={occupancyRadioName}
                               checked={checked}
-                              onChange={() => toggleOccupancy(group.code)}
+                              onChange={() =>
+                                patchA((previous) => ({
+                                  ...previous,
+                                  occupancyGroups: [group.code],
+                                }))
+                              }
                               className="size-3.5 accent-primary"
                             />
                             <span>{group.label}</span>
@@ -567,7 +548,6 @@ export function SectionAIntake({
                   <div className="flex items-center gap-2">
                     <input
                       aria-label="Gross area sq ft"
-                      autoFocus={onlyStep === "q6"}
                       value={sectionA.grossAreaSqFt}
                       onChange={(e) => patchA((p) => ({ ...p, grossAreaSqFt: e.target.value }))}
                       onKeyDown={handleEnterAdvance}
@@ -644,30 +624,47 @@ export function SectionAIntake({
         </div>
       ) : null}
 
-      {/* Subsection: Commercial status and schedule (Q8-Q11) */}
-      {!onlyStep || ["q8", "q9", "q10", "q11"].includes(onlyStep) ? (
-        <div className={cn("space-y-3", !onlyStep && "pt-1")}>
-          {!onlyStep ? (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Commercial status and schedule
-            </p>
-          ) : null}
-
+      {/* Subsection: Commercial status and schedule (Q8, Q9, Q11) */}
+      {show("q8") || show("q9") || show("q11") ? (
+        <div className="space-y-3">
           {show("q8") || show("q9") ? (
-            <div className={cn("grid gap-3", !onlyStep && "md:grid-cols-2")}>
+            <div className="grid gap-3 md:grid-cols-2">
               {show("q8") ? (
                 <QuestionCard
                   id="q101-q8"
                   number="Q8"
                   title="Has a project budget been established?"
-                  hint="No amount required."
-                  complete={Boolean(sectionA.budgetEstablished)}
+                  hint="If yes, enter the total project budget in CAD."
+                  complete={qualificationBudgetComplete(sectionA)}
                 >
                   <YesNoToggle
                     label="Project budget established"
                     value={sectionA.budgetEstablished}
-                    onChange={(next) => patchA((p) => ({ ...p, budgetEstablished: next }))}
+                    onChange={(next) =>
+                      patchA((p) => ({
+                        ...p,
+                        budgetEstablished: next,
+                        projectBudgetCad: next === "yes" ? p.projectBudgetCad : undefined,
+                      }))
+                    }
                   />
+                  {sectionA.budgetEstablished === "yes" && (
+                    <label className="mt-2 block max-w-xs space-y-1 text-xs font-medium">
+                      <span>Project budget amount (CAD)</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        aria-required="true"
+                        className={inputCls}
+                        placeholder="e.g. 1,250,000.00"
+                        value={sectionA.projectBudgetCad ?? ""}
+                        onChange={(event) =>
+                          patchA((p) => ({ ...p, projectBudgetCad: event.target.value }))
+                        }
+                        onKeyDown={handleEnterAdvance}
+                      />
+                    </label>
+                  )}
                 </QuestionCard>
               ) : null}
 
@@ -694,26 +691,6 @@ export function SectionAIntake({
                 </QuestionCard>
               ) : null}
             </div>
-          ) : null}
-
-          {show("q10") ? (
-            <QuestionCard
-              id="q101-q10"
-              number="Q10"
-              title="What is the permit status, if one exists?"
-              hint="Also list the permit document in the table of Q12."
-              complete={Boolean(sectionA.permitStatus.trim())}
-            >
-              <textarea
-                aria-label="Permit status"
-                autoFocus={onlyStep === "q10"}
-                rows={onlyStep === "q10" ? 3 : 2}
-                value={sectionA.permitStatus}
-                onChange={(e) => patchA((p) => ({ ...p, permitStatus: e.target.value }))}
-                placeholder="e.g. Submitted to municipality on 2026.10.12, awaiting zoning review / Issued / Not applied yet"
-                className={inputCls}
-              />
-            </QuestionCard>
           ) : null}
 
           {show("q11") ? (
@@ -749,14 +726,8 @@ export function SectionAIntake({
       ) : null}
 
       {/* Subsection: Project documents (Q12-Q13) */}
-      {!onlyStep || ["q12", "q13"].includes(onlyStep) ? (
-        <div className={cn("space-y-3", !onlyStep && "pt-1")}>
-          {!onlyStep ? (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Project documents
-            </p>
-          ) : null}
-
+      {show("q12") || show("q13") ? (
+        <div className="space-y-3">
           {show("q12") ? (
             <QuestionCard
               id="q101-q12"
@@ -955,11 +926,13 @@ export function SectionAIntake({
 export function SectionBIntake({
   form,
   onChange,
+  hideHeader,
   onlyStep,
   onAdvance,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
+  hideHeader?: boolean;
   onlyStep?: FormStepId;
   onAdvance?: () => void;
 }) {
@@ -1006,9 +979,11 @@ export function SectionBIntake({
     <div id="q101-section-b" className="scroll-mt-4 space-y-4">
       {!onlyStep ? (
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-            B. Customer Intake by Discipline
-          </h3>
+          {!hideHeader && (
+            <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+              B. Customer Intake by Discipline
+            </h3>
+          )}
           <p className="text-[11px] text-muted-foreground">
             Special items or conditions discussed with the client, one concise line per item,
             including what the client is still considering. Use Annex quick-pick examples or mark a
