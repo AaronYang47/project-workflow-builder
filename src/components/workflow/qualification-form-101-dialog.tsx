@@ -25,6 +25,7 @@ import {
   FORM_101_MAX_SCORE,
   FORM_101_PASS_PERCENT,
   FORM_101_VERSION,
+  QUALIFICATION_SCORE_STAGES,
   compactQualificationForm101,
   createEmptyQualificationForm101,
   evaluateQualificationForm101,
@@ -47,6 +48,8 @@ import {
   isForm101StepComplete,
   type FormStepSection,
 } from "./qualification-form-101/steps";
+
+import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 
 type ViewMode = "wizard" | "all" | "annex";
 
@@ -74,14 +77,9 @@ function QualificationForm101DialogBody({
   onSave: (nextForm: QualificationForm101 | undefined) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<QualificationForm101>(() => {
-    const form = normalizeQualificationForm101(qualification.form101);
-    const { clientCategory, customerTier, plansAvailable } = qualification;
-    if (!form.sectionA.routeAnswers && clientCategory) {
-      form.sectionA.routeAnswers = { clientCategory, customerTier, plansAvailable };
-    }
-    return form;
-  });
+  const [draft, setDraft] = useState<QualificationForm101>(() =>
+    normalizeQualificationForm101(qualification.form101),
+  );
   const previewQualification: Qualification = { ...qualification, form101: draft };
   const route = qualificationRoute(previewQualification);
   const isLoi = route === "LOI";
@@ -113,9 +111,7 @@ function QualificationForm101DialogBody({
   };
 
   const handleReset = () => {
-    const empty = createEmptyQualificationForm101();
-    empty.sectionA.routeAnswers = {};
-    setDraft(empty);
+    setDraft(createEmptyQualificationForm101());
     setStepIndex(0);
   };
 
@@ -302,19 +298,20 @@ function QualificationForm101DialogBody({
           className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-background/80 px-3 py-2"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              data-form101-grade
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold tabular-nums",
+            <ScoreExplanation
+              score={evaluation}
+              className="max-w-full"
+              targetClassName={cn(
+                "inline-flex flex-wrap items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold tabular-nums",
                 gradeToneClasses(evaluation.grade),
               )}
             >
-              <span>
-                Score: {evaluation.totalScore}/{FORM_101_MAX_SCORE}
+              <span data-form101-grade>
+                {evaluation.totalScore}/{FORM_101_MAX_SCORE} ·{" "}
+                {Math.round((evaluation.totalScore / FORM_101_MAX_SCORE) * 100)}% · Grade{" "}
+                {evaluation.grade} · {evaluation.scoreStage.label}
               </span>
-              <span>·</span>
-              <span>Grade {evaluation.grade}</span>
-            </span>
+            </ScoreExplanation>
             <span
               data-form101-gate-badge
               className={cn(
@@ -350,7 +347,7 @@ function QualificationForm101DialogBody({
             </button>
           ) : (
             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-              100% complete
+              No missing items flagged
             </span>
           )}
         </div>
@@ -441,6 +438,19 @@ function QualificationForm101DialogBody({
 
       {/* Scrollable Body */}
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+        <details className="mb-3 rounded-lg border px-3 py-2 text-xs">
+          <summary className="cursor-pointer font-semibold">How scores are interpreted</summary>
+          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+            {QUALIFICATION_SCORE_STAGES.map((stage) => (
+              <li key={stage.grade} className="rounded-md bg-muted/50 p-2">
+                <p className="font-semibold">
+                  {stage.grade} · {stage.min}–{stage.max} points · {stage.label}
+                </p>
+                <p className="mt-1 text-muted-foreground">{stage.description}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
         {viewMode === "wizard" ? (
           <div data-form101-wizard-step={currentStep.id} className="mx-auto max-w-2xl space-y-3">
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">

@@ -11,6 +11,7 @@ import {
 import {
   QUALIFICATION_CASES,
   qualificationCase,
+  qualificationFormRouteAnswers,
   qualificationOf,
   qualificationRoute,
 } from "@/lib/qualification";
@@ -60,7 +61,9 @@ export function CommercialRouteGroupNode({
   );
   const qualification = qualificationNode ? qualificationOf(qualificationNode) : {};
   const route = qualificationNode ? qualificationRoute(qualification) : undefined;
-  const answers = qualification.form101?.sectionA?.routeAnswers ?? qualification;
+  const answers = qualification.form101
+    ? qualificationFormRouteAnswers(qualification.form101.sectionA)
+    : qualification;
   const customerCase = qualificationCase(answers);
 
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
@@ -235,7 +238,7 @@ export function CommercialRouteGroupNode({
       >
         {!agreements.length && (
           <p className="rounded-xl border border-dashed p-3 text-[11px] text-muted-foreground">
-            Complete the customer routing questions in Qualification to see the applicable
+            The project parties in Q3 and architectural drawing availability in Q12 determine the
             agreement.
           </p>
         )}

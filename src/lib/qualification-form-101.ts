@@ -1,9 +1,4 @@
-import {
-  CLIENT_CATEGORIES,
-  qualificationRoute,
-  type Qualification,
-  type QualificationRouteAnswers,
-} from "@/lib/qualification";
+import { qualificationRoute, type Qualification } from "@/lib/qualification";
 
 export const FORM_101_CODE = "1.01";
 export const FORM_101_VERSION = "261119";
@@ -316,7 +311,6 @@ export interface QualificationForm101 {
   sectionA: {
     projectName: string;
     projectAddress: string;
-    routeAnswers?: QualificationRouteAnswers;
     parties: Record<ProjectPartyRoleKey, PartyEntry>;
     mainContact: {
       name: string;
@@ -345,6 +339,48 @@ export interface QualificationForm101 {
 
 export type QualificationGrade = "A" | "B" | "C" | "D";
 
+const DRAFTER_REVIEW_SCORE = Math.ceil(FORM_101_MAX_SCORE * 0.9);
+
+export const QUALIFICATION_SCORE_STAGES = [
+  {
+    grade: "D",
+    min: 0,
+    max: 33,
+    label: "Initial intake",
+    description: "Start with the project details, parties, intended use and available documents.",
+  },
+  {
+    grade: "C",
+    min: 34,
+    max: FORM_101_PASS_SCORE - 1,
+    label: "Intake in progress",
+    description:
+      "Some information is in place. Fill the gaps to reach the Qualification threshold.",
+  },
+  {
+    grade: "B",
+    min: FORM_101_PASS_SCORE,
+    max: DRAFTER_REVIEW_SCORE - 1,
+    label: "Qualification score met",
+    description:
+      "The score is sufficient for Qualification once a route is determined. Gather the drawings and technical inputs for handoff.",
+  },
+  {
+    grade: "A",
+    min: DRAFTER_REVIEW_SCORE,
+    max: FORM_101_MAX_SCORE,
+    label: "Ready for drafter review",
+    description:
+      "At least 90% of the form score is earned. Confirm the current drawing version, dimensions and inputs needed for this drawing scope before releasing drafting work.",
+  },
+] as const;
+
+export function qualificationScoreStage(score: number) {
+  return (
+    QUALIFICATION_SCORE_STAGES.find((stage) => score <= stage.max) ?? QUALIFICATION_SCORE_STAGES[3]
+  );
+}
+
 export interface QualificationScoreSection {
   id: "A1" | "A2" | "A3" | "B" | "C";
   label: string;
@@ -364,7 +400,7 @@ export interface QualificationForm101Evaluation {
   requiredScore: number;
   optionalScore: number;
   grade: QualificationGrade;
-  gradeLabel: "Complete / Ready" | "Mostly Complete" | "Partial Intake" | "Incomplete";
+  scoreStage: (typeof QUALIFICATION_SCORE_STAGES)[number];
   sections: QualificationScoreSection[];
   missingItems: QualificationMissingItem[];
   q9DepositExempt: boolean;
@@ -485,16 +521,6 @@ export function normalizeQualificationForm101(
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     sectionA: {
       ...empty.sectionA,
-      routeAnswers: rawA.routeAnswers && {
-        clientCategory: CLIENT_CATEGORIES.find(
-          (value) => value === rawA.routeAnswers?.clientCategory,
-        ),
-        customerTier:
-          rawA.routeAnswers.customerTier === "vip" || rawA.routeAnswers.customerTier === "regular"
-            ? rawA.routeAnswers.customerTier
-            : undefined,
-        plansAvailable: yesNo(rawA.routeAnswers.plansAvailable),
-      },
       projectName: str(rawA.projectName),
       projectAddress: str(rawA.projectAddress),
       mainContact: {
@@ -602,15 +628,6 @@ export function compactQualificationForm101(form: QualificationForm101): Qualifi
 }
 
 const filled = (value: string | undefined) => Boolean(value && value.trim().length > 0);
-
-function gradeForScore(
-  score: number,
-): Pick<QualificationForm101Evaluation, "grade" | "gradeLabel"> {
-  if (score >= 72) return { grade: "A", gradeLabel: "Complete / Ready" };
-  if (score >= FORM_101_PASS_SCORE) return { grade: "B", gradeLabel: "Mostly Complete" };
-  if (score >= 34) return { grade: "C", gradeLabel: "Partial Intake" };
-  return { grade: "D", gradeLabel: "Incomplete" };
-}
 
 /**
  * Paper Form [1.01] has 84 available points. The circled required portions
@@ -849,7 +866,7 @@ export function evaluateQualificationForm101(
       section: "A3",
       anchorId: "q101-q13",
       label:
-        (form.sectionA.routeAnswers ?? qualification).plansAvailable === "no"
+        sectionA.documents.archDrawings.available === "no"
           ? "Q13 Latest drawings register (no drawings available yet)"
           : "Q13 Latest drawings register (name, rev, status, location)",
     });
@@ -899,12 +916,14 @@ export function evaluateQualificationForm101(
   const totalScore = Math.max(0, Math.min(FORM_101_MAX_SCORE, a1 + a2 + a3 + b + c));
   const requiredScoreFinal = Math.min(FORM_101_REQUIRED_MAX_SCORE, requiredScore, totalScore);
   const optionalScore = Math.max(0, totalScore - requiredScoreFinal);
-  const { grade, gradeLabel } = gradeForScore(totalScore);
+  const scoreStage = qualificationScoreStage(totalScore);
 
   const hasAnyInput =
     Boolean(qualification.form101) &&
-    (Boolean(sectionA.routeAnswers) ||
-      filled(form.revision) ||
+    (filled(form.revision) ||
+      filled(sectionA.projectAddress) ||
+      Boolean(sectionA.depositReceived) ||
+      completeDocs > 0 ||
       a1 > 0 ||
       a2 > 0 ||
       a3 > 0 ||
@@ -915,8 +934,8 @@ export function evaluateQualificationForm101(
     totalScore,
     requiredScore: requiredScoreFinal,
     optionalScore,
-    grade,
-    gradeLabel,
+    grade: scoreStage.grade,
+    scoreStage,
     sections: [
       { id: "A1", label: "Project & Parties", score: a1, maxScore: 36 },
       { id: "A2", label: "Commercial & Schedule", score: a2, maxScore: 9 },
@@ -979,7 +998,7 @@ export function evaluateQualificationGate(
       passed: false,
       state: "pending_route",
       statusLabel: "Choose route",
-      blockingReason: `Form [${FORM_101_CODE}] passed. Complete the customer routing questions in Form [1.01].`,
+      blockingReason: `Form [${FORM_101_CODE}] passed. Check the project parties in Q3 and the architectural drawing availability in Q12.`,
     };
   }
 

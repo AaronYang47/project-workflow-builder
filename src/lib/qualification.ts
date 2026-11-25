@@ -1,5 +1,5 @@
 import type { DomainNode } from "@/types/workflow";
-import type { QualificationForm101 } from "@/lib/qualification-form-101";
+import type { PartyEntry, QualificationForm101 } from "@/lib/qualification-form-101";
 
 export type TechReviewStatus = "pending" | "approved" | "rejected";
 
@@ -105,6 +105,22 @@ export function qualificationCase({
   return QUALIFICATION_CASES.find((item) => item.id === id);
 }
 
+const hasPartyInfo = (party?: PartyEntry) =>
+  Boolean(party?.company?.trim() || party?.contact?.trim());
+
+export function qualificationFormRouteAnswers(
+  section: QualificationForm101["sectionA"] | undefined,
+): QualificationRouteAnswers {
+  const parties = section?.parties;
+  const plansAvailable = section?.documents?.archDrawings?.available;
+  if (hasPartyInfo(parties?.client)) return { clientCategory: "ProFab", plansAvailable };
+  if (hasPartyInfo(parties?.gc))
+    return { clientCategory: "GC", customerTier: "regular", plansAvailable };
+  if (hasPartyInfo(parties?.owner))
+    return { clientCategory: "Owner", customerTier: "regular", plansAvailable };
+  return { plansAvailable };
+}
+
 export const QUALIFICATION_FIELDS = [
   { key: "clientType", label: "Client Type", options: CLIENT_TYPES },
   { key: "gcStatus", label: "GC Status", options: GC_STATUSES },
@@ -118,13 +134,13 @@ export function qualificationOf(node: DomainNode): Qualification {
 }
 
 /**
- * Form answers take precedence, including when someone clears an answer.
+ * Use the original form answers whenever the project has a form.
  * Older projects may still have a route saved outside the form.
  */
 export function qualificationRoute(qualification: Qualification) {
-  const answers = qualification.form101?.sectionA?.routeAnswers;
-  if (answers || qualification.clientCategory)
-    return qualificationCase(answers ?? qualification)?.route;
+  if (qualification.form101)
+    return qualificationCase(qualificationFormRouteAnswers(qualification.form101.sectionA))?.route;
+  if (qualification.clientCategory) return qualificationCase(qualification)?.route;
   if (qualification.customerHistory === "existing") {
     return qualification.commercialPath;
   }

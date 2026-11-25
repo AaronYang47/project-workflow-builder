@@ -4,11 +4,7 @@ import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { ClipboardCheck, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  qualificationOf,
-  qualificationRoute,
-  type Qualification,
-} from "@/lib/qualification";
+import { qualificationOf, qualificationRoute, type Qualification } from "@/lib/qualification";
 import {
   FORM_101_CODE,
   FORM_101_MAX_SCORE,
@@ -22,6 +18,7 @@ import {
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
+import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
@@ -42,7 +39,15 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
       config: { ...node.config, qualification: next },
     });
   };
-  const saveForm = (form101: QualificationForm101 | undefined) => update({ form101 });
+  const saveForm = (form101: QualificationForm101 | undefined) =>
+    update({
+      form101,
+      clientCategory: undefined,
+      customerTier: undefined,
+      customerHistory: undefined,
+      plansAvailable: undefined,
+      commercialPath: undefined,
+    });
 
   return (
     <div
@@ -66,16 +71,20 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           </p>
           <p className="truncate text-sm font-bold">{node.title || "Qualification"}</p>
         </div>
-        <span
-          data-qualification-score
-          className={cn(
+        <ScoreExplanation
+          score={score}
+          className="nodrag"
+          align="right"
+          targetClassName={cn(
             "rounded-full border px-2 py-1 text-[10px] font-bold tabular-nums",
             gradeToneClasses(score.grade),
           )}
         >
-          {score.totalScore}/{FORM_101_MAX_SCORE} ·{" "}
-          {Math.round((score.totalScore / FORM_101_MAX_SCORE) * 100)}%
-        </span>
+          <span data-qualification-score>
+            {score.totalScore}/{FORM_101_MAX_SCORE} ·{" "}
+            {Math.round((score.totalScore / FORM_101_MAX_SCORE) * 100)}%
+          </span>
+        </ScoreExplanation>
         <span
           data-qualification-gate-status
           className={cn(
@@ -109,9 +118,9 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             <span className="text-[10px] text-muted-foreground">v{FORM_101_VERSION}</span>
           </div>
           <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm font-bold tabular-nums">
-            <span>
+            <ScoreExplanation score={score} className="nodrag">
               {score.totalScore} / {FORM_101_MAX_SCORE} points
-            </span>
+            </ScoreExplanation>
             <span className={gate.scorePassed ? "text-emerald-700" : "text-rose-700"}>
               Pass: {FORM_101_PASS_SCORE} ({FORM_101_PASS_PERCENT}%)
             </span>
@@ -153,8 +162,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             ))}
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            Required questions are worth 52 points; optional questions add up to 32 points. The
-            complete form is worth 84 points.
+            Grade {score.grade} · {score.scoreStage.label}
           </p>
           <button
             type="button"

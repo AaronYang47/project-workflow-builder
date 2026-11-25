@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { FormStepId } from "./steps";
-import { CLIENT_CATEGORIES, type QualificationRouteAnswers } from "@/lib/qualification";
+import { qualificationCase, qualificationFormRouteAnswers } from "@/lib/qualification";
 import {
   ANNEX_1_CATEGORIES,
   ANNEX_2_BY_DISCIPLINE,
   DISCIPLINE_DEFINITIONS,
   DRAWING_ISSUE_STATUS_SUGGESTIONS,
+  FORM_101_MAX_SCORE,
+  FORM_101_PASS_SCORE,
   OCCUPANCY_GROUPS,
   PROJECT_DOCUMENT_DEFINITIONS,
   PROJECT_PARTY_ROLES,
@@ -88,7 +91,7 @@ function YesNoToggle({
   disabled,
 }: {
   value?: "yes" | "no";
-  onChange: (next?: "yes" | "no") => void;
+  onChange: (next: "yes" | "no" | undefined, button: HTMLButtonElement) => void;
   label: string;
   disabled?: boolean;
 }) {
@@ -102,7 +105,7 @@ function YesNoToggle({
             type="button"
             disabled={disabled}
             aria-pressed={active}
-            onClick={() => onChange(active ? undefined : option)}
+            onClick={(event) => onChange(active ? undefined : option, event.currentTarget)}
             className={cn(
               "rounded-md border px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors",
               active
@@ -117,6 +120,26 @@ function YesNoToggle({
       })}
     </div>
   );
+}
+
+function routeImpactReason(
+  clientCategory: ReturnType<typeof qualificationFormRouteAnswers>["clientCategory"],
+  customerCase: ReturnType<typeof qualificationCase>,
+) {
+  if (!clientCategory) return "Enter project party information in Q3 to determine the route.";
+  if (clientCategory === "ProFab")
+    return "The Our client (PROFAB) row in Q3 has information, so the project goes directly to LOI.";
+  const partyReason =
+    clientCategory === "GC"
+      ? "The General Contractor row in Q3 has information, so the GC route applies."
+      : "Only the Owner row in Q3 has information, so the Owner route applies.";
+  if (!customerCase)
+    return `${partyReason} In Q12, answer whether the latest architectural drawing set is available.`;
+  if (customerCase.route === "CSA")
+    return `${partyReason} Q12 indicates no drawings, so the project starts with CSA for consultation, then moves to PCS.`;
+  if (customerCase.handoff)
+    return `${partyReason} Q12 indicates drawings are available, so the Owner hands the project over to a General Contractor for PCS.`;
+  return `${partyReason} Q12 indicates drawings are available, so the GC proceeds directly to PCS.`;
 }
 
 export function SectionAIntake({
@@ -135,12 +158,24 @@ export function SectionAIntake({
   onAdvance?: () => void;
 }) {
   const { sectionA } = form;
-  const routeAnswers = sectionA.routeAnswers ?? {};
-  const patchRouteAnswers = (patch: QualificationRouteAnswers) =>
-    patchA((previous) => ({
-      ...previous,
-      routeAnswers: { ...previous.routeAnswers, ...patch },
-    }));
+  const [routeImpactOpen, setRouteImpactOpen] = useState(false);
+  const routeQuestionRef = useRef<HTMLElement | null>(null);
+  const initialPartyValue = useRef("");
+  const routeAnswers = qualificationFormRouteAnswers(sectionA);
+  const customerCase = qualificationCase(routeAnswers);
+  const showRouteImpact = (question: HTMLElement) => {
+    routeQuestionRef.current = question;
+    setRouteImpactOpen(true);
+  };
+  const partyInputEvents = {
+    onFocus: (event: React.FocusEvent<HTMLInputElement>) => {
+      initialPartyValue.current = event.currentTarget.value.trim();
+    },
+    onBlur: (event: React.FocusEvent<HTMLInputElement>) => {
+      if (event.currentTarget.value.trim() !== initialPartyValue.current)
+        showRouteImpact(event.currentTarget);
+    },
+  };
   const show = (step: FormStepId) => !onlyStep || onlyStep === step;
   const handleEnterAdvance = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && onAdvance) {
@@ -242,72 +277,42 @@ export function SectionAIntake({
         </div>
       ) : null}
 
-      {show("routing") && (
-        <fieldset id="q101-routing" className="grid gap-2 rounded-lg border p-3 sm:grid-cols-3">
-          <legend className="px-1 text-xs font-semibold">Customer routing · Unscored</legend>
-          <label className="grid gap-1 text-xs">
-            Who is the customer?
-            <select
-              className={inputCls}
-              value={routeAnswers.clientCategory ?? ""}
-              onChange={(event) => {
-                const clientCategory = CLIENT_CATEGORIES.find(
-                  (value) => value === event.target.value,
-                );
-                patchRouteAnswers({
-                  clientCategory,
-                  customerTier: undefined,
-                  plansAvailable: undefined,
-                });
-              }}
-            >
-              <option value="">Select customer</option>
-              <option value="ProFab">ProFab (internal project)</option>
-              <option value="GC">General Contractor (GC)</option>
-              <option value="Owner">Owner</option>
-            </select>
-          </label>
-          {(routeAnswers.clientCategory === "GC" || routeAnswers.clientCategory === "Owner") && (
-            <label className="grid gap-1 text-xs">
-              Customer status
-              <select
-                className={inputCls}
-                value={routeAnswers.customerTier ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  patchRouteAnswers({
-                    customerTier: value === "vip" || value === "regular" ? value : undefined,
-                    plansAvailable: undefined,
-                  });
-                }}
-              >
-                <option value="">Select status</option>
-                <option value="regular">Regular</option>
-                <option value="vip">VIP</option>
-              </select>
-            </label>
-          )}
-          {routeAnswers.customerTier === "regular" && (
-            <label className="grid gap-1 text-xs">
-              Are plans available?
-              <select
-                className={inputCls}
-                value={routeAnswers.plansAvailable ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  patchRouteAnswers({
-                    plansAvailable: value === "yes" || value === "no" ? value : undefined,
-                  });
-                }}
-              >
-                <option value="">Select availability</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </label>
-          )}
-        </fieldset>
-      )}
+      <Dialog.Root open={routeImpactOpen} onOpenChange={setRouteImpactOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[80] bg-black/50" />
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-[81] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 space-y-3 rounded-xl border bg-card p-5 text-card-foreground shadow-xl"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              routeQuestionRef.current?.focus();
+            }}
+          >
+            <Dialog.Title className="text-base font-bold">Route impact</Dialog.Title>
+            <p className="rounded-md bg-muted px-3 py-2 text-sm font-semibold">
+              {customerCase
+                ? [customerCase.client, ...customerCase.steps].join(" → ")
+                : "Route pending"}
+            </p>
+            <Dialog.Description className="text-sm text-muted-foreground">
+              {routeImpactReason(routeAnswers.clientCategory, customerCase)}
+            </Dialog.Description>
+            {customerCase?.route === "LOI" && (
+              <p className="text-sm">Q9 is exempt because LOI does not require a deposit.</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Save the form to apply the route. Qualification still needs {FORM_101_PASS_SCORE}/
+              {FORM_101_MAX_SCORE} points to proceed.
+            </p>
+            <div className="flex justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" size="sm">
+                  Continue
+                </Button>
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Subsection: Project information (Q1-Q7) */}
       {!onlyStep || ["q1", "q2", "q3", "q4", "q5", "q6", "q7"].includes(onlyStep) ? (
@@ -397,6 +402,7 @@ export function SectionAIntake({
                           <input
                             aria-label={`${role.label} company`}
                             value={sectionA.parties[role.key].company}
+                            {...partyInputEvents}
                             onChange={(e) =>
                               patchA((p) => ({
                                 ...p,
@@ -414,6 +420,7 @@ export function SectionAIntake({
                           <input
                             aria-label={`${role.label} contact`}
                             value={sectionA.parties[role.key].contact}
+                            {...partyInputEvents}
                             onChange={(e) =>
                               patchA((p) => ({
                                 ...p,
@@ -764,7 +771,7 @@ export function SectionAIntake({
                       variant="ghost"
                       size="sm"
                       className="h-7 text-[11px] text-muted-foreground"
-                      onClick={() =>
+                      onClick={(event) => {
                         patchA((p) => {
                           const nextDocs = { ...p.documents };
                           for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
@@ -773,8 +780,10 @@ export function SectionAIntake({
                             }
                           }
                           return { ...p, documents: nextDocs };
-                        })
-                      }
+                        });
+                        if (!sectionA.documents.archDrawings.available)
+                          showRouteImpact(event.currentTarget);
+                      }}
                     >
                       Mark unanswered as No
                     </Button>
@@ -801,15 +810,16 @@ export function SectionAIntake({
                               <YesNoToggle
                                 label={`${doc.label} available`}
                                 value={entry.available}
-                                onChange={(next) =>
+                                onChange={(next, button) => {
                                   patchA((p) => ({
                                     ...p,
                                     documents: {
                                       ...p.documents,
                                       [doc.key]: { ...p.documents[doc.key], available: next },
                                     },
-                                  }))
-                                }
+                                  }));
+                                  if (doc.key === "archDrawings") showRouteImpact(button);
+                                }}
                               />
                             </td>
                             <td className="py-1.5 pl-2">

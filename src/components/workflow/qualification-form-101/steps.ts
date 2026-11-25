@@ -1,4 +1,3 @@
-import { qualificationCase } from "@/lib/qualification";
 import {
   DISCIPLINE_DEFINITIONS,
   PROJECT_DOCUMENT_DEFINITIONS,
@@ -18,7 +17,6 @@ export type FormStepId =
   | "q5"
   | "q6"
   | "q7"
-  | "routing"
   | "q8"
   | "q9"
   | "q10"
@@ -95,14 +93,6 @@ export const FORM_101_STEPS: FormStepMeta[] = [
     shortLabel: "Q7",
     title: "Consultants",
     anchorId: "q101-q7",
-  },
-  {
-    id: "routing",
-    section: "a",
-    subsection: "Commercial status & schedule",
-    shortLabel: "Route",
-    title: "Customer routing",
-    anchorId: "q101-routing",
   },
   {
     id: "q8",
@@ -211,8 +201,6 @@ export function isForm101StepComplete(
           (sectionA.consultants[d.key].name.trim() || sectionA.consultants[d.key].company.trim()) &&
           sectionA.consultants[d.key].contact.trim(),
       );
-    case "routing":
-      return Boolean(qualificationCase(sectionA.routeAnswers ?? {}));
     case "q8":
       return Boolean(sectionA.budgetEstablished);
     case "q9":
