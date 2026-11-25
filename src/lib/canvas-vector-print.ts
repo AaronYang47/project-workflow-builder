@@ -15,6 +15,8 @@ const ROOT_ID = "vector-canvas-print";
 const PANEL_GAP_PX = 14;
 /** The notes under the flowchart may use at most this share of the sheet. */
 const NOTES_MAX_SHARE = 0.14;
+/** Widths (share of the page) tried for the forms notes beside the flowchart. */
+const SIDE_NOTES_SHARES = [0.12, 0.14, 0.16, 0.18, 0.2, 0.24];
 
 export type CanvasRect = { x: number; y: number; width: number; height: number };
 export type CanvasCard = CanvasRect & { id: string; parentId?: string };
@@ -1356,7 +1358,11 @@ export function printCanvasVector(
   if (titleBlock) root.appendChild(titleBlock);
   const panel = forms.length ? formsPanel(forms) : null;
   if (panel) root.appendChild(panel);
-  const areaFor = (portrait: boolean) => {
+  // The notes go under the flowchart or in a column beside it, whichever
+  // lets the flowchart print larger.
+  const notesGrid = panel?.querySelector<HTMLElement>(".vpf-grid") ?? null;
+  const notesColumns = notesGrid?.style.gridTemplateColumns ?? "";
+  const areaFor = (portrait: boolean, side = false, share = SIDE_NOTES_SHARES[0]) => {
     const pageWidth = portrait ? SHEET_SHORT_PX : SHEET_LONG_PX;
     const pageHeight = portrait ? SHEET_LONG_PX : SHEET_SHORT_PX;
     let headerHeight = 0;
@@ -1364,32 +1370,49 @@ export function printCanvasVector(
       titleBlock.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
       headerHeight = titleBlock.offsetHeight;
     }
+    const flowTop = PAGE_MARGIN_PX + (titleBlock ? headerHeight + PANEL_GAP_PX : 0);
+    const fullHeight = pageHeight - flowTop - PAGE_MARGIN_PX;
     let panelHeight = 0;
+    let panelWidth = 0;
     let fontSize = 0;
+    let fits = true;
     if (panel) {
-      panel.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
+      panelWidth = side
+        ? Math.round((pageWidth - PAGE_MARGIN_PX * 2) * share)
+        : pageWidth - PAGE_MARGIN_PX * 2;
+      panel.style.width = `${panelWidth}px`;
+      if (notesGrid)
+        notesGrid.style.gridTemplateColumns = side ? "minmax(0, 1fr)" : notesColumns;
+      const room = side ? fullHeight : pageHeight * NOTES_MAX_SHARE;
       for (fontSize = 8; fontSize > 6.5; fontSize -= 0.5) {
         panel.style.fontSize = `${fontSize}px`;
         panelHeight = panel.offsetHeight;
-        if (panelHeight <= pageHeight * NOTES_MAX_SHARE) break;
+        if (panelHeight <= room) break;
       }
+      fits = !side || panelHeight <= room;
     }
-    const flowTop = PAGE_MARGIN_PX + (titleBlock ? headerHeight + PANEL_GAP_PX : 0);
-    const flowHeight =
-      pageHeight - flowTop - PAGE_MARGIN_PX - (panel ? panelHeight + PANEL_GAP_PX : 0);
     return {
       portrait,
+      side,
+      share,
+      fits,
       pageWidth,
       pageHeight,
       panelHeight,
+      panelWidth,
       fontSize,
       flowTop,
-      flowWidth: pageWidth - PAGE_MARGIN_PX * 2,
-      flowHeight,
+      flowWidth:
+        pageWidth - PAGE_MARGIN_PX * 2 - (side && panel ? panelWidth + PANEL_GAP_PX * 2 : 0),
+      flowHeight:
+        side || !panel ? fullHeight : fullHeight - panelHeight - PANEL_GAP_PX,
     };
   };
   // 11 x 17 prints landscape (17 wide, 11 tall).
-  const areas = [areaFor(false)];
+  const areas = [
+    areaFor(false),
+    ...(panel ? SIDE_NOTES_SHARES.map((share) => areaFor(false, true, share)) : []),
+  ].filter((area) => area.fits);
   const placeOn = (box: CanvasRect) =>
     areas
       .map((area) => ({
@@ -1467,10 +1490,11 @@ export function printCanvasVector(
     }
   }
   const page = { ...placement.area, scale: placement.scale };
-  areaFor(page.portrait);
+  areaFor(page.portrait, page.side, page.share);
   const { portrait, pageWidth, pageHeight, scale } = page;
   root.dataset.cardWidthShare = String(chosen?.share ?? 1);
-  const offsetX = (pageWidth - bounds.width * scale) / 2 - bounds.x * scale;
+  const offsetX =
+    PAGE_MARGIN_PX + (page.flowWidth - bounds.width * scale) / 2 - bounds.x * scale;
   const offsetY = page.flowTop + (page.flowHeight - bounds.height * scale) / 2 - bounds.y * scale;
 
   root.removeAttribute("style");
@@ -1497,11 +1521,21 @@ export function printCanvasVector(
       top: `${PAGE_MARGIN_PX}px`,
     });
   if (panel) {
-    Object.assign(panel.style, {
-      position: "absolute",
-      left: `${PAGE_MARGIN_PX}px`,
-      top: `${pageHeight - PAGE_MARGIN_PX - page.panelHeight}px`,
-    });
+    Object.assign(
+      panel.style,
+      page.side
+        ? {
+            position: "absolute",
+            left: `${pageWidth - PAGE_MARGIN_PX - page.panelWidth}px`,
+            top: `${page.flowTop}px`,
+          }
+        : {
+            position: "absolute",
+            left: `${PAGE_MARGIN_PX}px`,
+            top: `${pageHeight - PAGE_MARGIN_PX - page.panelHeight}px`,
+          },
+    );
+    root.dataset.formsPlacement = page.side ? "side" : "bottom";
     root.dataset.formsFontSize = String(page.fontSize);
   }
 

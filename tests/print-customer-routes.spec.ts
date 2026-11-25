@@ -47,6 +47,23 @@ test("the L2 PDF shows the route chart in Route Selection only, without the rout
         const chartBox = chart.getBoundingClientRect();
         const scale = cardBox.height / card.offsetHeight || 1;
         (window as unknown as { printed: unknown[] }).printed.push({
+          // The forms notes (under or beside the flowchart) never cover a card.
+          notesClear: (() => {
+            const notes = root.querySelector<HTMLElement>("[data-print-forms]");
+            if (!notes) return true;
+            const box = notes.getBoundingClientRect();
+            return Array.from(root.querySelectorAll<HTMLElement>(".react-flow__node")).every(
+              (node) => {
+                const card = node.getBoundingClientRect();
+                return (
+                  card.right <= box.left ||
+                  card.left >= box.right ||
+                  card.bottom <= box.top ||
+                  card.top >= box.bottom
+                );
+              },
+            );
+          })(),
           routesPanel: root.querySelectorAll("[data-print-routes]").length,
           routeChart: root.querySelectorAll(
             "[data-route-selection-node] [data-qualification-route-flow]",
@@ -72,6 +89,7 @@ test("the L2 PDF shows the route chart in Route Selection only, without the rout
   // The sheet shows the route chart inside Route Selection only: no separate
   // routes chart under the flowchart, and no agreement form being filled in.
   expect(printed).toEqual({
+    notesClear: true,
     routesPanel: 0,
     routeChart: 1,
     agreementsGone: true,
