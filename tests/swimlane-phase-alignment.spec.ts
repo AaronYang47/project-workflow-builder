@@ -384,7 +384,6 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
     "PHASE 3",
     "PHASE 4",
     "PHASE 4",
-    "UNLINKED",
   ]);
   expect(result.phaseTagColorsMatch).toBe(true);
   expect(result.phaseInvolvement).toEqual([

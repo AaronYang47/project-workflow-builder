@@ -568,74 +568,7 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
       const { nodeUuid: _drop, ...restCustomFields } = node.customFields;
       return { ...node, customFields: restCustomFields };
     });
-  if (!nodes.some((node) => node.type === "projectStart")) {
-    nodes = [
-      {
-        id: "project-start",
-        type: "projectStart",
-        title: "Project Start",
-        description: "Enter the required Project ID before the workflow can continue.",
-        color: "#2563a9",
-        metadata: {},
-        conditions: [
-          {
-            id: JOB_NUMBER_CONDITION_ID,
-            label: "Job Number is entered",
-            required: false,
-            checked: false,
-          },
-        ],
-        documents: [],
-        criteria: [],
-        customFields: { projectId: "", legacyJobNumber: "", nodeUuid: crypto.randomUUID() },
-        config: {
-          stage: "Project",
-          iconKey: "building",
-          serviceType: "Standard",
-          buildingCode: "",
-          moduleCode: "",
-        },
-      },
-      ...nodes,
-    ];
-    const topLevelLayouts = Object.values(originalNodes).filter((layout) => !layout.parentId);
-    const leftMost = topLevelLayouts.length
-      ? Math.min(...topLevelLayouts.map((layout) => layout.x))
-      : 220;
-    const topMost = topLevelLayouts.length
-      ? Math.min(...topLevelLayouts.map((layout) => layout.y))
-      : 180;
-    originalNodes = {
-      ...originalNodes,
-      "project-start": {
-        nodeId: "project-start",
-        x: leftMost - 440,
-        y: topMost,
-        width: 320,
-        height: 384,
-      },
-    };
-    file.layout.nodes = originalNodes;
-    const incomingTargets = new Set(file.graph.edges.map((edge) => edge.target));
-    const firstNode = nodes.find(
-      (node) =>
-        node.id !== "project-start" && !incomingTargets.has(node.id) && node.type !== "phase",
-    );
-    if (firstNode) {
-      file.graph.edges.unshift({
-        id: "project-start-to-first",
-        source: "project-start",
-        target: firstNode.id,
-        sourceHandle: "out",
-        targetHandle: "in",
-        type: "normal",
-        label: "Project ID confirmed",
-        lineStyle: "solid",
-        arrowStyle: "closed",
-        customFields: {},
-      });
-    }
-  }
+
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const layouts: Record<string, NodeLayout> = {};
   for (const node of nodes) {

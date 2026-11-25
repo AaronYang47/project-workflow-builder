@@ -5,6 +5,7 @@ import { useWorkflowStore } from "../src/store/workflow-store";
 import { RELEASE_CONDITION_INBOX_ID } from "../src/lib/release-condition-inbox";
 import { createExecutionItem } from "../src/lib/execution";
 import { validateWorkflow } from "../src/lib/validation";
+import { migrateWorkflowFile } from "../src/lib/workflow-migration";
 
 test("moving a scheduled condition updates every predecessor reference and preserves L3 evidence", () => {
   const file = createProjectWorkflow("Move scheduled condition");
@@ -280,3 +281,15 @@ test("L1 links reject an L2 phase container", () => {
   ]);
 });
 
+
+test("Project Start can be deleted and is not added back on reload", () => {
+  const file = createProjectWorkflow("No start");
+  const start = createDomainNode("projectStart", "start");
+  const other = createDomainNode("general", "other");
+  file.graph.nodes = [start, other];
+  useWorkflowStore.getState().replaceFile(file);
+  useWorkflowStore.getState().deleteNodes([start.id]);
+  const after = useWorkflowStore.getState().file;
+  expect(after.graph.nodes.map((node) => node.id)).toEqual(["other"]);
+  expect(migrateWorkflowFile(after).graph.nodes.some((node) => node.type === "projectStart")).toBe(false);
+});

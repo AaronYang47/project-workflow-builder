@@ -16,7 +16,6 @@ import {
   insertNode,
   occupiedPhaseNotices,
   patchNode,
-  wouldRemoveLastProjectStart,
 } from "@/lib/workflow-graph";
 import { appendHistory } from "@/store/workflow-persist";
 import type { NodeLayout, WorkflowFile } from "@/types/workflow";
@@ -622,17 +621,6 @@ export function createGraphSlice(set: StoreSet, get: StoreGet): GraphSlice {
     deleteNodes: (ids) => {
       if (!ids.length) return;
       const currentFile = get().file;
-      const blockedStarts = wouldRemoveLastProjectStart(currentFile, ids);
-      if (blockedStarts.length) {
-        set({
-          deleteBlocked: {
-            title: "Unable to delete Project Start",
-            message: "Every project must begin with Project Start.",
-            items: blockedStarts.map((node) => node.title),
-          },
-        });
-        return;
-      }
       const occupiedPhases = occupiedPhaseNotices(currentFile, ids);
       if (occupiedPhases.length) {
         set({
