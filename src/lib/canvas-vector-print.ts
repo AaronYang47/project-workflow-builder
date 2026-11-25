@@ -442,12 +442,10 @@ function formsPanel(forms: PhaseForms[]) {
       .vpf-line { margin-top: .15em; overflow-wrap: anywhere; }
       .vpf-line b { font-weight: 800; }
       .vpf-line i { opacity: .8; }
-      /* Each form is its own list item, flowing into narrow columns so the
-         notes stay short under the flowchart. */
-      .vpf-line b { display: block; }
-      .vpf-list { display: block; margin: .05em 0 .2em; padding-left: 1.1em; columns: 11em; column-gap: 2.4em; }
-      .vpf-list li { display: list-item; list-style: disc outside; break-inside: avoid; }
-      .vpf-list li::marker { color: color-mix(in srgb, var(--vpf-color) 70%, var(--foreground)); }
+      /* The forms run on one line, separated by dots, to keep the notes short. */
+      .vpf-list { display: inline; margin: 0; padding: 0; }
+      .vpf-list li { display: inline; }
+      .vpf-list li + li::before { content: " · "; opacity: .6; }
       .vpf-legal { color: color-mix(in srgb, #f59e0b 75%, var(--foreground)); }
       .vpf-customer { color: color-mix(in srgb, #0ea5e9 75%, var(--foreground)); }
       .vpf-supporting { color: var(--foreground); }
