@@ -205,6 +205,7 @@ function QualificationForm101DialogBody({
           workflowTitleHint={workflowTitleHint}
           questions={group.questions}
           onAdvance={editable ? goNext : undefined}
+          onApplyRoute={editable ? handleSave : undefined}
         />
       ) : group.section === "b" ? (
         <SectionBIntake form={draft} onChange={setDraft} hideHeader />

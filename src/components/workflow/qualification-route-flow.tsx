@@ -21,8 +21,6 @@ export function QualificationRouteFlow({
   client,
   exitBus = false,
   scale = 1,
-  stepLimit,
-  exitEnabled = true,
   svgRef,
 }: {
   svgRef?: React.Ref<SVGSVGElement>;
@@ -30,8 +28,6 @@ export function QualificationRouteFlow({
   exitBus?: boolean;
   /** Pixels per layout unit; the chart keeps this size instead of stretching. */
   scale?: number;
-  stepLimit?: number;
-  exitEnabled?: boolean;
   id: string;
   currentId?: string;
   client?: string;
@@ -42,9 +38,7 @@ export function QualificationRouteFlow({
   // A handed-over situation lights up the situation that carries it on too.
   const handoff = QUALIFICATION_CASES.find((item) => item.id === currentId)?.handoff;
   const lit = new Set([currentId, handoff].filter(Boolean));
-  const finalRow = exitEnabled
-    ? layout.rows.find((row) => row.item.id === (handoff ?? currentId))
-    : undefined;
+  const finalRow = layout.rows.find((row) => row.exit && row.item.id === (handoff ?? currentId));
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
   return (
@@ -120,31 +114,22 @@ export function QualificationRouteFlow({
                 markerEnd={marker}
               />
             )}
-            {row.links.map(([from, to], index) => (
+            {row.links.map(([from, to]) => (
               <line
                 key={from.x}
                 x1={from.x}
                 y1={row.y}
                 x2={to.x}
                 y2={row.y}
-                stroke={
-                  on && (stepLimit === undefined || index + 1 < stepLimit)
-                    ? ROUTE_FLOW_ON
-                    : ROUTE_FLOW_OFF
-                }
+                stroke={color}
                 strokeWidth={stroke}
-                markerEnd={
-                  on && (stepLimit === undefined || index + 1 < stepLimit)
-                    ? marker
-                    : `url(#${markerOff})`
-                }
+                markerEnd={marker}
               />
             ))}
-            {row.steps.map((step, index) => {
-              const stepOn = on && (stepLimit === undefined || index < stepLimit);
+            {row.steps.map((step) => {
               const palette = ROUTE_STEP_COLORS[step.text] ?? ROUTE_STEP_DEFAULT;
               return (
-                <g key={step.x} data-qualification-flow-box={stepOn ? step.text : undefined}>
+                <g key={step.x} data-qualification-flow-box={on ? step.text : undefined}>
                   <rect
                     x={step.x}
                     y={row.y - layout.boxHeight / 2}
@@ -153,7 +138,7 @@ export function QualificationRouteFlow({
                     rx={3}
                     fill={palette.fill}
                     stroke={palette.stroke}
-                    strokeWidth={stepOn ? 1.8 : 1}
+                    strokeWidth={on ? 1.8 : 1}
                   />
                   <text
                     x={step.x + step.width / 2}
@@ -222,25 +207,28 @@ export function QualificationRouteFlow({
             })}
         </g>
       )}
-      {/* Hand-over lines sit outside the rows so each row stays its own click target. */}
-      {layout.rows.map((row) => {
-        if (!row.handoff) return null;
-        const on = lit.has(row.item.id);
-        return (
-          <path
-            key={`handoff-${row.item.id}`}
-            data-qualification-route-handoff={row.item.id}
-            pointerEvents="none"
-            d={roundedPath(row.handoff, 5)}
-            fill="none"
-            stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-            strokeWidth={on ? 2.2 : 1.2}
-            strokeDasharray={on ? undefined : "3 2"}
-            markerEnd={`url(#${on ? markerOn : markerOff})`}
-            className={currentId && !on ? "opacity-55" : undefined}
-          />
-        );
-      })}
+      {/* Hand-over lines sit outside the rows so each row stays its own click target.
+          They share one trunk into the box, so the lit one is drawn last. */}
+      {[...layout.rows]
+        .sort((left, right) => Number(lit.has(left.item.id)) - Number(lit.has(right.item.id)))
+        .map((row) => {
+          if (!row.handoff) return null;
+          const on = lit.has(row.item.id);
+          return (
+            <path
+              key={`handoff-${row.item.id}`}
+              data-qualification-route-handoff={row.item.id}
+              pointerEvents="none"
+              d={roundedPath(row.handoff, 5)}
+              fill="none"
+              stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+              strokeWidth={on ? 2.2 : 1.2}
+              strokeDasharray={on ? undefined : "3 2"}
+              markerEnd={`url(#${on ? markerOn : markerOff})`}
+              className={currentId && !on ? "opacity-55" : undefined}
+            />
+          );
+        })}
       {layout.clients.map((item) => {
         const on = item.client === client || item.ids.some((caseId) => lit.has(caseId));
         return (

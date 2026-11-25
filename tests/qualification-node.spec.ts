@@ -82,7 +82,7 @@ test("client type, customer level and plans decide the route after Qualification
   ]);
   expect(
     routeOf({ clientCategory: "Owner", customerTier: "regular", plansAvailable: "no" }),
-  ).toEqual(["CSA", ["CSA", "Owner", "PCS"]]);
+  ).toEqual(["CSA", ["CSA", "GC", "PCS"]]);
   // A regular GC with plans goes straight to PCS.
   expect(routeOf({ clientCategory: "GC", customerTier: "regular", plansAvailable: "yes" })).toEqual(
     ["PCS", ["PCS"]],
@@ -96,12 +96,12 @@ test("client type, customer level and plans decide the route after Qualification
   expect(qualificationRoute({ clientCategory: "Owner", customerTier: "regular" })).toBeUndefined();
   expect(QUALIFICATION_CASES.map((item) => item.id)).toEqual([
     "profab",
-    "gc-vip",
-    "gc-no-plans",
-    "gc-plans",
     "owner-vip",
     "owner-no-plans",
     "owner-plans",
+    "gc-vip",
+    "gc-no-plans",
+    "gc-plans",
   ]);
   // Older saved answers (new or existing customer) still read.
   // New customers: no plans → CSA, plans → PCS.
@@ -194,7 +194,7 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   // Every situation is on the flowchart, each with its own branch.
   await expect(flow.locator("[data-qualification-route-case]")).toHaveCount(7);
   // Each branch that ends in a step has a way out on the right of its last box.
-  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(6);
+  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(5);
   expect(
     await flow.locator("[data-qualification-route-case]").evaluateAll((rows) =>
       rows.flatMap((row) => {
@@ -206,7 +206,7 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
         return [Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5];
       }),
     ),
-  ).toEqual([true, true, true, true, true, true]);
+  ).toEqual([true, true, true, true, true]);
   await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
   await expect(flow.getByRole("button")).toHaveCount(0);
@@ -317,21 +317,38 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(chosen).toHaveCount(2);
   await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
 
-  form = await openForm();
-  await answerDrawings(page, "No", /returns to the Owner, then moves to PCS/);
-  await form.getByRole("button", { name: "Save Form" }).click();
-  await expect(route).toHaveText("Route: Owner → CSA → Owner → PCS");
   const pcs = routeNode.getByRole("spinbutton", { name: "PCS module count" });
   const estimate = page
     .locator("[data-estimation-node]")
     .getByRole("button", { name: "Estimate", exact: true });
-  await expect(pcs).toBeDisabled();
+  await pcs.fill("14");
+  await expect(estimate).toBeEnabled();
+
+  form = await openForm();
+  await openQuestionGroup(page, "Yes / No");
+  await form
+    .getByRole("group", { name: "Latest architectural drawing set available" })
+    .getByRole("button", { name: "no", exact: true })
+    .click();
+  const impact = page.getByRole("dialog", { name: "Route impact" });
+  await expect(impact).toContainText(/finds a General Contractor, who carries on with PCS/);
+  await impact.getByRole("button", { name: "Save & apply route" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(route).toHaveText("Route: Owner → CSA → GC → PCS");
+  // The Owner's row lights its CSA and hands over to the GC row that does PCS.
+  await expect(chosen).toHaveCount(2);
+  await expect(flow.locator('[data-qualification-route-handoff="owner-no-plans"]')).toBeVisible();
+  await expect(chosen.locator('[data-qualification-flow-box="CSA"]')).toHaveCount(1);
+  await expect(chosen.locator('[data-qualification-flow-box="PCS"]')).toHaveCount(1);
   await expect(estimate).toBeDisabled();
   await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");
-  await expect(pcs).toBeEnabled();
-  await expect(estimate).toBeDisabled();
-  await expect(chosen.locator('[data-qualification-flow-box="Owner"]')).toHaveCount(1);
-  await pcs.fill("14");
+  await expect(estimate).toBeEnabled();
+
+  form = await openForm();
+  await answerDrawings(page, "Yes", /hands the project over/);
+  await form.getByRole("button", { name: "Save Form" }).click();
+  await expect(route).toHaveText("Route: Owner → GC → PCS");
+  await expect(pcs).toHaveValue("14");
   await expect(estimate).toBeEnabled();
 
   form = await openForm();

@@ -288,7 +288,7 @@ function dashRouteSelectionLines(root: HTMLElement) {
     svg
       .querySelectorAll<SVGCircleElement>("circle")
       .forEach((dot) => dot.setAttribute("fill", PRINT_CONNECTOR_GREEN));
-    // An Owner with plans is handed to their GC: that line prints yellow,
+    // The Owner's hand-overs to their GC print yellow,
     // arrowhead included, so the hand-over stands out from the routes.
     const handoffs = svg.querySelectorAll<SVGPathElement>("[data-qualification-route-handoff]");
     if (!handoffs.length) return;

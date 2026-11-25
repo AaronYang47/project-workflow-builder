@@ -56,25 +56,19 @@ export type QualificationCase = {
   handoff?: string;
 };
 
-/** Every customer situation and the route it takes. */
+/** Every customer situation and the route it takes. The Owner sits above the
+ * GC so its hand-over lines run straight down into the GC box. */
 export const QUALIFICATION_CASES: QualificationCase[] = [
   { id: "profab", client: "ProFab", situation: "Our own company", steps: ["LOI"], route: "LOI" },
-  { id: "gc-vip", client: "GC", situation: "VIP", steps: ["LOI"], route: "LOI" },
-  {
-    id: "gc-no-plans",
-    client: "GC",
-    situation: "Regular · no plans",
-    steps: ["CSA", "PCS"],
-    route: "CSA",
-  },
-  { id: "gc-plans", client: "GC", situation: "Regular · has plans", steps: ["PCS"], route: "PCS" },
   { id: "owner-vip", client: "Owner", situation: "VIP", steps: ["LOI"], route: "LOI" },
   {
     id: "owner-no-plans",
     client: "Owner",
     situation: "Regular · no plans",
-    steps: ["CSA", "Owner", "PCS"],
+    // CSA with the Owner, then the Owner finds a GC, who does PCS.
+    steps: ["CSA", "GC", "PCS"],
     route: "CSA",
+    handoff: "gc-plans",
   },
   {
     id: "owner-plans",
@@ -85,7 +79,24 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
     route: "PCS",
     handoff: "gc-plans",
   },
+  { id: "gc-vip", client: "GC", situation: "VIP", steps: ["LOI"], route: "LOI" },
+  {
+    id: "gc-no-plans",
+    client: "GC",
+    situation: "Regular · no plans",
+    steps: ["CSA", "PCS"],
+    route: "CSA",
+  },
+  { id: "gc-plans", client: "GC", situation: "Regular · has plans", steps: ["PCS"], route: "PCS" },
 ];
+
+/** The steps drawn on a situation's own row: a hand-over stops where the next client takes over. */
+export function ownRouteSteps(item: QualificationCase) {
+  if (!item.handoff) return item.steps;
+  const next = QUALIFICATION_CASES.find((other) => other.id === item.handoff)?.client;
+  const at = next ? item.steps.indexOf(next) : -1;
+  return at < 0 ? [] : item.steps.slice(0, at);
+}
 
 /** The situation this Qualification describes, once enough has been chosen. */
 export function qualificationCase({

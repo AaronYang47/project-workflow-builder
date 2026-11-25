@@ -62,8 +62,6 @@ export function CommercialRouteGroupNode({
   const qualification = qualificationNode ? qualificationOf(qualificationNode) : {};
   const route = qualificationNode ? qualificationRoute(qualification) : undefined;
   const customerCase = qualificationCaseFor(qualification);
-  const returnsToOwner = customerCase?.id === "owner-no-plans";
-  const csaReady = commercialRouteReady(node, "CSA");
 
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
   const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
@@ -129,7 +127,7 @@ export function CommercialRouteGroupNode({
   const agreements = route ? AGREEMENTS[route] : [];
   const ready = commercialWorkflowReady(node, qualification);
   const activeCase = reached ? customerCase : undefined;
-  const exitActive = Boolean(activeCase && (!returnsToOwner || ready));
+  const exitActive = Boolean(activeCase);
   const lineColor = exitActive ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
 
   return (
@@ -224,8 +222,6 @@ export function CommercialRouteGroupNode({
         scale={FLOW_SCALE}
         currentId={activeCase?.id}
         client={activeCase?.client}
-        stepLimit={returnsToOwner && !csaReady ? 1 : undefined}
-        exitEnabled={!returnsToOwner || ready}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}
@@ -233,7 +229,6 @@ export function CommercialRouteGroupNode({
           ? [customerCase.client, ...customerCase.steps].join(" → ")
           : (route ?? "Complete Form [1.01]")}
       </p>
-
       <div
         data-route-agreements
         className="mt-2 grid min-h-0 flex-1 gap-2"
@@ -247,9 +242,8 @@ export function CommercialRouteGroupNode({
         )}
         {agreements.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
-          const waitingForCsa = returnsToOwner && path === "PCS" && (!reached || !csaReady);
-          const onRoute = reached && !waitingForCsa;
-          const active = onRoute && (route === path || (returnsToOwner && path === "PCS"));
+          const onRoute = reached;
+          const active = reached && route === path;
           const pathReady = commercialRouteReady(node, path);
           const Icon = path === "CSA" ? Handshake : path === "PCS" ? Calculator : FileSignature;
           return (
@@ -273,7 +267,7 @@ export function CommercialRouteGroupNode({
                 {path} · {style.agreement}
                 {active && <span className="ml-auto">{pathReady ? "READY" : "INCOMPLETE"}</span>}
                 {path === "PCS" && route === "CSA" && !active && (
-                  <span className="ml-auto">{returnsToOwner ? "AFTER OWNER" : "AFTER CSA"}</span>
+                  <span className="ml-auto">AFTER CSA</span>
                 )}
               </div>
               {path === "CSA" && (
@@ -310,7 +304,6 @@ export function CommercialRouteGroupNode({
                     Pre-Construction Services · Modules
                     <input
                       aria-label="PCS module count"
-                      disabled={waitingForCsa}
                       className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
                       type="number"
                       min={1}
@@ -328,7 +321,6 @@ export function CommercialRouteGroupNode({
                     Extra hours · {cad(200)} / hour
                     <input
                       aria-label="PCS additional hours"
-                      disabled={waitingForCsa}
                       className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
                       type="number"
                       min={0}
@@ -344,11 +336,6 @@ export function CommercialRouteGroupNode({
                       ? "Enter modules to calculate"
                       : `Total: ${cad(pcsTotal)} before tax`}
                   </p>
-                  {waitingForCsa && (
-                    <p className="text-muted-foreground">
-                      Complete CSA before returning to the Owner for PCS.
-                    </p>
-                  )}
                   {active && !pathReady && (
                     <p className="text-amber-600">
                       Enter a valid module count and extra hours to continue.

@@ -139,8 +139,8 @@ function routeImpactReason(
       : "Only the Owner row in Q3 has information, so the Owner route applies.";
   if (!customerCase)
     return `${partyReason} In Q12, answer whether the latest architectural drawing set is available.`;
-  if (customerCase.id === "owner-no-plans")
-    return `${partyReason} Q12 indicates no drawings, so the project starts with CSA, returns to the Owner, then moves to PCS.`;
+  if (customerCase.route === "CSA" && customerCase.handoff)
+    return `${partyReason} Q12 indicates no drawings, so the Owner starts with CSA for consultation, then finds a General Contractor, who carries on with PCS.`;
   if (customerCase.route === "CSA")
     return `${partyReason} Q12 indicates no drawings, so the project starts with CSA for consultation, then moves to PCS.`;
   if (customerCase.handoff)
@@ -155,6 +155,7 @@ export function SectionAIntake({
   workflowTitleHint,
   questions,
   onAdvance,
+  onApplyRoute,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
@@ -162,6 +163,7 @@ export function SectionAIntake({
   workflowTitleHint?: string;
   questions: readonly FormStepId[];
   onAdvance?: () => void;
+  onApplyRoute?: () => void;
 }) {
   const { sectionA } = form;
   const occupancyRadioName = useId();
@@ -282,7 +284,12 @@ export function SectionAIntake({
               Save the form to apply the route. Qualification still needs {FORM_101_PASS_SCORE}/
               {FORM_101_MAX_SCORE} points to proceed.
             </p>
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {onApplyRoute && (
+                <Button type="button" size="sm" variant="secondary" onClick={onApplyRoute}>
+                  Save &amp; apply route
+                </Button>
+              )}
               <Dialog.Close asChild>
                 <Button type="button" size="sm">
                   Continue

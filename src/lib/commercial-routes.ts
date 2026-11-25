@@ -1,4 +1,4 @@
-import { qualificationCaseFor, qualificationRoute, type Qualification } from "@/lib/qualification";
+import { qualificationRoute, type Qualification } from "@/lib/qualification";
 import type { DomainNode } from "@/types/workflow";
 
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
@@ -34,11 +34,7 @@ export function commercialRouteReady(node: DomainNode, route: CommercialRoute | 
 }
 
 export function commercialWorkflowReady(node: DomainNode, qualification: Qualification) {
-  if (!commercialRouteReady(node, qualificationRoute(qualification))) return false;
-  return (
-    qualificationCaseFor(qualification)?.id !== "owner-no-plans" ||
-    commercialRouteReady(node, "PCS")
-  );
+  return commercialRouteReady(node, qualificationRoute(qualification));
 }
 
 export const COMMERCIAL_ROUTE_STYLE: Record<

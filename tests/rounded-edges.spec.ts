@@ -113,5 +113,5 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
         }
       ).printed,
   );
-  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 1, routeLines: true });
+  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 2, routeLines: true });
 });
