@@ -194,60 +194,52 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
           layout.width += shift;
       }
   }
-  const managed = new Set([...oldIds, groupId, id]);
-  const directDownstream = file.graph.edges.filter(
-    (edge) =>
-      edge.source === qualification.id &&
-      !managed.has(edge.target) &&
-      !BYPASS_EDGE_TYPES.has(edge.type),
-  );
-  file.graph.edges = file.graph.edges
-    .filter(
-      (edge) =>
-        !oldIds.has(edge.source) &&
-        !oldIds.has(edge.target) &&
-        !(edge.source === qualification.id && managed.has(edge.target)) &&
-        !(edge.source === groupId && edge.target === id),
-    )
-    .map((edge) =>
-      directDownstream.some((item) => item.id === edge.id)
-        ? { ...edge, source: id, sourceHandle: "out" }
-        : edge,
+  // The standard lines (Qualification → Route Selection → Estimation → first
+  // Department) are only laid when this structure is first built. Afterwards
+  // they belong to the user: a card added in between or a rewired line is kept.
+  const building = !previousGroup || !previousEstimation || oldIds.size > 0;
+  if (!building) {
+    // Older saves drew one line per route out of Route Selection: one line now.
+    const routeLines = file.graph.edges.filter(
+      (edge) => edge.source === groupId && ["CSA", "PCS", "LOI"].includes(edge.sourceHandle ?? ""),
     );
-  // One link in: Qualification's chosen route continues inside CSA / PCS / LOI.
-  file.graph.edges.push({
-    id: `edge-${qualification.id}-${groupId}`,
-    source: qualification.id,
-    target: groupId,
-    sourceHandle: "out",
-    targetHandle: "in",
-    type: "normal",
-    lineStyle: "solid",
-    arrowStyle: "closed",
-    customFields: {},
-  });
-  // One link out: PCS and LOI join inside the node and carry on to Estimation.
-  file.graph.edges.push({
-    id: `edge-${groupId}-${id}`,
-    source: groupId,
-    target: id,
-    sourceHandle: "out",
-    targetHandle: "in",
-    type: "normal",
-    lineStyle: "solid",
-    arrowStyle: "closed",
-    customFields: {},
-  });
-  const start = file.graph.nodes.find((node) => node.type === "projectStart");
-  if (
-    !directDownstream.length &&
-    start &&
-    !file.graph.edges.some((edge) => edge.source === id && edge.target === start.id)
-  ) {
+    if (routeLines.length) {
+      const [first] = routeLines;
+      file.graph.edges = file.graph.edges.filter((edge) => !routeLines.includes(edge));
+      file.graph.edges.push({
+        ...first,
+        id: `edge-${groupId}-${first.target}`,
+        sourceHandle: "out",
+        targetHandle: "in",
+        customFields: {},
+      });
+    }
+  } else {
+    const managed = new Set([...oldIds, groupId, id]);
+    const directDownstream = file.graph.edges.filter(
+      (edge) =>
+        edge.source === qualification.id &&
+        !managed.has(edge.target) &&
+        !BYPASS_EDGE_TYPES.has(edge.type),
+    );
+    file.graph.edges = file.graph.edges
+      .filter(
+        (edge) =>
+          !oldIds.has(edge.source) &&
+          !oldIds.has(edge.target) &&
+          !(edge.source === qualification.id && managed.has(edge.target)) &&
+          !(edge.source === groupId && edge.target === id),
+      )
+      .map((edge) =>
+        directDownstream.some((item) => item.id === edge.id)
+          ? { ...edge, source: id, sourceHandle: "out" }
+          : edge,
+      );
+    // One link in: Qualification's chosen route continues inside CSA / PCS / LOI.
     file.graph.edges.push({
-      id: `edge-${id}-${start.id}`,
-      source: id,
-      target: start.id,
+      id: `edge-${qualification.id}-${groupId}`,
+      source: qualification.id,
+      target: groupId,
       sourceHandle: "out",
       targetHandle: "in",
       type: "normal",
@@ -255,6 +247,36 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       arrowStyle: "closed",
       customFields: {},
     });
+    // One link out: PCS and LOI join inside the node and carry on to Estimation.
+    file.graph.edges.push({
+      id: `edge-${groupId}-${id}`,
+      source: groupId,
+      target: id,
+      sourceHandle: "out",
+      targetHandle: "in",
+      type: "normal",
+      lineStyle: "solid",
+      arrowStyle: "closed",
+      customFields: {},
+    });
+    const start = file.graph.nodes.find((node) => node.type === "projectStart");
+    if (
+      !directDownstream.length &&
+      start &&
+      !file.graph.edges.some((edge) => edge.source === id && edge.target === start.id)
+    ) {
+      file.graph.edges.push({
+        id: `edge-${id}-${start.id}`,
+        source: id,
+        target: start.id,
+        sourceHandle: "out",
+        targetHandle: "in",
+        type: "normal",
+        lineStyle: "solid",
+        arrowStyle: "closed",
+        customFields: {},
+      });
+    }
   }
 
   // Estimation and its agreement are L2 cards, never L1 phase frames.

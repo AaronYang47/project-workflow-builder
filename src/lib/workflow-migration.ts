@@ -760,5 +760,48 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   };
   // Migration normalizes the saved document in place. It must not inject the
   // canonical lifecycle: each cloud project owns only the nodes it saved.
-  return normalizePreviousPhaseDependencies(ensureEstimationWorkflow(migratedFile));
+  return linkFramedDepartments(
+    normalizePreviousPhaseDependencies(ensureEstimationWorkflow(migratedFile)),
+  );
+}
+
+/**
+ * A Department card placed inside a Phase frame on L2 belongs to that Phase:
+ * when it is not linked to any L1 Phase yet, it is added to that Phase's
+ * Departments, in its left-to-right place, so L3 and L4 list it too.
+ */
+export function linkFramedDepartments(file: WorkflowFile): WorkflowFile {
+  const levels = file.highLevel?.graph.nodes;
+  if (!levels?.length) return file;
+  const linked = new Set(
+    levels.flatMap((level) => [
+      ...(level.linkedLayer2NodeIds ?? []),
+      ...(level.linkedDetailedNodeIds ?? []),
+    ]),
+  );
+  const frames = new Map(
+    file.graph.nodes.filter((node) => node.type === "phase").map((node) => [node.id, node]),
+  );
+  const orphans = file.graph.nodes.filter((node) => {
+    const parent = file.layout.nodes[node.id]?.parentId;
+    return node.type === "general" && !linked.has(node.id) && parent && frames.has(parent);
+  });
+  if (!orphans.length) return file;
+  const next = structuredClone(file);
+  const nextLevels = next.highLevel!.graph.nodes;
+  const xOf = (id: string) => next.layout.nodes[id]?.x ?? Infinity;
+  for (const node of orphans) {
+    const frame = frames.get(next.layout.nodes[node.id]!.parentId!)!;
+    const level =
+      nextLevels.find((item) => `phase-${item.id}` === frame.id) ??
+      nextLevels.find(
+        (item) => item.title.trim().toLowerCase() === frame.title.trim().toLowerCase(),
+      );
+    if (!level) continue;
+    const ids = [...(level.linkedLayer2NodeIds ?? [])];
+    const at = ids.findIndex((id) => xOf(id) > xOf(node.id));
+    ids.splice(at < 0 ? ids.length : at, 0, node.id);
+    level.linkedLayer2NodeIds = ids;
+  }
+  return next;
 }
