@@ -139,10 +139,12 @@ export function firstUnfinishedGroup(
   isLoi: boolean,
   skipped: ReadonlySet<FormGroupId>,
 ) {
+  void skipped;
+  // Required questions are answered in order; optional ones in any order once
+  // the required ones are done, so only an unfinished required group locks
+  // what follows it.
   const index = FORM_101_GROUPS.findIndex(
-    (group) =>
-      (group.section === "a" || !skipped.has(group.id)) &&
-      !isForm101GroupComplete(group, form, isLoi),
+    (group) => group.section === "a" && !isForm101GroupComplete(group, form, isLoi),
   );
   return index >= 0 ? index : FORM_101_GROUPS.length - 1;
 }
