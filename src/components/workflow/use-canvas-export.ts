@@ -141,6 +141,7 @@ export function useCanvasExport(
             : "workflow-L2-detailed-11x17",
           forms,
           flowchartPrintHeader(file, detail.format === "l1-pdf" ? "l1" : "l2", forms.length),
+          detail.format !== "l1-pdf",
         );
         return;
       }

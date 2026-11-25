@@ -139,6 +139,9 @@ for (const { item, startOnL2, title } of cases) {
       // A long L2 flow wraps into an S over several rows so it prints larger.
       expect(printed.rows).toBeGreaterThan(1);
       expect(printed.overlaps).toBe(0);
+    } else {
+      // L1 keeps its Phases in one row.
+      expect(printed.rows).toBe(1);
     }
     // 11 x 17 landscape: 17in wide, 11in tall.
     expect(pdf).toMatch(/\/MediaBox\s*\[0 0 1224 792\]/);

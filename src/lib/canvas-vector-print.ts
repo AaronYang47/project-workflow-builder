@@ -1368,6 +1368,8 @@ export function printCanvasVector(
   title: string,
   forms: PhaseForms[] = [],
   header?: PrintHeader,
+  /** Off for L1: its Phases print in one row, never wrapped into an S. */
+  wrapRows = true,
 ) {
   document.getElementById(ROOT_ID)?.remove();
 
@@ -1539,7 +1541,7 @@ export function printCanvasVector(
   let placement = placeOn(bounds);
 
   // A long flow wraps onto more rows in an S so it prints larger on the sheet.
-  if (original && cards.length > 1) {
+  if (wrapRows && original && cards.length > 1) {
     const labels: LabelSpan[] = Array.from(
       copy.querySelectorAll<HTMLElement>("[data-edge-label]"),
     ).flatMap((label) => {
