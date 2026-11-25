@@ -1384,7 +1384,9 @@ export function printCanvasVector(
       if (notesGrid)
         notesGrid.style.gridTemplateColumns = side ? "minmax(0, 1fr)" : notesColumns;
       const room = side ? fullHeight : pageHeight * NOTES_MAX_SHARE;
-      for (fontSize = 8; fontSize > 6.5; fontSize -= 0.5) {
+      // Beside the flowchart the notes have the whole height: use the largest
+      // text that still fits, so the column is filled instead of crowded at the top.
+      for (fontSize = side ? 16 : 8; fontSize > 6.5; fontSize -= 0.5) {
         panel.style.fontSize = `${fontSize}px`;
         panelHeight = panel.offsetHeight;
         if (panelHeight <= room) break;
