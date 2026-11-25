@@ -34,7 +34,7 @@ const cad = (amount: number) =>
   }).format(amount);
 
 /** Pixels per unit of the route chart. */
-const FLOW_SCALE = 1.3;
+const FLOW_SCALE = 1.7;
 
 /** The agreements a route goes through: CSA carries on into PCS. */
 const AGREEMENTS: Record<CommercialRoute, CommercialRoute[]> = {
@@ -222,7 +222,7 @@ export function CommercialRouteGroupNode({
         />
       )}
 
-      <p className="mt-2 text-[10px] text-muted-foreground">Click the customer&apos;s situation:</p>
+      <p className="mt-2 text-xs text-muted-foreground">Click the customer&apos;s situation:</p>
       <QualificationRouteFlow
         id={node.id}
         svgRef={svgRef}
@@ -235,7 +235,7 @@ export function CommercialRouteGroupNode({
           chooseRoute({ clientCategory: client as Qualification["clientCategory"] })
         }
       />
-      <p data-qualification-route className="mt-1 text-xs font-semibold text-foreground">
+      <p data-qualification-route className="mt-1 text-sm font-semibold text-foreground">
         Route:{" "}
         {customerCase
           ? [customerCase.client, ...customerCase.steps].join(" → ")

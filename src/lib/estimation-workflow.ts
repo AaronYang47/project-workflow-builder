@@ -162,6 +162,38 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
           height: eSize.height,
         };
 
+  // Route Selection and Estimation were just added after Qualification: move
+  // the cards that already follow it over, so the new pair has room.
+  if (!groupLayout && !oldIds.size) {
+    const qRight = qLayout.x + qLayout.width;
+    const added = [file.layout.nodes[groupId], file.layout.nodes[id]];
+    const addedRight = Math.max(...added.map((layout) => layout.x + layout.width)) + 120;
+    const addedBottom = Math.max(...added.map((layout) => layout.y + layout.height));
+    const followers = Object.values(file.layout.nodes).filter(
+      (layout) =>
+        !layout.parentId &&
+        layout.nodeId !== groupId &&
+        layout.nodeId !== id &&
+        layout.x >= qRight - 1 &&
+        layout.y < addedBottom &&
+        layout.y + layout.height > qLayout.y,
+    );
+    const shift = followers.length
+      ? Math.max(0, addedRight - Math.min(...followers.map((layout) => layout.x)))
+      : 0;
+    if (shift)
+      for (const layout of Object.values(file.layout.nodes)) {
+        if (layout.parentId || layout.nodeId === groupId || layout.nodeId === id) continue;
+        if (followers.includes(layout)) layout.x += shift;
+        else if (
+          layout.x < qLayout.x &&
+          layout.x + layout.width >= qRight - 1 &&
+          layout.y <= qLayout.y &&
+          layout.y + layout.height >= qLayout.y
+        )
+          layout.width += shift;
+      }
+  }
   const managed = new Set([...oldIds, groupId, id]);
   const directDownstream = file.graph.edges.filter(
     (edge) =>
