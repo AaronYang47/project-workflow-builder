@@ -23,7 +23,7 @@ import {
 } from "@/lib/route-flow-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
-import { NodeDepartmentField } from "./node-department-field";
+import { DepartmentHeaderBar } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
 
 const cad = (amount: number) =>
@@ -139,46 +139,12 @@ export function CommercialRouteGroupNode({
       className={`relative flex h-full w-full flex-col overflow-visible rounded-2xl border-2 bg-card p-3 shadow-md ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border"}`}
       style={{ borderColor: node.color || "#9a5c24" }}
     >
-      <div
-        className="flex items-center gap-2 border-b pb-2"
-        style={{ borderColor: node.color || "#9a5c24" }}
+      <DepartmentHeaderBar
+        node={node}
+        icon={GitBranch}
+        color={node.color || "#2563a9"}
+        className="-mx-3 -mt-3 mb-2 rounded-t-[14px]"
       >
-        <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <GitBranch className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            Route Selection
-          </p>
-          {/* The node's own title: edit it here or in the Inspector. */}
-          <input
-            key={node.title}
-            aria-label="Route Selection title"
-            data-route-selection-title
-            className="nodrag -mx-1 w-full min-w-0 rounded bg-transparent px-1 text-sm font-bold outline-none hover:bg-muted/60 focus:bg-background focus:ring-1 focus:ring-primary"
-            defaultValue={node.title}
-            placeholder="CSA / PCS / LOI"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-              if (event.key === "Escape") {
-                event.currentTarget.value = node.title;
-                event.currentTarget.blur();
-              }
-            }}
-            onBlur={(event) => {
-              const title = event.currentTarget.value.trim();
-              if (title && title !== node.title)
-                useWorkflowStore.getState().updateNode(node.id, { title });
-              else event.currentTarget.value = node.title;
-            }}
-          />
-          {node.description ? (
-            <p data-node-description className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-              {node.description}
-            </p>
-          ) : null}
-          <NodeDepartmentField node={node} />
-        </div>
         <span
           data-selected-commercial-route={route ?? "none"}
           className="rounded-full px-2 py-0.5 text-[10px] font-bold"
@@ -189,6 +155,41 @@ export function CommercialRouteGroupNode({
         >
           {reached ? (route ?? "No route selected") : "Waiting for Qualification"}
         </span>
+      </DepartmentHeaderBar>
+      <div className="mb-1">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          Route Selection
+        </p>
+        {/* The node's own title: edit it here or in the Inspector. */}
+        <input
+          key={node.title}
+          aria-label="Route Selection title"
+          data-route-selection-title
+          className="nodrag -mx-1 w-full min-w-0 rounded bg-transparent px-1 text-sm font-bold outline-none hover:bg-muted/60 focus:bg-background focus:ring-1 focus:ring-primary"
+          defaultValue={node.title}
+          placeholder="CSA / PCS / LOI"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              event.currentTarget.value = node.title;
+              event.currentTarget.blur();
+            }
+          }}
+          onBlur={(event) => {
+            const title = event.currentTarget.value.trim();
+            if (title && title !== node.title)
+              useWorkflowStore.getState().updateNode(node.id, { title });
+            else event.currentTarget.value = node.title;
+          }}
+        />
+        {node.description ? (
+          <p
+            data-node-description
+            className="mt-0.5 text-[11px] leading-snug text-muted-foreground"
+          >
+            {node.description}
+          </p>
+        ) : null}
       </div>
       <Handle
         type="target"

@@ -7,7 +7,7 @@ import { Calculator, CheckCircle2, LockKeyhole, X } from "lucide-react";
 import { estimateSummary, preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
-import { NodeDepartmentField } from "./node-department-field";
+import { DepartmentHeaderBar } from "./node-department-field";
 
 const money = (value: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -227,29 +227,26 @@ export function EstimationNode({
           style={{ backgroundColor: reached ? "#0f766e" : "#94a3b8" }}
         />
         <Handle type="source" id="out" position={Position.Right} />
-        <div className="flex items-start justify-between gap-2 border-b pb-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-sm font-bold">
-              <Calculator
-                className={`size-4 ${reached ? "text-teal-600" : "text-muted-foreground"}`}
-              />
-              {node.title || "Estimation"}
-            </div>
-            <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
-            {node.description ? (
-              <p data-node-description className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                {node.description}
-              </p>
-            ) : null}
-            <NodeDepartmentField node={node} />
-          </div>
+        <DepartmentHeaderBar
+          node={node}
+          icon={Calculator}
+          color={reached ? node.color || "#0f766e" : "#64748b"}
+          className="-mx-4 -mt-4 mb-3 rounded-t-[10px]"
+        >
           <span
             data-estimation-status
-            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
+            className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
           >
             {ready ? "Reviewed" : reached ? "Draft" : "Waiting for agreement"}
           </span>
-        </div>
+        </DepartmentHeaderBar>
+        <div className="text-sm font-semibold">{node.title || "Estimation"}</div>
+        <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
+        {node.description ? (
+          <p data-node-description className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {node.description}
+          </p>
+        ) : null}
         <Dialog.Trigger asChild>
           <button
             type="button"
