@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -251,23 +251,6 @@ function CanvasInner({
     addGateUnderNode,
   });
 
-  const quickAdd = useCallback(
-    (event: React.MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // React Flow bubbles control-button double clicks to the canvas. Keep
-      // zoom/fit controls from being interpreted as a request to add a node.
-      if (
-        target.closest(".react-flow__node") ||
-        target.closest(".react-flow__controls") ||
-        target.closest(".react-flow__minimap")
-      ) {
-        return;
-      }
-      addNode("general", flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
-    },
-    [addNode, flow],
-  );
-
   const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(commitLayoutDrag);
 
   // Hook 2: Dynamic DOM Auto-measure for expanding cards & phase boundaries
@@ -450,7 +433,6 @@ function CanvasInner({
           selectEdge(edge.id);
           updateFocusedNode();
         }}
-        onDoubleClick={canEditWorkflow ? quickAdd : undefined}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
         defaultViewport={file.layout.viewport}
         fitViewOptions={{
@@ -514,7 +496,7 @@ function CanvasInner({
         />
       </div>
       <div className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur md:block">
-        Double-click canvas to add Node · Drag to pan · Scroll to zoom
+        Add nodes from the library · Drag to pan · Scroll to zoom
       </div>
     </div>
   );

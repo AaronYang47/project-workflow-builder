@@ -18,7 +18,7 @@ import { releaseConditionForms } from "@/lib/release-condition-forms";
 import { applyFobYardSkip } from "@/lib/fob-yard";
 import { departmentDisplayName } from "@/lib/department-label";
 import { qualificationOf, qualificationRoute } from "@/lib/qualification";
-import { commercialRouteReady, isCommercialRouteGroupNode } from "@/lib/commercial-routes";
+import { commercialWorkflowReady, isCommercialRouteGroupNode } from "@/lib/commercial-routes";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 
@@ -403,10 +403,9 @@ export function getWorkflowProgress(
       }
       if (isCommercialRouteGroupNode(source)) {
         const qualification = nodes.find((node) => node.type === "qualification");
-        const route = qualification
-          ? qualificationRoute(qualificationOf(qualification))
-          : undefined;
-        allowed = Boolean(route) && commercialRouteReady(source, route);
+        allowed = Boolean(
+          qualification && commercialWorkflowReady(source, qualificationOf(qualification)),
+        );
       }
       if (!allowed) continue;
       activeEdgeIds.add(edge.id);

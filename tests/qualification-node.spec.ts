@@ -76,12 +76,13 @@ test("client type, customer level and plans decide the route after Qualification
   // VIP GC and VIP Owner go through LOI.
   expect(routeOf({ clientCategory: "GC", customerTier: "vip" })).toEqual(["LOI", ["LOI"]]);
   expect(routeOf({ clientCategory: "Owner", customerTier: "vip" })).toEqual(["LOI", ["LOI"]]);
-  // Regular customers without plans consult first, then PCS.
-  for (const clientCategory of ["GC", "Owner"] as const)
-    expect(routeOf({ clientCategory, customerTier: "regular", plansAvailable: "no" })).toEqual([
-      "CSA",
-      ["CSA", "PCS"],
-    ]);
+  expect(routeOf({ clientCategory: "GC", customerTier: "regular", plansAvailable: "no" })).toEqual([
+    "CSA",
+    ["CSA", "PCS"],
+  ]);
+  expect(
+    routeOf({ clientCategory: "Owner", customerTier: "regular", plansAvailable: "no" }),
+  ).toEqual(["CSA", ["CSA", "Owner", "PCS"]]);
   // A regular GC with plans goes straight to PCS.
   expect(routeOf({ clientCategory: "GC", customerTier: "regular", plansAvailable: "yes" })).toEqual(
     ["PCS", ["PCS"]],
@@ -315,6 +316,23 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
   await expect(chosen).toHaveCount(2);
   await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
+
+  form = await openForm();
+  await answerDrawings(page, "No", /returns to the Owner, then moves to PCS/);
+  await form.getByRole("button", { name: "Save Form" }).click();
+  await expect(route).toHaveText("Route: Owner → CSA → Owner → PCS");
+  const pcs = routeNode.getByRole("spinbutton", { name: "PCS module count" });
+  const estimate = page
+    .locator("[data-estimation-node]")
+    .getByRole("button", { name: "Estimate", exact: true });
+  await expect(pcs).toBeDisabled();
+  await expect(estimate).toBeDisabled();
+  await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");
+  await expect(pcs).toBeEnabled();
+  await expect(estimate).toBeDisabled();
+  await expect(chosen.locator('[data-qualification-flow-box="Owner"]')).toHaveCount(1);
+  await pcs.fill("14");
+  await expect(estimate).toBeEnabled();
 
   form = await openForm();
   await openQuestionGroup(page, "Written answers");

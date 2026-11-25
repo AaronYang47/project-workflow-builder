@@ -6,12 +6,12 @@ import { Calculator, FileSignature, GitBranch, Handshake } from "lucide-react";
 import {
   COMMERCIAL_ROUTE_STYLE,
   commercialRouteReady,
+  commercialWorkflowReady,
   type CommercialRoute,
 } from "@/lib/commercial-routes";
 import {
   QUALIFICATION_CASES,
-  qualificationCase,
-  qualificationFormRouteAnswers,
+  qualificationCaseFor,
   qualificationOf,
   qualificationRoute,
 } from "@/lib/qualification";
@@ -61,10 +61,9 @@ export function CommercialRouteGroupNode({
   );
   const qualification = qualificationNode ? qualificationOf(qualificationNode) : {};
   const route = qualificationNode ? qualificationRoute(qualification) : undefined;
-  const answers = qualification.form101
-    ? qualificationFormRouteAnswers(qualification.form101.sectionA)
-    : qualification;
-  const customerCase = qualificationCase(answers);
+  const customerCase = qualificationCaseFor(qualification);
+  const returnsToOwner = customerCase?.id === "owner-no-plans";
+  const csaReady = commercialRouteReady(node, "CSA");
 
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
   const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
@@ -128,9 +127,10 @@ export function CommercialRouteGroupNode({
   }, [exit, node.id, updateNodeInternals]);
 
   const agreements = route ? AGREEMENTS[route] : [];
-  const ready = Boolean(route && commercialRouteReady(node, route));
+  const ready = commercialWorkflowReady(node, qualification);
   const activeCase = reached ? customerCase : undefined;
-  const lineColor = activeCase ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
+  const exitActive = Boolean(activeCase && (!returnsToOwner || ready));
+  const lineColor = exitActive ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
 
   return (
     <div
@@ -209,8 +209,8 @@ export function CommercialRouteGroupNode({
           className="pointer-events-none absolute right-0"
           style={{
             left: exit.left,
-            top: exit.top - (activeCase ? 1 : 0.5),
-            height: activeCase ? 2.5 : 1.5,
+            top: exit.top - (exitActive ? 1 : 0.5),
+            height: exitActive ? 2.5 : 1.5,
             backgroundColor: lineColor,
           }}
         />
@@ -223,7 +223,9 @@ export function CommercialRouteGroupNode({
         exitBus
         scale={FLOW_SCALE}
         currentId={activeCase?.id}
-        client={reached ? answers.clientCategory : undefined}
+        client={activeCase?.client}
+        stepLimit={returnsToOwner && !csaReady ? 1 : undefined}
+        exitEnabled={!returnsToOwner || ready}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}
@@ -245,8 +247,9 @@ export function CommercialRouteGroupNode({
         )}
         {agreements.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
-          const onRoute = reached;
-          const active = reached && route === path;
+          const waitingForCsa = returnsToOwner && path === "PCS" && (!reached || !csaReady);
+          const onRoute = reached && !waitingForCsa;
+          const active = onRoute && (route === path || (returnsToOwner && path === "PCS"));
           const pathReady = commercialRouteReady(node, path);
           const Icon = path === "CSA" ? Handshake : path === "PCS" ? Calculator : FileSignature;
           return (
@@ -269,7 +272,9 @@ export function CommercialRouteGroupNode({
                 <Icon className="size-3.5" />
                 {path} · {style.agreement}
                 {active && <span className="ml-auto">{pathReady ? "READY" : "INCOMPLETE"}</span>}
-                {path === "PCS" && route === "CSA" && <span className="ml-auto">AFTER CSA</span>}
+                {path === "PCS" && route === "CSA" && !active && (
+                  <span className="ml-auto">{returnsToOwner ? "AFTER OWNER" : "AFTER CSA"}</span>
+                )}
               </div>
               {path === "CSA" && (
                 <>
@@ -305,6 +310,7 @@ export function CommercialRouteGroupNode({
                     Pre-Construction Services · Modules
                     <input
                       aria-label="PCS module count"
+                      disabled={waitingForCsa}
                       className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
                       type="number"
                       min={1}
@@ -322,6 +328,7 @@ export function CommercialRouteGroupNode({
                     Extra hours · {cad(200)} / hour
                     <input
                       aria-label="PCS additional hours"
+                      disabled={waitingForCsa}
                       className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
                       type="number"
                       min={0}
@@ -337,6 +344,11 @@ export function CommercialRouteGroupNode({
                       ? "Enter modules to calculate"
                       : `Total: ${cad(pcsTotal)} before tax`}
                   </p>
+                  {waitingForCsa && (
+                    <p className="text-muted-foreground">
+                      Complete CSA before returning to the Owner for PCS.
+                    </p>
+                  )}
                   {active && !pathReady && (
                     <p className="text-amber-600">
                       Enter a valid module count and extra hours to continue.

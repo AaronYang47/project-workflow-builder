@@ -139,6 +139,8 @@ function routeImpactReason(
       : "Only the Owner row in Q3 has information, so the Owner route applies.";
   if (!customerCase)
     return `${partyReason} In Q12, answer whether the latest architectural drawing set is available.`;
+  if (customerCase.id === "owner-no-plans")
+    return `${partyReason} Q12 indicates no drawings, so the project starts with CSA, returns to the Owner, then moves to PCS.`;
   if (customerCase.route === "CSA")
     return `${partyReason} Q12 indicates no drawings, so the project starts with CSA for consultation, then moves to PCS.`;
   if (customerCase.handoff)

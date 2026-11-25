@@ -40,6 +40,14 @@ test("dropping from the node library adds nodes to the L2 canvas", async ({ page
   const before = await savedNodes(page);
   const box = (await pane.boundingBox())!;
 
+  // A canvas double-click is navigation, never a request to add a Department.
+  await pane.dispatchEvent("dblclick", {
+    bubbles: true,
+    clientX: box.x + box.width - 60,
+    clientY: box.y + box.height - 60,
+  });
+  await expect(page.locator(".react-flow__node")).toHaveCount(before.length);
+
   await dropNode(page, "general", box.x + box.width - 60, box.y + box.height - 60);
   await expect.poll(async () => (await savedNodes(page)).length).toBe(before.length + 1);
   const afterGeneral = await savedNodes(page);

@@ -21,6 +21,8 @@ export function QualificationRouteFlow({
   client,
   exitBus = false,
   scale = 1,
+  stepLimit,
+  exitEnabled = true,
   svgRef,
 }: {
   svgRef?: React.Ref<SVGSVGElement>;
@@ -28,6 +30,8 @@ export function QualificationRouteFlow({
   exitBus?: boolean;
   /** Pixels per layout unit; the chart keeps this size instead of stretching. */
   scale?: number;
+  stepLimit?: number;
+  exitEnabled?: boolean;
   id: string;
   currentId?: string;
   client?: string;
@@ -38,7 +42,9 @@ export function QualificationRouteFlow({
   // A handed-over situation lights up the situation that carries it on too.
   const handoff = QUALIFICATION_CASES.find((item) => item.id === currentId)?.handoff;
   const lit = new Set([currentId, handoff].filter(Boolean));
-  const finalRow = layout.rows.find((row) => row.item.id === (handoff ?? currentId));
+  const finalRow = exitEnabled
+    ? layout.rows.find((row) => row.item.id === (handoff ?? currentId))
+    : undefined;
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
   return (
@@ -114,22 +120,31 @@ export function QualificationRouteFlow({
                 markerEnd={marker}
               />
             )}
-            {row.links.map(([from, to]) => (
+            {row.links.map(([from, to], index) => (
               <line
                 key={from.x}
                 x1={from.x}
                 y1={row.y}
                 x2={to.x}
                 y2={row.y}
-                stroke={color}
+                stroke={
+                  on && (stepLimit === undefined || index + 1 < stepLimit)
+                    ? ROUTE_FLOW_ON
+                    : ROUTE_FLOW_OFF
+                }
                 strokeWidth={stroke}
-                markerEnd={marker}
+                markerEnd={
+                  on && (stepLimit === undefined || index + 1 < stepLimit)
+                    ? marker
+                    : `url(#${markerOff})`
+                }
               />
             ))}
-            {row.steps.map((step) => {
+            {row.steps.map((step, index) => {
+              const stepOn = on && (stepLimit === undefined || index < stepLimit);
               const palette = ROUTE_STEP_COLORS[step.text] ?? ROUTE_STEP_DEFAULT;
               return (
-                <g key={step.x} data-qualification-flow-box={on ? step.text : undefined}>
+                <g key={step.x} data-qualification-flow-box={stepOn ? step.text : undefined}>
                   <rect
                     x={step.x}
                     y={row.y - layout.boxHeight / 2}
@@ -138,7 +153,7 @@ export function QualificationRouteFlow({
                     rx={3}
                     fill={palette.fill}
                     stroke={palette.stroke}
-                    strokeWidth={on ? 1.8 : 1}
+                    strokeWidth={stepOn ? 1.8 : 1}
                   />
                   <text
                     x={step.x + step.width / 2}
@@ -160,7 +175,7 @@ export function QualificationRouteFlow({
                 cx={row.exit.x}
                 cy={row.exit.y}
                 r={3.5}
-                fill={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+                fill={row === finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
                 stroke="#ffffff"
                 strokeWidth={1.2}
               />

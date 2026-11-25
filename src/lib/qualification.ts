@@ -73,7 +73,7 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
     id: "owner-no-plans",
     client: "Owner",
     situation: "Regular · no plans",
-    steps: ["CSA", "PCS"],
+    steps: ["CSA", "Owner", "PCS"],
     route: "CSA",
   },
   {
@@ -152,14 +152,21 @@ export function qualificationOf(node: DomainNode): Qualification {
   return value && typeof value === "object" ? (value as Qualification) : {};
 }
 
+export function qualificationCaseFor(qualification: Qualification) {
+  return qualificationCase(
+    qualification.form101
+      ? qualificationFormRouteAnswers(qualification.form101.sectionA)
+      : qualification,
+  );
+}
+
 /**
  * Use the original form answers whenever the project has a form.
  * Older projects may still have a route saved outside the form.
  */
 export function qualificationRoute(qualification: Qualification) {
-  if (qualification.form101)
-    return qualificationCase(qualificationFormRouteAnswers(qualification.form101.sectionA))?.route;
-  if (qualification.clientCategory) return qualificationCase(qualification)?.route;
+  if (qualification.form101 || qualification.clientCategory)
+    return qualificationCaseFor(qualification)?.route;
   if (qualification.customerHistory === "existing") {
     return qualification.commercialPath;
   }
