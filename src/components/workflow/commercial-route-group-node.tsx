@@ -172,6 +172,11 @@ export function CommercialRouteGroupNode({
               else event.currentTarget.value = node.title;
             }}
           />
+          {node.description ? (
+            <p data-node-description className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              {node.description}
+            </p>
+          ) : null}
           <NodeDepartmentField node={node} />
         </div>
         <span

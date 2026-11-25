@@ -236,6 +236,11 @@ export function EstimationNode({
               {node.title || "Estimation"}
             </div>
             <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
+            {node.description ? (
+              <p data-node-description className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                {node.description}
+              </p>
+            ) : null}
             <NodeDepartmentField node={node} />
           </div>
           <span
