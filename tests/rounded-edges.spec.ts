@@ -76,6 +76,15 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
     return { line: line.top + line.height / 2, handle: dot.top + dot.height / 2 };
   });
   expect(Math.abs(levels.line - levels.handle)).toBeLessThan(3);
+  // Every exit bends onto the bus with an arc, never a right angle.
+  const exitLines = await node
+    .locator("[data-qualification-route-exit-line], [data-qualification-route-case] path")
+    .evaluateAll((paths) => paths.map((path) => path.getAttribute("d") ?? ""));
+  expect(exitLines.length).toBeGreaterThan(6);
+  expect(exitLines.every((d) => d.includes("Q") || !d.includes("L", d.indexOf("L") + 1))).toBe(
+    true,
+  );
+  expect(exitLines.filter((d) => SHARP_BEND.test(d))).toEqual([]);
   // One line on to Estimation.
   await expect(
     page.locator('.react-flow__edge[data-id^="edge-commercial-route-group-"]'),

@@ -458,7 +458,7 @@ function routesPanel(routes: PrintRoutes) {
     const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
     parts.push(
       `<g data-print-route="${escapeHtml(row.item.id)}"${on ? " data-print-route-current" : ""}>`,
-      `<path d="${roundedPath(row.branch, 4)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"/>`,
+      `<path d="${roundedPath(row.branch, 6)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"/>`,
       `<text x="${row.labelX}" y="${row.y}" dominant-baseline="central" font-size="9" fill="${on ? ROUTE_FLOW_ON : "currentColor"}" font-weight="${on ? 800 : 500}">${escapeHtml(row.item.situation)}</text>`,
       ...(row.lead ? [line(row.lead[0], row.lead[1], on)] : []),
       ...(row.handoff

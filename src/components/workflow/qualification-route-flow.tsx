@@ -107,7 +107,7 @@ export function QualificationRouteFlow({
               rx={4}
               className={on ? "fill-emerald-500/10" : "fill-transparent hover:fill-primary/5"}
             />
-            <path d={roundedPath(row.branch, 4)} fill="none" stroke={color} strokeWidth={stroke} />
+            <path d={roundedPath(row.branch, 6)} fill="none" stroke={color} strokeWidth={stroke} />
             <text
               x={row.labelX}
               y={row.y}
@@ -185,38 +185,7 @@ export function QualificationRouteFlow({
       })}
       {exitBus && (
         <g data-qualification-route-bus pointerEvents="none">
-          {layout.rows.map((row) =>
-            row.exit ? (
-              <line
-                key={`bus-${row.item.id}`}
-                x1={row.exit.x + 3.5}
-                y1={row.exit.y}
-                x2={bus.busX}
-                y2={row.exit.y}
-                stroke={row === finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-                strokeWidth={row === finalRow ? 2.2 : 1}
-                strokeDasharray={row === finalRow ? undefined : "3 2"}
-              />
-            ) : null,
-          )}
-          <line
-            x1={bus.busX}
-            y1={bus.top}
-            x2={bus.busX}
-            y2={bus.bottom}
-            stroke={ROUTE_FLOW_OFF}
-            strokeWidth={1.2}
-          />
-          {finalRow?.exit && (
-            <line
-              x1={bus.busX}
-              y1={finalRow.exit.y}
-              x2={bus.busX}
-              y2={bus.busY}
-              stroke={ROUTE_FLOW_ON}
-              strokeWidth={2.2}
-            />
-          )}
+          {/* One line out to the edge, level with the middle of the bus. */}
           <line
             data-qualification-route-out
             x1={bus.busX}
@@ -226,12 +195,31 @@ export function QualificationRouteFlow({
             stroke={finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
             strokeWidth={finalRow ? 2.2 : 1.2}
           />
-          <circle
-            cx={bus.busX}
-            cy={bus.busY}
-            r={3}
-            fill={finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-          />
+          {/* Each exit runs right and curves onto the bus toward its middle; the
+              chosen one carries on round the last bend and out. */}
+          {[...layout.rows]
+            .sort((left, right) => Number(left === finalRow) - Number(right === finalRow))
+            .map((row) => {
+              if (!row.exit) return null;
+              const on = row === finalRow;
+              const points = [
+                { x: row.exit.x + 3.5, y: row.exit.y },
+                { x: bus.busX, y: row.exit.y },
+                { x: bus.busX, y: bus.busY },
+                ...(on ? [{ x: viewWidth, y: bus.busY }] : []),
+              ];
+              return (
+                <path
+                  key={`bus-${row.item.id}`}
+                  data-qualification-route-exit-line={row.item.id}
+                  d={roundedPath(points, 8)}
+                  fill="none"
+                  stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+                  strokeWidth={on ? 2.2 : 1}
+                  strokeLinecap="round"
+                />
+              );
+            })}
         </g>
       )}
       {/* Hand-over lines sit outside the rows so each row stays its own click target. */}
