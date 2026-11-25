@@ -1296,6 +1296,13 @@ function paintSiteRoutes(root: HTMLElement, pageColor: Rgba, scale: number) {
     if (markerId && path.classList.contains("react-flow__edge-path"))
       path.setAttribute("marker-end", `url(#${markerId})`);
   });
+  // The skipped Phase itself is framed in red, after it has been greyed.
+  root
+    .querySelectorAll<HTMLElement>('.react-flow__node.fob-yard-skipped [data-testid="phase-card"]')
+    .forEach((frame) => {
+      frame.style.setProperty("border-color", PRINT_SITE_RED, "important");
+      frame.style.setProperty("border-style", "solid", "important");
+    });
   const size = (points: number) => `${points / Math.max(scale, 0.05)}px`;
   root.querySelectorAll<HTMLElement>("[data-site-label]").forEach((label) => {
     for (const [property, value] of [
@@ -1627,8 +1634,8 @@ export function printCanvasVector(
   solidifyTranslucentGradients(copy, pageColor);
   strengthenFrameBorders(copy, pageColor, scale);
   emphasizeFobLabels(copy, pageColor, scale);
-  paintSiteRoutes(copy, pageColor, scale);
   desaturateSkippedCards(copy);
+  paintSiteRoutes(copy, pageColor, scale);
 
   const previousTitle = document.title;
   document.title = title;

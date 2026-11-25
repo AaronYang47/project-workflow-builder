@@ -301,11 +301,13 @@ export function buildCanvasEdges(
       id: domain.id,
       type: "semantic",
       zIndex: active ? 12 : 10,
-      className: siteRoute
-        ? "fob-yard-skipped fob-yard-site"
-        : fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
-          ? "fob-yard-skipped"
-          : undefined,
+      // Into and out of the skipped Phase: the site route, red.
+      className:
+        siteRoute || (fobYardSkipped.has(domain.source) && !fobYardSkipped.has(domain.target))
+          ? "fob-yard-skipped fob-yard-site"
+          : fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
+            ? "fob-yard-skipped"
+            : undefined,
       source: domain.source,
       target: domain.target,
       sourceHandle: domain.sourceHandle,
