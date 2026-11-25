@@ -49,7 +49,7 @@ async function openQuestionGroup(
 async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) {
   await openQuestionGroup(page, "Yes / No");
   await page
-    .getByRole("group", { name: "Latest architectural drawing set available" })
+    .getByRole("group", { name: "Latest architectural drawing set (including site plan) available" })
     .getByRole("button", { name: value.toLowerCase(), exact: true })
     .click();
   await dismissRouteImpact(page, impact);
@@ -327,7 +327,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   form = await openForm();
   await openQuestionGroup(page, "Yes / No");
   await form
-    .getByRole("group", { name: "Latest architectural drawing set available" })
+    .getByRole("group", { name: "Latest architectural drawing set (including site plan) available" })
     .getByRole("button", { name: "no", exact: true })
     .click();
   const impact = page.getByRole("dialog", { name: "Route impact" });

@@ -288,34 +288,50 @@ function dashRouteSelectionLines(root: HTMLElement) {
     svg
       .querySelectorAll<SVGCircleElement>("circle")
       .forEach((dot) => dot.setAttribute("fill", PRINT_CONNECTOR_GREEN));
-    // The Owner's hand-overs to their GC print yellow,
-    // arrowhead included, so the hand-over stands out from the routes.
-    const handoffs = svg.querySelectorAll<SVGPathElement>("[data-qualification-route-handoff]");
-    if (!handoffs.length) return;
+    // Lines into and out of a route tag take the tag's colour (LOI purple,
+    // CSA blue, PCS orange); the Owner's hand-overs to their GC print yellow.
     const defs =
       svg.querySelector("defs") ??
       svg.insertBefore(document.createElementNS(SVG_NS, "defs"), svg.firstChild);
-    const markerId = `print-route-handoff-arrow-${Math.random().toString(36).slice(2, 8)}`;
-    const marker = document.createElementNS(SVG_NS, "marker");
-    for (const [name, value] of Object.entries({
-      id: markerId,
-      viewBox: "0 0 10 10",
-      refX: "9",
-      refY: "5",
-      markerWidth: "5",
-      markerHeight: "5",
-      orient: "auto",
-    }))
-      marker.setAttribute(name, value);
-    const head = document.createElementNS(SVG_NS, "path");
-    head.setAttribute("d", "M1 1L9 5L1 9Z");
-    head.setAttribute("fill", PRINT_HANDOFF_YELLOW);
-    marker.appendChild(head);
-    defs.appendChild(marker);
-    handoffs.forEach((line) => {
-      line.setAttribute("stroke", PRINT_HANDOFF_YELLOW);
-      line.setAttribute("marker-end", `url(#${markerId})`);
-    });
+    const markers = new Map<string, string>();
+    const markerFor = (color: string) => {
+      const known = markers.get(color);
+      if (known) return known;
+      const id = `print-route-arrow-${color.slice(1)}-${Math.random().toString(36).slice(2, 7)}`;
+      const marker = document.createElementNS(SVG_NS, "marker");
+      for (const [name, value] of Object.entries({
+        id,
+        viewBox: "0 0 10 10",
+        refX: "9",
+        refY: "5",
+        markerWidth: "5",
+        markerHeight: "5",
+        orient: "auto",
+      }))
+        marker.setAttribute(name, value);
+      const head = document.createElementNS(SVG_NS, "path");
+      head.setAttribute("d", "M1 1L9 5L1 9Z");
+      head.setAttribute("fill", color);
+      marker.appendChild(head);
+      defs.appendChild(marker);
+      markers.set(color, id);
+      return id;
+    };
+    const paint = (line: SVGElement, color: string) => {
+      if (line.tagName.toLowerCase() === "circle") {
+        line.setAttribute("fill", color);
+        return;
+      }
+      line.setAttribute("stroke", color);
+      if (line.hasAttribute("marker-end"))
+        line.setAttribute("marker-end", `url(#${markerFor(color)})`);
+    };
+    svg
+      .querySelectorAll<SVGElement>("[data-print-route-color]")
+      .forEach((line) => paint(line, line.getAttribute("data-print-route-color")!));
+    svg
+      .querySelectorAll<SVGElement>("[data-qualification-route-handoff]")
+      .forEach((line) => paint(line, PRINT_HANDOFF_YELLOW));
   });
   root.querySelectorAll<HTMLElement>("[data-route-selection-exit-line]").forEach((line) => {
     line.style.backgroundColor = "transparent";
@@ -1504,8 +1520,7 @@ export function printCanvasVector(
   areaFor(page.portrait);
   const { portrait, pageWidth, pageHeight, scale } = page;
   root.dataset.cardWidthShare = String(chosen?.share ?? 1);
-  const offsetX =
-    PAGE_MARGIN_PX + (page.flowWidth - bounds.width * scale) / 2 - bounds.x * scale;
+  const offsetX = PAGE_MARGIN_PX + (page.flowWidth - bounds.width * scale) / 2 - bounds.x * scale;
   const offsetY = page.flowTop + (page.flowHeight - bounds.height * scale) / 2 - bounds.y * scale;
 
   root.removeAttribute("style");

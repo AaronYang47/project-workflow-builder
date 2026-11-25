@@ -232,7 +232,7 @@ export function EstimationNode({
               <Calculator
                 className={`size-4 ${reached ? "text-teal-600" : "text-muted-foreground"}`}
               />
-              Estimation
+              {node.title || "Estimation"}
             </div>
             <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
           </div>

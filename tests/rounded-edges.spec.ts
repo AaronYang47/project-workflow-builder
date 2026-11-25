@@ -53,7 +53,9 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
             .every(
               (line) =>
                 line.getAttribute("stroke") ===
-                  (line.hasAttribute("data-qualification-route-handoff") ? "#eab308" : "#22c55e") &&
+                  (line.hasAttribute("data-qualification-route-handoff")
+                    ? "#eab308"
+                    : (line.getAttribute("data-print-route-color") ?? "#22c55e")) &&
                 line.getAttribute("stroke-width") === "1" &&
                 line.getAttribute("stroke-dasharray") === "4 3",
             ),

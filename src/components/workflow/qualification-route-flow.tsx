@@ -15,6 +15,9 @@ import { roundedPath } from "@/lib/semantic-edge-geometry";
 /**
  * Displays every customer situation and highlights the path from Form [1.01].
  */
+/** The colour of a route's tag (LOI, CSA, PCS), which its lines take in the print. */
+const tagColor = (text?: string) => (text ? ROUTE_STEP_COLORS[text]?.stroke : undefined);
+
 export function QualificationRouteFlow({
   id,
   currentId,
@@ -109,14 +112,16 @@ export function QualificationRouteFlow({
                 y1={row.y}
                 x2={row.lead[1].x}
                 y2={row.y}
+                data-print-route-color={tagColor(row.steps[0]?.text)}
                 stroke={color}
                 strokeWidth={stroke}
                 markerEnd={marker}
               />
             )}
-            {row.links.map(([from, to]) => (
+            {row.links.map(([from, to], index) => (
               <line
                 key={from.x}
+                data-print-route-color={tagColor(row.steps[index]?.text)}
                 x1={from.x}
                 y1={row.y}
                 x2={to.x}
@@ -157,6 +162,7 @@ export function QualificationRouteFlow({
             {row.exit && (
               <circle
                 data-qualification-route-exit={row.item.id}
+                data-print-route-color={tagColor(row.steps.at(-1)?.text)}
                 cx={row.exit.x}
                 cy={row.exit.y}
                 r={3.5}
@@ -197,6 +203,7 @@ export function QualificationRouteFlow({
                 <path
                   key={`bus-${row.item.id}`}
                   data-qualification-route-exit-line={row.item.id}
+                  data-print-route-color={tagColor(row.steps.at(-1)?.text)}
                   d={roundedPath(points, 8)}
                   fill="none"
                   stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}

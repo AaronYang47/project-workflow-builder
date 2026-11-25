@@ -90,8 +90,7 @@ export type TargetDateKey = (typeof TARGET_DATE_FIELDS)[number]["key"];
 
 export const PROJECT_DOCUMENT_DEFINITIONS = [
   { key: "permit", label: "Permit" },
-  { key: "archDrawings", label: "Latest architectural drawing set" },
-  { key: "sitePlan", label: "Site plan" },
+  { key: "archDrawings", label: "Latest architectural drawing set (including site plan)" },
   { key: "bylawsZoning", label: "Applicable municipal bylaws / zoning" },
   { key: "productSpecs", label: "Project product requirements / specifications" },
   { key: "classEstimate", label: "Class estimate (CEC) — D / C / B / A" },
