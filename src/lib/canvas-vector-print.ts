@@ -11,6 +11,12 @@ const MIN_CARD_WIDTH_SHARE = 0.8;
 /** Narrowest gap between columns of cards, and the space kept around a connector label. */
 const MIN_COLUMN_GAP = 64;
 const LABEL_CLEARANCE = 40;
+/** The Site tag prints larger than on the canvas (9pt on paper): its gap is sized for that. */
+const SITE_LABEL_PRINT_WIDTH = 180;
+const printedLabelWidth = (label: HTMLElement) =>
+  label.hasAttribute("data-site-label")
+    ? Math.max(label.offsetWidth, SITE_LABEL_PRINT_WIDTH)
+    : label.offsetWidth;
 const ROOT_ID = "vector-canvas-print";
 const PANEL_GAP_PX = 14;
 /** The notes under the flowchart may use at most this share of the sheet. */
@@ -1255,12 +1261,14 @@ function routeSerpentineLinks(
           `translate(-100%, -50%) translate(${upright.start.x - 12}px, ${(upright.start.y + upright.end.y) / 2}px)`,
         );
     } else if (label?.hasAttribute("data-site-label")) {
-      // The Site tag sits just above its line's longest level run, off the line.
+      // The Site tag sits over the line's bend, which runs down the middle of
+      // the gap between the two frames, just above its upper level run: clear
+      // of both frames and of the line.
       const runs = points.slice(1).map((end, index) => ({ start: points[index], end }));
-      const level = runs
-        .filter((run) => Math.abs(run.end.y - run.start.y) < 0.5)
-        .sort((a, b) => Math.abs(b.end.x - b.start.x) - Math.abs(a.end.x - a.start.x))[0];
-      const at = level ? { x: (level.start.x + level.end.x) / 2, y: level.start.y } : longest.point;
+      const levels = runs.filter((run) => Math.abs(run.end.y - run.start.y) < 0.5);
+      const bend = runs.find((run) => Math.abs(run.end.x - run.start.x) < 0.5);
+      const top = levels.length ? Math.min(...levels.map((run) => run.start.y)) : longest.point.y;
+      const at = bend ? { x: bend.start.x, y: top } : { x: longest.point.x, y: top };
       label.style.setProperty(
         "transform",
         `translate(-50%, -100%) translate(${at.x}px, ${at.y - 10}px)`,
@@ -1426,7 +1434,9 @@ export function printCanvasVector(
       copy.querySelectorAll<HTMLElement>("[data-edge-label]"),
     ).flatMap((label) => {
       const match = label.style.transform.match(/translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*$/);
-      return match ? [{ x: Number(match[1]), width: label.offsetWidth }] : [];
+      return match
+        ? [{ x: Number(label.dataset.siteX ?? match[1]), width: printedLabelWidth(label) }]
+        : [];
     });
     const scaleOf = (reflow: Reflow) =>
       Math.max(fitScale(reflow.bounds, false), fitScale(reflow.bounds, true));
@@ -1530,7 +1540,9 @@ export function printCanvasVector(
       copy.querySelectorAll<HTMLElement>("[data-edge-label]"),
     ).flatMap((label) => {
       const match = label.style.transform.match(/translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*$/);
-      return match ? [{ x: Number(match[1]), width: label.offsetWidth }] : [];
+      return match
+        ? [{ x: Number(label.dataset.siteX ?? match[1]), width: printedLabelWidth(label) }]
+        : [];
     });
     const options = serpentineLayouts(
       cards,

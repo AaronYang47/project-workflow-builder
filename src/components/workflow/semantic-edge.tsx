@@ -750,9 +750,13 @@ export function SemanticEdge({
           <div
             data-edge-label={id}
             data-site-label
+            // Where it sits between the cards, for the print to keep that gap wide.
+            data-site-x={Math.round((sourceX + targetX) / 2)}
             className="nodrag nopan pointer-events-none absolute rounded-full border border-red-500/60 bg-background px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600"
             style={{
-              transform: `translate(-50%, -50%) translate(${placement.point.x}px, ${placement.point.y}px)`,
+              // Halfway between the two cards, above the arrow's level: the
+              // print then keeps that gap wide enough for the tag.
+              transform: `translate(-50%, -100%) translate(${(sourceX + targetX) / 2}px, ${targetY - 8}px)`,
             }}
           >
             Site
