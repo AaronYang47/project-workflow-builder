@@ -166,7 +166,7 @@ export const NODE_CATALOG: NodeDefinition[] = [
     icon: Landmark,
     color: "#9a5c24",
     category: "Governance",
-    defaultSize: { width: 600, height: 700 },
+    defaultSize: { width: 760, height: 820 },
   },
   {
     type: "continuousControl",
