@@ -1401,7 +1401,8 @@ export function printCanvasVector(
     let fontSize = 0;
     if (panel) {
       panel.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
-      for (fontSize = 8; fontSize > 6.5; fontSize -= 0.5) {
+      // Small notes text, so the flowchart above gets as much of the page as possible.
+      for (fontSize = 7; fontSize > 6; fontSize -= 0.5) {
         panel.style.fontSize = `${fontSize}px`;
         panelHeight = panel.offsetHeight;
         if (panelHeight <= pageHeight * NOTES_MAX_SHARE) break;
