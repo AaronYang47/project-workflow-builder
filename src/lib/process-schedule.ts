@@ -187,11 +187,18 @@ export function buildProcessSchedule(file: WorkflowFile) {
   );
   orderedTasks.push(...tasks.filter((task) => task.phaseIndex < 0));
   const orderedNodes = orderReleaseConditionChapters(nodes, file);
-  const departments = [...new Set(orderedNodes.map(departmentDisplayName))].map((name) => ({
+  // "Department Sales" and "Department SALES" are one department.
+  const departmentKey = (name: string) => name.trim().toLowerCase();
+  const departmentNames = new Map<string, string>();
+  for (const node of orderedNodes) {
+    const name = departmentDisplayName(node);
+    if (!departmentNames.has(departmentKey(name))) departmentNames.set(departmentKey(name), name);
+  }
+  const departments = [...departmentNames.entries()].map(([key, name]) => ({
     name,
-    tasks: orderedTasks.filter((task) => task.department === name),
+    tasks: orderedTasks.filter((task) => departmentKey(task.department) === key),
     chapters: orderedNodes
-      .filter((node) => departmentDisplayName(node) === name)
+      .filter((node) => departmentKey(departmentDisplayName(node)) === key)
       .map((node) => ({
         nodeId: node.id,
         title: node.title,

@@ -63,6 +63,8 @@ function resizeInPlace(file: WorkflowFile, nodeId: string, width: number, height
 }
 
 /** Maintain Qualification → one agreement node → one Estimation node for saved workflows. */
+export const ESTIMATION_STEP_ID = "estimation-step";
+
 export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: string): WorkflowFile {
   const qualification = input.graph.nodes.find((node) => node.type === "qualification");
   if (!qualification) return input;
@@ -136,7 +138,13 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   resizeInPlace(file, qualification.id, qSize.width, Math.max(qLayout.height, qSize.height));
   const groupLayout = file.layout.nodes[groupId];
   const { width: groupWidth, height: groupHeight } = COMMERCIAL_ROUTE_GROUP_SIZE;
-  if (groupLayout && !oldIds.size) resizeInPlace(file, groupId, groupWidth, groupHeight);
+  if (groupLayout && !oldIds.size)
+    resizeInPlace(
+      file,
+      groupId,
+      Math.max(groupLayout.width, groupWidth),
+      Math.max(groupLayout.height, groupHeight),
+    );
   file.layout.nodes[groupId] =
     !groupLayout || oldIds.size
       ? {
@@ -319,5 +327,11 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     file.highLevel.graph.nodes = file.highLevel.graph.nodes.filter((node) => node.id !== legacyId);
     delete file.highLevel.layout.nodes[legacyId];
   }
+  // Estimation is itself one step in L3 and the Gantt, with its own duration.
+  const estimationNode = file.graph.nodes.find((node) => node.id === id);
+  if (estimationNode && !estimationNode.conditions.length)
+    estimationNode.conditions = [
+      { id: ESTIMATION_STEP_ID, label: estimationNode.title || "Estimation", required: true },
+    ];
   return file;
 }

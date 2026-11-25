@@ -228,7 +228,7 @@ export function EstimationNode({
         />
         <Handle type="source" id="out" position={Position.Right} />
         <div className="flex items-start justify-between gap-2 border-b pb-2">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-sm font-bold">
               <Calculator
                 className={`size-4 ${reached ? "text-teal-600" : "text-muted-foreground"}`}
@@ -245,7 +245,7 @@ export function EstimationNode({
           </div>
           <span
             data-estimation-status
-            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
+            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-100 text-emerald-700" : reached ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}
           >
             {ready ? "Reviewed" : reached ? "Draft" : "Waiting for agreement"}
           </span>

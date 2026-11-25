@@ -72,21 +72,16 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
           }
         });
 
-        // 2b. Grow the Estimation card when its content outgrows it.
-        root.querySelectorAll<HTMLElement>("[data-estimation-node]").forEach((card) => {
+        // 2b. Grow the Estimation and Route Selection cards when their content outgrows them.
+        root.querySelectorAll<HTMLElement>("[data-estimation-node], [data-route-selection-node]").forEach((card) => {
           const id = card.closest<HTMLElement>(".react-flow__node")?.dataset.id;
           const layout = id ? current.layout.nodes[id] : undefined;
           if (!id || !layout) return;
-          const zoom = card.getBoundingClientRect().height / (card.offsetHeight || 1) || 1;
-          const bottom = Math.max(
-            ...[...card.children].map(
-              (child) =>
-                ((child as HTMLElement).getBoundingClientRect().bottom -
-                  card.getBoundingClientRect().top) /
-                zoom,
-            ),
-          );
-          const requiredHeight = Math.ceil(bottom + 18);
+          // Natural height: let the card size to its content for one read.
+          const previous = card.style.height;
+          card.style.height = "auto";
+          const requiredHeight = Math.ceil(card.offsetHeight);
+          card.style.height = previous;
           if (requiredHeight > layout.height + 2) patches[id] = { ...patches[id], height: requiredHeight };
         });
 
