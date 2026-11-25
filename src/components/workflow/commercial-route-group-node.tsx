@@ -23,6 +23,7 @@ import {
 } from "@/lib/route-flow-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { NodeDepartmentField } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
 
 const cad = (amount: number) =>
@@ -171,6 +172,7 @@ export function CommercialRouteGroupNode({
               else event.currentTarget.value = node.title;
             }}
           />
+          <NodeDepartmentField node={node} />
         </div>
         <span
           data-selected-commercial-route={route ?? "none"}

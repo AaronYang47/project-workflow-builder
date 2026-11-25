@@ -7,6 +7,7 @@ import { Calculator, CheckCircle2, LockKeyhole, X } from "lucide-react";
 import { estimateSummary, preliminaryEstimationReady } from "@/lib/preliminary-estimation";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { NodeDepartmentField } from "./node-department-field";
 
 const money = (value: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -235,6 +236,7 @@ export function EstimationNode({
               {node.title || "Estimation"}
             </div>
             <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
+            <NodeDepartmentField node={node} />
           </div>
           <span
             data-estimation-status

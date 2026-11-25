@@ -107,7 +107,11 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
       commercialRoutePrice:
         base.customFields.commercialRoutePrice ?? oldLoi?.customFields.commercialRoutePrice ?? "",
     },
-    config: { ...base.config, commercialRouteGroup: true, stage: "Qualification" },
+    config: {
+      ...base.config,
+      commercialRouteGroup: true,
+      stage: String(base.config.stage ?? "").trim() || "Qualification",
+    },
   };
   const previousEstimation = file.graph.nodes.find((node) => node.type === "estimation");
   const id = estimationId ?? previousEstimation?.id ?? "estimation-1-06";
@@ -279,9 +283,10 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     }
   }
 
-  // Estimation and its agreement are L2 cards, never L1 phase frames.
+  // Retired CSA / PCS / LOI cards leave L1; Estimation and Route Selection
+  // stay in whatever Phase the user put them in.
   if (file.highLevel) {
-    const unlink = new Set([...oldIds, groupId, id]);
+    const unlink = new Set(oldIds);
     for (const step of file.highLevel.graph.nodes) {
       if (step.linkedLayer2NodeIds)
         step.linkedLayer2NodeIds = step.linkedLayer2NodeIds.filter((nodeId) => !unlink.has(nodeId));

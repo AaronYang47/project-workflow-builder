@@ -1,4 +1,6 @@
 import { expect, test } from "playwright/test";
+import { departmentDisplayName } from "../src/lib/department-label";
+import { isReleaseConditionChapter } from "../src/lib/release-condition-inbox";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { ensureEstimationWorkflow } from "../src/lib/estimation-workflow";
 import { migrateWorkflowFile } from "../src/lib/workflow-migration";
@@ -60,4 +62,27 @@ test("reloading keeps lines the user rewired and links a Department placed in a 
     );
     expect(linked).toBe(true);
   }
+});
+
+test("Estimation and Route Selection keep their Phase and Department on reload and own L3 steps", () => {
+  const base = createE2EWorkflow();
+  const qualification = createDomainNode("qualification", "qualification-1");
+  base.graph.nodes.unshift(qualification);
+  base.layout.nodes[qualification.id] = { nodeId: qualification.id, x: 0, y: 100, width: 440, height: 460 };
+  const file = ensureEstimationWorkflow(base);
+  const group = file.graph.nodes.find((node) => node.config.commercialRouteGroup === true)!;
+  const estimation = file.graph.nodes.find((node) => node.type === "estimation")!;
+  group.config.stage = "Sales";
+  estimation.config.stage = "Sales";
+  const phase = file.highLevel!.graph.nodes[0];
+  phase.linkedLayer2NodeIds = [...(phase.linkedLayer2NodeIds ?? []), group.id, estimation.id];
+  const reloaded = migrateWorkflowFile(structuredClone(file));
+  expect(reloaded.highLevel!.graph.nodes[0].linkedLayer2NodeIds).toEqual(
+    expect.arrayContaining([group.id, estimation.id]),
+  );
+  const byId = (id: string) => reloaded.graph.nodes.find((node) => node.id === id)!;
+  expect(departmentDisplayName(byId(group.id))).toBe("Department Sales");
+  expect(departmentDisplayName(byId(estimation.id))).toBe("Department Sales");
+  expect(isReleaseConditionChapter(byId(group.id))).toBe(true);
+  expect(isReleaseConditionChapter(byId(estimation.id))).toBe(true);
 });
