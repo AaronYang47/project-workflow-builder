@@ -1,13 +1,5 @@
 import type { PhaseForms, PrintHeader } from "@/lib/phase-forms-summary";
-import type { QualificationCase } from "@/lib/qualification";
 import { escapeHtml } from "@/lib/html";
-import {
-  ROUTE_FLOW_OFF,
-  ROUTE_FLOW_ON,
-  ROUTE_STEP_COLORS,
-  ROUTE_STEP_DEFAULT,
-  routeFlowLayout,
-} from "@/lib/route-flow-layout";
 import { EDGE_CORNER_RADIUS, roundedPath } from "@/lib/semantic-edge-geometry";
 
 /** 11 x 17 in at the CSS 96 px/in reference; the long side is 17 in. */
@@ -424,91 +416,6 @@ function formsPanel(forms: PhaseForms[]) {
       .vpf-legal { color: color-mix(in srgb, #f59e0b 75%, var(--foreground)); }
       .vpf-customer { color: color-mix(in srgb, #0ea5e9 75%, var(--foreground)); }
       .vpf-supporting { color: var(--foreground); }
-    </style>`;
-  return panel;
-}
-
-export type PrintRoutes = {
-  cases: QualificationCase[];
-  /** The situation the project is in, highlighted in the table. */
-  currentId?: string;
-};
-
-/**
- * Every customer situation as a small flowchart, the same one Qualification
- * draws on the canvas, with the project's own branch in green. Units are
- * tenths of an em, so it scales with the notes text.
- */
-function routesPanel(routes: PrintRoutes) {
-  const panel = document.createElement("section");
-  panel.className = "vector-print-routes";
-  panel.setAttribute("data-print-routes", "");
-  const layout = routeFlowLayout(routes.cases);
-  const parts: string[] = [];
-  const line = (from: { x: number; y: number }, to: { x: number; y: number }, on: boolean) =>
-    `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}" stroke-width="${on ? 2 : 1}" marker-end="url(#print-routes-arrow-${on ? "on" : "off"})"/>`;
-  let width = layout.width;
-  // A handed-over situation lights up the situation that carries it on too;
-  // the "This project" tag sits where the route ends.
-  const handoff = routes.cases.find((item) => item.id === routes.currentId)?.handoff;
-  const lit = new Set([routes.currentId, handoff].filter(Boolean));
-  const finalId = handoff ?? routes.currentId;
-  for (const row of layout.rows) {
-    const on = lit.has(row.item.id);
-    const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
-    parts.push(
-      `<g data-print-route="${escapeHtml(row.item.id)}"${on ? " data-print-route-current" : ""}>`,
-      `<path d="${roundedPath(row.branch, 6)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"/>`,
-      `<text x="${row.labelX}" y="${row.y}" dominant-baseline="central" font-size="9" fill="${on ? ROUTE_FLOW_ON : "currentColor"}" font-weight="${on ? 800 : 500}">${escapeHtml(row.item.situation)}</text>`,
-      ...(row.lead ? [line(row.lead[0], row.lead[1], on)] : []),
-      ...(row.handoff
-        ? [
-            `<path d="${roundedPath(row.handoff, 5)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"${on ? "" : ' stroke-dasharray="3 2"'} marker-end="url(#print-routes-arrow-${on ? "on" : "off"})"/>`,
-          ]
-        : []),
-      ...row.links.map(([from, to]) => line(from, to, on)),
-    );
-    for (const step of row.steps) {
-      const palette = ROUTE_STEP_COLORS[step.text] ?? ROUTE_STEP_DEFAULT;
-      parts.push(
-        `<rect x="${step.x}" y="${row.y - layout.boxHeight / 2}" width="${step.width}" height="${layout.boxHeight}" rx="3" fill="${palette.fill}" stroke="${palette.stroke}" stroke-width="${on ? 1.6 : 1}"/>`,
-        `<text x="${step.x + step.width / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="${palette.text}">${escapeHtml(step.text)}</text>`,
-      );
-    }
-    if (row.exit)
-      parts.push(
-        `<circle data-print-route-exit cx="${row.exit.x}" cy="${row.exit.y}" r="3.5" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>`,
-      );
-    if (row.item.id === finalId) {
-      const tagWidth = 72;
-      parts.push(
-        `<rect x="${row.end + 12}" y="${row.y - 7}" width="${tagWidth}" height="14" rx="7" fill="${ROUTE_FLOW_ON}"/>`,
-        `<text x="${row.end + 12 + tagWidth / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="800" fill="#ffffff">This project</text>`,
-      );
-      width = Math.max(width, row.end + 12 + tagWidth + 2);
-    }
-    parts.push("</g>");
-  }
-  for (const client of layout.clients) {
-    const on = client.ids.some((id) => lit.has(id));
-    parts.push(
-      `<rect x="1" y="${client.top + 3}" width="${layout.clientWidth - 2}" height="${client.bottom - client.top - 6}" rx="4" fill="${on ? "#dcfce7" : "#f8fafc"}" stroke="${on ? ROUTE_FLOW_ON : "#64748b"}" stroke-width="${on ? 1.6 : 1}"/>`,
-      `<text x="${layout.clientWidth / 2}" y="${client.mid}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="800" fill="${on ? "#14532d" : "#0f172a"}">${escapeHtml(client.client)}</text>`,
-    );
-  }
-  const height = layout.height;
-  const arrow = (id: string, color: string) =>
-    `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1L9 5L1 9Z" fill="${color}"/></marker>`;
-  panel.innerHTML = `
-    <div class="vpr-heading">Customer routes</div>
-    <svg viewBox="0 0 ${width} ${height}" style="width:${width / 10}em;height:${height / 10}em;display:block;overflow:visible">
-      <defs>${arrow("print-routes-arrow-on", ROUTE_FLOW_ON)}${arrow("print-routes-arrow-off", ROUTE_FLOW_OFF)}</defs>
-      ${parts.join("")}
-    </svg>
-    <style>
-      .vector-print-routes { flex: 0 0 auto; min-width: 0; color: var(--foreground); line-height: 1.3; }
-      .vector-print-routes svg { font-family: inherit; color: var(--foreground); }
-      .vpr-heading { margin-bottom: .45em; font-size: .95em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
     </style>`;
   return panel;
 }
@@ -1340,7 +1247,6 @@ export function printCanvasVector(
   title: string,
   forms: PhaseForms[] = [],
   header?: PrintHeader,
-  routes?: PrintRoutes,
 ) {
   document.getElementById(ROOT_ID)?.remove();
 
@@ -1361,6 +1267,10 @@ export function printCanvasVector(
   copy.querySelectorAll(".selected").forEach((element) => element.classList.remove("selected"));
   uniquifyIds(copy, "print-");
   hideEditingControls(copy);
+  // The agreement being filled in belongs to editing, not to the flowchart.
+  copy
+    .querySelectorAll<HTMLElement>("[data-route-agreements]")
+    .forEach((element) => element.style.setProperty("visibility", "hidden", "important"));
   const viewport = copy.querySelector<HTMLElement>(".react-flow__viewport");
   if (!viewport) throw new Error("The canvas could not be prepared for printing.");
   root.appendChild(copy);
@@ -1432,33 +1342,7 @@ export function printCanvasVector(
   // notes shrink their text rather than take room from the flowchart.
   const titleBlock = header ? headerBlock(header) : null;
   if (titleBlock) root.appendChild(titleBlock);
-  // Notes under the flowchart: the customer routes table beside the forms.
-  const notes = [
-    ...(routes?.cases.length ? [routesPanel(routes)] : []),
-    ...(forms.length ? [formsPanel(forms)] : []),
-  ];
-  let panel: HTMLElement | null = null;
-  if (notes.length === 1) panel = notes[0];
-  else if (notes.length > 1) {
-    panel = document.createElement("div");
-    panel.setAttribute("data-print-notes", "");
-    Object.assign(panel.style, {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: "2em",
-      boxSizing: "border-box",
-      paddingTop: ".6em",
-      borderTop: "1px solid var(--border)",
-    });
-    const formsNotes = notes[1];
-    Object.assign(formsNotes.style, {
-      flex: "1 1 0",
-      minWidth: "0",
-      border: "none",
-      paddingTop: "0",
-    });
-    notes.forEach((note) => panel!.appendChild(note));
-  }
+  const panel = forms.length ? formsPanel(forms) : null;
   if (panel) root.appendChild(panel);
   const areaFor = (portrait: boolean) => {
     const pageWidth = portrait ? SHEET_SHORT_PX : SHEET_LONG_PX;

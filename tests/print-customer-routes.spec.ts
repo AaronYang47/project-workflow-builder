@@ -2,7 +2,7 @@ import { expect, test } from "playwright/test";
 import { createDomainNode } from "../src/lib/create-domain-node";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
-test("the L2 PDF draws every customer route as a flowchart and marks the project's own", async ({
+test("the L2 PDF shows the route chart in Route Selection only, without the routes panel or the agreement form", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -33,21 +33,15 @@ test("the L2 PDF draws every customer route as a flowchart and marks the project
       (window as unknown as { printed: unknown[] }).printed = [];
       window.print = () => {
         const root = document.getElementById("vector-canvas-print")!;
-        root.style.setProperty("display", "block", "important");
-        const routes = root.querySelector<HTMLElement>("[data-print-routes]");
-        // The flowchart copy spans the whole sheet.
-        const page = root.querySelector<HTMLElement>(".react-flow")!.getBoundingClientRect();
-        const box = routes?.getBoundingClientRect();
+        const agreements = root.querySelector<HTMLElement>("[data-route-agreements]");
         (window as unknown as { printed: unknown[] }).printed.push({
-          rows: Array.from(root.querySelectorAll<HTMLElement>("[data-print-route]")).map(
-            (row) => row.dataset.printRoute,
-          ),
-          current: Array.from(root.querySelectorAll<HTMLElement>("[data-print-route-current]")).map(
-            (row) => row.textContent?.replace(/\s+/g, " ").trim(),
-          ),
-          onPage: Boolean(
-            box && box.width > 0 && box.top >= page.top && box.bottom <= page.bottom + 1,
-          ),
+          routesPanel: root.querySelectorAll("[data-print-routes]").length,
+          routeChart: root.querySelectorAll(
+            "[data-route-selection-node] [data-qualification-route-flow]",
+          ).length,
+          agreementsHidden: agreements
+            ? getComputedStyle(agreements).visibility === "hidden"
+            : null,
         });
       };
     },
@@ -62,18 +56,7 @@ test("the L2 PDF draws every customer route as a flowchart and marks the project
   const [printed] = await page.evaluate(
     () => (window as unknown as { printed: unknown[] }).printed,
   );
-  expect(printed).toEqual({
-    rows: [
-      "profab",
-      "gc-vip",
-      "gc-no-plans",
-      "gc-plans",
-      "owner-vip",
-      "owner-no-plans",
-      "owner-plans",
-    ],
-    // The Owner's branch hands over to the one GC box, whose "has plans" branch carries on to PCS.
-    current: ["Regular · has plansPCSThis project", "Regular · has plans"],
-    onPage: true,
-  });
+  // The sheet shows the route chart inside Route Selection only: no separate
+  // routes chart under the flowchart, and no agreement form being filled in.
+  expect(printed).toEqual({ routesPanel: 0, routeChart: 1, agreementsHidden: true });
 });

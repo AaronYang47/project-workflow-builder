@@ -243,6 +243,7 @@ export function CommercialRouteGroupNode({
       </p>
 
       <div
+        data-route-agreements
         className="mt-2 grid min-h-0 flex-1 gap-2"
         style={{ gridTemplateColumns: `repeat(${Math.max(1, agreements.length)}, minmax(0, 1fr))` }}
       >
