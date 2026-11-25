@@ -1,5 +1,10 @@
 import { expect, test } from "playwright/test";
-import { qualificationRoute, type Qualification } from "../src/lib/qualification";
+import {
+  QUALIFICATION_CASES,
+  qualificationCase,
+  qualificationRoute,
+  type Qualification,
+} from "../src/lib/qualification";
 import {
   DISCIPLINE_DEFINITIONS,
   PROJECT_DOCUMENT_DEFINITIONS,
@@ -15,8 +20,41 @@ import { createDomainNode } from "../src/lib/create-domain-node";
 import { ensureEstimationWorkflow } from "../src/lib/estimation-workflow";
 import { createE2EWorkflow, WORKFLOW_STORAGE_KEY } from "./support/e2e-workflow";
 
-test("customer history and plans decide the route after Qualification", () => {
+test("client type, customer level and plans decide the route after Qualification", () => {
   expect(qualificationRoute({})).toBeUndefined();
+  const routeOf = (q: Qualification) => [qualificationRoute(q), qualificationCase(q)?.steps];
+  // ProFab is our own company: always LOI.
+  expect(routeOf({ clientCategory: "ProFab" })).toEqual(["LOI", ["LOI"]]);
+  // VIP GC and VIP Owner go through LOI.
+  expect(routeOf({ clientCategory: "GC", customerTier: "vip" })).toEqual(["LOI", ["LOI"]]);
+  expect(routeOf({ clientCategory: "Owner", customerTier: "vip" })).toEqual(["LOI", ["LOI"]]);
+  // Regular customers without plans consult first, then PCS.
+  for (const clientCategory of ["GC", "Owner"] as const)
+    expect(routeOf({ clientCategory, customerTier: "regular", plansAvailable: "no" })).toEqual([
+      "CSA",
+      ["CSA", "PCS"],
+    ]);
+  // A regular GC with plans goes straight to PCS.
+  expect(routeOf({ clientCategory: "GC", customerTier: "regular", plansAvailable: "yes" })).toEqual(
+    ["PCS", ["PCS"]],
+  );
+  // An Owner with plans is handed to their GC, who contacts ProFab, then PCS.
+  expect(
+    routeOf({ clientCategory: "Owner", customerTier: "regular", plansAvailable: "yes" }),
+  ).toEqual(["PCS", ["Owner's GC contacts ProFab", "PCS"]]);
+  // Until enough is chosen there is no route, even with an older saved path.
+  expect(qualificationRoute({ clientCategory: "GC", commercialPath: "LOI" })).toBeUndefined();
+  expect(qualificationRoute({ clientCategory: "Owner", customerTier: "regular" })).toBeUndefined();
+  expect(QUALIFICATION_CASES.map((item) => item.id)).toEqual([
+    "profab",
+    "gc-vip",
+    "gc-no-plans",
+    "gc-plans",
+    "owner-vip",
+    "owner-no-plans",
+    "owner-plans",
+  ]);
+  // Older saved answers (new or existing customer) still read.
   // New customers: no plans → CSA, plans → PCS.
   expect(qualificationRoute({ customerHistory: "new", plansAvailable: "no" })).toBe("CSA");
   expect(qualificationRoute({ customerHistory: "new", plansAvailable: "yes" })).toBe("PCS");
@@ -99,19 +137,27 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await page.getByRole("button", { name: /fit view/i }).click();
   await page.waitForTimeout(400);
   const route = node.locator("[data-qualification-route]");
-  // New customer: no plans → CSA, plans → PCS.
-  await node.getByRole("button", { name: "New customer" }).click();
+  const ownerNote = node.locator("[data-qualification-owner-gc]");
+  await expect(route).toHaveText("Route: Choose the client type");
+  // Regular GC: no plans → CSA then PCS, plans → PCS.
+  await node.getByRole("button", { name: "GC", exact: true }).click();
+  await node.getByRole("button", { name: "Regular" }).click();
   await node.getByRole("button", { name: "No plans" }).click();
-  await expect(route).toHaveText("Route: CSA");
+  await expect(route).toHaveText("Route: CSA → PCS");
   await node.getByRole("button", { name: "Has plans" }).click();
   await expect(route).toHaveText("Route: PCS");
-  // Existing customer: choose CSA, PCS or LOI; every choice can change later.
-  await node.getByRole("button", { name: "Existing customer" }).click();
-  await expect(route).toHaveText("Route: Select customer history and plans");
-  await node
-    .getByRole("group", { name: "Existing customer route" })
-    .getByRole("button", { name: "LOI" })
-    .click();
+  await expect(ownerNote).toHaveCount(0);
+  // Owner with plans: their GC contacts ProFab, then PCS.
+  await node.getByRole("button", { name: "Owner" }).click();
+  await expect(route).toHaveText("Route: Owner's GC contacts ProFab → PCS");
+  await expect(ownerNote).toBeVisible();
+  // VIP goes through LOI and needs no plans answer.
+  await node.getByRole("button", { name: "VIP" }).click();
+  await expect(node.getByRole("group", { name: "Plans available" })).toHaveCount(0);
+  await expect(route).toHaveText("Route: LOI");
+  // ProFab is our own company: LOI, nothing more to choose.
+  await node.getByRole("button", { name: "ProFab" }).click();
+  await expect(node.getByRole("group", { name: "Customer level" })).toHaveCount(0);
   await expect(route).toHaveText("Route: LOI");
 
   // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.
@@ -133,14 +179,14 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
               edge.source === source?.id && edge.target === target?.id,
           );
         return {
-          customerHistory: qualification?.config.qualification.customerHistory,
+          clientCategory: qualification?.config.qualification.clientCategory,
           commercialPath: qualification?.config.qualification.commercialPath,
           linked:
             linked(qualification, group) && linked(group, estimation) && linked(estimation, start),
         };
       }, WORKFLOW_STORAGE_KEY),
     )
-    .toEqual({ customerHistory: "existing", commercialPath: "LOI", linked: true });
+    .toEqual({ clientCategory: "ProFab", commercialPath: "LOI", linked: true });
 });
 
 test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () => {
@@ -276,12 +322,9 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   const score = node.locator("[data-qualification-score]");
   await expect(score).toHaveText("0/84 · 0%");
 
-  // Choose the LOI route first: an existing customer.
-  await node.getByRole("button", { name: "Existing customer" }).click();
-  await node
-    .getByRole("group", { name: "Existing customer route" })
-    .getByRole("button", { name: "LOI" })
-    .click();
+  // Choose the LOI route first: a VIP GC.
+  await node.getByRole("button", { name: "GC", exact: true }).click();
+  await node.getByRole("button", { name: "VIP" }).click();
   await expect(node.locator("[data-qualification-route]")).toHaveText("Route: LOI");
   await expect(score).toHaveText("0/84 · 0%");
 
@@ -424,7 +467,7 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
 
   // 2. Enough points but no route still blocks.
   qNode.config.qualification = { form101: passingForm };
-  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("new or existing");
+  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("Choose the client type");
 
   // 3. Enough points and a route unlocks the next steps.
   qNode.config.qualification = {
@@ -504,12 +547,13 @@ test("Qualification blocks the next Department until it passes with a route, and
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   const blocker = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(blocker.getByText("Complete Qualification first")).toBeVisible();
-  await expect(blocker).toContainText("new or existing");
+  await expect(blocker).toContainText("Choose the client type");
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
-  // New customer without plans → CSA: Qualification passes and SALES opens up.
-  await qualCard.getByRole("button", { name: "New customer" }).click();
+  // Regular GC without plans → CSA: Qualification passes and SALES opens up.
+  await qualCard.getByRole("button", { name: "GC", exact: true }).click();
+  await qualCard.getByRole("button", { name: "Regular" }).click();
   await qualCard.getByRole("button", { name: "No plans" }).click();
   await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();

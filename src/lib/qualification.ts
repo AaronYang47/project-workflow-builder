@@ -12,6 +12,11 @@ export type QualificationTechReview = {
 
 /** Choices made in the L2 Qualification node. All can be changed later. */
 export type Qualification = {
+  /** Who the customer is: General Contractor, building Owner, or ProFab itself. */
+  clientCategory?: ClientCategory;
+  /** VIP customers go through the LOI channel. */
+  customerTier?: "vip" | "regular";
+  /** Retained for older saved projects; replaced by clientCategory and customerTier. */
   customerHistory?: "new" | "existing";
   clientType?: (typeof CLIENT_TYPES)[number];
   gcStatus?: (typeof GC_STATUSES)[number];
@@ -32,6 +37,63 @@ export const CONTRACTING_CLIENT = ["Confirmed", "TBD"] as const;
 export const PROJECT_TYPES = ["FOB Yard", "Consultation", "Other"] as const;
 export const COMMERCIAL_PATHS = ["LOI", "CSA", "PCS"] as const;
 
+export const CLIENT_CATEGORIES = ["GC", "Owner", "ProFab"] as const;
+export type ClientCategory = (typeof CLIENT_CATEGORIES)[number];
+
+export type QualificationCase = {
+  id: string;
+  client: ClientCategory;
+  situation: string;
+  /** The steps the customer goes through, in order. */
+  steps: string[];
+  /** The CSA / PCS / LOI card the workflow continues into. */
+  route: (typeof COMMERCIAL_PATHS)[number];
+};
+
+/** Every customer situation and the route it takes. */
+export const QUALIFICATION_CASES: QualificationCase[] = [
+  { id: "profab", client: "ProFab", situation: "Our own company", steps: ["LOI"], route: "LOI" },
+  { id: "gc-vip", client: "GC", situation: "VIP", steps: ["LOI"], route: "LOI" },
+  {
+    id: "gc-no-plans",
+    client: "GC",
+    situation: "Regular · no plans",
+    steps: ["CSA", "PCS"],
+    route: "CSA",
+  },
+  { id: "gc-plans", client: "GC", situation: "Regular · has plans", steps: ["PCS"], route: "PCS" },
+  { id: "owner-vip", client: "Owner", situation: "VIP", steps: ["LOI"], route: "LOI" },
+  {
+    id: "owner-no-plans",
+    client: "Owner",
+    situation: "Regular · no plans",
+    steps: ["CSA", "PCS"],
+    route: "CSA",
+  },
+  {
+    id: "owner-plans",
+    client: "Owner",
+    situation: "Regular · has plans",
+    steps: ["Owner's GC contacts ProFab", "PCS"],
+    route: "PCS",
+  },
+];
+
+/** The situation this Qualification describes, once enough has been chosen. */
+export function qualificationCase(qualification: Qualification) {
+  const { clientCategory, customerTier, plansAvailable } = qualification;
+  if (!clientCategory) return undefined;
+  const id =
+    clientCategory === "ProFab"
+      ? "profab"
+      : customerTier === "vip"
+        ? `${clientCategory.toLowerCase()}-vip`
+        : customerTier === "regular" && plansAvailable
+          ? `${clientCategory.toLowerCase()}-${plansAvailable === "yes" ? "plans" : "no-plans"}`
+          : undefined;
+  return QUALIFICATION_CASES.find((item) => item.id === id);
+}
+
 export const QUALIFICATION_FIELDS = [
   { key: "clientType", label: "Client Type", options: CLIENT_TYPES },
   { key: "gcStatus", label: "GC Status", options: GC_STATUSES },
@@ -45,11 +107,12 @@ export function qualificationOf(node: DomainNode): Qualification {
 }
 
 /**
- * New customers follow plan availability; returning customers can explicitly
- * choose CSA, PCS, or LOI.
- * Older saved selections remain readable until the user answers the new questions.
+ * The client type, VIP or regular, and plan availability decide the route
+ * (see QUALIFICATION_CASES). Older saved selections (new or existing customer)
+ * remain readable until the client type is chosen.
  */
 export function qualificationRoute(qualification: Qualification) {
+  if (qualification.clientCategory) return qualificationCase(qualification)?.route;
   if (qualification.customerHistory === "existing") {
     return qualification.commercialPath;
   }

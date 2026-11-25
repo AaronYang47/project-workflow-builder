@@ -2,7 +2,9 @@ import { applyFobYardSkip } from "@/lib/fob-yard";
 import { useEffect, type RefObject } from "react";
 import { type useReactFlow } from "@xyflow/react";
 import { fitCanvasToWorkflow } from "@/lib/flow-helpers";
-import { printCanvasVector } from "@/lib/canvas-vector-print";
+import { printCanvasVector, type PrintRoutes } from "@/lib/canvas-vector-print";
+import { QUALIFICATION_CASES, qualificationCase, qualificationOf } from "@/lib/qualification";
+import type { WorkflowFile } from "@/types/workflow";
 import { flowchartPrintHeader, phaseFormsSummary } from "@/lib/phase-forms-summary";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { EXPORT_EVENT } from "@/lib/export/export-formats";
@@ -14,6 +16,13 @@ type ReactFlowInstance = ReturnType<typeof useReactFlow>;
  * Attaches global canvas event listeners for node focusing, zoom-to-fit,
  * and high-resolution PNG/SVG image export.
  */
+/** Every customer route for the L2 sheet, with the project's own situation marked. */
+function customerRoutes(file: WorkflowFile): PrintRoutes | undefined {
+  const node = file.graph.nodes.find((item) => item.type === "qualification");
+  if (!node) return undefined;
+  return { cases: QUALIFICATION_CASES, currentId: qualificationCase(qualificationOf(node))?.id };
+}
+
 export function useCanvasExport(
   flow: ReactFlowInstance,
   wrapper: RefObject<HTMLDivElement | null>,
@@ -141,6 +150,7 @@ export function useCanvasExport(
             : "workflow-L2-detailed-11x17",
           forms,
           flowchartPrintHeader(file, detail.format === "l1-pdf" ? "l1" : "l2", forms.length),
+          detail.format === "l2-pdf" ? customerRoutes(file) : undefined,
         );
         return;
       }

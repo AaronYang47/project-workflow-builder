@@ -957,7 +957,7 @@ export function evaluateQualificationGate(
       passed: false,
       state: "pending_route",
       statusLabel: "Choose CSA / PCS / LOI",
-      blockingReason: `Form [${FORM_101_CODE}] passed. Select whether the customer is new or existing and whether plans are available to choose the route.`,
+      blockingReason: `Form [${FORM_101_CODE}] passed. Choose the client type, VIP or regular, and whether plans are available to set the route.`,
     };
   }
 

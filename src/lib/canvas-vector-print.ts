@@ -387,6 +387,49 @@ function formsPanel(forms: PhaseForms[]) {
   return panel;
 }
 
+export type PrintRoutes = {
+  cases: { id: string; client: string; situation: string; steps: string[] }[];
+  /** The situation the project is in, highlighted in the table. */
+  currentId?: string;
+};
+
+/** Every customer situation and its route, with this project's row marked. */
+function routesPanel(routes: PrintRoutes) {
+  const panel = document.createElement("section");
+  panel.className = "vector-print-routes";
+  panel.setAttribute("data-print-routes", "");
+  panel.innerHTML = `
+    <div class="vpr-heading">Customer routes</div>
+    <table>
+      <thead><tr><th>Client</th><th>Situation</th><th>Route</th></tr></thead>
+      <tbody>
+        ${routes.cases
+          .map((item) => {
+            const current = item.id === routes.currentId;
+            return `<tr data-print-route="${escapeHtml(item.id)}"${current ? ' data-print-route-current class="vpr-current"' : ""}>
+          <td>${escapeHtml(item.client)}</td>
+          <td>${escapeHtml(item.situation)}</td>
+          <td>${item.steps.map(escapeHtml).join(' <span class="vpr-arrow">→</span> ')}${current ? ' <b class="vpr-tag">This project</b>' : ""}</td>
+        </tr>`;
+          })
+          .join("")}
+      </tbody>
+    </table>
+    <style>
+      .vector-print-routes { flex: 0 0 auto; width: 38em; min-width: 0; color: var(--foreground); line-height: 1.3; }
+      .vpr-heading { margin-bottom: .45em; font-size: .95em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+      .vector-print-routes table { width: 100%; border-collapse: collapse; }
+      .vector-print-routes th { text-align: left; font-size: .85em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); border-bottom: 1px solid var(--border); padding: 0 .5em .2em 0; }
+      .vector-print-routes td { padding: .18em .5em .18em 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+      .vector-print-routes td:first-child { font-weight: 800; white-space: nowrap; }
+      .vpr-arrow { color: var(--muted-foreground); }
+      .vpr-current td { background: #dcfce7; color: #14532d; font-weight: 700; }
+      .vpr-current td:first-child { box-shadow: inset 3px 0 0 #16a34a; padding-left: .4em; }
+      .vpr-tag { margin-left: .4em; padding: 0 .4em; border-radius: 3px; background: #16a34a; color: #fff; font-size: .85em; white-space: nowrap; }
+    </style>`;
+  return panel;
+}
+
 /** Title block across the top: the project, and what this sheet shows. */
 function headerBlock(header: PrintHeader) {
   const block = document.createElement("header");
@@ -1214,6 +1257,7 @@ export function printCanvasVector(
   title: string,
   forms: PhaseForms[] = [],
   header?: PrintHeader,
+  routes?: PrintRoutes,
 ) {
   document.getElementById(ROOT_ID)?.remove();
 
@@ -1305,7 +1349,33 @@ export function printCanvasVector(
   // notes shrink their text rather than take room from the flowchart.
   const titleBlock = header ? headerBlock(header) : null;
   if (titleBlock) root.appendChild(titleBlock);
-  const panel = forms.length ? formsPanel(forms) : null;
+  // Notes under the flowchart: the customer routes table beside the forms.
+  const notes = [
+    ...(routes?.cases.length ? [routesPanel(routes)] : []),
+    ...(forms.length ? [formsPanel(forms)] : []),
+  ];
+  let panel: HTMLElement | null = null;
+  if (notes.length === 1) panel = notes[0];
+  else if (notes.length > 1) {
+    panel = document.createElement("div");
+    panel.setAttribute("data-print-notes", "");
+    Object.assign(panel.style, {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: "2em",
+      boxSizing: "border-box",
+      paddingTop: ".6em",
+      borderTop: "1px solid var(--border)",
+    });
+    const formsNotes = notes[1];
+    Object.assign(formsNotes.style, {
+      flex: "1 1 0",
+      minWidth: "0",
+      border: "none",
+      paddingTop: "0",
+    });
+    notes.forEach((note) => panel!.appendChild(note));
+  }
   if (panel) root.appendChild(panel);
   const areaFor = (portrait: boolean) => {
     const pageWidth = portrait ? SHEET_SHORT_PX : SHEET_LONG_PX;
