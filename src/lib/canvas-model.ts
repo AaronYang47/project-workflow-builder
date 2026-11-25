@@ -294,13 +294,16 @@ export function buildCanvasEdges(
     const active = progress.activeEdgeIds.has(domain.id);
     const activeColor = active ? getSemanticEdgeColor(domain) : "#94a3b8";
     const supportingLane = supportingEdgeLanes.get(domain.id);
+    // FOB yard on: the line into the skipped Phase is the site route, tagged "Site".
+    const siteRoute = fobYardSkipped.has(domain.target) && !fobYardSkipped.has(domain.source);
 
     return {
       id: domain.id,
       type: "semantic",
       zIndex: active ? 12 : 10,
-      className:
-        fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
+      className: siteRoute
+        ? "fob-yard-skipped fob-yard-site"
+        : fobYardSkipped.has(domain.source) || fobYardSkipped.has(domain.target)
           ? "fob-yard-skipped"
           : undefined,
       source: domain.source,
@@ -337,6 +340,7 @@ export function buildCanvasEdges(
                 : 0,
         labelHugsPath,
         preGateSales,
+        siteRoute,
         siblingIndex: Math.max(0, siblingIndex),
         siblingCount: siblingEdges.length,
       },

@@ -744,6 +744,21 @@ export function SemanticEdge({
           className="pointer-events-none"
         />
       )}
+      {data?.siteRoute && !displayLabel && (
+        <EdgeLabelRenderer>
+          {/* FOB yard on: the route to site, tagged like the FOB YARD route. */}
+          <div
+            data-edge-label={id}
+            data-site-label
+            className="nodrag nopan pointer-events-none absolute rounded-full border border-red-500/60 bg-background px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600"
+            style={{
+              transform: `translate(-50%, -50%) translate(${placement.point.x}px, ${placement.point.y}px)`,
+            }}
+          >
+            Site
+          </div>
+        </EdgeLabelRenderer>
+      )}
       {!isCommercialRouteColor(domain.customFields.routeColor) && (
         <EdgeLabelRenderer>
           <EditableEdgeLabel

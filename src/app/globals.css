@@ -492,6 +492,15 @@ button:disabled {
 .workflow-flow .react-flow__edge.fob-yard-skipped .react-flow__arrowhead {
   fill: #a8b3c2 !important;
 }
+/* FOB yard on: the route to site, red and dashed with its "Site" tag. */
+.workflow-flow .react-flow__edge.fob-yard-site path {
+  stroke: #dc2626 !important;
+  stroke-dasharray: 6 6;
+}
+.workflow-flow .react-flow__edge.fob-yard-site marker path,
+.workflow-flow .react-flow__edge.fob-yard-site .react-flow__arrowhead {
+  fill: #dc2626 !important;
+}
 .workflow-flow .react-flow__handle {
   pointer-events: all;
   touch-action: none;

@@ -255,6 +255,7 @@ function desaturateSkippedCards(root: HTMLElement) {
 /** Every printed connector is drawn highlighted: solid green with a soft green halo. */
 const PRINT_CONNECTOR_GREEN = "#22c55e";
 const PRINT_HANDOFF_YELLOW = "#eab308";
+const PRINT_SITE_RED = "#dc2626";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PRINT_ARROW_ID = "print-connector-arrow";
 
@@ -1253,12 +1254,64 @@ function routeSerpentineLinks(
           "transform",
           `translate(-100%, -50%) translate(${upright.start.x - 12}px, ${(upright.start.y + upright.end.y) / 2}px)`,
         );
+    } else if (label?.hasAttribute("data-site-label")) {
+      // The Site tag sits just above its line's longest level run, off the line.
+      const runs = points.slice(1).map((end, index) => ({ start: points[index], end }));
+      const level = runs
+        .filter((run) => Math.abs(run.end.y - run.start.y) < 0.5)
+        .sort((a, b) => Math.abs(b.end.x - b.start.x) - Math.abs(a.end.x - a.start.x))[0];
+      const at = level ? { x: (level.start.x + level.end.x) / 2, y: level.start.y } : longest.point;
+      label.style.setProperty(
+        "transform",
+        `translate(-50%, -100%) translate(${at.x}px, ${at.y - 10}px)`,
+      );
     } else
       label?.style.setProperty(
         "transform",
         `translate(-50%, -50%) translate(${longest.point.x}px, ${longest.point.y}px)`,
       );
   }
+}
+
+/** FOB yard on: the route to site prints red and dashed, arrow and "Site" tag included. */
+function paintSiteRoutes(root: HTMLElement, pageColor: Rgba, scale: number) {
+  const paths = root.querySelectorAll<SVGPathElement>(".fob-yard-site path");
+  const host = root.querySelector<SVGMarkerElement>(`#${PRINT_ARROW_ID}`);
+  let markerId: string | null = null;
+  if (host && paths.length) {
+    const red = host.cloneNode(true) as SVGMarkerElement;
+    markerId = `${PRINT_ARROW_ID}-site`;
+    red.id = markerId;
+    red.querySelectorAll<SVGElement>("path").forEach((shape) => {
+      shape.setAttribute("fill", PRINT_SITE_RED);
+      shape.style.setProperty("fill", PRINT_SITE_RED, "important");
+      shape.style.setProperty("stroke", PRINT_SITE_RED, "important");
+    });
+    host.parentNode?.appendChild(red);
+  }
+  paths.forEach((path) => {
+    path.style.setProperty("stroke", PRINT_SITE_RED, "important");
+    if (path.hasAttribute("data-print-connector-halo")) return;
+    path.style.setProperty("stroke-dasharray", "8 6", "important");
+    if (markerId && path.classList.contains("react-flow__edge-path"))
+      path.setAttribute("marker-end", `url(#${markerId})`);
+  });
+  const size = (points: number) => `${points / Math.max(scale, 0.05)}px`;
+  root.querySelectorAll<HTMLElement>("[data-site-label]").forEach((label) => {
+    for (const [property, value] of [
+      ["background-color", css([pageColor[0], pageColor[1], pageColor[2], 1])],
+      ["color", PRINT_SITE_RED],
+      ["border", `${size(1.2)} solid ${PRINT_SITE_RED}`],
+      ["font-size", size(9)],
+      ["font-weight", "800"],
+      ["letter-spacing", "0.12em"],
+      ["padding", `${size(2)} ${size(8)}`],
+      ["border-radius", size(10)],
+      ["line-height", "1.2"],
+      ["white-space", "nowrap"],
+    ])
+      label.style.setProperty(property, value, "important");
+  });
 }
 
 /** The FOB yard tag, printed large and solid so it reads at a glance on paper. */
@@ -1574,6 +1627,7 @@ export function printCanvasVector(
   solidifyTranslucentGradients(copy, pageColor);
   strengthenFrameBorders(copy, pageColor, scale);
   emphasizeFobLabels(copy, pageColor, scale);
+  paintSiteRoutes(copy, pageColor, scale);
   desaturateSkippedCards(copy);
 
   const previousTitle = document.title;

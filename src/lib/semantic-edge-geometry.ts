@@ -27,6 +27,8 @@ export type SemanticFlowEdge = Edge<
     preGateSales?: boolean;
     siblingIndex?: number;
     siblingCount?: number;
+    /** FOB yard on: the line into the skipped Phase, the route to site. */
+    siteRoute?: boolean;
   },
   "semantic"
 >;
