@@ -39,6 +39,19 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
         (window as unknown as { printed: unknown[] }).printed.push({
           flows: root.querySelectorAll("[data-route-selection-node] [data-qualification-route-bus]")
             .length,
+          // Route Selection's lines print thin, green and dashed.
+          routeLines: Array.from(
+            root.querySelectorAll<SVGElement>(
+              "[data-route-selection-node] svg line, [data-route-selection-node] svg path[fill='none']",
+            ),
+          )
+            .filter((line) => !line.closest("marker"))
+            .every(
+              (line) =>
+                line.getAttribute("stroke") === "#22c55e" &&
+                line.getAttribute("stroke-width") === "1" &&
+                line.getAttribute("stroke-dasharray") === "4 3",
+            ),
           exits: root.querySelectorAll(
             '.react-flow__edge[data-id^="edge-commercial-route-group-"] .react-flow__edge-path',
           ).length,
@@ -79,7 +92,9 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
   await page.getByText("L2 · Detailed Workflow", { exact: true }).last().click();
   await page.waitForFunction(() => (window as unknown as { printed: unknown[] }).printed.length);
   const [printed] = await page.evaluate(
-    () => (window as unknown as { printed: { flows: number; exits: number }[] }).printed,
+    () =>
+      (window as unknown as { printed: { flows: number; exits: number; routeLines: boolean }[] })
+        .printed,
   );
-  expect(printed).toEqual({ flows: 1, exits: 1 });
+  expect(printed).toEqual({ flows: 1, exits: 1, routeLines: true });
 });

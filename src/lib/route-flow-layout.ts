@@ -44,7 +44,7 @@ export type RouteFlowLayout = {
  */
 export function routeFlowLayout(
   cases: QualificationCase[],
-  { row = 24, groupGap = 12, charWidth = 5.6, labelCharWidth = 5.4 } = {},
+  { row = 24, groupGap = 22, charWidth = 5.6, labelCharWidth = 5.4 } = {},
 ): RouteFlowLayout {
   const clientWidth = 56;
   const busX = clientWidth + 10;
@@ -114,7 +114,8 @@ export function routeFlowLayout(
     if (!row.item.handoff) continue;
     const target = clients.find((client) => client.ids.includes(row.item.handoff!));
     if (!target) continue;
-    const gapY = target.bottom + groupGap / 2;
+    // Low in the gap, so the line rises a good way before the arrow enters the box.
+    const gapY = target.bottom + Math.round(groupGap * 0.7);
     const boxX = clientWidth / 2;
     row.handoff = [
       { x: row.end, y: row.y },

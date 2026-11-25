@@ -269,6 +269,39 @@ const PRINT_ARROW_ID = "print-connector-arrow";
  * neither of which prints. Draw each connector green instead, with a wider
  * see-through green line beneath it as the glow, and green arrowheads.
  */
+/**
+ * Route Selection's chart prints every line as a thin green dashed line,
+ * arrowheads and exit points green too, so it reads as one light sketch.
+ */
+function dashRouteSelectionLines(root: HTMLElement) {
+  root.querySelectorAll<SVGSVGElement>("[data-route-selection-node] svg").forEach((svg) => {
+    svg.querySelectorAll<SVGElement>("line, path").forEach((line) => {
+      if (line.closest("marker")) {
+        line.setAttribute("fill", PRINT_CONNECTOR_GREEN);
+        return;
+      }
+      if (line.getAttribute("fill") && line.getAttribute("fill") !== "none") return;
+      line.setAttribute("stroke", PRINT_CONNECTOR_GREEN);
+      line.setAttribute("stroke-width", "1");
+      line.setAttribute("stroke-dasharray", "4 3");
+      line.removeAttribute("opacity");
+      line.style.removeProperty("opacity");
+    });
+    // Every branch at full strength: none is faded in the print.
+    svg
+      .querySelectorAll<SVGElement>(".opacity-55")
+      .forEach((element) => element.style.setProperty("opacity", "1", "important"));
+    svg
+      .querySelectorAll<SVGCircleElement>("circle")
+      .forEach((dot) => dot.setAttribute("fill", PRINT_CONNECTOR_GREEN));
+  });
+  root.querySelectorAll<HTMLElement>("[data-route-selection-exit-line]").forEach((line) => {
+    line.style.backgroundColor = "transparent";
+    line.style.height = "0";
+    line.style.borderTop = `1px dashed ${PRINT_CONNECTOR_GREEN}`;
+  });
+}
+
 function highlightConnectors(root: HTMLElement) {
   root.querySelectorAll(".workflow-edge-flow").forEach((element) => element.remove());
   root.querySelectorAll<SVGPathElement>(".react-flow__edge-path").forEach((path) => {
@@ -1591,6 +1624,7 @@ export function printCanvasVector(
   const pageColor = parseColor(getComputedStyle(root).backgroundColor) ?? [255, 255, 255, 1];
   flattenBlurredEffects(copy);
   highlightConnectors(copy);
+  dashRouteSelectionLines(copy);
   solidifyTranslucentGradients(copy, pageColor);
   strengthenFrameBorders(copy, pageColor, scale);
   emphasizeFobLabels(copy, pageColor, scale);
