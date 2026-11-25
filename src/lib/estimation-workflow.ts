@@ -19,7 +19,9 @@ const LEGACY_GROUP_DESCRIPTIONS = new Set([
 const BYPASS_EDGE_TYPES = new Set(["failure", "rework", "reopen", "hold"]);
 
 function ceoCondition(previous?: Condition): Condition {
+  // Keep what the user set on this step (duration, start, predecessor, forms).
   return {
+    ...previous,
     id: CEO_SIGNATURE_CONDITION,
     label: "LOI signed by the company CEO",
     description: "The company CEO must sign the LOI before this route can proceed to Estimation.",
@@ -100,6 +102,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
         base.conditions.find((item) => item.id === CEO_SIGNATURE_CONDITION) ??
           oldLoi?.conditions.find((item) => item.id === CEO_SIGNATURE_CONDITION),
       ),
+      // Steps the user added to Route Selection stay.
+      ...base.conditions.filter((item) => item.id !== CEO_SIGNATURE_CONDITION),
     ],
     customFields: {
       ...base.customFields,

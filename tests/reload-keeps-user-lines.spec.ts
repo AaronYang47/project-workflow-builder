@@ -104,3 +104,18 @@ test("reloading keeps Route Selection and Estimation inside their Phase frame at
   expect(reloaded.layout.nodes[group.id]).toMatchObject({ parentId: frame.id, height: 900 });
   expect(reloaded.layout.nodes[estimation.id]).toMatchObject({ parentId: frame.id, height: 330 });
 });
+
+test("reloading keeps the Route Selection step's Gantt duration and added steps", () => {
+  const base = createE2EWorkflow();
+  const qualification = createDomainNode("qualification", "qualification-1");
+  base.graph.nodes.unshift(qualification);
+  base.layout.nodes[qualification.id] = { nodeId: qualification.id, x: 0, y: 100, width: 440, height: 460 };
+  const file = ensureEstimationWorkflow(base);
+  const group = file.graph.nodes.find((node) => node.config.commercialRouteGroup === true)!;
+  group.conditions[0] = { ...group.conditions[0], duration: 3, durationUnit: "weeks", startOffsetDays: 5 };
+  group.conditions.push({ id: "extra", label: "Extra step", duration: 2 });
+  const reloaded = migrateWorkflowFile(structuredClone(file));
+  const after = reloaded.graph.nodes.find((node) => node.id === group.id)!;
+  expect(after.conditions[0]).toMatchObject({ duration: 3, durationUnit: "weeks", startOffsetDays: 5 });
+  expect(after.conditions.map((item) => item.id)).toContain("extra");
+});
