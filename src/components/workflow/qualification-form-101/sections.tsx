@@ -6,7 +6,11 @@ import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { FormStepId } from "./steps";
-import { qualificationCase, qualificationFormRouteAnswers } from "@/lib/qualification";
+import {
+  qualificationCase,
+  qualificationFormRouteAnswers,
+  qualificationPartyIssue,
+} from "@/lib/qualification";
 import {
   ANNEX_1_CATEGORIES,
   ANNEX_2_BY_DISCIPLINE,
@@ -232,9 +236,7 @@ export function SectionAIntake({
     }));
   };
 
-  const partiesComplete = PROJECT_PARTY_ROLES.every(
-    (r) => sectionA.parties[r.key].company.trim() && sectionA.parties[r.key].contact.trim(),
-  );
+  const partyIssue = qualificationPartyIssue(sectionA.parties);
   const contactComplete = [
     sectionA.mainContact.name,
     sectionA.mainContact.companyRole,
@@ -247,17 +249,15 @@ export function SectionAIntake({
       sectionA.consultants[d.key].contact.trim(),
   );
   const datesComplete = TARGET_DATE_FIELDS.every((f) => sectionA.targetDates[f.key].trim());
-  const docsComplete = PROJECT_DOCUMENT_DEFINITIONS.every((doc) => {
-    const item = sectionA.documents[doc.key];
-    return item.available === "no" || (item.available === "yes" && item.locationOrDate.trim());
-  });
-  const drawingsComplete = sectionA.latestDrawings.some(
-    (row) =>
-      row.drawingName.trim() &&
-      (row.revisionNumber.trim() || row.revisionDate.trim()) &&
-      row.issueStatus.trim() &&
-      row.exactLocation.trim(),
-  );
+  const drawingsComplete =
+    sectionA.documents.archDrawings.available === "no" ||
+    sectionA.latestDrawings.some(
+      (row) =>
+        row.drawingName.trim() &&
+        (row.revisionNumber.trim() || row.revisionDate.trim()) &&
+        row.issueStatus.trim() &&
+        row.exactLocation.trim(),
+    );
 
   const hasUnansweredDocs = PROJECT_DOCUMENT_DEFINITIONS.some(
     (doc) => !sectionA.documents[doc.key].available,
@@ -294,7 +294,7 @@ export function SectionAIntake({
                 : "Route pending"}
             </p>
             <Dialog.Description className="text-sm text-muted-foreground">
-              {routeImpactReason(routeAnswers.clientCategory, customerCase)}
+              {partyIssue || routeImpactReason(routeAnswers.clientCategory, customerCase)}
             </Dialog.Description>
             {customerCase?.route === "LOI" && (
               <p className="text-sm">Q9 is exempt because LOI does not require a deposit.</p>
@@ -383,7 +383,8 @@ export function SectionAIntake({
               id="q101-q3"
               number="Q3"
               title="Who are the project parties?"
-              complete={partiesComplete}
+              hint="Enter at least one company. Add a contact for each company you enter."
+              complete={!partyIssue}
             >
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
@@ -420,6 +421,7 @@ export function SectionAIntake({
                           <input
                             aria-label={`${role.label} contact`}
                             value={sectionA.parties[role.key].contact}
+                            aria-required={Boolean(sectionA.parties[role.key].company.trim())}
                             {...partyInputEvents}
                             onChange={(e) =>
                               patchA((p) => ({
@@ -761,7 +763,7 @@ export function SectionAIntake({
               number="Q12"
               title="Which project documents are available?"
               hint="Provide the file location or email date when available."
-              complete={docsComplete}
+              complete={!hasUnansweredDocs}
             >
               <div className="space-y-2">
                 {hasUnansweredDocs ? (
@@ -801,8 +803,6 @@ export function SectionAIntake({
                     <tbody className="divide-y divide-border/60">
                       {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
                         const entry = sectionA.documents[doc.key];
-                        const missingLoc =
-                          entry.available === "yes" && !entry.locationOrDate.trim();
                         return (
                           <tr key={doc.key}>
                             <td className="py-1.5 pr-2 font-medium">{doc.label}</td>
@@ -838,15 +838,8 @@ export function SectionAIntake({
                                     },
                                   }))
                                 }
-                                placeholder={
-                                  missingLoc
-                                    ? "Required for full score: file path or email date"
-                                    : "SharePoint path, folder link, or email date"
-                                }
-                                className={cn(
-                                  cellInputCls,
-                                  missingLoc && "border-amber-500/70 focus:border-amber-500",
-                                )}
+                                placeholder="Optional: SharePoint path, folder link, or email date"
+                                className={cellInputCls}
                               />
                             </td>
                           </tr>
@@ -1607,9 +1600,11 @@ export function SectionCIntake({
 }
 
 export function AnnexReferenceTab({
+  canInsert,
   onInsertSpecial,
   onInsertDiscipline,
 }: {
+  canInsert: (stepId: FormStepId) => boolean;
   onInsertSpecial: (item: string) => void;
   onInsertDiscipline: (key: DisciplineKey, item: string) => void;
 }) {
@@ -1636,6 +1631,7 @@ export function AnnexReferenceTab({
                   <li key={item}>
                     <button
                       type="button"
+                      disabled={!canInsert("b-special")}
                       onClick={() => onInsertSpecial(item)}
                       className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-[11px] hover:bg-primary/10 hover:text-primary"
                     >
@@ -1671,6 +1667,7 @@ export function AnnexReferenceTab({
                   <li key={item}>
                     <button
                       type="button"
+                      disabled={!canInsert(`b-${discipline.key}`)}
                       onClick={() => onInsertDiscipline(discipline.key, item)}
                       className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-[11px] hover:bg-primary/10 hover:text-primary"
                     >

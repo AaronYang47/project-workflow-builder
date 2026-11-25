@@ -92,6 +92,11 @@ test("Estimation renders Qualification context and stays locked before approval"
 }) => {
   const file = createE2EWorkflow();
   const qualification = createDomainNode("qualification", "qualification-test");
+  qualification.config.qualification = {
+    clientCategory: "GC",
+    customerTier: "regular",
+    plansAvailable: "no",
+  };
   file.graph.nodes.push(qualification);
   file.layout.nodes[qualification.id] = {
     nodeId: qualification.id,
@@ -101,6 +106,12 @@ test("Estimation renders Qualification context and stays locked before approval"
     height: 390,
   };
   const workflow = ensureEstimationWorkflow(file);
+  const estimation = workflow.graph.nodes.find((node) => node.type === "estimation")!;
+  estimation.customFields = {
+    estimationBasePrice: 10000,
+    estimationPreparedBy: "Sales",
+    estimationReviewed: true,
+  };
   await page.addInitScript(
     ({ key, value }) =>
       localStorage.setItem(
@@ -118,6 +129,14 @@ test("Estimation renders Qualification context and stays locked before approval"
   await expect(card).toBeVisible();
   await expect(card.locator("[data-estimation-status]")).toHaveText("Waiting for agreement");
   await expect(card.getByRole("button", { name: "Estimate" })).toBeDisabled();
+  await expect(card).toHaveCSS("border-top-color", "rgb(148, 163, 184)");
+  await expect(card.locator("[data-estimation-result]")).toContainText("awaiting agreement");
+  const routeNode = page.locator("[data-route-selection-node]");
+  await expect(routeNode).toContainText("Waiting for Qualification");
+  await expect(
+    routeNode.locator('[data-qualification-route-case][data-active="true"]'),
+  ).toHaveCount(0);
+
   const connector = page.locator(
     `.react-flow__edge[data-id="edge-commercial-route-group-estimation-1-06"]`,
   );

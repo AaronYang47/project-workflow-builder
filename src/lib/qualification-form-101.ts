@@ -1,4 +1,9 @@
-import { qualificationRoute, type Qualification } from "@/lib/qualification";
+import {
+  PROJECT_PARTY_ROLES,
+  qualificationPartyIssue,
+  qualificationRoute,
+  type Qualification,
+} from "@/lib/qualification";
 
 export const FORM_101_CODE = "1.01";
 export const FORM_101_VERSION = "261119";
@@ -19,11 +24,7 @@ export const OCCUPANCY_GROUPS = [
 
 export type OccupancyGroupCode = (typeof OCCUPANCY_GROUPS)[number]["code"];
 
-export const PROJECT_PARTY_ROLES = [
-  { key: "owner", label: "Owner" },
-  { key: "gc", label: "General Contractor" },
-  { key: "client", label: "Our client (PROFAB)" },
-] as const;
+export { PROJECT_PARTY_ROLES };
 
 export type ProjectPartyRoleKey = (typeof PROJECT_PARTY_ROLES)[number]["key"];
 
@@ -668,7 +669,7 @@ export function evaluateQualificationForm101(
   }
 
   let partyPts = 0;
-  const missingParties: string[] = [];
+  const partyIssue = qualificationPartyIssue(sectionA.parties);
   for (const [index, role] of PROJECT_PARTY_ROLES.entries()) {
     const entry = sectionA.parties[role.key];
     const hasCompany = filled(entry.company);
@@ -679,16 +680,15 @@ export function evaluateQualificationForm101(
       if (hasCompany) requiredScore += 1;
       if (hasContact) requiredScore += 1;
     }
-    if (!hasCompany || !hasContact) missingParties.push(role.label);
   }
   a1 += partyPts;
-  if (partyPts === 6) aCompleted += 1;
+  if (!partyIssue) aCompleted += 1;
   else {
     missingItems.push({
       id: "q3",
       section: "A1",
       anchorId: "q101-q3",
-      label: `Q3 Project parties (${missingParties.join(", ")})`,
+      label: `Q3 Project parties: ${partyIssue}`,
     });
   }
 
@@ -858,17 +858,14 @@ export function evaluateQualificationForm101(
   }
   const a3DrawingsPts = bestDrawingAttrs * 4;
   requiredScore += bestRequiredDrawingPoints;
-  if (bestDrawingAttrs === 4) {
+  if (bestDrawingAttrs === 4 || sectionA.documents.archDrawings.available === "no") {
     aCompleted += 1;
   } else {
     missingItems.push({
       id: "q13",
       section: "A3",
       anchorId: "q101-q13",
-      label:
-        sectionA.documents.archDrawings.available === "no"
-          ? "Q13 Latest drawings register (no drawings available yet)"
-          : "Q13 Latest drawings register (name, rev, status, location)",
+      label: "Q13 Latest drawings register (name, rev, status, location)",
     });
   }
   const a3 = a3DocsPts + a3DrawingsPts;
@@ -953,7 +950,8 @@ export function evaluateQualificationForm101(
   };
 }
 
-export type QualificationGateState = "failed_score" | "pending_route" | "passed";
+export type QualificationGateState =
+  "failed_score" | "pending_parties" | "pending_route" | "passed";
 
 export interface QualificationGateEvaluation {
   totalScore: number;
@@ -987,6 +985,19 @@ export function evaluateQualificationGate(
       state: "failed_score",
       statusLabel: `Below ${FORM_101_PASS_SCORE}/${FORM_101_MAX_SCORE}`,
       blockingReason: `Form [${FORM_101_CODE}] has ${totalScore}/${FORM_101_MAX_SCORE} points. At least ${FORM_101_PASS_SCORE} points (${FORM_101_PASS_PERCENT}%) are needed to pass Qualification.`,
+    };
+  }
+  const partyIssue =
+    qualification.form101 && qualificationPartyIssue(qualification.form101.sectionA?.parties);
+  if (partyIssue) {
+    return {
+      totalScore,
+      passScore: FORM_101_PASS_SCORE,
+      scorePassed: true,
+      passed: false,
+      state: "pending_parties",
+      statusLabel: "Complete Q3",
+      blockingReason: `Q3 Project parties: ${partyIssue}`,
     };
   }
   if (!route) {

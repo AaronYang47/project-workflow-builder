@@ -43,9 +43,10 @@ import {
 } from "./qualification-form-101/sections";
 import {
   FORM_101_STEPS,
-  findInitialStepIndex,
+  firstUnfinishedStep,
   findStepIndexForAnchor,
   isForm101StepComplete,
+  type FormStepId,
   type FormStepSection,
 } from "./qualification-form-101/steps";
 
@@ -84,7 +85,10 @@ function QualificationForm101DialogBody({
   const route = qualificationRoute(previewQualification);
   const isLoi = route === "LOI";
   const [viewMode, setViewMode] = useState<ViewMode>("wizard");
-  const [stepIndex, setStepIndex] = useState<number>(() => findInitialStepIndex(draft, isLoi));
+  const [skippedSteps, setSkippedSteps] = useState<ReadonlySet<FormStepId>>(() => new Set());
+  const unlockedStep = firstUnfinishedStep(draft, isLoi, skippedSteps);
+  const [requestedStep, setStepIndex] = useState(unlockedStep);
+  const stepIndex = Math.min(requestedStep, unlockedStep);
   const [showMissing, setShowMissing] = useState(false);
 
   const evaluation = evaluateQualificationForm101(previewQualification);
@@ -98,6 +102,10 @@ function QualificationForm101DialogBody({
   ).length;
   const progressPct = Math.round(((stepIndex + 1) / totalSteps) * 100);
   const isLastStep = stepIndex === totalSteps - 1;
+  const currentStepDone = isForm101StepComplete(currentStep.id, draft, isLoi);
+  const nextBlocked = currentStep.section === "a" && !currentStepDone;
+  const stepIsUnlocked = (id: FormStepId) =>
+    FORM_101_STEPS.findIndex((step) => step.id === id) <= unlockedStep;
 
   const handleSave = () => {
     const compacted = compactQualificationForm101(draft);
@@ -112,34 +120,37 @@ function QualificationForm101DialogBody({
 
   const handleReset = () => {
     setDraft(createEmptyQualificationForm101());
+    setSkippedSteps(new Set());
     setStepIndex(0);
   };
 
-  const goPrev = () => setStepIndex((idx) => Math.max(0, idx - 1));
-  const goNext = () => setStepIndex((idx) => Math.min(totalSteps - 1, idx + 1));
+  const goPrev = () => setStepIndex(Math.max(0, stepIndex - 1));
+  const goNext = () => {
+    if (nextBlocked || isLastStep) return;
+    if (!currentStepDone) setSkippedSteps((previous) => new Set([...previous, currentStep.id]));
+    setStepIndex(stepIndex + 1);
+  };
 
   const jumpToSection = (section: FormStepSection) => {
     const firstIncomplete = FORM_101_STEPS.findIndex(
-      (step) => step.section === section && !isForm101StepComplete(step.id, draft, isLoi),
+      (step) =>
+        step.section === section &&
+        !skippedSteps.has(step.id) &&
+        !isForm101StepComplete(step.id, draft, isLoi),
     );
     const firstInSection = FORM_101_STEPS.findIndex((step) => step.section === section);
-    setStepIndex(firstIncomplete >= 0 ? firstIncomplete : Math.max(0, firstInSection));
+    setStepIndex(Math.min(unlockedStep, firstIncomplete >= 0 ? firstIncomplete : firstInSection));
     setViewMode("wizard");
   };
 
   const jumpToMissingItem = (anchorId: string, itemId: string) => {
-    if (viewMode === "all") {
-      requestAnimationFrame(() => {
-        document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    } else {
-      setStepIndex(findStepIndexForAnchor(anchorId, itemId));
-      setViewMode("wizard");
-    }
+    setStepIndex(Math.min(unlockedStep, findStepIndexForAnchor(anchorId, itemId)));
+    setViewMode("wizard");
     setShowMissing(false);
   };
 
   const insertDisciplineItem = (key: DisciplineKey, itemLabel: string) => {
+    if (!stepIsUnlocked(`b-${key}`)) return;
     const id =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID().slice(0, 8)
@@ -163,6 +174,7 @@ function QualificationForm101DialogBody({
   };
 
   const insertSpecialItem = (itemLabel: string) => {
+    if (!stepIsUnlocked("b-special")) return;
     const id =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID().slice(0, 8)
@@ -378,6 +390,9 @@ function QualificationForm101DialogBody({
                     <button
                       key={tab.id}
                       type="button"
+                      disabled={
+                        FORM_101_STEPS.findIndex((step) => step.section === tab.id) > unlockedStep
+                      }
                       onClick={() => jumpToSection(tab.id)}
                       className={cn(
                         "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
@@ -416,9 +431,10 @@ function QualificationForm101DialogBody({
                     type="button"
                     title={step.title}
                     aria-current={active ? "step" : undefined}
-                    onClick={() => setStepIndex(idx)}
+                    disabled={idx > unlockedStep}
+                    onClick={() => setStepIndex(Math.min(idx, unlockedStep))}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-colors",
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-50",
                       active
                         ? "border-primary bg-primary text-primary-foreground shadow-xs"
                         : done
@@ -483,7 +499,10 @@ function QualificationForm101DialogBody({
             )}
           </div>
         ) : viewMode === "all" ? (
-          <div className="space-y-6">
+          <fieldset disabled className="space-y-6">
+            <legend className="text-xs text-muted-foreground">
+              Review only. Use Step-by-step to fill in answers in order.
+            </legend>
             <SectionAIntake
               form={draft}
               onChange={setDraft}
@@ -492,9 +511,10 @@ function QualificationForm101DialogBody({
             />
             <SectionBIntake form={draft} onChange={setDraft} />
             <SectionCIntake form={draft} onChange={setDraft} />
-          </div>
+          </fieldset>
         ) : (
           <AnnexReferenceTab
+            canInsert={stepIsUnlocked}
             onInsertSpecial={insertSpecialItem}
             onInsertDiscipline={insertDisciplineItem}
           />
@@ -523,9 +543,20 @@ function QualificationForm101DialogBody({
                 <ChevronLeft className="mr-1 size-3.5" />
                 Previous
               </Button>
+              {nextBlocked && (
+                <span className="text-xs text-muted-foreground" role="status">
+                  Complete {currentStep.shortLabel} to continue.
+                </span>
+              )}
               {!isLastStep ? (
-                <Button type="button" variant="secondary" size="sm" onClick={goNext}>
-                  Next
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={goNext}
+                  disabled={nextBlocked}
+                >
+                  {currentStep.section !== "a" && !currentStepDone ? "Skip optional" : "Next"}
                   <ChevronRight className="ml-1 size-3.5" />
                 </Button>
               ) : null}

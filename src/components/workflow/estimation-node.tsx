@@ -216,7 +216,7 @@ export function EstimationNode({
       <div
         data-estimation-node
         className={`relative h-full overflow-visible rounded-xl border-2 bg-card p-4 shadow-md ${selected ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
-        style={{ borderColor: node.color || "#0f766e" }}
+        style={{ borderColor: reached ? node.color || "#0f766e" : "#94a3b8" }}
       >
         <Handle
           type="target"
@@ -229,7 +229,9 @@ export function EstimationNode({
         <div className="flex items-start justify-between gap-2 border-b pb-2">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold">
-              <Calculator className="size-4 text-teal-600" />
+              <Calculator
+                className={`size-4 ${reached ? "text-teal-600" : "text-muted-foreground"}`}
+              />
               Estimation
             </div>
             <div className="text-[11px] text-muted-foreground">S [1.06] · CAD before tax</div>
@@ -245,7 +247,7 @@ export function EstimationNode({
           <button
             type="button"
             disabled={!reached}
-            className="nodrag mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="nodrag mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           >
             <Calculator className="size-4" />
             Estimate
@@ -254,10 +256,12 @@ export function EstimationNode({
         {saved ? (
           <div
             data-estimation-result
-            className="mt-4 rounded-lg bg-teal-50 p-3 text-sm dark:bg-teal-950/30"
+            className={`mt-4 rounded-lg p-3 text-sm ${ready ? "bg-teal-50 dark:bg-teal-950/30" : "bg-muted"}`}
           >
-            <div className="flex items-center gap-1 text-xs text-teal-700 dark:text-teal-300">
-              <CheckCircle2 className="size-3.5" />{" "}
+            <div
+              className={`flex items-center gap-1 text-xs ${ready ? "text-teal-700 dark:text-teal-300" : "text-muted-foreground"}`}
+            >
+              {ready ? <CheckCircle2 className="size-3.5" /> : <LockKeyhole className="size-3.5" />}
               {ready ? "Confirmed estimate" : "Saved estimate · awaiting agreement"}
             </div>
             <div className="mt-1 font-bold">{money(estimate.total)}</div>
@@ -274,7 +278,7 @@ export function EstimationNode({
           </div>
         ) : null}
       </div>
-      {open && (
+      {open && reached && (
         <EstimateDialog node={node} qualification={qualification} onClose={() => setOpen(false)} />
       )}
     </Dialog.Root>

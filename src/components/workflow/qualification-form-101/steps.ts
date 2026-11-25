@@ -1,7 +1,7 @@
+import { qualificationPartyIssue } from "@/lib/qualification";
 import {
   DISCIPLINE_DEFINITIONS,
   PROJECT_DOCUMENT_DEFINITIONS,
-  PROJECT_PARTY_ROLES,
   TARGET_DATE_FIELDS,
   type DisciplineKey,
   type QualificationForm101,
@@ -181,9 +181,7 @@ export function isForm101StepComplete(
     case "q2":
       return Boolean(sectionA.projectAddress.trim());
     case "q3":
-      return PROJECT_PARTY_ROLES.every(
-        (r) => sectionA.parties[r.key].company.trim() && sectionA.parties[r.key].contact.trim(),
-      );
+      return !qualificationPartyIssue(sectionA.parties);
     case "q4":
       return [
         sectionA.mainContact.name,
@@ -210,20 +208,19 @@ export function isForm101StepComplete(
     case "q11":
       return TARGET_DATE_FIELDS.every((f) => sectionA.targetDates[f.key].trim().length > 0);
     case "q12":
-      return PROJECT_DOCUMENT_DEFINITIONS.every((doc) => {
-        const item = sectionA.documents[doc.key];
-        return (
-          item.available === "no" ||
-          (item.available === "yes" && item.locationOrDate.trim().length > 0)
-        );
-      });
+      return PROJECT_DOCUMENT_DEFINITIONS.every((doc) =>
+        Boolean(sectionA.documents[doc.key].available),
+      );
     case "q13":
-      return sectionA.latestDrawings.some(
-        (row) =>
-          row.drawingName.trim() &&
-          (row.revisionNumber.trim() || row.revisionDate.trim()) &&
-          row.issueStatus.trim() &&
-          row.exactLocation.trim(),
+      return (
+        sectionA.documents.archDrawings.available === "no" ||
+        sectionA.latestDrawings.some(
+          (row) =>
+            row.drawingName.trim() &&
+            (row.revisionNumber.trim() || row.revisionDate.trim()) &&
+            row.issueStatus.trim() &&
+            row.exactLocation.trim(),
+        )
       );
     case "b-special":
       return Boolean(
@@ -260,9 +257,15 @@ export function findStepIndexForAnchor(anchorId: string, itemId?: string): numbe
   return 0;
 }
 
-export function findInitialStepIndex(form: QualificationForm101, isLoi: boolean): number {
-  const firstIncomplete = FORM_101_STEPS.findIndex(
-    (step) => step.section !== "c" && !isForm101StepComplete(step.id, form, isLoi),
+export function firstUnfinishedStep(
+  form: QualificationForm101,
+  isLoi: boolean,
+  skipped: ReadonlySet<FormStepId>,
+) {
+  const index = FORM_101_STEPS.findIndex(
+    (step) =>
+      (step.section === "a" || !skipped.has(step.id)) &&
+      !isForm101StepComplete(step.id, form, isLoi),
   );
-  return firstIncomplete >= 0 ? firstIncomplete : 0;
+  return index >= 0 ? index : FORM_101_STEPS.length - 1;
 }

@@ -129,7 +129,8 @@ export function CommercialRouteGroupNode({
 
   const agreements = route ? AGREEMENTS[route] : [];
   const ready = Boolean(route && commercialRouteReady(node, route));
-  const lineColor = customerCase ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
+  const activeCase = reached ? customerCase : undefined;
+  const lineColor = activeCase ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
 
   return (
     <div
@@ -177,11 +178,11 @@ export function CommercialRouteGroupNode({
           data-selected-commercial-route={route ?? "none"}
           className="rounded-full px-2 py-0.5 text-[10px] font-bold"
           style={{
-            backgroundColor: route ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8",
+            backgroundColor: reached && route ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8",
             color: "#fff",
           }}
         >
-          {route ?? "No route selected"}
+          {reached ? (route ?? "No route selected") : "Waiting for Qualification"}
         </span>
       </div>
       <Handle
@@ -208,8 +209,8 @@ export function CommercialRouteGroupNode({
           className="pointer-events-none absolute right-0"
           style={{
             left: exit.left,
-            top: exit.top - (customerCase ? 1 : 0.5),
-            height: customerCase ? 2.5 : 1.5,
+            top: exit.top - (activeCase ? 1 : 0.5),
+            height: activeCase ? 2.5 : 1.5,
             backgroundColor: lineColor,
           }}
         />
@@ -221,8 +222,8 @@ export function CommercialRouteGroupNode({
         svgRef={svgRef}
         exitBus
         scale={FLOW_SCALE}
-        currentId={customerCase?.id}
-        client={answers.clientCategory}
+        currentId={activeCase?.id}
+        client={reached ? answers.clientCategory : undefined}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}

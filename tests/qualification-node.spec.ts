@@ -36,8 +36,15 @@ async function answerParty(page: Page, label: string, value: string, impact?: Re
   await dismissRouteImpact(page, impact);
 }
 
+async function openSalesQuestion(page: Page, question: string) {
+  const button = page.getByRole("button", { name: question, exact: true });
+  if (!(await button.isVisible()))
+    await page.getByRole("button", { name: /^A\. Sales Intake/ }).click();
+  await button.click();
+}
+
 async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) {
-  await page.getByRole("button", { name: "Q12", exact: true }).click();
+  await openSalesQuestion(page, "Q12");
   await page
     .getByRole("group", { name: "Latest architectural drawing set available" })
     .getByRole("button", { name: value.toLowerCase(), exact: true })
@@ -199,15 +206,61 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
   await expect(flow.getByRole("button")).toHaveCount(0);
+});
+
+test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({ page }) => {
+  const file = createE2EWorkflow();
+  const qualification = createDomainNode("qualification", "qualification-1");
+  const intake = build83PercentForm101();
+  intake.sectionA.parties = createEmptyQualificationForm101().sectionA.parties;
+  qualification.config.qualification = { form101: intake };
+  file.graph.nodes.unshift(qualification);
+  file.layout.nodes[qualification.id] = {
+    nodeId: qualification.id,
+    x: -1100,
+    y: 0,
+    width: 520,
+    height: 430,
+  };
+  await page.addInitScript(
+    ({ key, workflow }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file: workflow, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, workflow: file },
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await page.getByRole("button", { name: /fit view/i }).click();
+  const node = page.locator("[data-qualification-node]");
+  const routeNode = page.locator("[data-route-selection-node]");
+  const route = routeNode.locator("[data-qualification-route]");
+  const flow = routeNode.locator("[data-qualification-route-flow]");
+  const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
   const openForm = async () => {
     await node.getByRole("button", { name: "Open Form [1.01]" }).click();
     return page.getByRole("dialog", { name: "Qualification Form [1.01]" });
   };
   let form = await openForm();
   await expect(form.getByRole("button", { name: "Route", exact: true })).toHaveCount(0);
-  await form.getByRole("button", { name: "Q3", exact: true }).click();
-  await answerParty(page, "Owner company", "Example Owner");
-  await answerParty(page, "General Contractor company", "Example GC", /GC route applies.*In Q12/);
+  await openSalesQuestion(page, "Q3");
+  await answerParty(page, "Owner company", "Example Owner", /Owner: add a contact/);
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await answerParty(page, "Owner contact", "Owner rep");
+  await expect(form.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+  await answerParty(
+    page,
+    "General Contractor company",
+    "Example GC",
+    /General Contractor: add a contact/,
+  );
+  await answerParty(page, "General Contractor contact", "GC rep", /GC route applies.*In Q12/);
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: Complete Form [1.01]");
 
@@ -223,8 +276,9 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(route).toHaveText("Route: GC → PCS");
 
   form = await openForm();
-  await form.getByRole("button", { name: "Q3", exact: true }).click();
-  await answerParty(page, "General Contractor company", "", /hands the project over/);
+  await openSalesQuestion(page, "Q3");
+  await answerParty(page, "General Contractor company", "", /add a company/);
+  await answerParty(page, "General Contractor contact", "", /hands the project over/);
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: Owner → GC → PCS");
   await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
@@ -232,8 +286,10 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
 
   form = await openForm();
-  await form.getByRole("button", { name: "Q3", exact: true }).click();
+  await openSalesQuestion(page, "Q3");
   await answerParty(page, "General Contractor company", "Example GC");
+  await answerParty(page, "General Contractor contact", "GC rep");
+  await answerParty(page, "Our client (PROFAB) company", "Internal");
   await answerParty(page, "Our client (PROFAB) contact", "Alex", /Q9 is exempt/);
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: ProFab → LOI");
@@ -315,6 +371,7 @@ test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () 
   for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
     form.sectionA.documents[doc.key] = { available: "no", locationOrDate: "" };
   }
+  form.sectionA.documents.archDrawings.available = "yes";
   // Choosing "yes" without locationOrDate gives partial (1/2) credit for that document.
   form.sectionA.documents.permit = { available: "yes", locationOrDate: "" };
 
@@ -343,7 +400,7 @@ test("Form [1.01] scores out of 84: LOI exempts Q9, partial and full forms", () 
   // Q9 deposit and Q13 drawings are still missing: 58/84 is a pass (52+) but not complete.
   expect(partial.totalScore).toBe(58);
   expect(partial.grade).toBe("B");
-  expect(partial.missingItems.map((item) => item.id)).toEqual(["q3", "q9", "q13"]);
+  expect(partial.missingItems.map((item) => item.id)).toEqual(["q9", "q13"]);
   expect(partial.openRfiCount).toBe(1);
   expect(partial.incompleteRfiCount).toBe(1);
 
@@ -418,29 +475,24 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(dialog.getByText("A · 76–84 points · Ready for drafter review")).toBeVisible();
   await dialog.getByText("How scores are interpreted").click();
 
-  await dialog.getByRole("button", { name: "Q3", exact: true }).click();
-  await answerParty(page, "Our client (PROFAB) company", "ProFab");
-  await expect(dialog.getByText("Q9 Deposit exempt (LOI)")).toBeVisible();
-  await dialog.getByRole("button", { name: "Q1", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "Q3", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: /^B\. Disciplines/ })).toBeDisabled();
+  await dialog.getByRole("tab", { name: "All", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: "Full project address" })).toBeDisabled();
+  await dialog.getByRole("tab", { name: "Step-by-step" }).click();
 
   await dialog.getByRole("textbox", { name: "Form revision" }).fill("2");
   await dialog.getByRole("textbox", { name: "Project name" }).fill("Montréal Residence");
   await dialog.getByRole("button", { name: "Next", exact: true }).click();
   await expect(dialog.locator('[data-form101-wizard-step="q2"]')).toBeVisible();
   await dialog.getByRole("textbox", { name: "Full project address" }).fill("100 Rue Principale");
-
-  // Jump to Q5, then Next to Q6.
-  await dialog.getByRole("button", { name: "Q5", exact: true }).click();
-  await dialog.getByRole("checkbox", { name: /Group C — residential/ }).check();
   await dialog.getByRole("button", { name: "Next", exact: true }).click();
-  await dialog.getByRole("textbox", { name: "Gross area sq ft" }).fill("24000");
+  await expect(dialog.locator('[data-form101-wizard-step="q3"]')).toBeVisible();
+  await answerParty(page, "Our client (PROFAB) company", "ProFab");
+  await answerParty(page, "Our client (PROFAB) contact", "Alex");
+  await expect(dialog.getByText("Q9 Deposit exempt (LOI)")).toBeVisible();
 
-  // Jump to Section B (lands on B1 Civil) and pick one Annex 2 Civil item.
-  await dialog.getByRole("button", { name: /^B\. Disciplines/ }).click();
-  await dialog.getByRole("button", { name: "Pick from Annex 2" }).first().click();
-  await dialog.getByRole("button", { name: /\+ 1\.1\. Current site plan/ }).click();
-
-  await expect(dialog.locator("[data-form101-grade]")).not.toContainText(" 0/84");
   await dialog.getByRole("button", { name: "Save Form" }).click();
   await expect(dialog).toHaveCount(0);
 
@@ -448,7 +500,8 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(page.locator("[data-route-selection-node] [data-qualification-route]")).toHaveText(
     "Route: ProFab → LOI",
   );
-  await expect(score).toHaveText("8/84 · 10%");
+  await expect(score).toHaveText("5/84 · 6%");
+  await expect(page.locator('[data-qualification-route-case][data-active="true"]')).toHaveCount(0);
   await expect(score).not.toHaveText("0/84 · 0%");
 
   const stored = await page.evaluate((key) => {
@@ -459,9 +512,7 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   expect(stored.commercialPath).toBe("LOI");
   expect(stored.form101.revision).toBe("2");
   expect(stored.form101.sectionA.projectName).toBe("Montréal Residence");
-  expect(stored.form101.sectionB.disciplines.civil.items[0].item).toContain(
-    "1.1. Current site plan",
-  );
+  expect(stored.form101.sectionA.parties.client.contact).toBe("Alex");
 });
 
 function build83PercentForm101() {
@@ -491,6 +542,7 @@ function build83PercentForm101() {
     };
   }
   form.sectionA.budgetEstablished = "yes";
+  form.sectionA.depositReceived = "no";
   form.sectionA.permitStatus = "Submitted";
   for (const field of TARGET_DATE_FIELDS) {
     form.sectionA.targetDates[field.key] = "2026.12.15";
@@ -529,6 +581,13 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
   // 52+ points and a route: passed, no Tech Review needed.
   const resolvedForm = structuredClone(passingForm);
   resolvedForm.sectionA.documents.archDrawings.available = "yes";
+  const missingContact = structuredClone(resolvedForm);
+  missingContact.sectionA.parties.gc.contact = "";
+  const blockedByQ3 = evaluateQualificationGate({ form101: missingContact });
+  expect(blockedByQ3.scorePassed).toBe(true);
+  expect(blockedByQ3.passed).toBe(false);
+  expect(blockedByQ3.state).toBe("pending_parties");
+
   const passedGate = evaluateQualificationGate({ form101: resolvedForm });
   expect(passedGate.passed).toBe(true);
   expect(passedGate.state).toBe("passed");

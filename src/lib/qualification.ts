@@ -105,18 +105,37 @@ export function qualificationCase({
   return QUALIFICATION_CASES.find((item) => item.id === id);
 }
 
-const hasPartyInfo = (party?: PartyEntry) =>
-  Boolean(party?.company?.trim() || party?.contact?.trim());
+export const PROJECT_PARTY_ROLES = [
+  { key: "owner", label: "Owner" },
+  { key: "gc", label: "General Contractor" },
+  { key: "client", label: "Our client (PROFAB)" },
+] as const;
+
+export function qualificationPartyIssue(parties?: QualificationForm101["sectionA"]["parties"]) {
+  let hasCompany = false;
+  const missing: string[] = [];
+  for (const role of PROJECT_PARTY_ROLES) {
+    const party: PartyEntry | undefined = parties?.[role.key];
+    const company = Boolean(party?.company?.trim());
+    const contact = Boolean(party?.contact?.trim());
+    hasCompany ||= company;
+    if (company && !contact) missing.push(`${role.label}: add a contact.`);
+    if (contact && !company) missing.push(`${role.label}: add a company.`);
+  }
+  if (!hasCompany) missing.unshift("Enter at least one company and its contact.");
+  return missing.join(" ");
+}
 
 export function qualificationFormRouteAnswers(
   section: QualificationForm101["sectionA"] | undefined,
 ): QualificationRouteAnswers {
   const parties = section?.parties;
   const plansAvailable = section?.documents?.archDrawings?.available;
-  if (hasPartyInfo(parties?.client)) return { clientCategory: "ProFab", plansAvailable };
-  if (hasPartyInfo(parties?.gc))
+  if (qualificationPartyIssue(parties)) return { plansAvailable };
+  if (parties?.client?.company.trim()) return { clientCategory: "ProFab", plansAvailable };
+  if (parties?.gc?.company.trim())
     return { clientCategory: "GC", customerTier: "regular", plansAvailable };
-  if (hasPartyInfo(parties?.owner))
+  if (parties?.owner?.company.trim())
     return { clientCategory: "Owner", customerTier: "regular", plansAvailable };
   return { plansAvailable };
 }
