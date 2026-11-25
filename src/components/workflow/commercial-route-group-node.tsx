@@ -250,7 +250,7 @@ export function CommercialRouteGroupNode({
             <section
               key={path}
               data-commercial-route-card={path}
-              className={`relative min-h-0 overflow-hidden rounded-xl border-2 bg-card p-2 text-[10px] leading-snug ${onRoute ? "commercial-route-node-active" : ""}`}
+              className={`relative min-h-0 overflow-hidden rounded-xl border-2 bg-card p-3 text-[13px] leading-normal ${onRoute ? "commercial-route-node-active" : ""}`}
               style={
                 {
                   borderColor: onRoute ? style.color : `${style.color}88`,
@@ -263,7 +263,7 @@ export function CommercialRouteGroupNode({
                 className="mb-1 flex items-center gap-1.5 font-bold"
                 style={{ color: style.color }}
               >
-                <Icon className="size-3.5" />
+                <Icon className="size-4" />
                 {path} · {style.agreement}
                 {active && <span className="ml-auto">{pathReady ? "READY" : "INCOMPLETE"}</span>}
                 {path === "PCS" && route === "CSA" && !active && (
@@ -276,7 +276,7 @@ export function CommercialRouteGroupNode({
                     Consultation Services · Hours
                     <input
                       aria-label="CSA billable hours"
-                      className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
+                      className="nodrag ml-auto w-20 rounded border bg-background px-1.5 py-0.5 text-right"
                       type="number"
                       min={0}
                       step={0.5}
@@ -304,7 +304,7 @@ export function CommercialRouteGroupNode({
                     Pre-Construction Services · Modules
                     <input
                       aria-label="PCS module count"
-                      className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
+                      className="nodrag ml-auto w-20 rounded border bg-background px-1.5 py-0.5 text-right"
                       type="number"
                       min={1}
                       step={1}
@@ -321,7 +321,7 @@ export function CommercialRouteGroupNode({
                     Extra hours · {cad(200)} / hour
                     <input
                       aria-label="PCS additional hours"
-                      className="nodrag ml-auto w-16 rounded border bg-background px-1 py-0.5 text-right"
+                      className="nodrag ml-auto w-20 rounded border bg-background px-1.5 py-0.5 text-right"
                       type="number"
                       min={0}
                       step={0.5}
