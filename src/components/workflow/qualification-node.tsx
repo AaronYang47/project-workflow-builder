@@ -5,8 +5,8 @@ import { Handle, Position } from "@xyflow/react";
 import { ClipboardCheck, FileSpreadsheet, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  CLIENT_CATEGORIES,
   qualificationCase,
+  qualificationCaseChoice,
   qualificationOf,
   qualificationRoute,
   type Qualification,
@@ -23,6 +23,7 @@ import {
   evaluateQualificationGate,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
+import { QualificationRouteFlow } from "./qualification-route-flow";
 import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -46,14 +47,6 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
     });
   };
   const saveForm = (form101: QualificationForm101 | undefined) => update({ form101 });
-
-  const choiceClass = (active: boolean) =>
-    cn(
-      "nodrag rounded-lg border px-3 py-2 text-xs font-semibold transition-colors",
-      active
-        ? "border-primary bg-primary text-primary-foreground"
-        : "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5",
-    );
 
   return (
     <div
@@ -196,126 +189,38 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
               <h3 className="text-sm font-bold">Choose CSA / PCS / LOI</h3>
             </div>
           </div>
-          <p className="mt-3 text-[11px] font-semibold">Client type</p>
-          <div className="mt-1 grid grid-cols-3 gap-2" role="group" aria-label="Client type">
-            {CLIENT_CATEGORIES.map((client) => (
-              <button
-                key={client}
-                type="button"
-                aria-pressed={qualification.clientCategory === client}
-                onClick={() => update({ clientCategory: client, customerHistory: undefined })}
-                className={choiceClass(qualification.clientCategory === client)}
-              >
-                {client}
-              </button>
-            ))}
-          </div>
-          {(qualification.clientCategory === "GC" || qualification.clientCategory === "Owner") && (
-            <>
-              <p className="mt-2 text-[11px] font-semibold">Customer level</p>
-              <div className="mt-1 grid grid-cols-2 gap-2" role="group" aria-label="Customer level">
-                {(["vip", "regular"] as const).map((tier) => (
-                  <button
-                    key={tier}
-                    type="button"
-                    aria-pressed={qualification.customerTier === tier}
-                    onClick={() => update({ customerTier: tier })}
-                    className={choiceClass(qualification.customerTier === tier)}
-                  >
-                    {tier === "vip" ? "VIP" : "Regular"}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {(qualification.clientCategory === "GC" || qualification.clientCategory === "Owner") &&
-            qualification.customerTier === "regular" && (
-              <>
-                <p className="mt-2 text-[11px] font-semibold">Plans available?</p>
-                <div
-                  className="mt-1 grid grid-cols-2 gap-2"
-                  role="group"
-                  aria-label="Plans available"
-                >
-                  <button
-                    type="button"
-                    aria-pressed={qualification.plansAvailable === "no"}
-                    onClick={() => update({ plansAvailable: "no" })}
-                    className={choiceClass(qualification.plansAvailable === "no")}
-                  >
-                    No plans
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={qualification.plansAvailable === "yes"}
-                    onClick={() => update({ plansAvailable: "yes" })}
-                    className={choiceClass(qualification.plansAvailable === "yes")}
-                  >
-                    Has plans
-                  </button>
-                </div>
-              </>
-            )}
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Click the customer&apos;s situation:
+          </p>
+          <QualificationRouteFlow
+            id={node.id}
+            currentId={customerCase?.id}
+            client={qualification.clientCategory}
+            onPickCase={(caseId) =>
+              update({ ...qualificationCaseChoice(caseId), customerHistory: undefined })
+            }
+            onPickClient={(client) =>
+              update({
+                clientCategory: client as Qualification["clientCategory"],
+                customerHistory: undefined,
+              })
+            }
+          />
           {!qualification.clientCategory && qualification.customerHistory && route && (
             <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
               Earlier choice: {qualification.customerHistory} customer. Choose the client type to
               update it.
             </p>
           )}
-          <div
+          <p
             data-qualification-route
-            className="mt-auto pt-3 text-xs font-semibold text-foreground"
+            className="mt-auto pt-2 text-xs font-semibold text-foreground"
           >
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Route:{" "}
-            </span>
-            {customerCase ? (
-              <span
-                data-qualification-mini-flow
-                className="mt-1 flex flex-wrap items-center gap-y-1 text-[11px]"
-              >
-                {[customerCase.client, ...customerCase.steps].map((step, index) => {
-                  const routeStyle =
-                    step === "CSA" || step === "PCS" || step === "LOI"
-                      ? COMMERCIAL_ROUTE_STYLE[step]
-                      : undefined;
-                  const ownerGc = step === "Owner's GC";
-                  return (
-                    <span key={`${step}-${index}`} className="contents">
-                      {index > 0 && (
-                        <span aria-hidden="true" className="px-1 text-sm text-emerald-600">
-                          {" "}
-                          →{" "}
-                        </span>
-                      )}
-                      <span
-                        data-qualification-flow-box={step}
-                        {...(ownerGc ? { "data-qualification-owner-gc": "" } : {})}
-                        className={cn(
-                          "rounded-md border-2 px-2 py-1 font-bold leading-none",
-                          index === 0 && "border-slate-400 bg-slate-100 text-slate-700",
-                          ownerGc && "border-amber-500 bg-amber-50 text-amber-800",
-                        )}
-                        style={
-                          routeStyle
-                            ? {
-                                borderColor: routeStyle.color,
-                                color: routeStyle.color,
-                                backgroundColor: `${routeStyle.color}14`,
-                              }
-                            : undefined
-                        }
-                      >
-                        {step}
-                      </span>
-                    </span>
-                  );
-                })}
-              </span>
-            ) : (
-              (route ?? "Choose the client type")
-            )}
-          </div>
+            Route:{" "}
+            {customerCase
+              ? [customerCase.client, ...customerCase.steps].join(" → ")
+              : (route ?? "Choose the customer's situation")}
+          </p>
         </section>
       </div>
 

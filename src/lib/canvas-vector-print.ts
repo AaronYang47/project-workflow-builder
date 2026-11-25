@@ -1,5 +1,13 @@
 import type { PhaseForms, PrintHeader } from "@/lib/phase-forms-summary";
+import type { QualificationCase } from "@/lib/qualification";
 import { escapeHtml } from "@/lib/html";
+import {
+  ROUTE_FLOW_OFF,
+  ROUTE_FLOW_ON,
+  ROUTE_STEP_COLORS,
+  ROUTE_STEP_DEFAULT,
+  routeFlowLayout,
+} from "@/lib/route-flow-layout";
 import { EDGE_CORNER_RADIUS, roundedPath } from "@/lib/semantic-edge-geometry";
 
 /** 11 x 17 in at the CSS 96 px/in reference; the long side is 17 in. */
@@ -388,116 +396,66 @@ function formsPanel(forms: PhaseForms[]) {
 }
 
 export type PrintRoutes = {
-  cases: { id: string; client: string; situation: string; steps: string[] }[];
+  cases: QualificationCase[];
   /** The situation the project is in, highlighted in the table. */
   currentId?: string;
 };
 
-const ROUTE_BOX_COLORS: Record<string, { stroke: string; fill: string; text: string }> = {
-  CSA: { stroke: "#2563eb", fill: "#eff6ff", text: "#1d4ed8" },
-  PCS: { stroke: "#d97706", fill: "#fffbeb", text: "#b45309" },
-  LOI: { stroke: "#7c3aed", fill: "#f5f3ff", text: "#6d28d9" },
-  "Owner's GC": { stroke: "#b45309", fill: "#fef3c7", text: "#92400e" },
-};
-const ROUTE_ON = "#16a34a";
-const ROUTE_OFF = "#94a3b8";
-
 /**
- * Every customer situation as a small flowchart: each client type branches by
- * its situation into the steps it goes through. The project's own branch is
- * drawn in green. Units are tenths of an em, so it scales with the notes text.
+ * Every customer situation as a small flowchart, the same one Qualification
+ * draws on the canvas, with the project's own branch in green. Units are
+ * tenths of an em, so it scales with the notes text.
  */
 function routesPanel(routes: PrintRoutes) {
   const panel = document.createElement("section");
   panel.className = "vector-print-routes";
   panel.setAttribute("data-print-routes", "");
-  const ROW = 24;
-  const GROUP_GAP = 8;
-  const CLIENT_W = 52;
-  const BUS_X = 62;
-  const LABEL_X = 70;
-  const STEPS_X = 180;
-  const BOX_H = 16;
-  const GAP = 16;
-  const charWidth = 5.6;
-  const boxWidth = (text: string) => text.length * charWidth + 12;
-  const clients = [...new Set(routes.cases.map((item) => item.client))];
-  let y = 4;
-  let width = 0;
+  const layout = routeFlowLayout(routes.cases);
   const parts: string[] = [];
-  for (const client of clients) {
-    const cases = routes.cases.filter((item) => item.client === client);
-    const top = y;
-    const rows = cases.map((_, index) => top + ROW * index + ROW / 2);
-    const bottom = top + ROW * cases.length;
-    const mid = (top + bottom) / 2;
-    const groupCurrent = cases.some((item) => item.id === routes.currentId);
-    cases.forEach((item, index) => {
-      const rowY = rows[index];
-      const current = item.id === routes.currentId;
-      const color = current ? ROUTE_ON : ROUTE_OFF;
-      const stroke = current ? 2 : 1;
-      const marker = current ? "print-routes-arrow-on" : "print-routes-arrow-off";
-      parts.push(
-        `<g data-print-route="${escapeHtml(item.id)}"${current ? " data-print-route-current" : ""}>`,
-        `<path d="${roundedPath(
-          [
-            { x: CLIENT_W, y: mid },
-            { x: BUS_X, y: mid },
-            { x: BUS_X, y: rowY },
-            { x: LABEL_X - 2, y: rowY },
-          ],
-          4,
-        )}" fill="none" stroke="${color}" stroke-width="${stroke}"/>`,
-        `<text x="${LABEL_X}" y="${rowY}" dominant-baseline="central" font-size="9" fill="${current ? ROUTE_ON : "currentColor"}" font-weight="${current ? 800 : 500}">${escapeHtml(item.situation)}</text>`,
-      );
-      const labelEnd = LABEL_X + item.situation.length * 5.2 + 4;
-      let x = STEPS_X;
-      parts.push(
-        `<line x1="${labelEnd}" y1="${rowY}" x2="${x - 2}" y2="${rowY}" stroke="${color}" stroke-width="${stroke}" marker-end="url(#${marker})"/>`,
-      );
-      item.steps.forEach((step, stepIndex) => {
-        const w = boxWidth(step);
-        const palette = ROUTE_BOX_COLORS[step] ?? {
-          stroke: "#475569",
-          fill: "#f1f5f9",
-          text: "#334155",
-        };
-        if (stepIndex > 0)
-          parts.push(
-            `<line x1="${x - GAP + 1}" y1="${rowY}" x2="${x - 2}" y2="${rowY}" stroke="${color}" stroke-width="${stroke}" marker-end="url(#${marker})"/>`,
-          );
-        parts.push(
-          `<rect x="${x}" y="${rowY - BOX_H / 2}" width="${w}" height="${BOX_H}" rx="3" fill="${palette.fill}" stroke="${palette.stroke}" stroke-width="${current ? 1.6 : 1}"/>`,
-          `<text x="${x + w / 2}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="${palette.text}">${escapeHtml(step)}</text>`,
-        );
-        x += w + GAP;
-      });
-      if (current) {
-        const tagW = boxWidth("This project");
-        parts.push(
-          `<rect x="${x - GAP + 8}" y="${rowY - 7}" width="${tagW}" height="14" rx="7" fill="${ROUTE_ON}"/>`,
-          `<text x="${x - GAP + 8 + tagW / 2}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="800" fill="#ffffff">This project</text>`,
-        );
-        x += tagW + 8;
-      }
-      width = Math.max(width, x);
-      parts.push("</g>");
-    });
+  const line = (from: { x: number; y: number }, to: { x: number; y: number }, on: boolean) =>
+    `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}" stroke-width="${on ? 2 : 1}" marker-end="url(#print-routes-arrow-${on ? "on" : "off"})"/>`;
+  let width = layout.width;
+  for (const row of layout.rows) {
+    const on = row.item.id === routes.currentId;
+    const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
     parts.push(
-      `<rect x="1" y="${top + 3}" width="${CLIENT_W - 2}" height="${bottom - top - 6}" rx="4" fill="${groupCurrent ? "#dcfce7" : "#f8fafc"}" stroke="${groupCurrent ? ROUTE_ON : "#64748b"}" stroke-width="${groupCurrent ? 1.6 : 1}"/>`,
-      `<text x="${CLIENT_W / 2}" y="${mid}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="800" fill="${groupCurrent ? "#14532d" : "#0f172a"}">${escapeHtml(client)}</text>`,
+      `<g data-print-route="${escapeHtml(row.item.id)}"${on ? " data-print-route-current" : ""}>`,
+      `<path d="${roundedPath(row.branch, 4)}" fill="none" stroke="${color}" stroke-width="${on ? 2 : 1}"/>`,
+      `<text x="${row.labelX}" y="${row.y}" dominant-baseline="central" font-size="9" fill="${on ? ROUTE_FLOW_ON : "currentColor"}" font-weight="${on ? 800 : 500}">${escapeHtml(row.item.situation)}</text>`,
+      line(row.lead[0], row.lead[1], on),
+      ...row.links.map(([from, to]) => line(from, to, on)),
     );
-    y = bottom + GROUP_GAP;
+    for (const step of row.steps) {
+      const palette = ROUTE_STEP_COLORS[step.text] ?? ROUTE_STEP_DEFAULT;
+      parts.push(
+        `<rect x="${step.x}" y="${row.y - layout.boxHeight / 2}" width="${step.width}" height="${layout.boxHeight}" rx="3" fill="${palette.fill}" stroke="${palette.stroke}" stroke-width="${on ? 1.6 : 1}"/>`,
+        `<text x="${step.x + step.width / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="${palette.text}">${escapeHtml(step.text)}</text>`,
+      );
+    }
+    if (on) {
+      const tagWidth = 72;
+      parts.push(
+        `<rect x="${row.end + 8}" y="${row.y - 7}" width="${tagWidth}" height="14" rx="7" fill="${ROUTE_FLOW_ON}"/>`,
+        `<text x="${row.end + 8 + tagWidth / 2}" y="${row.y}" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="800" fill="#ffffff">This project</text>`,
+      );
+      width = Math.max(width, row.end + 8 + tagWidth + 2);
+    }
+    parts.push("</g>");
   }
-  const height = y - GROUP_GAP + 4;
-  width = Math.ceil(width + 4);
+  for (const client of layout.clients) {
+    const on = client.ids.includes(routes.currentId ?? "");
+    parts.push(
+      `<rect x="1" y="${client.top + 3}" width="${layout.clientWidth - 2}" height="${client.bottom - client.top - 6}" rx="4" fill="${on ? "#dcfce7" : "#f8fafc"}" stroke="${on ? ROUTE_FLOW_ON : "#64748b"}" stroke-width="${on ? 1.6 : 1}"/>`,
+      `<text x="${layout.clientWidth / 2}" y="${client.mid}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="800" fill="${on ? "#14532d" : "#0f172a"}">${escapeHtml(client.client)}</text>`,
+    );
+  }
+  const height = layout.height;
   const arrow = (id: string, color: string) =>
     `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1L9 5L1 9Z" fill="${color}"/></marker>`;
   panel.innerHTML = `
     <div class="vpr-heading">Customer routes</div>
     <svg viewBox="0 0 ${width} ${height}" style="width:${width / 10}em;height:${height / 10}em;display:block;overflow:visible">
-      <defs>${arrow("print-routes-arrow-on", ROUTE_ON)}${arrow("print-routes-arrow-off", ROUTE_OFF)}</defs>
+      <defs>${arrow("print-routes-arrow-on", ROUTE_FLOW_ON)}${arrow("print-routes-arrow-off", ROUTE_FLOW_OFF)}</defs>
       ${parts.join("")}
     </svg>
     <style>

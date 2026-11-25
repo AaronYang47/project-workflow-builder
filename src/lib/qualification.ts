@@ -79,6 +79,19 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
   },
 ];
 
+/** The answers that put a Qualification in this situation. */
+export function qualificationCaseChoice(id: string): Partial<Qualification> {
+  const item = QUALIFICATION_CASES.find((candidate) => candidate.id === id);
+  if (!item) return {};
+  if (item.client === "ProFab") return { clientCategory: "ProFab" };
+  const vip = id.endsWith("-vip");
+  return {
+    clientCategory: item.client,
+    customerTier: vip ? "vip" : "regular",
+    ...(vip ? {} : { plansAvailable: id.endsWith("-no-plans") ? "no" : "yes" }),
+  };
+}
+
 /** The situation this Qualification describes, once enough has been chosen. */
 export function qualificationCase(qualification: Qualification) {
   const { clientCategory, customerTier, plansAvailable } = qualification;

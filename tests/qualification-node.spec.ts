@@ -137,28 +137,29 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await page.getByRole("button", { name: /fit view/i }).click();
   await page.waitForTimeout(400);
   const route = node.locator("[data-qualification-route]");
-  const ownerNote = node.locator("[data-qualification-owner-gc]");
-  await expect(route).toHaveText("Route: Choose the client type");
+  const flow = node.locator("[data-qualification-route-flow]");
+  const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
+  // Every situation is on the flowchart, each with its own branch.
+  await expect(flow.locator("[data-qualification-route-case]")).toHaveCount(7);
+  await expect(route).toHaveText("Route: Choose the customer's situation");
+  await expect(chosen).toHaveCount(0);
   // Regular GC: no plans → CSA then PCS, plans → PCS.
-  await node.getByRole("button", { name: "GC", exact: true }).click();
-  await node.getByRole("button", { name: "Regular" }).click();
-  await node.getByRole("button", { name: "No plans" }).click();
+  await flow.getByRole("button", { name: "GC · Regular · no plans" }).click();
   await expect(route).toHaveText("Route: GC → CSA → PCS");
-  await node.getByRole("button", { name: "Has plans" }).click();
+  await expect(chosen).toHaveAttribute("data-qualification-route-case", "gc-no-plans");
+  await flow.getByRole("button", { name: "GC · Regular · has plans" }).click();
   await expect(route).toHaveText("Route: GC → PCS");
-  await expect(ownerNote).toHaveCount(0);
-  // Owner with plans: their GC contacts ProFab, then PCS.
-  await node.getByRole("button", { name: "Owner" }).click();
+  // Owner with plans goes to their GC, then PCS — drawn as its own branch.
+  await flow.getByRole("button", { name: "Owner · Regular · has plans" }).click();
   await expect(route).toHaveText("Route: Owner → Owner's GC → PCS");
-  await expect(ownerNote).toBeVisible();
-  // VIP goes through LOI and needs no plans answer.
-  await node.getByRole("button", { name: "VIP" }).click();
-  await expect(node.getByRole("group", { name: "Plans available" })).toHaveCount(0);
+  await expect(chosen.locator('[data-qualification-flow-box="Owner\'s GC"]')).toHaveCount(1);
+  // VIP goes through LOI.
+  await flow.getByRole("button", { name: "Owner · VIP" }).click();
   await expect(route).toHaveText("Route: Owner → LOI");
-  // ProFab is our own company: LOI, nothing more to choose.
-  await node.getByRole("button", { name: "ProFab" }).click();
-  await expect(node.getByRole("group", { name: "Customer level" })).toHaveCount(0);
+  // ProFab is our own company: LOI. Clicking the client box picks it too.
+  await flow.getByRole("button", { name: "ProFab", exact: true }).click();
   await expect(route).toHaveText("Route: ProFab → LOI");
+  await expect(chosen).toHaveAttribute("data-qualification-route-case", "profab");
 
   // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.
   await expect
@@ -323,8 +324,7 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(score).toHaveText("0/84 · 0%");
 
   // Choose the LOI route first: a VIP GC.
-  await node.getByRole("button", { name: "GC", exact: true }).click();
-  await node.getByRole("button", { name: "VIP" }).click();
+  await node.getByRole("button", { name: "GC · VIP" }).click();
   await expect(node.locator("[data-qualification-route]")).toHaveText("Route: GC → LOI");
   await expect(score).toHaveText("0/84 · 0%");
 
@@ -552,9 +552,7 @@ test("Qualification blocks the next Department until it passes with a route, and
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
   // Regular GC without plans → CSA: Qualification passes and SALES opens up.
-  await qualCard.getByRole("button", { name: "GC", exact: true }).click();
-  await qualCard.getByRole("button", { name: "Regular" }).click();
-  await qualCard.getByRole("button", { name: "No plans" }).click();
+  await qualCard.getByRole("button", { name: "GC · Regular · no plans" }).click();
   await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   await expect(salesCard.getByRole("button", { name: "Uncheck step 2" })).toBeVisible();
