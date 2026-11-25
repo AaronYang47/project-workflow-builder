@@ -157,7 +157,28 @@ export function CommercialRouteGroupNode({
           <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             Route Selection
           </p>
-          <p className="text-sm font-bold">CSA / PCS / LOI</p>
+          {/* The node's own title: edit it here or in the Inspector. */}
+          <input
+            key={node.title}
+            aria-label="Route Selection title"
+            data-route-selection-title
+            className="nodrag -mx-1 w-full min-w-0 rounded bg-transparent px-1 text-sm font-bold outline-none hover:bg-muted/60 focus:bg-background focus:ring-1 focus:ring-primary"
+            defaultValue={node.title}
+            placeholder="CSA / PCS / LOI"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") {
+                event.currentTarget.value = node.title;
+                event.currentTarget.blur();
+              }
+            }}
+            onBlur={(event) => {
+              const title = event.currentTarget.value.trim();
+              if (title && title !== node.title)
+                useWorkflowStore.getState().updateNode(node.id, { title });
+              else event.currentTarget.value = node.title;
+            }}
+          />
         </div>
         <span
           data-selected-commercial-route={route ?? "none"}

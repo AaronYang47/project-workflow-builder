@@ -9,6 +9,13 @@ import { getNodeDefinition } from "@/lib/node-catalog";
 import type { Condition, DomainNode, WorkflowFile } from "@/types/workflow";
 
 const CEO_SIGNATURE_CONDITION = "loi-ceo-signature-required";
+const DEFAULT_GROUP_TITLE = "CSA / PCS / LOI";
+/** Titles the app itself gave this node before; replaced by the default. */
+const LEGACY_GROUP_TITLES = new Set(["", "Route Selection"]);
+const LEGACY_GROUP_DESCRIPTIONS = new Set([
+  "Three commercial agreement routes in one node.",
+  "Choose and complete the applicable commercial agreement.",
+]);
 const BYPASS_EDGE_TYPES = new Set(["failure", "rework", "reopen", "hold"]);
 
 function ceoCondition(previous?: Condition): Condition {
@@ -76,8 +83,15 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     ...base,
     id: groupId,
     type: "commercialRule",
-    title: "Route Selection",
-    description: "Choose the customer's route and fill in its CSA, PCS or LOI agreement.",
+    // The heading under "Route Selection" is the node's own, editable title.
+    title:
+      previousGroup && !LEGACY_GROUP_TITLES.has(previousGroup.title.trim())
+        ? previousGroup.title
+        : DEFAULT_GROUP_TITLE,
+    description:
+      previousGroup?.description && !LEGACY_GROUP_DESCRIPTIONS.has(previousGroup.description)
+        ? previousGroup.description
+        : "Choose the customer's route and fill in its CSA, PCS or LOI agreement.",
     conditions: [
       ceoCondition(
         base.conditions.find((item) => item.id === CEO_SIGNATURE_CONDITION) ??
