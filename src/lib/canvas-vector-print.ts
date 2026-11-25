@@ -15,8 +15,6 @@ const ROOT_ID = "vector-canvas-print";
 const PANEL_GAP_PX = 14;
 /** The notes under the flowchart may use at most this share of the sheet. */
 const NOTES_MAX_SHARE = 0.14;
-/** Widths (share of the page) tried for the forms notes beside the flowchart. */
-const SIDE_NOTES_SHARES = [0.12, 0.14, 0.16, 0.18, 0.2, 0.24];
 
 export type CanvasRect = { x: number; y: number; width: number; height: number };
 export type CanvasCard = CanvasRect & { id: string; parentId?: string };
@@ -444,16 +442,12 @@ function formsPanel(forms: PhaseForms[]) {
       .vpf-line { margin-top: .15em; overflow-wrap: anywhere; }
       .vpf-line b { font-weight: 800; }
       .vpf-line i { opacity: .8; }
-      /* Under the flowchart the forms run on one line, separated by dots;
-         beside it, each form is its own list item. */
-      .vpf-list { display: inline; margin: 0; padding: 0; }
-      .vpf-list li { display: inline; }
-      .vpf-list li + li::before { content: " · "; opacity: .6; }
-      .vpf-side .vpf-line b { display: block; }
-      .vpf-side .vpf-list { display: block; margin: .1em 0 .25em; padding-left: 1.1em; }
-      .vpf-side .vpf-list li { display: list-item; list-style: disc outside; }
-      .vpf-side .vpf-list li + li::before { content: none; }
-      .vpf-side .vpf-list li::marker { color: color-mix(in srgb, var(--vpf-color) 70%, var(--foreground)); }
+      /* Each form is its own list item, flowing into narrow columns so the
+         notes stay short under the flowchart. */
+      .vpf-line b { display: block; }
+      .vpf-list { display: block; margin: .05em 0 .2em; padding-left: 1.1em; columns: 11em; column-gap: 2.4em; }
+      .vpf-list li { display: list-item; list-style: disc outside; break-inside: avoid; }
+      .vpf-list li::marker { color: color-mix(in srgb, var(--vpf-color) 70%, var(--foreground)); }
       .vpf-legal { color: color-mix(in srgb, #f59e0b 75%, var(--foreground)); }
       .vpf-customer { color: color-mix(in srgb, #0ea5e9 75%, var(--foreground)); }
       .vpf-supporting { color: var(--foreground); }
@@ -1397,11 +1391,7 @@ export function printCanvasVector(
   if (titleBlock) root.appendChild(titleBlock);
   const panel = forms.length ? formsPanel(forms) : null;
   if (panel) root.appendChild(panel);
-  // The notes go under the flowchart or in a column beside it, whichever
-  // lets the flowchart print larger.
-  const notesGrid = panel?.querySelector<HTMLElement>(".vpf-grid") ?? null;
-  const notesColumns = notesGrid?.style.gridTemplateColumns ?? "";
-  const areaFor = (portrait: boolean, side = false, share = SIDE_NOTES_SHARES[0]) => {
+  const areaFor = (portrait: boolean) => {
     const pageWidth = portrait ? SHEET_SHORT_PX : SHEET_LONG_PX;
     const pageHeight = portrait ? SHEET_LONG_PX : SHEET_SHORT_PX;
     let headerHeight = 0;
@@ -1409,52 +1399,32 @@ export function printCanvasVector(
       titleBlock.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
       headerHeight = titleBlock.offsetHeight;
     }
-    const flowTop = PAGE_MARGIN_PX + (titleBlock ? headerHeight + PANEL_GAP_PX : 0);
-    const fullHeight = pageHeight - flowTop - PAGE_MARGIN_PX;
     let panelHeight = 0;
-    let panelWidth = 0;
     let fontSize = 0;
-    let fits = true;
     if (panel) {
-      panelWidth = side
-        ? Math.round((pageWidth - PAGE_MARGIN_PX * 2) * share)
-        : pageWidth - PAGE_MARGIN_PX * 2;
-      panel.style.width = `${panelWidth}px`;
-      if (notesGrid)
-        notesGrid.style.gridTemplateColumns = side ? "minmax(0, 1fr)" : notesColumns;
-      panel.classList.toggle("vpf-side", side);
-      const room = side ? fullHeight : pageHeight * NOTES_MAX_SHARE;
-      // Beside the flowchart the notes have the whole height: use the largest
-      // text that still fits, so the column is filled instead of crowded at the top.
-      for (fontSize = side ? 16 : 8; fontSize > 6.5; fontSize -= 0.5) {
+      panel.style.width = `${pageWidth - PAGE_MARGIN_PX * 2}px`;
+      for (fontSize = 8; fontSize > 6.5; fontSize -= 0.5) {
         panel.style.fontSize = `${fontSize}px`;
         panelHeight = panel.offsetHeight;
-        if (panelHeight <= room) break;
+        if (panelHeight <= pageHeight * NOTES_MAX_SHARE) break;
       }
-      fits = !side || panelHeight <= room;
     }
+    const flowTop = PAGE_MARGIN_PX + (titleBlock ? headerHeight + PANEL_GAP_PX : 0);
+    const flowHeight =
+      pageHeight - flowTop - PAGE_MARGIN_PX - (panel ? panelHeight + PANEL_GAP_PX : 0);
     return {
       portrait,
-      side,
-      share,
-      fits,
       pageWidth,
       pageHeight,
       panelHeight,
-      panelWidth,
       fontSize,
       flowTop,
-      flowWidth:
-        pageWidth - PAGE_MARGIN_PX * 2 - (side && panel ? panelWidth + PANEL_GAP_PX * 2 : 0),
-      flowHeight:
-        side || !panel ? fullHeight : fullHeight - panelHeight - PANEL_GAP_PX,
+      flowWidth: pageWidth - PAGE_MARGIN_PX * 2,
+      flowHeight,
     };
   };
-  // 11 x 17 prints landscape (17 wide, 11 tall).
-  const areas = [
-    areaFor(false),
-    ...(panel ? SIDE_NOTES_SHARES.map((share) => areaFor(false, true, share)) : []),
-  ].filter((area) => area.fits);
+  // The forms notes always sit under the flowchart.
+  const areas = [areaFor(false)];
   const placeOn = (box: CanvasRect) =>
     areas
       .map((area) => ({
@@ -1532,7 +1502,7 @@ export function printCanvasVector(
     }
   }
   const page = { ...placement.area, scale: placement.scale };
-  areaFor(page.portrait, page.side, page.share);
+  areaFor(page.portrait);
   const { portrait, pageWidth, pageHeight, scale } = page;
   root.dataset.cardWidthShare = String(chosen?.share ?? 1);
   const offsetX =
@@ -1563,21 +1533,11 @@ export function printCanvasVector(
       top: `${PAGE_MARGIN_PX}px`,
     });
   if (panel) {
-    Object.assign(
-      panel.style,
-      page.side
-        ? {
-            position: "absolute",
-            left: `${pageWidth - PAGE_MARGIN_PX - page.panelWidth}px`,
-            top: `${page.flowTop}px`,
-          }
-        : {
-            position: "absolute",
-            left: `${PAGE_MARGIN_PX}px`,
-            top: `${pageHeight - PAGE_MARGIN_PX - page.panelHeight}px`,
-          },
-    );
-    root.dataset.formsPlacement = page.side ? "side" : "bottom";
+    Object.assign(panel.style, {
+      position: "absolute",
+      left: `${PAGE_MARGIN_PX}px`,
+      top: `${pageHeight - PAGE_MARGIN_PX - page.panelHeight}px`,
+    });
     root.dataset.formsFontSize = String(page.fontSize);
   }
 
