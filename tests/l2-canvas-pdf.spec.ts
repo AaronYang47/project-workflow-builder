@@ -140,7 +140,8 @@ for (const { item, startOnL2, title } of cases) {
       expect(printed.rows).toBeGreaterThan(1);
       expect(printed.overlaps).toBe(0);
     }
-    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 (1224 792|792 1224)\]/);
+    // 11 x 17 landscape: 17in wide, 11in tall.
+    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 1224 792\]/);
     expect((pdf.match(/\/Type\s*\/Page\b/g) || []).length).toBe(1);
     // Text stays text: the page carries fonts rather than one flat picture.
     expect(pdf).toMatch(/\/Type\s*\/Font\b/);

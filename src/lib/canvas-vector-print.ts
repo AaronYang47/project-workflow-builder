@@ -1459,7 +1459,8 @@ export function printCanvasVector(
       flowHeight,
     };
   };
-  const areas = [areaFor(false), areaFor(true)];
+  // 11 x 17 prints landscape (17 wide, 11 tall).
+  const areas = [areaFor(false)];
   const placeOn = (box: CanvasRect) =>
     areas
       .map((area) => ({
