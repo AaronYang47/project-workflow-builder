@@ -12,7 +12,7 @@ const MIN_CARD_WIDTH_SHARE = 0.8;
 const MIN_COLUMN_GAP = 64;
 const LABEL_CLEARANCE = 40;
 /** The Site tag prints larger than on the canvas (9pt on paper): its gap is sized for that. */
-const SITE_LABEL_PRINT_WIDTH = 180;
+const SITE_LABEL_PRINT_WIDTH = 240;
 const printedLabelWidth = (label: HTMLElement) =>
   label.hasAttribute("data-site-label")
     ? Math.max(label.offsetWidth, SITE_LABEL_PRINT_WIDTH)
@@ -1313,6 +1313,10 @@ function paintSiteRoutes(root: HTMLElement, pageColor: Rgba, scale: number) {
     });
   const size = (points: number) => `${points / Math.max(scale, 0.05)}px`;
   root.querySelectorAll<HTMLElement>("[data-site-label]").forEach((label) => {
+    // Drawn above every card and frame, so no frame can cover it.
+    const layer = label.closest<HTMLElement>(".react-flow__edgelabel-renderer");
+    layer?.style.setProperty("z-index", "2000", "important");
+    label.style.setProperty("z-index", "2000", "important");
     for (const [property, value] of [
       ["background-color", css([pageColor[0], pageColor[1], pageColor[2], 1])],
       ["color", PRINT_SITE_RED],
