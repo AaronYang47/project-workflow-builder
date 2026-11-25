@@ -13,15 +13,12 @@ import {
 import { roundedPath } from "@/lib/semantic-edge-geometry";
 
 /**
- * Every customer situation as a flowchart with lines and arrows. Clicking a
- * branch (or a client type) chooses it; the chosen path is drawn in green.
+ * Displays every customer situation and highlights the path from Form [1.01].
  */
 export function QualificationRouteFlow({
   id,
   currentId,
   client,
-  onPickCase,
-  onPickClient,
   exitBus = false,
   scale = 1,
   svgRef,
@@ -34,8 +31,6 @@ export function QualificationRouteFlow({
   id: string;
   currentId?: string;
   client?: string;
-  onPickCase: (caseId: string) => void;
-  onPickClient: (client: string) => void;
 }) {
   const layout = useMemo(() => routeFlowLayout(QUALIFICATION_CASES, { row: 26 }), []);
   const bus = useMemo(() => routeFlowExitBus(layout), [layout]);
@@ -46,15 +41,11 @@ export function QualificationRouteFlow({
   const finalRow = layout.rows.find((row) => row.item.id === (handoff ?? currentId));
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
-  const keyPick = (action: () => void) => (event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      action();
-    }
-  };
   return (
     <svg
       ref={svgRef}
+      role="img"
+      aria-label="Customer routing paths from Qualification"
       data-qualification-route-flow
       viewBox={`0 0 ${viewWidth} ${layout.height}`}
       className="nodrag mt-1 block h-auto overflow-visible text-foreground"
@@ -85,19 +76,13 @@ export function QualificationRouteFlow({
         const color = on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
         const stroke = on ? 2.2 : 1.2;
         const marker = `url(#${on ? markerOn : markerOff})`;
-        const pick = () => onPickCase(row.item.id);
         return (
           <g
             key={row.item.id}
-            role="button"
-            tabIndex={0}
-            aria-pressed={on}
             aria-label={`${row.item.client} · ${row.item.situation}`}
             data-qualification-route-case={row.item.id}
             data-active={on ? "true" : undefined}
-            onClick={pick}
-            onKeyDown={keyPick(pick)}
-            className={`cursor-pointer outline-none transition-opacity hover:opacity-100 focus-visible:opacity-100 ${dim ? "opacity-55" : ""}`}
+            className={dim ? "opacity-55" : undefined}
           >
             <rect
               x={layout.clientWidth + 2}
@@ -105,7 +90,7 @@ export function QualificationRouteFlow({
               width={row.end - layout.clientWidth}
               height={24}
               rx={4}
-              className={on ? "fill-emerald-500/10" : "fill-transparent hover:fill-primary/5"}
+              className={on ? "fill-emerald-500/10" : "fill-transparent"}
             />
             <path d={roundedPath(row.branch, 6)} fill="none" stroke={color} strokeWidth={stroke} />
             <text
@@ -243,18 +228,11 @@ export function QualificationRouteFlow({
       })}
       {layout.clients.map((item) => {
         const on = item.client === client || item.ids.some((caseId) => lit.has(caseId));
-        const pick = () => onPickClient(item.client);
         return (
           <g
             key={item.client}
-            role="button"
-            tabIndex={0}
-            aria-pressed={on}
             aria-label={item.client}
             data-qualification-route-client={item.client}
-            onClick={pick}
-            onKeyDown={keyPick(pick)}
-            className="cursor-pointer outline-none"
           >
             <rect
               x={1}

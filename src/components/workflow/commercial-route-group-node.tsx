@@ -11,10 +11,8 @@ import {
 import {
   QUALIFICATION_CASES,
   qualificationCase,
-  qualificationCaseChoice,
   qualificationOf,
   qualificationRoute,
-  type Qualification,
 } from "@/lib/qualification";
 import {
   ROUTE_FLOW_OFF,
@@ -62,16 +60,8 @@ export function CommercialRouteGroupNode({
   );
   const qualification = qualificationNode ? qualificationOf(qualificationNode) : {};
   const route = qualificationNode ? qualificationRoute(qualification) : undefined;
-  const customerCase = qualificationCase(qualification);
-  const chooseRoute = (patch: Partial<Qualification>) => {
-    if (!qualificationNode) return;
-    const store = useWorkflowStore.getState();
-    const current =
-      store.file.graph.nodes.find((item) => item.id === qualificationNode.id) ?? qualificationNode;
-    const next = { ...qualificationOf(current), ...patch, customerHistory: undefined };
-    next.commercialPath = qualificationRoute(next);
-    store.updateNode(current.id, { config: { ...current.config, qualification: next } });
-  };
+  const answers = qualification.form101?.sectionA?.routeAnswers ?? qualification;
+  const customerCase = qualificationCase(answers);
 
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
   const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
@@ -222,24 +212,20 @@ export function CommercialRouteGroupNode({
         />
       )}
 
-      <p className="mt-2 text-sm text-muted-foreground">Click the customer&apos;s situation:</p>
+      <p className="mt-2 text-sm text-muted-foreground">Route from Qualification Form [1.01]</p>
       <QualificationRouteFlow
         id={node.id}
         svgRef={svgRef}
         exitBus
         scale={FLOW_SCALE}
         currentId={customerCase?.id}
-        client={qualification.clientCategory}
-        onPickCase={(caseId) => chooseRoute(qualificationCaseChoice(caseId))}
-        onPickClient={(client) =>
-          chooseRoute({ clientCategory: client as Qualification["clientCategory"] })
-        }
+        client={answers.clientCategory}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}
         {customerCase
           ? [customerCase.client, ...customerCase.steps].join(" → ")
-          : (route ?? "Choose the customer's situation")}
+          : (route ?? "Complete Form [1.01]")}
       </p>
 
       <div
@@ -249,7 +235,8 @@ export function CommercialRouteGroupNode({
       >
         {!agreements.length && (
           <p className="rounded-xl border border-dashed p-3 text-[11px] text-muted-foreground">
-            Choose the customer&apos;s situation above to fill in its agreement (CSA, PCS or LOI).
+            Complete the customer routing questions in Qualification to see the applicable
+            agreement.
           </p>
         )}
         {agreements.map((path) => {

@@ -10,7 +10,7 @@ export type QualificationTechReview = {
   notes?: string;
 };
 
-/** Choices made in the L2 Qualification node. All can be changed later. */
+/** Form data and compatibility fields for saved Qualification nodes. */
 export type Qualification = {
   /** Who the customer is: General Contractor, building Owner, or ProFab itself. */
   clientCategory?: ClientCategory;
@@ -22,7 +22,7 @@ export type Qualification = {
   gcStatus?: (typeof GC_STATUSES)[number];
   contractingClient?: (typeof CONTRACTING_CLIENT)[number];
   projectType?: (typeof PROJECT_TYPES)[number];
-  /** No plans → CSA; new customer with plans → PCS; existing customer → LOI. */
+  /** Plan availability from the older route selector. */
   plansAvailable?: "yes" | "no";
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
@@ -39,6 +39,10 @@ export const COMMERCIAL_PATHS = ["LOI", "CSA", "PCS"] as const;
 
 export const CLIENT_CATEGORIES = ["GC", "Owner", "ProFab"] as const;
 export type ClientCategory = (typeof CLIENT_CATEGORIES)[number];
+export type QualificationRouteAnswers = Pick<
+  Qualification,
+  "clientCategory" | "customerTier" | "plansAvailable"
+>;
 
 export type QualificationCase = {
   id: string;
@@ -83,22 +87,12 @@ export const QUALIFICATION_CASES: QualificationCase[] = [
   },
 ];
 
-/** The answers that put a Qualification in this situation. */
-export function qualificationCaseChoice(id: string): Partial<Qualification> {
-  const item = QUALIFICATION_CASES.find((candidate) => candidate.id === id);
-  if (!item) return {};
-  if (item.client === "ProFab") return { clientCategory: "ProFab" };
-  const vip = id.endsWith("-vip");
-  return {
-    clientCategory: item.client,
-    customerTier: vip ? "vip" : "regular",
-    ...(vip ? {} : { plansAvailable: id.endsWith("-no-plans") ? "no" : "yes" }),
-  };
-}
-
 /** The situation this Qualification describes, once enough has been chosen. */
-export function qualificationCase(qualification: Qualification) {
-  const { clientCategory, customerTier, plansAvailable } = qualification;
+export function qualificationCase({
+  clientCategory,
+  customerTier,
+  plansAvailable,
+}: QualificationRouteAnswers) {
   if (!clientCategory) return undefined;
   const id =
     clientCategory === "ProFab"
@@ -124,12 +118,13 @@ export function qualificationOf(node: DomainNode): Qualification {
 }
 
 /**
- * The client type, VIP or regular, and plan availability decide the route
- * (see QUALIFICATION_CASES). Older saved selections (new or existing customer)
- * remain readable until the client type is chosen.
+ * Form answers take precedence, including when someone clears an answer.
+ * Older projects may still have a route saved outside the form.
  */
 export function qualificationRoute(qualification: Qualification) {
-  if (qualification.clientCategory) return qualificationCase(qualification)?.route;
+  const answers = qualification.form101?.sectionA?.routeAnswers;
+  if (answers || qualification.clientCategory)
+    return qualificationCase(answers ?? qualification)?.route;
   if (qualification.customerHistory === "existing") {
     return qualification.commercialPath;
   }

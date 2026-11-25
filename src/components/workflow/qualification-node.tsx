@@ -179,7 +179,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         id="in"
         className="!size-3 !border-2 !border-background !bg-slate-500"
       />
-      {/* One way out: on to Route Selection, where the route is chosen. */}
+      {/* One way out: on to Route Selection, which displays the derived route. */}
       <Handle
         type="source"
         position={Position.Right}

@@ -158,31 +158,31 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
       }),
     ),
   ).toEqual([true, true, true, true, true, true]);
-  await expect(route).toHaveText("Route: Choose the customer's situation");
+  await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
-  // Regular GC: no plans → CSA then PCS, plans → PCS.
-  await flow.getByRole("button", { name: "GC · Regular · no plans" }).click();
+  await expect(flow.getByRole("button")).toHaveCount(0);
+  const chooseCustomer = async (client: string, tier?: string, plans?: string) => {
+    await node.getByRole("button", { name: "Open Form [1.01]" }).click();
+    const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
+    await dialog.getByRole("button", { name: "Route", exact: true }).click();
+    await dialog.getByLabel("Who is the customer?").selectOption(client);
+    if (tier) await dialog.getByLabel("Customer status").selectOption(tier);
+    if (plans) await dialog.getByLabel("Are plans available?").selectOption(plans);
+    await dialog.getByRole("button", { name: "Save Form" }).click();
+  };
+  await chooseCustomer("GC", "regular", "no");
   await expect(route).toHaveText("Route: GC → CSA → PCS");
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "gc-no-plans");
-  await flow.getByRole("button", { name: "GC · Regular · has plans" }).click();
+  await chooseCustomer("GC", "regular", "yes");
   await expect(route).toHaveText("Route: GC → PCS");
-  // Owner with plans goes to their GC, then PCS — drawn as its own branch.
-  await flow.getByRole("button", { name: "Owner · Regular · has plans" }).click();
+  await chooseCustomer("Owner", "regular", "yes");
   await expect(route).toHaveText("Route: Owner → GC → PCS");
-  // There is only one GC: the Owner's branch hands over to it and its "has plans" branch carries on.
   await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
-  await expect(flow).not.toContainText("Owner's GC");
   await expect(chosen).toHaveCount(2);
   await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
-  await expect(flow.locator('[data-qualification-route-case="gc-plans"]')).toHaveAttribute(
-    "data-active",
-    "true",
-  );
-  // VIP goes through LOI.
-  await flow.getByRole("button", { name: "Owner · VIP" }).click();
+  await chooseCustomer("Owner", "vip");
   await expect(route).toHaveText("Route: Owner → LOI");
-  // ProFab is our own company: LOI. Clicking the client box picks it too.
-  await flow.getByRole("button", { name: "ProFab", exact: true }).click();
+  await chooseCustomer("ProFab");
   await expect(route).toHaveText("Route: ProFab → LOI");
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "profab");
 
@@ -205,7 +205,8 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
               edge.source === source?.id && edge.target === target?.id,
           );
         return {
-          clientCategory: qualification?.config.qualification.clientCategory,
+          clientCategory:
+            qualification?.config.qualification.form101.sectionA.routeAnswers.clientCategory,
           commercialPath: qualification?.config.qualification.commercialPath,
           linked:
             linked(qualification, group) && linked(group, estimation) && linked(estimation, start),
@@ -348,22 +349,14 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   const score = node.locator("[data-qualification-score]");
   await expect(score).toHaveText("0/84 · 0%");
 
-  // Choose the LOI route first: a VIP GC.
-  await page
-    .locator("[data-route-selection-node]")
-    .getByRole("button", { name: "GC · VIP" })
-    .click();
-  await expect(page.locator("[data-route-selection-node] [data-qualification-route]")).toHaveText(
-    "Route: GC → LOI",
-  );
-  await expect(score).toHaveText("0/84 · 0%");
-
-  // Open Form [1.01] from inside the Qualification node (opens in step-by-step wizard).
   await node.getByRole("button", { name: "Open Form [1.01]" }).click();
   const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Q9 Deposit exempt (LOI)")).toBeVisible();
   await expect(dialog.locator('[data-form101-wizard-step="q1"]')).toBeVisible();
+  await dialog.getByRole("button", { name: "Route", exact: true }).click();
+  await dialog.getByLabel("Who is the customer?").selectOption("GC");
+  await dialog.getByLabel("Customer status").selectOption("vip");
+  await expect(dialog.getByText("Q9 Deposit exempt (LOI)")).toBeVisible();
+  await dialog.getByRole("button", { name: "Q1", exact: true }).click();
 
   await dialog.getByRole("textbox", { name: "Form revision" }).fill("2");
   await dialog.getByRole("textbox", { name: "Project name" }).fill("Montréal Residence");
@@ -500,7 +493,7 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
   // 2. Enough points but no route still blocks.
   qNode.config.qualification = { form101: passingForm };
   expect(sequentialExecutionBlocker(file, startNode.id)).toContain(
-    "In Route Selection, choose the client type",
+    "Complete the customer routing questions in Form [1.01]",
   );
 
   // 3. Enough points and a route unlocks the next steps.
@@ -581,22 +574,24 @@ test("Qualification blocks the next Department until it passes with a route, and
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   const blocker = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(blocker.getByText("Complete Qualification first")).toBeVisible();
-  await expect(blocker).toContainText("In Route Selection, choose the client type");
+  await expect(blocker).toContainText("Complete the customer routing questions in Form [1.01]");
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
   // Regular GC without plans → CSA: Qualification passes and SALES opens up.
-  await page
-    .locator("[data-route-selection-node]")
-    .getByRole("button", { name: "GC · Regular · no plans" })
-    .click();
+  await qualCard.getByRole("button", { name: "Open Form [1.01]" }).click();
+  const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
+  await dialog.getByRole("button", { name: "Route", exact: true }).click();
+  await dialog.getByLabel("Who is the customer?").selectOption("GC");
+  await dialog.getByLabel("Customer status").selectOption("regular");
+  await dialog.getByLabel("Are plans available?").selectOption("no");
+  await dialog.getByRole("button", { name: "Save Form" }).click();
   await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   await expect(salesCard.getByRole("button", { name: "Uncheck step 2" })).toBeVisible();
 
   // Clearing Form [1.01] drops it below 52 points and Qualification blocks again.
   await qualCard.getByRole("button", { name: "Open Form [1.01]" }).click();
-  const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
   await dialog.getByRole("button", { name: "Reset Form" }).click();
   await expect(dialog.locator("[data-form101-gate-badge]")).toContainText("Cannot Pass");
   await dialog.getByRole("button", { name: "Save Form" }).click();

@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { FormStepId } from "./steps";
+import { CLIENT_CATEGORIES, type QualificationRouteAnswers } from "@/lib/qualification";
 import {
   ANNEX_1_CATEGORIES,
   ANNEX_2_BY_DISCIPLINE,
@@ -134,6 +135,12 @@ export function SectionAIntake({
   onAdvance?: () => void;
 }) {
   const { sectionA } = form;
+  const routeAnswers = sectionA.routeAnswers ?? {};
+  const patchRouteAnswers = (patch: QualificationRouteAnswers) =>
+    patchA((previous) => ({
+      ...previous,
+      routeAnswers: { ...previous.routeAnswers, ...patch },
+    }));
   const show = (step: FormStepId) => !onlyStep || onlyStep === step;
   const handleEnterAdvance = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && onAdvance) {
@@ -234,6 +241,73 @@ export function SectionAIntake({
           </p>
         </div>
       ) : null}
+
+      {show("routing") && (
+        <fieldset id="q101-routing" className="grid gap-2 rounded-lg border p-3 sm:grid-cols-3">
+          <legend className="px-1 text-xs font-semibold">Customer routing · Unscored</legend>
+          <label className="grid gap-1 text-xs">
+            Who is the customer?
+            <select
+              className={inputCls}
+              value={routeAnswers.clientCategory ?? ""}
+              onChange={(event) => {
+                const clientCategory = CLIENT_CATEGORIES.find(
+                  (value) => value === event.target.value,
+                );
+                patchRouteAnswers({
+                  clientCategory,
+                  customerTier: undefined,
+                  plansAvailable: undefined,
+                });
+              }}
+            >
+              <option value="">Select customer</option>
+              <option value="ProFab">ProFab (internal project)</option>
+              <option value="GC">General Contractor (GC)</option>
+              <option value="Owner">Owner</option>
+            </select>
+          </label>
+          {(routeAnswers.clientCategory === "GC" || routeAnswers.clientCategory === "Owner") && (
+            <label className="grid gap-1 text-xs">
+              Customer status
+              <select
+                className={inputCls}
+                value={routeAnswers.customerTier ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  patchRouteAnswers({
+                    customerTier: value === "vip" || value === "regular" ? value : undefined,
+                    plansAvailable: undefined,
+                  });
+                }}
+              >
+                <option value="">Select status</option>
+                <option value="regular">Regular</option>
+                <option value="vip">VIP</option>
+              </select>
+            </label>
+          )}
+          {routeAnswers.customerTier === "regular" && (
+            <label className="grid gap-1 text-xs">
+              Are plans available?
+              <select
+                className={inputCls}
+                value={routeAnswers.plansAvailable ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  patchRouteAnswers({
+                    plansAvailable: value === "yes" || value === "no" ? value : undefined,
+                  });
+                }}
+              >
+                <option value="">Select availability</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+          )}
+        </fieldset>
+      )}
 
       {/* Subsection: Project information (Q1-Q7) */}
       {!onlyStep || ["q1", "q2", "q3", "q4", "q5", "q6", "q7"].includes(onlyStep) ? (

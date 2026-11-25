@@ -74,20 +74,23 @@ function QualificationForm101DialogBody({
   onSave: (nextForm: QualificationForm101 | undefined) => void;
   onClose: () => void;
 }) {
-  const isLoi = qualificationRoute(qualification) === "LOI";
-  const [draft, setDraft] = useState<QualificationForm101>(() =>
-    normalizeQualificationForm101(qualification.form101),
-  );
+  const [draft, setDraft] = useState<QualificationForm101>(() => {
+    const form = normalizeQualificationForm101(qualification.form101);
+    const { clientCategory, customerTier, plansAvailable } = qualification;
+    if (!form.sectionA.routeAnswers && clientCategory) {
+      form.sectionA.routeAnswers = { clientCategory, customerTier, plansAvailable };
+    }
+    return form;
+  });
+  const previewQualification: Qualification = { ...qualification, form101: draft };
+  const route = qualificationRoute(previewQualification);
+  const isLoi = route === "LOI";
   const [viewMode, setViewMode] = useState<ViewMode>("wizard");
-  const [stepIndex, setStepIndex] = useState<number>(() =>
-    findInitialStepIndex(normalizeQualificationForm101(qualification.form101), isLoi),
-  );
+  const [stepIndex, setStepIndex] = useState<number>(() => findInitialStepIndex(draft, isLoi));
   const [showMissing, setShowMissing] = useState(false);
 
-  const previewQualification: Qualification = { ...qualification, form101: draft };
   const evaluation = evaluateQualificationForm101(previewQualification);
   const gate = evaluateQualificationGate(previewQualification);
-  const route = qualificationRoute(qualification);
 
   const totalSteps = FORM_101_STEPS.length;
   const currentStep = FORM_101_STEPS[stepIndex] ?? FORM_101_STEPS[0];
@@ -110,7 +113,9 @@ function QualificationForm101DialogBody({
   };
 
   const handleReset = () => {
-    setDraft(createEmptyQualificationForm101());
+    const empty = createEmptyQualificationForm101();
+    empty.sectionA.routeAnswers = {};
+    setDraft(empty);
     setStepIndex(0);
   };
 

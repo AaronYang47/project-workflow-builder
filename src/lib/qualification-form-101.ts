@@ -1,4 +1,9 @@
-import { qualificationRoute, type Qualification } from "@/lib/qualification";
+import {
+  CLIENT_CATEGORIES,
+  qualificationRoute,
+  type Qualification,
+  type QualificationRouteAnswers,
+} from "@/lib/qualification";
 
 export const FORM_101_CODE = "1.01";
 export const FORM_101_VERSION = "261119";
@@ -311,6 +316,7 @@ export interface QualificationForm101 {
   sectionA: {
     projectName: string;
     projectAddress: string;
+    routeAnswers?: QualificationRouteAnswers;
     parties: Record<ProjectPartyRoleKey, PartyEntry>;
     mainContact: {
       name: string;
@@ -479,6 +485,16 @@ export function normalizeQualificationForm101(
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     sectionA: {
       ...empty.sectionA,
+      routeAnswers: rawA.routeAnswers && {
+        clientCategory: CLIENT_CATEGORIES.find(
+          (value) => value === rawA.routeAnswers?.clientCategory,
+        ),
+        customerTier:
+          rawA.routeAnswers.customerTier === "vip" || rawA.routeAnswers.customerTier === "regular"
+            ? rawA.routeAnswers.customerTier
+            : undefined,
+        plansAvailable: yesNo(rawA.routeAnswers.plansAvailable),
+      },
       projectName: str(rawA.projectName),
       projectAddress: str(rawA.projectAddress),
       mainContact: {
@@ -833,7 +849,7 @@ export function evaluateQualificationForm101(
       section: "A3",
       anchorId: "q101-q13",
       label:
-        qualification.plansAvailable === "no"
+        (form.sectionA.routeAnswers ?? qualification).plansAvailable === "no"
           ? "Q13 Latest drawings register (no drawings available yet)"
           : "Q13 Latest drawings register (name, rev, status, location)",
     });
@@ -887,7 +903,13 @@ export function evaluateQualificationForm101(
 
   const hasAnyInput =
     Boolean(qualification.form101) &&
-    (filled(form.revision) || a1 > 0 || a2 > 0 || a3 > 0 || b > 0 || nonEmptyRfis.length > 0);
+    (Boolean(sectionA.routeAnswers) ||
+      filled(form.revision) ||
+      a1 > 0 ||
+      a2 > 0 ||
+      a3 > 0 ||
+      b > 0 ||
+      nonEmptyRfis.length > 0);
 
   return {
     totalScore,
@@ -945,7 +967,7 @@ export function evaluateQualificationGate(
       passed: false,
       state: "failed_score",
       statusLabel: `Below ${FORM_101_PASS_SCORE}/${FORM_101_MAX_SCORE}`,
-      blockingReason: `Form [${FORM_101_CODE}] has ${totalScore}/${FORM_101_MAX_SCORE} points. At least ${FORM_101_PASS_SCORE} points (${FORM_101_PASS_PERCENT}%) are needed before choosing a route.`,
+      blockingReason: `Form [${FORM_101_CODE}] has ${totalScore}/${FORM_101_MAX_SCORE} points. At least ${FORM_101_PASS_SCORE} points (${FORM_101_PASS_PERCENT}%) are needed to pass Qualification.`,
     };
   }
   if (!route) {
@@ -957,7 +979,7 @@ export function evaluateQualificationGate(
       passed: false,
       state: "pending_route",
       statusLabel: "Choose route",
-      blockingReason: `Form [${FORM_101_CODE}] passed. In Route Selection, choose the client type, VIP or regular, and whether plans are available to set the route.`,
+      blockingReason: `Form [${FORM_101_CODE}] passed. Complete the customer routing questions in Form [1.01].`,
     };
   }
 
