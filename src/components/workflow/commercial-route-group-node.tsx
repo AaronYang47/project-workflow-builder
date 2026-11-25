@@ -1,18 +1,30 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
-import { Calculator, FileSignature, Handshake } from "lucide-react";
+import { Calculator, FileSignature, GitBranch, Handshake } from "lucide-react";
 import {
-  COMMERCIAL_ROUTES,
   COMMERCIAL_ROUTE_STYLE,
   commercialRouteReady,
   type CommercialRoute,
 } from "@/lib/commercial-routes";
-import { roundedPath } from "@/lib/semantic-edge-geometry";
-import { qualificationOf, qualificationRoute } from "@/lib/qualification";
+import {
+  QUALIFICATION_CASES,
+  qualificationCase,
+  qualificationCaseChoice,
+  qualificationOf,
+  qualificationRoute,
+  type Qualification,
+} from "@/lib/qualification";
+import {
+  ROUTE_FLOW_OFF,
+  ROUTE_FLOW_ON,
+  routeFlowExitBus,
+  routeFlowLayout,
+} from "@/lib/route-flow-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
+import { QualificationRouteFlow } from "./qualification-route-flow";
 
 const cad = (amount: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -21,104 +33,21 @@ const cad = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
-type Box = { left: number; top: number; right: number; bottom: number; cx: number; cy: number };
-type Geometry = { width: number; csa: Box; pcs: Box; loi: Box };
+/** Pixels per unit of the route chart. */
+const FLOW_SCALE = 1.3;
 
-const boxOf = (element: HTMLElement): Box => ({
-  left: element.offsetLeft,
-  top: element.offsetTop,
-  right: element.offsetLeft + element.offsetWidth,
-  bottom: element.offsetTop + element.offsetHeight,
-  cx: element.offsetLeft + element.offsetWidth / 2,
-  cy: element.offsetTop + element.offsetHeight / 2,
-});
-
-/** The lines inside the node: one way in, CSA → PCS, straight to PCS, or LOI; one way out. */
-function routeLines(geometry: Geometry) {
-  const { width, csa, pcs, loi } = geometry;
-  const splitY = Math.round((csa.cy + loi.cy) / 2);
-  const busX = csa.left - 14;
-  const mergeX = pcs.right + 14;
-  const laneY = csa.top - 13;
-  return {
-    splitY,
-    busX,
-    mergeX,
-    segments: {
-      entry: {
-        points: [
-          { x: 0, y: splitY },
-          { x: busX, y: splitY },
-        ],
-      },
-      toCsa: {
-        arrow: true,
-        points: [
-          { x: busX, y: splitY },
-          { x: busX, y: csa.cy },
-          { x: csa.left - 3, y: csa.cy },
-        ],
-      },
-      bypass: {
-        arrow: true,
-        points: [
-          { x: busX, y: splitY },
-          { x: busX, y: laneY },
-          { x: pcs.cx, y: laneY },
-          { x: pcs.cx, y: pcs.top - 3 },
-        ],
-      },
-      toLoi: {
-        arrow: true,
-        points: [
-          { x: busX, y: splitY },
-          { x: busX, y: loi.cy },
-          { x: loi.left - 3, y: loi.cy },
-        ],
-      },
-      csaToPcs: {
-        arrow: true,
-        points: [
-          { x: csa.right, y: csa.cy },
-          { x: pcs.left - 3, y: csa.cy },
-        ],
-      },
-      pcsOut: {
-        points: [
-          { x: pcs.right, y: pcs.cy },
-          { x: mergeX, y: pcs.cy },
-          { x: mergeX, y: splitY },
-        ],
-      },
-      loiOut: {
-        points: [
-          { x: loi.right, y: loi.cy },
-          { x: mergeX, y: loi.cy },
-          { x: mergeX, y: splitY },
-        ],
-      },
-      exit: {
-        points: [
-          { x: mergeX, y: splitY },
-          { x: width, y: splitY },
-        ],
-      },
-    },
-  };
-}
-
-type Segment = keyof ReturnType<typeof routeLines>["segments"];
-
-/** Which lines the chosen route runs along. */
-const ROUTE_SEGMENTS: Record<CommercialRoute, Segment[]> = {
-  CSA: ["entry", "toCsa", "csaToPcs", "pcsOut", "exit"],
-  PCS: ["entry", "bypass", "pcsOut", "exit"],
-  LOI: ["entry", "toLoi", "loiOut", "exit"],
+/** The agreements a route goes through: CSA carries on into PCS. */
+const AGREEMENTS: Record<CommercialRoute, CommercialRoute[]> = {
+  CSA: ["CSA", "PCS"],
+  PCS: ["PCS"],
+  LOI: ["LOI"],
 };
 
-const ROUTE_LINE_ON = "#16a34a";
-const ROUTE_LINE_OFF = "#94a3b8";
-
+/**
+ * Route Selection: after Qualification, choose the customer's situation on
+ * the route chart, fill in the agreement it leads to, and carry on to
+ * Estimation along one line out.
+ */
 export function CommercialRouteGroupNode({
   node,
   selected,
@@ -128,40 +57,22 @@ export function CommercialRouteGroupNode({
   selected: boolean;
   reached: boolean;
 }) {
-  const qualification = useWorkflowStore((state) =>
+  const qualificationNode = useWorkflowStore((state) =>
     state.file.graph.nodes.find((item) => item.type === "qualification"),
   );
-  const route = qualification ? qualificationRoute(qualificationOf(qualification)) : undefined;
-  const rootRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<Partial<Record<CommercialRoute, HTMLElement | null>>>({});
-  const [geometry, setGeometry] = useState<Geometry | null>(null);
-  const updateNodeInternals = useUpdateNodeInternals();
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const measure = () => {
-      const { CSA: csa, PCS: pcs, LOI: loi } = cardRefs.current;
-      if (!root || !csa || !pcs || !loi) return;
-      const next = { width: root.clientWidth, csa: boxOf(csa), pcs: boxOf(pcs), loi: boxOf(loi) };
-      setGeometry((previous) =>
-        JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
-      );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (root) observer.observe(root);
-    Object.values(cardRefs.current).forEach((card) => card && observer.observe(card));
-    return () => observer.disconnect();
-  }, []);
-  const lines = geometry ? routeLines(geometry) : null;
-  const splitY = lines?.splitY;
-  // Handles follow the drawn split and merge points.
-  useEffect(() => {
-    if (splitY !== undefined) updateNodeInternals(node.id);
-  }, [node.id, splitY, updateNodeInternals]);
-  const shownRoute = reached ? route : undefined;
-  const activeSegments = new Set<Segment>(shownRoute ? ROUTE_SEGMENTS[shownRoute] : []);
-  const markerOn = `commercial-route-arrow-on-${node.id}`;
-  const markerOff = `commercial-route-arrow-off-${node.id}`;
+  const qualification = qualificationNode ? qualificationOf(qualificationNode) : {};
+  const route = qualificationNode ? qualificationRoute(qualification) : undefined;
+  const customerCase = qualificationCase(qualification);
+  const chooseRoute = (patch: Partial<Qualification>) => {
+    if (!qualificationNode) return;
+    const store = useWorkflowStore.getState();
+    const current =
+      store.file.graph.nodes.find((item) => item.id === qualificationNode.id) ?? qualificationNode;
+    const next = { ...qualificationOf(current), ...patch, customerHistory: undefined };
+    next.commercialPath = qualificationRoute(next);
+    store.updateNode(current.id, { config: { ...current.config, qualification: next } });
+  };
+
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
   const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
   const pcsExtraHours = Number(node.customFields.commercialRoutePcsExtraHours || 0);
@@ -188,21 +99,69 @@ export function CommercialRouteGroupNode({
       ),
     });
 
+  // The one way out sits level with the bus that every route joins.
+  const layout = useMemo(() => routeFlowLayout(QUALIFICATION_CASES, { row: 26 }), []);
+  const bus = useMemo(() => routeFlowExitBus(layout), [layout]);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [exit, setExit] = useState<{ top: number; left: number } | null>(null);
+  const updateNodeInternals = useUpdateNodeInternals();
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const measure = () => {
+      const root = rootRef.current;
+      if (!root) return;
+      // Canvas zoom scales the screen boxes; work in the node's own pixels.
+      const rootBox = root.getBoundingClientRect();
+      const zoom = rootBox.width / root.offsetWidth || 1;
+      const box = svg.getBoundingClientRect();
+      const scale = box.width / zoom / bus.width;
+      const next = {
+        top: Math.round((box.top - rootBox.top) / zoom - root.clientTop + bus.busY * scale),
+        left: Math.round((box.right - rootBox.left) / zoom - root.clientLeft),
+      };
+      setExit((previous) =>
+        previous && previous.top === next.top && previous.left === next.left ? previous : next,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, [bus]);
+  useEffect(() => {
+    if (exit) updateNodeInternals(node.id);
+  }, [exit, node.id, updateNodeInternals]);
+
+  const agreements = route ? AGREEMENTS[route] : [];
+  const ready = Boolean(route && commercialRouteReady(node, route));
+  const lineColor = customerCase ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
+
   return (
     <div
       ref={rootRef}
       data-commercial-route-group
+      data-route-selection-node
       className={`relative flex h-full w-full flex-col overflow-visible rounded-2xl border-2 bg-card p-3 shadow-md ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border"}`}
       style={{ borderColor: node.color || "#9a5c24" }}
     >
       <div
-        className="mb-2 border-b pb-2 text-sm font-bold"
+        className="flex items-center gap-2 border-b pb-2"
         style={{ borderColor: node.color || "#9a5c24" }}
       >
-        CSA / PCS / LOI{" "}
+        <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <GitBranch className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            Route Selection
+          </p>
+          <p className="text-sm font-bold">CSA / PCS / LOI</p>
+        </div>
         <span
           data-selected-commercial-route={route ?? "none"}
-          className="float-right rounded-full px-2 py-0.5 text-[10px] font-bold"
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold"
           style={{
             backgroundColor: route ? COMMERCIAL_ROUTE_STYLE[route].color : "#94a3b8",
             color: "#fff",
@@ -211,80 +170,12 @@ export function CommercialRouteGroupNode({
           {route ?? "No route selected"}
         </span>
       </div>
-      {lines && (
-        <svg
-          data-commercial-route-flow
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-visible"
-          width="100%"
-          height="100%"
-        >
-          <defs>
-            {[
-              [markerOn, ROUTE_LINE_ON],
-              [markerOff, ROUTE_LINE_OFF],
-            ].map(([id, color]) => (
-              <marker
-                key={id}
-                id={id}
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="7"
-                markerHeight="7"
-                orient="auto-start-reverse"
-              >
-                <path d="M1 1L9 5L1 9Z" fill={color} />
-              </marker>
-            ))}
-          </defs>
-          {(Object.keys(lines.segments) as Segment[])
-            .sort(
-              (left, right) => Number(activeSegments.has(left)) - Number(activeSegments.has(right)),
-            )
-            .map((key) => {
-              const segment = lines.segments[key];
-              const on = activeSegments.has(key);
-              return (
-                <path
-                  key={key}
-                  data-commercial-route-line={key}
-                  data-active={on ? "true" : undefined}
-                  d={roundedPath(segment.points, 10)}
-                  fill="none"
-                  stroke={on ? ROUTE_LINE_ON : ROUTE_LINE_OFF}
-                  strokeWidth={on ? 3 : 1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  markerEnd={
-                    "arrow" in segment && segment.arrow
-                      ? `url(#${on ? markerOn : markerOff})`
-                      : undefined
-                  }
-                />
-              );
-            })}
-          {[lines.busX, lines.mergeX].map((x) => (
-            <circle
-              key={x}
-              cx={x}
-              cy={lines.splitY}
-              r={4}
-              fill={shownRoute ? ROUTE_LINE_ON : ROUTE_LINE_OFF}
-            />
-          ))}
-        </svg>
-      )}
-      {/* One way in from Qualification, one way out to Estimation. */}
       <Handle
         type="target"
         position={Position.Left}
         id="in"
         className="!size-3 !border-2 !border-background"
-        style={{
-          backgroundColor: shownRoute ? ROUTE_LINE_ON : "#94a3b8",
-          ...(splitY !== undefined ? { top: splitY } : {}),
-        }}
+        style={{ backgroundColor: reached ? ROUTE_FLOW_ON : "#94a3b8" }}
       />
       <Handle
         type="source"
@@ -292,37 +183,66 @@ export function CommercialRouteGroupNode({
         id="out"
         className="!size-3 !border-2 !border-background"
         style={{
-          backgroundColor:
-            shownRoute && commercialRouteReady(node, shownRoute) ? ROUTE_LINE_ON : "#94a3b8",
-          ...(splitY !== undefined ? { top: splitY } : {}),
+          backgroundColor: reached && ready ? ROUTE_FLOW_ON : "#94a3b8",
+          ...(exit ? { top: exit.top } : {}),
         }}
       />
+      {exit && (
+        <div
+          aria-hidden="true"
+          data-route-selection-exit-line
+          className="pointer-events-none absolute right-0"
+          style={{
+            left: exit.left,
+            top: exit.top - (customerCase ? 1 : 0.5),
+            height: customerCase ? 2.5 : 1.5,
+            backgroundColor: lineColor,
+          }}
+        />
+      )}
+
+      <p className="mt-2 text-[10px] text-muted-foreground">Click the customer&apos;s situation:</p>
+      <QualificationRouteFlow
+        id={node.id}
+        svgRef={svgRef}
+        exitBus
+        scale={FLOW_SCALE}
+        currentId={customerCase?.id}
+        client={qualification.clientCategory}
+        onPickCase={(caseId) => chooseRoute(qualificationCaseChoice(caseId))}
+        onPickClient={(client) =>
+          chooseRoute({ clientCategory: client as Qualification["clientCategory"] })
+        }
+      />
+      <p data-qualification-route className="mt-1 text-xs font-semibold text-foreground">
+        Route:{" "}
+        {customerCase
+          ? [customerCase.client, ...customerCase.steps].join(" → ")
+          : (route ?? "Choose the customer's situation")}
+      </p>
+
       <div
-        className="grid min-h-0 flex-1 gap-y-3"
-        style={{
-          gridTemplateColumns: "26px minmax(0,1fr) 40px minmax(0,1fr) 26px",
-          gridTemplateRows: "14px minmax(0,1fr) minmax(0,1fr)",
-        }}
+        className="mt-2 grid min-h-0 flex-1 gap-2"
+        style={{ gridTemplateColumns: `repeat(${Math.max(1, agreements.length)}, minmax(0, 1fr))` }}
       >
-        {COMMERCIAL_ROUTES.map((path) => {
+        {!agreements.length && (
+          <p className="rounded-xl border border-dashed p-3 text-[11px] text-muted-foreground">
+            Choose the customer&apos;s situation above to fill in its agreement (CSA, PCS or LOI).
+          </p>
+        )}
+        {agreements.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
-          // CSA continues into PCS, so PCS lights up on that route too.
-          const onRoute = reached && (route === path || (path === "PCS" && route === "CSA"));
+          const onRoute = reached;
           const active = reached && route === path;
-          const ready = active && commercialRouteReady(node, path);
+          const pathReady = commercialRouteReady(node, path);
           const Icon = path === "CSA" ? Handshake : path === "PCS" ? Calculator : FileSignature;
           return (
             <section
               key={path}
-              ref={(element) => {
-                cardRefs.current[path] = element;
-              }}
               data-commercial-route-card={path}
               className={`relative min-h-0 overflow-hidden rounded-xl border-2 bg-card p-2 text-[10px] leading-snug ${onRoute ? "commercial-route-node-active" : ""}`}
               style={
                 {
-                  gridColumn: path === "PCS" ? 4 : 2,
-                  gridRow: path === "LOI" ? 3 : 2,
                   borderColor: onRoute ? style.color : `${style.color}88`,
                   backgroundImage: `linear-gradient(${style.color}${onRoute ? "13" : "06"}, ${style.color}${onRoute ? "13" : "06"})`,
                   "--commercial-route-color": style.color,
@@ -335,8 +255,8 @@ export function CommercialRouteGroupNode({
               >
                 <Icon className="size-3.5" />
                 {path} · {style.agreement}
-                {active && <span className="ml-auto">{ready ? "READY" : "INCOMPLETE"}</span>}
-                {path === "PCS" && onRoute && !active && <span className="ml-auto">AFTER CSA</span>}
+                {active && <span className="ml-auto">{pathReady ? "READY" : "INCOMPLETE"}</span>}
+                {path === "PCS" && route === "CSA" && <span className="ml-auto">AFTER CSA</span>}
               </div>
               {path === "CSA" && (
                 <>
@@ -357,7 +277,7 @@ export function CommercialRouteGroupNode({
                   <p className="font-bold">
                     CAD $200 × hours {csaFee !== undefined && `= ${cad(csaFee)} before tax`}
                   </p>
-                  {active && !ready && (
+                  {active && !pathReady && (
                     <p className="text-amber-600">Enter billable hours to continue.</p>
                   )}
                   <p className="text-muted-foreground">
@@ -404,7 +324,7 @@ export function CommercialRouteGroupNode({
                       ? "Enter modules to calculate"
                       : `Total: ${cad(pcsTotal)} before tax`}
                   </p>
-                  {active && !ready && (
+                  {active && !pathReady && (
                     <p className="text-amber-600">
                       Enter a valid module count and extra hours to continue.
                     </p>
@@ -438,7 +358,7 @@ export function CommercialRouteGroupNode({
                   <p className="text-muted-foreground">
                     Non-binding estimate; confirmed in the Sales Agreement.
                   </p>
-                  {active && !ready && (
+                  {active && !pathReady && (
                     <p className="text-amber-600">
                       Enter a price or range and confirm the CEO signature to continue.
                     </p>

@@ -21,6 +21,40 @@ function ceoCondition(previous?: Condition): Condition {
   };
 }
 
+/**
+ * Resizes a card where it stands: cards to its right in the same row move by
+ * the change in width, and a frame around it widens or narrows with it and
+ * grows taller if the card no longer fits. Nothing ends up underneath it.
+ */
+function resizeInPlace(file: WorkflowFile, nodeId: string, width: number, height: number) {
+  const layout = file.layout.nodes[nodeId];
+  if (!layout) return;
+  const grow = width - layout.width;
+  const oldRight = layout.x + layout.width;
+  const rowBottom = layout.y + Math.max(layout.height, height);
+  for (const other of Object.values(file.layout.nodes)) {
+    if (other.nodeId === nodeId || other.parentId) continue;
+    const frame =
+      other.x < layout.x &&
+      other.x + other.width >= oldRight - 1 &&
+      other.y <= layout.y &&
+      other.y + other.height >= layout.y;
+    if (frame) {
+      other.width += grow;
+      const short = layout.y + height + 32 - (other.y + other.height);
+      if (short > 0) other.height += short;
+    } else if (
+      grow &&
+      other.x >= oldRight - 1 &&
+      other.y < rowBottom &&
+      other.y + other.height > layout.y
+    )
+      other.x += grow;
+  }
+  layout.width = width;
+  layout.height = height;
+}
+
 /** Maintain Qualification → one agreement node → one Estimation node for saved workflows. */
 export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: string): WorkflowFile {
   const qualification = input.graph.nodes.find((node) => node.type === "qualification");
@@ -42,8 +76,8 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     ...base,
     id: groupId,
     type: "commercialRule",
-    title: "CSA / PCS / LOI",
-    description: "Three commercial agreement routes in one node.",
+    title: "Route Selection",
+    description: "Choose the customer's route and fill in its CSA, PCS or LOI agreement.",
     conditions: [
       ceoCondition(
         base.conditions.find((item) => item.id === CEO_SIGNATURE_CONDITION) ??
@@ -80,27 +114,11 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
     width: qSize.width,
     height: qSize.height,
   });
-  qLayout.width = qSize.width;
-  qLayout.height = Math.max(qLayout.height, qSize.height);
+  // Qualification holds Form [1.01] only; Route Selection follows it.
+  resizeInPlace(file, qualification.id, qSize.width, Math.max(qLayout.height, qSize.height));
   const groupLayout = file.layout.nodes[groupId];
   const { width: groupWidth, height: groupHeight } = COMMERCIAL_ROUTE_GROUP_SIZE;
-  // The node grew wider: move what sits to its right over by the same amount,
-  // and widen any frame around it, so nothing ends up underneath it.
-  if (groupLayout && !oldIds.size && groupLayout.width < groupWidth) {
-    const grow = groupWidth - groupLayout.width;
-    const oldRight = groupLayout.x + groupLayout.width;
-    for (const layout of Object.values(file.layout.nodes)) {
-      if (layout.nodeId === groupId || layout.parentId) continue;
-      if (layout.x >= oldRight - 1) layout.x += grow;
-      else if (
-        layout.x < groupLayout.x &&
-        layout.x + layout.width >= oldRight - 1 &&
-        layout.y <= groupLayout.y &&
-        layout.y + layout.height >= groupLayout.y
-      )
-        layout.width += grow;
-    }
-  }
+  if (groupLayout && !oldIds.size) resizeInPlace(file, groupId, groupWidth, groupHeight);
   file.layout.nodes[groupId] =
     !groupLayout || oldIds.size
       ? {

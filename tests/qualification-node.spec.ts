@@ -114,9 +114,9 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await libraryItem.dblclick();
   const node = page.locator("[data-qualification-node]");
   await expect(node).toBeVisible();
-  // Two steps inside: Form [1.01], then the CSA / PCS / LOI route.
-  await expect(node.locator("[data-qualification-flow-step]")).toHaveCount(2);
-  await expect(node.locator("[data-qualification-flow-arrow]")).toHaveCount(1);
+  // Form [1.01] only: the route is chosen in Route Selection next.
+  await expect(node.locator("[data-qualification-flow-step]")).toHaveCount(1);
+  await expect(node.locator("[data-qualification-flow-arrow]")).toHaveCount(0);
   // Only one per project.
   await expect(libraryItem).toBeDisabled();
 
@@ -136,8 +136,11 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
 
   await page.getByRole("button", { name: /fit view/i }).click();
   await page.waitForTimeout(400);
-  const route = node.locator("[data-qualification-route]");
-  const flow = node.locator("[data-qualification-route-flow]");
+  // The route is chosen in its own Route Selection node after Qualification.
+  const routeNode = page.locator("[data-route-selection-node]");
+  const route = routeNode.locator("[data-qualification-route]");
+  const flow = routeNode.locator("[data-qualification-route-flow]");
+  await expect(node.locator("[data-qualification-route-flow]")).toHaveCount(0);
   const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
   // Every situation is on the flowchart, each with its own branch.
   await expect(flow.locator("[data-qualification-route-case]")).toHaveCount(7);
@@ -346,8 +349,13 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(score).toHaveText("0/84 · 0%");
 
   // Choose the LOI route first: a VIP GC.
-  await node.getByRole("button", { name: "GC · VIP" }).click();
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: GC → LOI");
+  await page
+    .locator("[data-route-selection-node]")
+    .getByRole("button", { name: "GC · VIP" })
+    .click();
+  await expect(page.locator("[data-route-selection-node] [data-qualification-route]")).toHaveText(
+    "Route: GC → LOI",
+  );
   await expect(score).toHaveText("0/84 · 0%");
 
   // Open Form [1.01] from inside the Qualification node (opens in step-by-step wizard).
@@ -379,7 +387,9 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
   await expect(dialog).toHaveCount(0);
 
   // Node retains LOI route and reflects updated Form [1.01] score & revision.
-  await expect(node.locator("[data-qualification-route]")).toHaveText("Route: GC → LOI");
+  await expect(page.locator("[data-route-selection-node] [data-qualification-route]")).toHaveText(
+    "Route: GC → LOI",
+  );
   await expect(score).toHaveText("7/84 · 8%");
   await expect(score).not.toHaveText("0/84 · 0%");
 
@@ -489,7 +499,9 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
 
   // 2. Enough points but no route still blocks.
   qNode.config.qualification = { form101: passingForm };
-  expect(sequentialExecutionBlocker(file, startNode.id)).toContain("Choose the client type");
+  expect(sequentialExecutionBlocker(file, startNode.id)).toContain(
+    "In Route Selection, choose the client type",
+  );
 
   // 3. Enough points and a route unlocks the next steps.
   qNode.config.qualification = {
@@ -565,16 +577,19 @@ test("Qualification blocks the next Department until it passes with a route, and
   const status = qualCard.locator("[data-qualification-gate-status]");
 
   // Enough points but no route: SALES step 2 can't be ticked yet.
-  await expect(status).toHaveText("Choose CSA / PCS / LOI");
+  await expect(status).toHaveText("Choose route");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   const blocker = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(blocker.getByText("Complete Qualification first")).toBeVisible();
-  await expect(blocker).toContainText("Choose the client type");
+  await expect(blocker).toContainText("In Route Selection, choose the client type");
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
 
   // Regular GC without plans → CSA: Qualification passes and SALES opens up.
-  await qualCard.getByRole("button", { name: "GC · Regular · no plans" }).click();
+  await page
+    .locator("[data-route-selection-node]")
+    .getByRole("button", { name: "GC · Regular · no plans" })
+    .click();
   await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   await expect(salesCard.getByRole("button", { name: "Uncheck step 2" })).toBeVisible();

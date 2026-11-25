@@ -145,3 +145,15 @@ export const ROUTE_STEP_COLORS: Record<string, { stroke: string; fill: string; t
 export const ROUTE_STEP_DEFAULT = { stroke: "#475569", fill: "#f1f5f9", text: "#334155" };
 export const ROUTE_FLOW_ON = "#16a34a";
 export const ROUTE_FLOW_OFF = "#94a3b8";
+
+/**
+ * Where every route leaves the chart: each exit point runs right onto one
+ * shared bus, and one line carries on from the middle of the bus.
+ */
+export function routeFlowExitBus(layout: RouteFlowLayout) {
+  const exits = layout.rows.flatMap((row) => (row.exit ? [row.exit.y] : []));
+  const busX = layout.width + 16;
+  const top = Math.min(...exits);
+  const bottom = Math.max(...exits);
+  return { busX, busY: Math.round((top + bottom) / 2), top, bottom, width: busX + 14 };
+}

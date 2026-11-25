@@ -54,11 +54,11 @@ export const NODE_CATALOG: NodeDefinition[] = [
   {
     type: "qualification",
     label: "Qualification",
-    description: "Form [1.01] qualification and CSA / PCS / LOI routing",
+    description: "Form [1.01] qualification",
     icon: ClipboardCheck,
     color: "#2563a9",
     category: "Flow",
-    defaultSize: { width: 840, height: 460 },
+    defaultSize: { width: 440, height: 460 },
   },
   {
     type: "estimation",
@@ -161,12 +161,12 @@ export const NODE_CATALOG: NodeDefinition[] = [
   },
   {
     type: "commercialRule",
-    label: "CSA / PCS / LOI",
-    description: "Three agreement routes in one node",
+    label: "Route Selection",
+    description: "Choose the customer's route and its CSA, PCS or LOI agreement",
     icon: Landmark,
     color: "#9a5c24",
     category: "Governance",
-    defaultSize: { width: 380, height: 650 },
+    defaultSize: { width: 600, height: 580 },
   },
   {
     type: "continuousControl",

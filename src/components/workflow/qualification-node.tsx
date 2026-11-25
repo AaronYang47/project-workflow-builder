@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { ClipboardCheck, FileSpreadsheet, GitBranch } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  qualificationCase,
-  qualificationCaseChoice,
   qualificationOf,
   qualificationRoute,
   type Qualification,
@@ -23,7 +21,6 @@ import {
   evaluateQualificationGate,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
-import { QualificationRouteFlow } from "./qualification-route-flow";
 import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
@@ -36,7 +33,6 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
   const score = evaluateQualificationForm101(qualification);
   const gate = evaluateQualificationGate(qualification);
   const route = qualificationRoute(qualification);
-  const customerCase = qualificationCase(qualification);
 
   const update = (patch: Partial<Qualification>) => {
     const next = { ...qualification, ...patch };
@@ -97,7 +93,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
 
       <div
         data-qualification-internal-flow
-        className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.16fr)_1.5rem_minmax(0,.9fr)] items-stretch gap-3 bg-muted/20 p-3"
+        className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 bg-muted/20 p-3"
       >
         <section
           data-qualification-flow-step="form101"
@@ -168,60 +164,6 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
             <FileSpreadsheet className="size-4" /> Open Form [{FORM_101_CODE}]
           </button>
         </section>
-
-        <div
-          data-qualification-flow-arrow
-          aria-hidden="true"
-          className="flex shrink-0 items-center text-xl font-bold text-slate-400"
-        >
-          <span className={gate.scorePassed ? "text-emerald-600" : ""}>→</span>
-        </div>
-
-        <section
-          data-qualification-flow-step="route"
-          aria-label="CSA PCS LOI route"
-          className="flex min-w-0 flex-col rounded-xl border bg-card p-3 shadow-sm"
-        >
-          <div className="flex items-center gap-2 border-b pb-2">
-            <GitBranch className="size-5 text-primary" />
-            <div>
-              <p className="text-[9px] font-bold uppercase text-muted-foreground">Node 2</p>
-              <h3 className="text-sm font-bold">Choose CSA / PCS / LOI</h3>
-            </div>
-          </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            Click the customer&apos;s situation:
-          </p>
-          <QualificationRouteFlow
-            id={node.id}
-            currentId={customerCase?.id}
-            client={qualification.clientCategory}
-            onPickCase={(caseId) =>
-              update({ ...qualificationCaseChoice(caseId), customerHistory: undefined })
-            }
-            onPickClient={(client) =>
-              update({
-                clientCategory: client as Qualification["clientCategory"],
-                customerHistory: undefined,
-              })
-            }
-          />
-          {!qualification.clientCategory && qualification.customerHistory && route && (
-            <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-              Earlier choice: {qualification.customerHistory} customer. Choose the client type to
-              update it.
-            </p>
-          )}
-          <p
-            data-qualification-route
-            className="mt-auto pt-2 text-xs font-semibold text-foreground"
-          >
-            Route:{" "}
-            {customerCase
-              ? [customerCase.client, ...customerCase.steps].join(" → ")
-              : (route ?? "Choose the customer's situation")}
-          </p>
-        </section>
       </div>
 
       <QualificationForm101Dialog
@@ -237,7 +179,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         id="in"
         className="!size-3 !border-2 !border-background !bg-slate-500"
       />
-      {/* One way out: the chosen route continues into CSA / PCS / LOI. */}
+      {/* One way out: on to Route Selection, where the route is chosen. */}
       <Handle
         type="source"
         position={Position.Right}

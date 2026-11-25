@@ -3,8 +3,8 @@ import type { DomainNode } from "@/types/workflow";
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
 export type CommercialRoute = (typeof COMMERCIAL_ROUTES)[number];
 export const COMMERCIAL_ROUTE_GROUP_ID = "commercial-route-group";
-/** CSA → PCS side by side with LOI below, as one node. */
-export const COMMERCIAL_ROUTE_GROUP_SIZE = { width: 600, height: 520 } as const;
+/** Route Selection: the route chart with the chosen agreement below it. */
+export const COMMERCIAL_ROUTE_GROUP_SIZE = { width: 600, height: 580 } as const;
 
 export function isCommercialRouteGroupNode(node: DomainNode) {
   return node.id === COMMERCIAL_ROUTE_GROUP_ID || node.config.commercialRouteGroup === true;

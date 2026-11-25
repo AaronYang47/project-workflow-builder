@@ -7,6 +7,7 @@ import {
   ROUTE_FLOW_ON,
   ROUTE_STEP_COLORS,
   ROUTE_STEP_DEFAULT,
+  routeFlowExitBus,
   routeFlowLayout,
 } from "@/lib/route-flow-layout";
 import { roundedPath } from "@/lib/semantic-edge-geometry";
@@ -21,7 +22,15 @@ export function QualificationRouteFlow({
   client,
   onPickCase,
   onPickClient,
+  exitBus = false,
+  scale = 1,
+  svgRef,
 }: {
+  svgRef?: React.Ref<SVGSVGElement>;
+  /** Join every exit onto one bus and carry one line out to the right edge. */
+  exitBus?: boolean;
+  /** Pixels per layout unit; the chart keeps this size instead of stretching. */
+  scale?: number;
   id: string;
   currentId?: string;
   client?: string;
@@ -29,9 +38,12 @@ export function QualificationRouteFlow({
   onPickClient: (client: string) => void;
 }) {
   const layout = useMemo(() => routeFlowLayout(QUALIFICATION_CASES, { row: 26 }), []);
+  const bus = useMemo(() => routeFlowExitBus(layout), [layout]);
+  const viewWidth = exitBus ? bus.width : layout.width;
   // A handed-over situation lights up the situation that carries it on too.
   const handoff = QUALIFICATION_CASES.find((item) => item.id === currentId)?.handoff;
   const lit = new Set([currentId, handoff].filter(Boolean));
+  const finalRow = layout.rows.find((row) => row.item.id === (handoff ?? currentId));
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
   const keyPick = (action: () => void) => (event: React.KeyboardEvent) => {
@@ -42,10 +54,11 @@ export function QualificationRouteFlow({
   };
   return (
     <svg
+      ref={svgRef}
       data-qualification-route-flow
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      className="nodrag mt-1 block h-auto w-full overflow-visible text-foreground"
-      style={{ fontFamily: "inherit" }}
+      viewBox={`0 0 ${viewWidth} ${layout.height}`}
+      className="nodrag mt-1 block h-auto overflow-visible text-foreground"
+      style={{ fontFamily: "inherit", width: viewWidth * scale, maxWidth: "100%" }}
     >
       <defs>
         {[
@@ -170,6 +183,57 @@ export function QualificationRouteFlow({
           </g>
         );
       })}
+      {exitBus && (
+        <g data-qualification-route-bus pointerEvents="none">
+          {layout.rows.map((row) =>
+            row.exit ? (
+              <line
+                key={`bus-${row.item.id}`}
+                x1={row.exit.x + 3.5}
+                y1={row.exit.y}
+                x2={bus.busX}
+                y2={row.exit.y}
+                stroke={row === finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+                strokeWidth={row === finalRow ? 2.2 : 1}
+                strokeDasharray={row === finalRow ? undefined : "3 2"}
+              />
+            ) : null,
+          )}
+          <line
+            x1={bus.busX}
+            y1={bus.top}
+            x2={bus.busX}
+            y2={bus.bottom}
+            stroke={ROUTE_FLOW_OFF}
+            strokeWidth={1.2}
+          />
+          {finalRow?.exit && (
+            <line
+              x1={bus.busX}
+              y1={finalRow.exit.y}
+              x2={bus.busX}
+              y2={bus.busY}
+              stroke={ROUTE_FLOW_ON}
+              strokeWidth={2.2}
+            />
+          )}
+          <line
+            data-qualification-route-out
+            x1={bus.busX}
+            y1={bus.busY}
+            x2={viewWidth}
+            y2={bus.busY}
+            stroke={finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+            strokeWidth={finalRow ? 2.2 : 1.2}
+          />
+          <circle
+            cx={bus.busX}
+            cy={bus.busY}
+            r={3}
+            fill={finalRow ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+          />
+        </g>
+      )}
       {/* Hand-over lines sit outside the rows so each row stays its own click target. */}
       {layout.rows.map((row) => {
         if (!row.handoff) return null;

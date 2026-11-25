@@ -54,8 +54,8 @@ export function createDomainNode(type: WorkflowNodeType, id: string): DomainNode
     return {
       id,
       type,
-      title: "CSA / PCS / LOI",
-      description: "Choose and complete the applicable commercial agreement.",
+      title: "Route Selection",
+      description: "Choose the customer's route and complete its commercial agreement.",
       color: def.color,
       metadata: {},
       conditions: [],
