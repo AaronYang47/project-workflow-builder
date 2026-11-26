@@ -147,6 +147,18 @@ const en = {
   consultantUnknown: "Unknown",
   consultantNa: "N/A — no consultant",
   consultantStatusHelp: "Tap again to enter a name instead.",
+  scoreShort: (score: number, max: number, grade: string) => `${score}/${max} · Grade ${grade}`,
+  score: "Score",
+  grade: (grade: string) => `Grade ${grade}`,
+  gradeName: {
+    A: "Ready for drafter review",
+    B: "Qualification score met",
+    C: "Intake in progress",
+    D: "Initial intake",
+  } as Record<string, string>,
+  needGradeB: (points: number, pass: number) =>
+    `Grade B (${pass} points) is needed to submit — ${points} more ${points === 1 ? "point" : "points"} to go. Fill in more of the answers listed below.`,
+  gradeOk: "Enough information to submit.",
   consultantField: { name: "name", company: "company", contact: "contact" } as Record<
     "name" | "company" | "contact",
     string
@@ -207,6 +219,7 @@ const en = {
     nameTaken: "A project with this name already exists. Choose it from the list instead.",
     noTemplate: "New projects are not open yet: the team has not chosen a template.",
     offline: "No connection. Check your network and try again.",
+    scoreTooLow: "Grade B is needed to submit. Fill in more answers first.",
     consultantIncomplete:
       "Some consultants are only partly filled in. Fill in all three fields or choose Unknown / N/A.",
     generic: "Something went wrong. Please try again.",
@@ -353,6 +366,18 @@ const fr: SalesStrings = {
   consultantUnknown: "Inconnu",
   consultantNa: "S.O. — aucun consultant",
   consultantStatusHelp: "Touchez de nouveau pour plutôt entrer un nom.",
+  scoreShort: (score, max, grade) => `${score}/${max} · cote ${grade}`,
+  score: "Pointage",
+  grade: (grade) => `Cote ${grade}`,
+  gradeName: {
+    A: "Prêt pour la revue du dessinateur",
+    B: "Seuil de qualification atteint",
+    C: "Collecte en cours",
+    D: "Collecte initiale",
+  },
+  needGradeB: (points, pass) =>
+    `La cote B (${pass} points) est requise pour soumettre — il manque ${points} ${points === 1 ? "point" : "points"}. Remplissez d’autres réponses de la liste ci-dessous.`,
+  gradeOk: "Assez d’information pour soumettre.",
   consultantField: { name: "nom", company: "entreprise", contact: "coordonnées" },
   missingFields: (fields) => `Manque : ${fields.join(", ")}`,
   finishConsultant:
@@ -412,6 +437,7 @@ const fr: SalesStrings = {
     nameTaken: "Un projet porte déjà ce nom. Choisissez-le plutôt dans la liste.",
     noTemplate: "Les nouveaux projets ne sont pas encore possibles : aucun modèle choisi.",
     offline: "Pas de connexion. Vérifiez votre réseau et réessayez.",
+    scoreTooLow: "La cote B est requise pour soumettre. Remplissez d’autres réponses d’abord.",
     consultantIncomplete:
       "Certains consultants sont incomplets. Remplissez les trois champs ou choisissez Inconnu / S.O.",
     generic: "Une erreur s’est produite. Réessayez.",
@@ -512,6 +538,7 @@ export function errorText(caught: unknown, t: SalesStrings) {
   const message = caught.message;
   if (code === "NAME_TAKEN") return t.errors.nameTaken;
   if (code === "CONSULTANT_INCOMPLETE") return t.errors.consultantIncomplete;
+  if (code === "SCORE_TOO_LOW") return t.errors.scoreTooLow;
   if (status === 0) return t.errors.offline;
   if (status === 429) return t.errors.tooMany;
   const known: [RegExp, string][] = [

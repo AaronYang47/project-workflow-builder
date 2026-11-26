@@ -1,18 +1,19 @@
 import { expect, test, type Page } from "playwright/test";
 import { createEmptyQualificationForm101 } from "../src/lib/qualification-form-101";
+import { gradeBForm } from "./support/qualification-fixture";
 
 /** The Sales site on a phone, against a stand-in for /api/sales/*. */
 
 test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
 
-async function mockSalesServer(page: Page) {
+async function mockSalesServer(page: Page, { lowScore = false } = {}) {
   const state = {
     signedIn: false,
     linked: false,
     drafts: [] as Record<string, unknown>[],
     submits: [] as Record<string, unknown>[],
   };
-  const form101 = createEmptyQualificationForm101();
+  const form101 = lowScore ? createEmptyQualificationForm101() : gradeBForm();
   form101.sectionA.projectName = "Maison Laurier";
   await page.route("**/api/sales/me", (route) =>
     route.fulfill({
@@ -148,7 +149,7 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
     expect(await noSideScroll(page), `step ${step}`).toBe(true);
   }
   await page.locator('[data-step-index="2"]').click();
-  await page.getByLabel("Owner company").fill("Immeubles Laurier");
+  await page.getByLabel("Owner company").fill("Immeubles Laurier inc.");
   // Sales never get the internal route pop-up.
   await page.getByLabel("Owner contact").click();
   await expect(page.getByText("Route impact")).toHaveCount(0);
@@ -182,12 +183,13 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
 
   // Big Yes / No buttons, and the phone's own date picker.
   await page.locator('[data-step-index="4"]').click();
-  await page
-    .getByRole("group", { name: "Project budget established" })
-    .getByRole("button", { name: "Yes" })
-    .click();
-  await page.getByLabel("Project budget CAD").fill("1,250,000");
-  await page.getByLabel("Target date: Delivery").fill("2027-06-01");
+  await expect(
+    page
+      .getByRole("group", { name: "Project budget established" })
+      .getByRole("button", { name: "Yes" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("Project budget CAD").fill("2,000,000");
+  await page.getByLabel("Target date: Delivery").fill("2027-07-15");
   // The form's own examples are a tap away.
   await page.locator('[data-step-index="6"]').click();
   await page.locator('[data-sales-disclosure="discipline-civil"] > button').click();
@@ -206,7 +208,10 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await expect(changes).toContainText("Owner company");
   await expect(changes).toContainText("Job number");
   await expect(page.locator("[data-sales-submit]")).toHaveText(/Submit update \(Rev 1\)/);
-  await expect(page.locator("[data-sales-missing] button").first()).toBeVisible();
+  // At Grade B or better the score card says so and Submit is open.
+  await expect(page.locator("[data-sales-score-card]")).toContainText(
+    "Enough information to submit",
+  );
   await page.locator("[data-sales-submit]").click();
 
   await expect(page.locator("[data-sales-submitted]")).toContainText("Rev 1");
@@ -215,7 +220,7 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   expect(
     (server.submits[0].form101 as { sectionA: { parties: { owner: { company: string } } } })
       .sectionA.parties.owner.company,
-  ).toBe("Immeubles Laurier");
+  ).toBe("Immeubles Laurier inc.");
   const sent = server.submits[0].form101 as {
     sectionA: { budgetEstablished: string; projectName: string; targetDates: { delivery: string } };
     sectionB: { disciplines: { civil: { items: { item: string }[] } } };
@@ -226,7 +231,7 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
       .sectionA.consultants.structural.status,
   ).toBe("na");
   // Dates are kept the way the form in the app keeps them.
-  expect(sent.sectionA.targetDates.delivery).toBe("2027.06.01");
+  expect(sent.sectionA.targetDates.delivery).toBe("2027.07.15");
   expect(sent.sectionB.disciplines.civil.items[0].item).toBe("Foundation plan");
 
   await page.locator("[data-sales-generate-pdf]").click();
@@ -306,4 +311,18 @@ test.describe("on a phone set to French", () => {
       "en",
     );
   });
+});
+
+test("Sales see their score and cannot submit below Grade B", async ({ page }) => {
+  const server = await mockSalesServer(page, { lowScore: true });
+  server.signedIn = true;
+  server.linked = true;
+  await page.goto("/sales?form=p1");
+  await expect(page.locator("[data-sales-score]")).toContainText("Grade D");
+  await page.locator('[data-step-index="1"]').click();
+  await page.getByLabel("Full project address").fill("120 rue Principale");
+  await page.locator('[data-step-index="8"]').click();
+  const card = page.locator("[data-sales-score-card]");
+  await expect(card).toContainText("Grade B (52 points) is needed to submit");
+  await expect(page.locator("[data-sales-submit]")).toBeDisabled();
 });

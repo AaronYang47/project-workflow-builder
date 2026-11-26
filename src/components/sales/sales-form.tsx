@@ -19,6 +19,8 @@ import { isForm101StepComplete } from "@/components/workflow/qualification-form-
 import { qualificationRoute } from "@/lib/qualification";
 import {
   compactQualificationForm101,
+  FORM_101_MAX_SCORE,
+  FORM_101_PASS_SCORE,
   evaluateQualificationForm101,
   normalizeQualificationForm101,
   unfinishedConsultants,
@@ -360,7 +362,11 @@ export function SalesForm({
   const nameMissing = data.isNew && !draft.projectName.trim();
   // A consultant that was started must be finished (or marked Unknown / N/A).
   const unfinished = unfinishedConsultants(draft.form101);
-  const missing = evaluateQualificationForm101({ form101: draft.form101 }).missingItems;
+  const evaluation = evaluateQualificationForm101({ form101: draft.form101 });
+  const missing = evaluation.missingItems;
+  // At least Grade B (the Qualification pass score) before Sales may submit.
+  const scoreShort = FORM_101_PASS_SCORE - evaluation.totalScore;
+  const gradeOk = scoreShort <= 0;
   // An update: what it changes compared with what the project holds now.
   const isUpdate = Boolean(data.submission && data.savedForm101);
   const changes = isUpdate
@@ -404,7 +410,6 @@ export function SalesForm({
       isForm101StepComplete(id, draft.form101, isLoi),
     );
   };
-  const doneCount = STEPS.slice(0, REVIEW).filter((_, index) => stepDone(index)).length;
 
   const submit = async () => {
     setSubmitting(true);
@@ -491,7 +496,12 @@ export function SalesForm({
         <div className="mx-auto max-w-2xl px-4 pb-2 pt-2">
           <div className="mb-1 flex justify-between text-xs text-[#667085]">
             <span>{t.stepOf(step + 1, STEPS.length, t.steps[current.id] ?? current.title)}</span>
-            <span>{t.doneCount(doneCount, REVIEW)}</span>
+            <span
+              data-sales-score
+              className={cn("font-semibold", gradeOk ? "text-emerald-700" : "text-[#b54708]")}
+            >
+              {t.scoreShort(evaluation.totalScore, FORM_101_MAX_SCORE, evaluation.grade)}
+            </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
             <div
@@ -646,6 +656,52 @@ export function SalesForm({
             <topic.Step form={draft.form101} patch={setForm} isLoi={isLoi} />
           ) : (
             <section className="space-y-4">
+              <div
+                data-sales-score-card
+                className={cn(
+                  "rounded-2xl border p-4",
+                  gradeOk ? "border-emerald-200 bg-emerald-50" : "border-[#fedf89] bg-[#fffcf5]",
+                )}
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-sm font-medium text-[#475467]">{t.score}</p>
+                  <p
+                    className={cn(
+                      "text-lg font-bold",
+                      gradeOk ? "text-emerald-700" : "text-[#b54708]",
+                    )}
+                  >
+                    {t.grade(evaluation.grade)}
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-[#172033]">
+                  {evaluation.totalScore}
+                  <span className="text-base font-medium text-[#667085]">
+                    {" "}
+                    / {FORM_101_MAX_SCORE}
+                  </span>
+                </p>
+                <div className="relative mt-2 h-2 rounded-full bg-white">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      gradeOk ? "bg-emerald-500" : "bg-[#f79009]",
+                    )}
+                    style={{
+                      width: `${Math.min(100, (evaluation.totalScore / FORM_101_MAX_SCORE) * 100)}%`,
+                    }}
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute -top-1 h-4 w-0.5 bg-[#344054]"
+                    style={{ left: `${(FORM_101_PASS_SCORE / FORM_101_MAX_SCORE) * 100}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-sm text-[#475467]">
+                  {t.gradeName[evaluation.grade]} ·{" "}
+                  {gradeOk ? t.gradeOk : t.needGradeB(scoreShort, FORM_101_PASS_SCORE)}
+                </p>
+              </div>
               <div className="rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                 <p className="text-lg font-semibold text-[#172033]">
                   {projectName || t.newProjectTitle}
@@ -805,6 +861,7 @@ export function SalesForm({
                   nameMissing ||
                   !jobNumberValid ||
                   unfinished.length > 0 ||
+                  !gradeOk ||
                   (isUpdate && !changes.length)
                 }
                 onClick={() => void submit()}

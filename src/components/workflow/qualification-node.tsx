@@ -203,7 +203,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           {salesSubmission ? (
             <p
               data-sales-submission
-              className="mt-2 flex items-start gap-1.5 rounded-lg border border-violet-500/35 bg-violet-500/10 px-2 py-1.5 text-[11px] font-semibold text-violet-800 dark:text-violet-200"
+              className="mb-3 mt-2 flex items-start gap-1.5 rounded-lg border border-violet-500/35 bg-violet-500/10 px-2 py-1.5 text-[11px] font-semibold text-violet-800 dark:text-violet-200"
               title={salesSubmission.email}
             >
               <Megaphone className="mt-px size-3.5 shrink-0" />
@@ -218,16 +218,6 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
               </span>
             </p>
           ) : null}
-          {salesHistory.length ? (
-            <button
-              type="button"
-              data-sales-history-open
-              onClick={() => setHistoryOpen(true)}
-              className="nodrag mt-1.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-500/35 px-2 py-1 text-[11px] font-semibold text-violet-800 hover:bg-violet-500/10 dark:text-violet-200"
-            >
-              <History className="size-3.5" /> Update history ({salesHistory.length})
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => setFormOpen(true)}
@@ -235,15 +225,29 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           >
             <FileSpreadsheet className="size-4" /> Open Form [{FORM_101_CODE}]
           </button>
-          <button
-            type="button"
-            data-qualification-pdf
-            disabled={pdfBusy}
-            onClick={() => void downloadPdf()}
-            className="nodrag mt-1.5 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-60"
+          <div
+            className={cn("mt-2.5 grid gap-2", salesHistory.length ? "grid-cols-2" : "grid-cols-1")}
           >
-            <FileDown className="size-4" /> {pdfBusy ? "Making PDF…" : "Download PDF"}
-          </button>
+            {salesHistory.length ? (
+              <button
+                type="button"
+                data-sales-history-open
+                onClick={() => setHistoryOpen(true)}
+                className="nodrag inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-500/35 px-2 py-1.5 text-[11px] font-semibold text-violet-800 hover:bg-violet-500/10 dark:text-violet-200"
+              >
+                <History className="size-3.5" /> History ({salesHistory.length})
+              </button>
+            ) : null}
+            <button
+              type="button"
+              data-qualification-pdf
+              disabled={pdfBusy}
+              onClick={() => void downloadPdf()}
+              className="nodrag inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-semibold hover:bg-muted disabled:opacity-60"
+            >
+              <FileDown className="size-3.5" /> {pdfBusy ? "Making PDF…" : "Download PDF"}
+            </button>
+          </div>
         </section>
       </div>
 

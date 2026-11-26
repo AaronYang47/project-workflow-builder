@@ -72,18 +72,31 @@ export function useCanvasAutoMeasure(wrapper: RefObject<HTMLDivElement | null>) 
           }
         });
 
-        // 2b. Grow the Estimation and Route Selection cards when their content outgrows them.
-        root.querySelectorAll<HTMLElement>("[data-estimation-node], [data-route-selection-node]").forEach((card) => {
-          const id = card.closest<HTMLElement>(".react-flow__node")?.dataset.id;
-          const layout = id ? current.layout.nodes[id] : undefined;
-          if (!id || !layout) return;
-          // Natural height: let the card size to its content for one read.
-          const previous = card.style.height;
-          card.style.height = "auto";
-          const requiredHeight = Math.ceil(card.offsetHeight);
-          card.style.height = previous;
-          if (requiredHeight > layout.height + 2) patches[id] = { ...patches[id], height: requiredHeight };
-        });
+        // 2b. Grow the Estimation, Route Selection and Qualification cards when their content outgrows them.
+        root
+          .querySelectorAll<HTMLElement>(
+            "[data-estimation-node], [data-route-selection-node], [data-qualification-node]",
+          )
+          .forEach((card) => {
+            const id = card.closest<HTMLElement>(".react-flow__node")?.dataset.id;
+            const layout = id ? current.layout.nodes[id] : undefined;
+            if (!id || !layout) return;
+            let requiredHeight: number;
+            if (card.hasAttribute("data-qualification-node")) {
+              // Its body fills the card, so measure how far the content overflows instead.
+              requiredHeight = Math.ceil(
+                card.offsetHeight + Math.max(0, card.scrollHeight - card.clientHeight),
+              );
+            } else {
+              // Natural height: let the card size to its content for one read.
+              const previous = card.style.height;
+              card.style.height = "auto";
+              requiredHeight = Math.ceil(card.offsetHeight);
+              card.style.height = previous;
+            }
+            if (requiredHeight > layout.height + 2)
+              patches[id] = { ...patches[id], height: requiredHeight };
+          });
 
         // 3. Measure Node Headers for Title Overflow
         root.querySelectorAll<HTMLElement>("[data-node-header]").forEach((header) => {

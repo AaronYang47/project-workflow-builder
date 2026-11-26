@@ -12,7 +12,9 @@ import {
 import { syncProjectNameIdentity, workflowLegacyJobNumber } from "@/lib/project-id";
 import { formChanges } from "@/lib/qf-changes";
 import {
+  FORM_101_PASS_SCORE,
   compactQualificationForm101,
+  evaluateQualificationForm101,
   normalizeQualificationForm101,
   unfinishedConsultants,
 } from "@/lib/qualification-form-101";
@@ -37,6 +39,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
           "Some consultants are only partly filled in. Fill in all three fields or choose Unknown / N/A.",
         code: "CONSULTANT_INCOMPLETE",
       },
+      400,
+    );
+  // Sales submit at Grade B or better (the Qualification pass score).
+  if (
+    evaluateQualificationForm101({
+      form101: normalizeQualificationForm101(parsed.draft.form101),
+    }).totalScore < FORM_101_PASS_SCORE
+  )
+    return json(
+      { error: "Grade B is needed to submit. Fill in more answers first.", code: "SCORE_TOO_LOW" },
       400,
     );
   const owner = auth.sales.ownerUserId;
