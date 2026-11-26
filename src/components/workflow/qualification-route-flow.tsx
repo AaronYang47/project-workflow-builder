@@ -27,9 +27,18 @@ import { roundedPath } from "@/lib/semantic-edge-geometry";
  * from Form [1.01] is highlighted.
  */
 
-/** The colour of a route's tag (LOI, CSA, PCS), which its lines take in the print. */
-const tagColor = (text?: string) => (text ? ROUTE_STEP_COLORS[text]?.stroke : undefined);
 const LOI = ROUTE_STEP_COLORS.LOI;
+/**
+ * Print colours by stage: an LOI lane is purple all the way; otherwise orange
+ * until CSA, blue from CSA, and green from Plan Ready on.
+ */
+const PRINT_STAGE = {
+  before: ROUTE_STEP_COLORS.PCS.stroke,
+  csa: ROUTE_STEP_COLORS.CSA.stroke,
+  ready: ROUTE_STEP_COLORS["Plan Ready"].stroke,
+} as const;
+const printStage = (loi: boolean | undefined, stage: keyof typeof PRINT_STAGE) =>
+  loi ? LOI.stroke : PRINT_STAGE[stage];
 const YES = { stroke: "#059669", fill: "#ecfdf5", text: "#047857" };
 const NO = { stroke: "#dc2626", fill: "#fef2f2", text: "#b91c1c" };
 const GREY = { stroke: "#94a3b8", fill: "#f8fafc", text: "#64748b" };
@@ -198,12 +207,14 @@ export function QualificationRouteFlow({
             ROUTE_CORNER,
           )}
           fill="none"
+          data-print-route-color={PRINT_STAGE.before}
           stroke={ROUTE_FLOW_OFF}
           strokeWidth={1.2}
         />
         {/* The way in (from the card's edge) and on along the entry line to the lit client. */}
         <line
           data-route-entry-in
+          data-print-route-color={PRINT_STAGE.before}
           x1={-left}
           y1={bus.entryY}
           x2={-left + 4}
@@ -224,6 +235,7 @@ export function QualificationRouteFlow({
               ROUTE_CORNER,
             )}
             fill="none"
+            data-print-route-color={PRINT_STAGE.before}
             stroke={ROUTE_FLOW_ON}
             strokeWidth={2.2}
           />
@@ -235,6 +247,18 @@ export function QualificationRouteFlow({
               key={`entry-${item.client}`}
               data-route-entry={item.client}
               data-route-entry-on={on ? "true" : undefined}
+              data-print-route-color={printStage(
+                // ProFab only ever goes through an LOI, so its way in is purple.
+                layout.branches
+                  .filter((branch) => branch.client === item.client)
+                  .every(
+                    (branch) =>
+                      layout.lanes.find((lane) =>
+                        lane.cases.some((caseId) => branch.caseIds.includes(caseId)),
+                      )?.loi,
+                  ),
+                "before",
+              )}
               x1={-left + 4}
               y1={item.mid}
               x2={1}
@@ -263,8 +287,11 @@ export function QualificationRouteFlow({
         const [, , ...ends] = trunk.points;
         return (
           <g key={`trunk-${trunk.client}`} data-route-trunk={trunk.client}>
-            {line(trunk.points.slice(0, 2), on, { part: "client" })}
-            {line(ends, false, { part: "trunk" })}
+            {line(trunk.points.slice(0, 2), on, {
+              part: "client",
+              printColor: PRINT_STAGE.before,
+            })}
+            {line(ends, false, { part: "trunk", printColor: PRINT_STAGE.before })}
             {litBranch?.labelY !== undefined
               ? line(
                   [
@@ -272,7 +299,7 @@ export function QualificationRouteFlow({
                     { x: ends[0].x, y: litBranch.labelY },
                   ],
                   true,
-                  { part: "trunk-lit" },
+                  { part: "trunk-lit", printColor: PRINT_STAGE.before },
                 )
               : null}
           </g>
@@ -297,7 +324,7 @@ export function QualificationRouteFlow({
                     { x: branch.labelX! - 2, y: branch.labelY! },
                   ],
                   on,
-                  { part: "branch" },
+                  { part: "branch", printColor: printStage(lane?.loi, "before") },
                 )
               : null}
             {branch.label ? (
@@ -314,7 +341,7 @@ export function QualificationRouteFlow({
             ) : null}
             {line(branch.points, on, {
               part: "join",
-              printColor: lane?.loi ? LOI.stroke : undefined,
+              printColor: printStage(lane?.loi, "before"),
             })}
           </g>
         );
@@ -340,36 +367,44 @@ export function QualificationRouteFlow({
             {line(lane.entry, laneOn, {
               arrow: true,
               part: "entry",
-              printColor: lane.loi ? LOI.stroke : undefined,
+              printColor: printStage(lane.loi, "before"),
             })}
             {line(lane.toFork, laneOn, {
               part: "to-fork",
-              printColor: lane.loi ? LOI.stroke : undefined,
+              printColor: printStage(lane.loi, "before"),
             })}
             {/* Plans? Yes: straight on. No: CSA until there are plans, then back on the line. */}
             {line(lane.yes, viaPlans, {
               arrow: true,
               part: "yes",
-              printColor: tagColor(lane.ends[0].text),
+              printColor: printStage(lane.loi, "before"),
             })}
             {line(lane.no, viaCsa, {
               arrow: true,
               part: "no",
-              printColor: tagColor(lane.csa.text),
+              printColor: printStage(lane.loi, "before"),
             })}
             {/* Second "Plans?": ✓ back onto the line, ✗ round and back into CSA / Consultation. */}
-            {line(lane.toFork2, viaCsa, { part: "to-fork2" })}
-            {line(lane.loop, consultLoop, { arrow: true, part: "loop", dashed: true })}
+            {line(lane.toFork2, viaCsa, {
+              part: "to-fork2",
+              printColor: printStage(lane.loi, "csa"),
+            })}
+            {line(lane.loop, consultLoop, {
+              arrow: true,
+              part: "loop",
+              dashed: true,
+              printColor: printStage(lane.loi, "csa"),
+            })}
             {line(lane.back, consultDone, {
               arrow: true,
               part: "back",
-              printColor: tagColor(lane.ends[0].text),
+              printColor: printStage(lane.loi, "csa"),
             })}
             {lane.endLinks.map((link, index) => (
               <line
                 key={`end-${index}`}
                 data-route-part="end"
-                data-print-route-color={tagColor(lane.ends[index + 1]?.text)}
+                data-print-route-color={printStage(lane.loi, "ready")}
                 x1={link[0].x}
                 y1={link[0].y}
                 x2={link[1].x}
@@ -483,7 +518,7 @@ export function QualificationRouteFlow({
             ))}
             <circle
               data-qualification-route-exit={lane.id}
-              data-print-route-color={tagColor(lane.ends.at(-1)?.text)}
+              data-print-route-color={printStage(lane.loi, "ready")}
               cx={lane.exit.x}
               cy={lane.exit.y}
               r={3.5}
@@ -500,6 +535,7 @@ export function QualificationRouteFlow({
           {/* One line out to the edge, level with the middle of the bus. */}
           <line
             data-qualification-route-out
+            data-print-route-color={PRINT_STAGE.ready}
             x1={bus.busX}
             y1={bus.busY}
             x2={viewWidth}
@@ -521,7 +557,7 @@ export function QualificationRouteFlow({
                 <path
                   key={`bus-${lane.id}`}
                   data-qualification-route-exit-line={lane.id}
-                  data-print-route-color={tagColor(lane.ends.at(-1)?.text)}
+                  data-print-route-color={printStage(lane.loi, "ready")}
                   d={roundedPath(points, ROUTE_CORNER)}
                   fill="none"
                   stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}

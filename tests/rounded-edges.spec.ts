@@ -59,6 +59,39 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
                 line.getAttribute("stroke-width") === "1" &&
                 line.getAttribute("stroke-dasharray") === "4 3",
             ),
+          // Every line takes its stage's colour: LOI purple all the way; otherwise
+          // orange before CSA, blue from CSA, green from Plan Ready.
+          uncoloured: Array.from(
+            root.querySelectorAll<SVGElement>(
+              "[data-qualification-route-flow] line, [data-qualification-route-flow] path[fill='none']",
+            ),
+          ).filter(
+            (line) =>
+              !line.closest("marker") &&
+              !line.hasAttribute("data-qualification-route-handoff") &&
+              !line.hasAttribute("data-print-route-color"),
+          ).length,
+          stages: Object.fromEntries(
+            [
+              ["owner-regular", "entry"],
+              ["owner-regular", "yes"],
+              ["owner-regular", "no"],
+              ["owner-regular", "to-fork2"],
+              ["owner-regular", "loop"],
+              ["owner-regular", "back"],
+              ["owner-regular", "end"],
+              ["loi-gc", "no"],
+              ["loi-gc", "to-fork2"],
+              ["loi-gc", "end"],
+            ].map(([lane, part]) => [
+              `${lane} ${part}`,
+              root
+                .querySelector(
+                  `[data-route-selection-node] [data-qualification-route-lane="${lane}"] [data-route-part="${part}"]`,
+                )
+                ?.getAttribute("stroke"),
+            ]),
+          ),
           exits: root.querySelectorAll(
             '.react-flow__edge[data-id^="edge-commercial-route-group-"] .react-flow__edge-path',
           ).length,
@@ -129,10 +162,36 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
     () =>
       (
         window as unknown as {
-          printed: { flows: number; exits: number; handoffYellow: number; routeLines: boolean }[];
+          printed: {
+            flows: number;
+            exits: number;
+            handoffYellow: number;
+            routeLines: boolean;
+            uncoloured: number;
+            stages: Record<string, string>;
+          }[];
         }
       ).printed,
   );
   // Owners now carry on in their own lane: no hand-over lines to the GC.
-  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 0, routeLines: true });
+  const [orange, blue, green, purple] = ["#d97706", "#2563eb", "#16a34a", "#7c3aed"];
+  expect(printed).toEqual({
+    flows: 1,
+    exits: 1,
+    handoffYellow: 0,
+    routeLines: true,
+    uncoloured: 0,
+    stages: {
+      "owner-regular entry": orange,
+      "owner-regular yes": orange,
+      "owner-regular no": orange,
+      "owner-regular to-fork2": blue,
+      "owner-regular loop": blue,
+      "owner-regular back": blue,
+      "owner-regular end": green,
+      "loi-gc no": purple,
+      "loi-gc to-fork2": purple,
+      "loi-gc end": purple,
+    },
+  });
 });
