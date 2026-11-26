@@ -25,6 +25,8 @@ export type Qualification = {
   /** Plan availability from the older route selector. */
   plansAvailable?: "yes" | "no";
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
+  /** Plans available, chosen by hand on Route Selection; it decides the plans branch of the route. */
+  routePlans?: "yes" | "no";
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
   form101?: QualificationForm101;
   /** Retained for older saved projects; no longer gates the two-step Qualification flow. */
@@ -137,11 +139,15 @@ export function qualificationPartyIssue(parties?: QualificationForm101["sectionA
   return missing.join(" ");
 }
 
+/**
+ * Who the customer is comes from the form's parties (Q3); whether there are
+ * plans is chosen by hand on Route Selection.
+ */
 export function qualificationFormRouteAnswers(
   section: QualificationForm101["sectionA"] | undefined,
+  plansAvailable?: "yes" | "no",
 ): QualificationRouteAnswers {
   const parties = section?.parties;
-  const plansAvailable = section?.documents?.archDrawings?.available;
   if (qualificationPartyIssue(parties)) return { plansAvailable };
   if (parties?.client?.company.trim()) return { clientCategory: "ProFab", plansAvailable };
   if (parties?.gc?.company.trim())
@@ -166,7 +172,7 @@ export function qualificationOf(node: DomainNode): Qualification {
 export function qualificationCaseFor(qualification: Qualification) {
   return qualificationCase(
     qualification.form101
-      ? qualificationFormRouteAnswers(qualification.form101.sectionA)
+      ? qualificationFormRouteAnswers(qualification.form101.sectionA, qualification.routePlans)
       : qualification,
   );
 }

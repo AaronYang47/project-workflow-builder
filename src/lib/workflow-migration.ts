@@ -446,6 +446,20 @@ export function migrateWorkflowFile(input: WorkflowFile): WorkflowFile {
   file.execution = file.execution
     ? normalizeExecutionLayer(file.execution)
     : createEmptyExecutionLayer();
+  // Plans became a manual choice on Route Selection: projects from before keep
+  // the route they had, taken once from the form's drawings answer.
+  for (const node of file.graph.nodes) {
+    if (node.type !== "qualification") continue;
+    const qualification = node.config.qualification as
+      | {
+          form101?: { sectionA?: { documents?: { archDrawings?: { available?: string } } } };
+          routePlans?: string;
+        }
+      | undefined;
+    const drawings = qualification?.form101?.sectionA?.documents?.archDrawings?.available;
+    if (qualification && !qualification.routePlans && (drawings === "yes" || drawings === "no"))
+      node.config.qualification = { ...qualification, routePlans: drawings };
+  }
   // Older high-level-only files are upgraded to the current L2 scaffold. This
   // only fills an empty detailed layer; it never replaces user-authored nodes.
   if (file.graph.nodes.length === 0 && file.highLevel.graph.nodes.length > 0) {

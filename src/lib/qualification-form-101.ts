@@ -1043,7 +1043,7 @@ export function evaluateQualificationGate(
       passed: false,
       state: "pending_route",
       statusLabel: "Choose route",
-      blockingReason: `Form [${FORM_101_CODE}] passed. Check the project parties in Q3 and the architectural drawing availability in Q12.`,
+      blockingReason: `Form [${FORM_101_CODE}] passed. Check the project parties in Q3 and choose Plans available on Route Selection.`,
     };
   }
 

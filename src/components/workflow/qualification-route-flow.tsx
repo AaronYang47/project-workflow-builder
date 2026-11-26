@@ -9,8 +9,7 @@ import {
   ROUTE_STEP_DEFAULT,
 } from "@/lib/route-flow-layout";
 import {
-  laneOfCase,
-  plansOfCase,
+  routeHighlight,
   routePlanExitBus,
   routePlanLayout,
   type PlanBox,
@@ -108,10 +107,12 @@ export function QualificationRouteFlow({
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
   const viewWidth = exitBus ? bus.width : layout.width;
   const current = QUALIFICATION_CASES.find((item) => item.id === currentId);
-  const litLane = laneOfCase(currentId, layout);
-  const litPlans = plansOfCase(current, plans);
-  // The route reaches the end once we know which way the plans question goes.
-  const finalLane = litLane && litPlans ? litLane : undefined;
+  // The same rule the tests check: lane, boxes along the path, and the way out.
+  const highlight = routeHighlight(layout, current, plans);
+  const litLane = highlight.lane;
+  const litPlans = highlight.plans;
+  const finalLane = highlight.out ? litLane : undefined;
+  const boxOn = (laneOn: boolean, text: string) => laneOn && highlight.boxes.includes(text);
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
 
@@ -316,11 +317,20 @@ export function QualificationRouteFlow({
               );
             })}
             {lane.loiBox ? (
-              <Box box={lane.loiBox} boxHeight={layout.boxHeight} on={laneOn} />
+              <Box
+                box={lane.loiBox}
+                boxHeight={layout.boxHeight}
+                on={boxOn(laneOn, lane.loiBox.text)}
+              />
             ) : null}
-            <Box box={lane.csa} boxHeight={layout.boxHeight} on={viaCsa} />
+            <Box box={lane.csa} boxHeight={layout.boxHeight} on={boxOn(laneOn, lane.csa.text)} />
             {lane.ends.map((box) => (
-              <Box key={box.text} box={box} boxHeight={layout.boxHeight} on={ends} />
+              <Box
+                key={box.text}
+                box={box}
+                boxHeight={layout.boxHeight}
+                on={boxOn(laneOn, box.text)}
+              />
             ))}
             <circle
               data-qualification-route-exit={lane.id}

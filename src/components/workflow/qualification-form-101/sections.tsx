@@ -167,7 +167,7 @@ function routeImpactReason(
       ? "The General Contractor row in Q3 has information, so the GC route applies."
       : "Only the Owner row in Q3 has information, so the Owner route applies.";
   if (!customerCase)
-    return `${partyReason} In Q12, answer whether the latest architectural drawing set is available.`;
+    return `${partyReason} Then choose on Route Selection whether there are plans.`;
   if (customerCase.route === "CSA" && customerCase.handoff)
     return `${partyReason} Q12 indicates no drawings, so the Owner starts with CSA for consultation, then finds a General Contractor, who carries on with PCS.`;
   if (customerCase.route === "CSA")
@@ -817,7 +817,7 @@ export function SectionAIntake({
                       variant="ghost"
                       size="sm"
                       className="h-7 text-[11px] text-muted-foreground"
-                      onClick={(event) => {
+                      onClick={() => {
                         patchA((p) => {
                           const nextDocs = { ...p.documents };
                           for (const doc of PROJECT_DOCUMENT_DEFINITIONS) {
@@ -827,8 +827,6 @@ export function SectionAIntake({
                           }
                           return { ...p, documents: nextDocs };
                         });
-                        if (!sectionA.documents.archDrawings.available)
-                          showRouteImpact(event.currentTarget);
                       }}
                     >
                       Mark unanswered as No
@@ -865,7 +863,6 @@ export function SectionAIntake({
                                       [doc.key]: { ...p.documents[doc.key], available: next },
                                     },
                                   }));
-                                  if (doc.key === "archDrawings") showRouteImpact(button);
                                 }}
                               />
                             </td>

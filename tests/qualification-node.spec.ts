@@ -54,7 +54,16 @@ async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) 
     })
     .getByRole("button", { name: value.toLowerCase(), exact: true })
     .click();
-  await dismissRouteImpact(page, impact);
+  // The drawings answer no longer decides the route, so no route pop-up.
+  void impact;
+}
+
+/** Plans available: chosen by hand on Route Selection. */
+async function choosePlans(page: Page, value: "Yes" | "No") {
+  await page
+    .locator("[data-route-selection-node] [data-route-plans-choice]")
+    .getByRole("button", { name: value, exact: true })
+    .click();
 }
 
 test("Qualification score stages use exact point thresholds", () => {
@@ -275,9 +284,14 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
     "Example GC",
     /General Contractor: add a contact/,
   );
-  await answerParty(page, "General Contractor contact", "GC rep", /GC route applies.*In Q12/);
+  await answerParty(
+    page,
+    "General Contractor contact",
+    "GC rep",
+    /GC route applies.*choose on Route Selection/,
+  );
   await form.getByRole("button", { name: "Save Form" }).click();
-  await expect(route).toHaveText("Route: Complete Form [1.01]");
+  await expect(route).toHaveText("Route: GC → Plans?");
 
   form = await openForm();
   await expect(form.locator('[data-form101-wizard-step="choice"]')).toBeVisible();
@@ -307,20 +321,21 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(form.locator("#q101-q10")).toHaveCount(0);
   await expect(form.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
 
-  await answerDrawings(page, "No", /starts with CSA for consultation/);
+  await answerDrawings(page, "No");
   await form.getByRole("button", { name: "Save Form" }).click();
+  // The form decides who the customer is; plans are chosen on Route Selection.
+  await expect(route).toHaveText("Route: GC → Plans?");
+  await choosePlans(page, "No");
   await expect(route).toHaveText("Route: GC → CSA → PCS");
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "gc-no-plans");
 
-  form = await openForm();
-  await answerDrawings(page, "Yes", /directly to PCS/);
-  await form.getByRole("button", { name: "Save Form" }).click();
+  await choosePlans(page, "Yes");
   await expect(route).toHaveText("Route: GC → PCS");
 
   form = await openForm();
   await openQuestionGroup(page, "Written answers");
   await answerParty(page, "General Contractor company", "", /add a company/);
-  await answerParty(page, "General Contractor contact", "", /hands the project over/);
+  await answerParty(page, "General Contractor contact", "", /Owner route applies/);
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: Owner → GC → PCS");
   await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
@@ -335,18 +350,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await pcs.fill("14");
   await expect(estimate).toBeEnabled();
 
-  form = await openForm();
-  await openQuestionGroup(page, "Yes / No");
-  await form
-    .getByRole("group", {
-      name: "Latest architectural drawing set (including site plan) available",
-    })
-    .getByRole("button", { name: "no", exact: true })
-    .click();
-  const impact = page.getByRole("dialog", { name: "Route impact" });
-  await expect(impact).toContainText(/finds a General Contractor, who carries on with PCS/);
-  await impact.getByRole("button", { name: "Save & apply route" }).click();
-  await expect(form).toHaveCount(0);
+  await choosePlans(page, "No");
   await expect(route).toHaveText("Route: Owner → CSA → GC → PCS");
   // Without plans the Owner's lane goes through CSA, then on to their GC and PCS.
   await expect(chosen).toHaveAttribute("data-route-plans", "no");
@@ -357,9 +361,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");
   await expect(estimate).toBeEnabled();
 
-  form = await openForm();
-  await answerDrawings(page, "Yes", /hands the project over/);
-  await form.getByRole("button", { name: "Save Form" }).click();
+  await choosePlans(page, "Yes");
   await expect(route).toHaveText("Route: Owner → GC → PCS");
   await expect(pcs).toHaveValue("14");
   await expect(estimate).toBeEnabled();
@@ -371,7 +373,8 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await answerParty(page, "Our client (PROFAB) company", "Internal");
   await answerParty(page, "Our client (PROFAB) contact", "Alex", /Q9 is exempt/);
   await form.getByRole("button", { name: "Save Form" }).click();
-  await expect(route).toHaveText("Route: ProFab → LOI");
+  // ProFab takes the LOI lane; with plans it goes on to GC and PCS.
+  await expect(route).toHaveText("Route: ProFab → LOI → GC → PCS");
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "profab");
 
   // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.
@@ -586,7 +589,7 @@ test("Qualification Form [1.01] opens inside QualificationNode, computes live sc
 
   // Node retains LOI route and reflects updated Form [1.01] score & revision.
   await expect(page.locator("[data-route-selection-node] [data-qualification-route]")).toHaveText(
-    "Route: ProFab → LOI",
+    "Route: ProFab → LOI → Plans?",
   );
   await expect(score).toHaveText("5/84 · 6%");
   await expect(page.locator('[data-qualification-route-case][data-active="true"]')).toHaveCount(0);
@@ -676,7 +679,9 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
   expect(blockedByQ3.passed).toBe(false);
   expect(blockedByQ3.state).toBe("pending_parties");
 
-  const passedGate = evaluateQualificationGate({ form101: resolvedForm });
+  // Plans are chosen on Route Selection.
+  expect(evaluateQualificationGate({ form101: resolvedForm }).passed).toBe(false);
+  const passedGate = evaluateQualificationGate({ form101: resolvedForm, routePlans: "yes" });
   expect(passedGate.passed).toBe(true);
   expect(passedGate.state).toBe("passed");
   expect(passedGate.statusLabel).toBe("PCS → Estimation");
@@ -707,11 +712,11 @@ test("Qualification passes at 52/84 with a route; below 52 it blocks the next st
   // 2. Enough points but no route still blocks.
   qNode.config.qualification = { form101: passingForm };
   expect(sequentialExecutionBlocker(file, startNode.id)).toContain(
-    "Check the project parties in Q3 and the architectural drawing availability in Q12",
+    "Check the project parties in Q3 and choose Plans available on Route Selection",
   );
 
-  // 3. Enough points and a route unlocks the next steps.
-  qNode.config.qualification = { form101: resolvedForm };
+  // 3. Enough points and a route (plans chosen) unlocks the next steps.
+  qNode.config.qualification = { form101: resolvedForm, routePlans: "yes" };
   expect(sequentialExecutionBlocker(file, startNode.id)).toBeUndefined();
 });
 
@@ -785,7 +790,7 @@ test("Qualification blocks the next Department until it passes with a route, and
   const blocker = page.getByRole("alertdialog").or(page.getByRole("dialog"));
   await expect(blocker.getByText("Complete Qualification first")).toBeVisible();
   await expect(blocker).toContainText(
-    "Check the project parties in Q3 and the architectural drawing availability in Q12",
+    "Check the project parties in Q3 and choose Plans available on Route Selection",
   );
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(salesCard.getByRole("button", { name: "Check step 2" })).toBeVisible();
@@ -795,6 +800,7 @@ test("Qualification blocks the next Department until it passes with a route, and
   const dialog = page.getByRole("dialog", { name: "Qualification Form [1.01]" });
   await answerDrawings(page, "No");
   await dialog.getByRole("button", { name: "Save Form" }).click();
+  await choosePlans(page, "No");
   await expect(status).toHaveText("CSA → Estimation");
   await salesCard.getByRole("button", { name: "Check step 2" }).click();
   await expect(salesCard.getByRole("button", { name: "Uncheck step 2" })).toBeVisible();

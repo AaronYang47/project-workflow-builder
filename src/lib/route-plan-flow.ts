@@ -94,7 +94,16 @@ export function routePlanLayout(): PlanFlowLayout {
   const endGap = 14;
   const boxWidth = (text: string) => Math.ceil(text.length * 5.6 + 12);
 
-  const yLane = { "loi-gc": 16, "owner-regular": 92, "gc-vip": 160, "gc-regular": 222 };
+  // Even spacing: each client box sits exactly between its two situations
+  // (Owner VIP / Regular, GC VIP / Regular), so both branch lines are the same
+  // distance from the box's middle line.
+  const branchGap = 56;
+  const yLane = {
+    "loi-gc": 16,
+    "owner-regular": 108,
+    "gc-vip": 180,
+    "gc-regular": 180 + branchGap,
+  };
   const specs: { id: PlanLaneId; loi: boolean; cases: string[]; ends: string[] }[] = [
     { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC", "PCS"] },
     {
@@ -178,7 +187,7 @@ export function routePlanLayout(): PlanFlowLayout {
   });
 
   const lane = (id: PlanLaneId) => lanes.find((item) => item.id === id)!;
-  const ownerVipY = yLane["loi-gc"] + 34;
+  const ownerVipY = yLane["owner-regular"] - branchGap;
   const branches: PlanBranch[] = [
     {
       caseIds: ["profab"],
@@ -236,15 +245,17 @@ export function routePlanLayout(): PlanFlowLayout {
     },
   ];
 
-  const ownerTop = yLane["loi-gc"] + 24;
-  const ownerBottom = yLane["owner-regular"] + 34;
-  const gcTop = yLane["gc-vip"] - 12;
-  const gcBottom = yLane["gc-regular"] + 34;
+  // A client box reaches 14 past each of its branch lines, centred between them.
+  const pad = 14;
+  const ownerTop = ownerVipY - pad;
+  const ownerBottom = yLane["owner-regular"] + pad;
+  const gcTop = yLane["gc-vip"] - pad;
+  const gcBottom = yLane["gc-regular"] + pad;
   const clients: PlanClient[] = [
     {
       client: "ProFab",
-      top: yLane["loi-gc"] - 14,
-      bottom: yLane["loi-gc"] + 14,
+      top: yLane["loi-gc"] - pad,
+      bottom: yLane["loi-gc"] + pad,
       mid: yLane["loi-gc"],
     },
     { client: "Owner", top: ownerTop, bottom: ownerBottom, mid: (ownerTop + ownerBottom) / 2 },
@@ -284,7 +295,8 @@ export function routePlanLayout(): PlanFlowLayout {
     boxHeight,
     chip,
     width,
-    height: gcBottom + 2,
+    // Below the last lane's "until plans" loop.
+    height: Math.max(gcBottom, lanes.at(-1)!.yBottom + boxHeight / 2 + 7 + 6) + 2,
   };
 }
 
@@ -310,4 +322,57 @@ export function routePlanExitBus(layout: PlanFlowLayout) {
   const busX = layout.width + 16;
   const busY = (Math.min(...exits) + Math.max(...exits)) / 2;
   return { busX, busY, width: busX + 16 };
+}
+
+/**
+ * The route in words, along its lane: client → [LOI] → [CSA, without plans] →
+ * GC / PCS. Until plans are chosen, it stops at "Plans?".
+ */
+export function routePathText(
+  item: QualificationCase | undefined,
+  plans: "yes" | "no" | undefined,
+  layout: PlanFlowLayout = routePlanLayout(),
+) {
+  if (!item) return undefined;
+  const lane = layout.lanes.find((candidate) => candidate.cases.includes(item.id));
+  if (!lane) return undefined;
+  const steps = [item.client, ...(lane.loi ? ["LOI"] : [])];
+  const choice = plansOfCase(item, plans);
+  if (!choice) return [...steps, "Plans?"].join(" → ");
+  return [...steps, ...(choice === "no" ? ["CSA"] : []), ...lane.ends.map((box) => box.text)].join(
+    " → ",
+  );
+}
+
+/**
+ * What the chart lights for a situation: its lane, the boxes along its path
+ * (in order), and whether it reaches the way out. The chart and the tests both
+ * use this.
+ */
+export function routeHighlight(
+  layout: PlanFlowLayout,
+  item: QualificationCase | undefined,
+  plansAvailable?: "yes" | "no",
+) {
+  const lane = item
+    ? layout.lanes.find((candidate) => candidate.cases.includes(item.id))
+    : undefined;
+  const plans = plansOfCase(item, plansAvailable);
+  if (!lane) return { lane: undefined, plans, boxes: [] as string[], out: false };
+  const boxes = [
+    ...(lane.loiBox ? [lane.loiBox.text] : []),
+    ...(plans === "no" ? [lane.csa.text] : []),
+    ...(plans ? lane.ends.map((box) => box.text) : []),
+  ];
+  return { lane: lane.id, plans, boxes, out: Boolean(plans) };
+}
+
+/** The route so far when the customer is known but plans are not chosen yet. */
+export function pendingRouteText(
+  clientCategory: "ProFab" | "Owner" | "GC" | undefined,
+  customerTier: "vip" | "regular" | undefined,
+) {
+  if (!clientCategory) return undefined;
+  const loi = clientCategory === "ProFab" || customerTier === "vip";
+  return [clientCategory, ...(loi ? ["LOI"] : []), "Plans?"].join(" → ");
 }
