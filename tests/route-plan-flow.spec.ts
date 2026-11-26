@@ -12,9 +12,9 @@ import {
 type Plans = "yes" | "no" | undefined;
 
 /** What the chart lights for one situation: its lane, its boxes, and whether it reaches the exit. */
-function lit(caseId: string, plans: Plans) {
+function lit(caseId: string, plans: Plans, consult?: Plans) {
   const item = QUALIFICATION_CASES.find((candidate) => candidate.id === caseId);
-  return routeHighlight(routePlanLayout(), item, plans);
+  return routeHighlight(routePlanLayout(), item, plans, consult);
 }
 
 const EXPECTED: Record<
@@ -65,12 +65,30 @@ test("every situation lights its own lane, with and without plans", () => {
       }
       // Without plans: Consultation after an LOI, CSA otherwise.
       const middle = plans === "no" ? [expected.loi ? "Consultation" : "CSA"] : [];
-      // Every path reaches the green Plan Ready before the GC / PCS.
-      expect(result.boxes, label).toEqual([...start, ...middle, "Plan Ready", ...expected.ends]);
-      expect(result.out, label).toBe(true);
       expect(routePathText(item, chosen), label).toBe(
         [expected.client, ...start, ...middle, ...expected.ends].join(" → "),
       );
+      if (plans === "yes") {
+        // Every finished path reaches the green Plan Ready before the GC / PCS.
+        expect(result.boxes, label).toEqual([...start, "Plan Ready", ...expected.ends]);
+        expect(result.out, label).toBe(true);
+        continue;
+      }
+      // The second "Plans?", after CSA / Consultation.
+      for (const consult of ["yes", "no", undefined] as Plans[]) {
+        const again = lit(item.id, chosen, consult);
+        const sub = `${label} / after consultation ${consult ?? "not chosen"}`;
+        if (consult === "yes") {
+          expect(again.boxes, sub).toEqual([...start, ...middle, "Plan Ready", ...expected.ends]);
+          expect(again.out, sub).toBe(true);
+          expect(again.loop, sub).toBe(false);
+        } else {
+          // Not yet, or still no plans (round again): it stops before Plan Ready.
+          expect(again.boxes, sub).toEqual([...start, ...middle]);
+          expect(again.out, sub).toBe(false);
+          expect(again.loop, sub).toBe(consult === "no");
+        }
+      }
     }
   }
 });

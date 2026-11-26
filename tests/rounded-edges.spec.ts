@@ -83,6 +83,24 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
     return { line: line.top + line.height / 2, handle: dot.top + dot.height / 2 };
   });
   expect(Math.abs(levels.line - levels.handle)).toBeLessThan(3);
+  // The way in joins the chart's entry line at the same height, from the card's edge.
+  const entry = await node.evaluate((element) => {
+    const line = element.querySelector<HTMLElement>("[data-route-selection-entry-line]")!;
+    const handle = element.querySelector<HTMLElement>(".react-flow__handle.target")!;
+    const inner = element.querySelector<SVGLineElement>("[data-route-entry-in]")!;
+    const box = line.getBoundingClientRect();
+    const dot = handle.getBoundingClientRect();
+    const join = inner.getBoundingClientRect();
+    return {
+      line: box.top + box.height / 2,
+      handle: dot.top + dot.height / 2,
+      join: join.top + join.height / 2,
+      gap: Math.abs(join.left - box.right),
+    };
+  });
+  expect(Math.abs(entry.line - entry.handle)).toBeLessThan(3);
+  expect(Math.abs(entry.line - entry.join)).toBeLessThan(3);
+  expect(entry.gap).toBeLessThan(6);
   // Every exit bends onto the bus with an arc, never a right angle.
   const exitLines = await node
     .locator("[data-qualification-route-exit-line], [data-qualification-route-lane] path")

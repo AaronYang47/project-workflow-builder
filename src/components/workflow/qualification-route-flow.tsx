@@ -16,6 +16,7 @@ import {
   routePlanLayout,
   type PlanBox,
   type PlanLaneId,
+  PLAN_READY,
 } from "@/lib/route-plan-flow";
 import { roundedPath } from "@/lib/semantic-edge-geometry";
 
@@ -45,8 +46,8 @@ function Box({ box, boxHeight, on }: { box: PlanBox; boxHeight: number; on: bool
         width={box.width}
         height={boxHeight}
         rx={3}
-        fill={palette.fill}
-        stroke={palette.stroke}
+        fill={on && box.text === PLAN_READY ? "#bbf7d0" : palette.fill}
+        stroke={on && box.text === PLAN_READY ? ROUTE_FLOW_ON : palette.stroke}
         strokeWidth={on ? 1.8 : 1}
       />
       <text
@@ -92,8 +93,10 @@ export function QualificationRouteFlow({
   currentId,
   client,
   plans,
+  consultPlans,
   laneId,
   onChoosePlans,
+  onChooseConsultPlans,
   exitBus = false,
   scale = 1,
   svgRef,
@@ -112,6 +115,9 @@ export function QualificationRouteFlow({
   laneId?: PlanLaneId;
   /** Tapping ✓ / ✗ at "Plans?" on the lit lane chooses it (tap again to clear). */
   onChoosePlans?: (plans: "yes" | "no" | undefined) => void;
+  /** The second "Plans?", after CSA / Consultation. */
+  consultPlans?: "yes" | "no";
+  onChooseConsultPlans?: (plans: "yes" | "no" | undefined) => void;
 }) {
   const layout = useMemo(() => routePlanLayout(), []);
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
@@ -120,8 +126,8 @@ export function QualificationRouteFlow({
   const current = QUALIFICATION_CASES.find((item) => item.id === currentId);
   // The same rule the tests check: lane, boxes along the path, and the way out.
   const highlight = laneId
-    ? laneHighlight(layout, laneId, plansOfCase(current, plans))
-    : routeHighlight(layout, current, plans);
+    ? laneHighlight(layout, laneId, plansOfCase(current, plans), consultPlans)
+    : routeHighlight(layout, current, plans, consultPlans);
   const litLane = highlight.lane;
   const litPlans = highlight.plans;
   const finalLane = highlight.out ? litLane : undefined;
@@ -194,6 +200,33 @@ export function QualificationRouteFlow({
           stroke={ROUTE_FLOW_OFF}
           strokeWidth={1.2}
         />
+        {/* The way in (from the card's edge) and on along the entry line to the lit client. */}
+        <line
+          data-route-entry-in
+          x1={-left}
+          y1={bus.entryY}
+          x2={-left + 4}
+          y2={bus.entryY}
+          stroke={litClient ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+          strokeWidth={litClient ? 2.2 : 1.2}
+        />
+        {litClient ? (
+          <path
+            d={roundedPath(
+              [
+                { x: -left + 4, y: bus.entryY },
+                {
+                  x: -left + 4,
+                  y: layout.clients.find((item) => item.client === litClient)?.mid ?? bus.entryY,
+                },
+              ],
+              4,
+            )}
+            fill="none"
+            stroke={ROUTE_FLOW_ON}
+            strokeWidth={2.2}
+          />
+        ) : null}
         {layout.clients.map((item) => {
           const on = litClient === item.client;
           return (
@@ -269,7 +302,10 @@ export function QualificationRouteFlow({
         const laneOn = lane.id === litLane;
         const viaPlans = laneOn && litPlans === "yes";
         const viaCsa = laneOn && litPlans === "no";
-        const ends = viaPlans || viaCsa;
+        // Second "Plans?": ✓ on to Plan Ready, ✗ round again into CSA / Consultation.
+        const consultDone = viaCsa && highlight.consultPlans === "yes";
+        const consultLoop = viaCsa && highlight.loop;
+        const ends = highlight.out && laneOn;
         return (
           <g
             key={lane.id}
@@ -301,8 +337,8 @@ export function QualificationRouteFlow({
             })}
             {/* Second "Plans?": ✓ back onto the line, ✗ round and back into CSA / Consultation. */}
             {line(lane.toFork2, viaCsa, { part: "to-fork2" })}
-            {line(lane.loop, false, { arrow: true, part: "loop", dashed: true })}
-            {line(lane.back, viaCsa, {
+            {line(lane.loop, consultLoop, { arrow: true, part: "loop", dashed: true })}
+            {line(lane.back, consultDone, {
               arrow: true,
               part: "back",
               printColor: tagColor(lane.ends[0].text),
@@ -337,14 +373,16 @@ export function QualificationRouteFlow({
             {lane.chips.map((chip) => {
               // Grey until chosen; only the lit lane's ✓ / ✗ can be chosen.
               const palette = chip.ok ? YES : NO;
-              const lit =
-                (chip.part === "yes" && viaPlans) ||
-                ((chip.part === "no" || chip.part === "back") && viaCsa);
-              // The ✓ / ✗ at "Plans?" are the plans choice itself.
-              const choice = chip.part === "yes" ? "yes" : chip.part === "no" ? "no" : undefined;
-              const chosen = Boolean(laneOn && choice && litPlans === choice);
-              const clickable = Boolean(laneOn && choice && onChoosePlans);
-              const colour = chosen || (lit && chip.part === "back") ? palette : GREY;
+              // First "Plans?" (yes / no) and the second, after CSA / Consultation (back / loop).
+              const second = chip.part === "back" || chip.part === "loop";
+              const choice: "yes" | "no" = chip.ok ? "yes" : "no";
+              const current = second ? highlight.consultPlans : litPlans;
+              const open = second ? viaCsa : laneOn;
+              const choose = second ? onChooseConsultPlans : onChoosePlans;
+              const chosen = Boolean(open && current === choice);
+              const clickable = Boolean(open && choose);
+              const lit = chosen;
+              const colour = chosen ? palette : GREY;
               return (
                 <g
                   key={chip.part}
@@ -352,20 +390,20 @@ export function QualificationRouteFlow({
                   data-route-chip-chosen={chosen ? "true" : undefined}
                   role={clickable ? "button" : undefined}
                   aria-label={
-                    clickable ? (choice === "yes" ? "Plans: yes" : "Plans: no") : undefined
+                    clickable
+                      ? `${second ? "Plans after consultation" : "Plans"}: ${choice}`
+                      : undefined
                   }
                   aria-pressed={clickable ? chosen : undefined}
                   tabIndex={clickable ? 0 : undefined}
                   style={clickable ? { cursor: "pointer" } : undefined}
-                  onClick={
-                    clickable ? () => onChoosePlans!(chosen ? undefined : choice) : undefined
-                  }
+                  onClick={clickable ? () => choose!(chosen ? undefined : choice) : undefined}
                   onKeyDown={
                     clickable
                       ? (event) => {
                           if (event.key !== "Enter" && event.key !== " ") return;
                           event.preventDefault();
-                          onChoosePlans!(chosen ? undefined : choice);
+                          choose!(chosen ? undefined : choice);
                         }
                       : undefined
                   }

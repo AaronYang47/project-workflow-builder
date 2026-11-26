@@ -77,6 +77,15 @@ export function CommercialRouteGroupNode({
     formAnswers && evaluateQualificationGate(qualification).scorePassed
       ? laneForCustomer(formAnswers.clientCategory, formAnswers.customerTier)
       : undefined;
+  /** After CSA / Consultation: plans ready now (on to Plan Ready) or still none (round again). */
+  const setConsultPlans = (next: "yes" | "no" | undefined) => {
+    if (!qualificationNode) return;
+    const store = useWorkflowStore.getState();
+    const target = store.file.graph.nodes.find((item) => item.id === qualificationNode.id);
+    if (!target) return;
+    const updated = { ...qualificationOf(target), routeConsultPlans: next };
+    store.updateNode(target.id, { config: { ...target.config, qualification: updated } });
+  };
   const setPlans = (next: "yes" | "no" | undefined) => {
     if (!qualificationNode) return;
     const store = useWorkflowStore.getState();
@@ -120,6 +129,8 @@ export function CommercialRouteGroupNode({
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [exit, setExit] = useState<{ top: number; left: number } | null>(null);
+  // The way in: level with the middle of the chart's entry line, joined to it.
+  const [entry, setEntry] = useState<{ top: number; right: number } | null>(null);
   const updateNodeInternals = useUpdateNodeInternals();
   useLayoutEffect(() => {
     const svg = svgRef.current;
@@ -139,6 +150,15 @@ export function CommercialRouteGroupNode({
       setExit((previous) =>
         previous && previous.top === next.top && previous.left === next.left ? previous : next,
       );
+      const nextEntry = {
+        top: Math.round((box.top - rootBox.top) / zoom - root.clientTop + bus.entryY * scale),
+        right: Math.round((box.left - rootBox.left) / zoom - root.clientLeft + bus.entryX * scale),
+      };
+      setEntry((previous) =>
+        previous && previous.top === nextEntry.top && previous.right === nextEntry.right
+          ? previous
+          : nextEntry,
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -146,8 +166,8 @@ export function CommercialRouteGroupNode({
     return () => observer.disconnect();
   }, [bus]);
   useEffect(() => {
-    if (exit) updateNodeInternals(node.id);
-  }, [exit, node.id, updateNodeInternals]);
+    if (exit || entry) updateNodeInternals(node.id);
+  }, [exit, entry, node.id, updateNodeInternals]);
 
   const agreements = route ? AGREEMENTS[route] : [];
   const ready = commercialWorkflowReady(node, qualification);
@@ -220,8 +240,24 @@ export function CommercialRouteGroupNode({
         position={Position.Left}
         id="in"
         className="!size-3 !border-2 !border-background"
-        style={{ backgroundColor: reached ? ROUTE_FLOW_ON : "#94a3b8" }}
+        style={{
+          backgroundColor: reached ? ROUTE_FLOW_ON : "#94a3b8",
+          ...(entry ? { top: entry.top } : {}),
+        }}
       />
+      {entry && (
+        <div
+          aria-hidden="true"
+          data-route-selection-entry-line
+          className="pointer-events-none absolute left-0"
+          style={{
+            width: entry.right,
+            top: entry.top - (choiceLane ? 1 : 0.5),
+            height: choiceLane ? 2.5 : 1.5,
+            backgroundColor: choiceLane ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF,
+          }}
+        />
+      )}
       <Handle
         type="source"
         position={Position.Right}
@@ -257,6 +293,8 @@ export function CommercialRouteGroupNode({
         laneId={choiceLane}
         plans={plans}
         onChoosePlans={qualificationNode ? setPlans : undefined}
+        consultPlans={qualification.routeConsultPlans}
+        onChooseConsultPlans={qualificationNode ? setConsultPlans : undefined}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}

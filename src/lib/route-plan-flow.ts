@@ -364,8 +364,10 @@ export function routePlanExitBus(layout: PlanFlowLayout) {
   const exits = layout.lanes.map((lane) => lane.exit.y);
   const busX = layout.width + 16;
   const busY = (Math.min(...exits) + Math.max(...exits)) / 2;
-  // Room on the left for each client's own entry arrow.
-  return { busX, busY, width: busX + 16, left: 18 };
+  // Room on the left for each client's own entry arrow; the way in joins the
+  // entry line halfway between its first and last client.
+  const entryY = (layout.clients[0].mid + layout.clients.at(-1)!.mid) / 2;
+  return { busX, busY, width: busX + 16, left: 18, entryY, entryX: 4 };
 }
 
 /**
@@ -400,9 +402,10 @@ export function routeHighlight(
   layout: PlanFlowLayout,
   item: QualificationCase | undefined,
   plansAvailable?: "yes" | "no",
+  consultPlans?: "yes" | "no",
 ) {
   const laneId = item ? layout.lanes.find((lane) => lane.cases.includes(item.id))?.id : undefined;
-  return laneHighlight(layout, laneId, plansOfCase(item, plansAvailable));
+  return laneHighlight(layout, laneId, plansOfCase(item, plansAvailable), consultPlans);
 }
 
 /** The same for a lane, when the customer is known but plans may not be chosen yet. */
@@ -410,15 +413,28 @@ export function laneHighlight(
   layout: PlanFlowLayout,
   laneId: PlanLaneId | undefined,
   plans: "yes" | "no" | undefined,
+  /** The second "Plans?", after CSA / Consultation. */
+  consultPlans?: "yes" | "no",
 ) {
   const lane = laneId ? layout.lanes.find((candidate) => candidate.id === laneId) : undefined;
-  if (!lane) return { lane: undefined, plans, boxes: [] as string[], out: false };
+  if (!lane)
+    return { lane: undefined, plans, consultPlans, boxes: [] as string[], out: false, loop: false };
+  // Every finished path goes through Plan Ready: plans at once, or after CSA / Consultation.
+  const done = plans === "yes" || (plans === "no" && consultPlans === "yes");
   const boxes = [
     ...(lane.loiBox ? [lane.loiBox.text] : []),
     ...(plans === "no" ? [lane.csa.text] : []),
-    ...(plans ? lane.ends.map((box) => box.text) : []),
+    ...(done ? lane.ends.map((box) => box.text) : []),
   ];
-  return { lane: lane.id, plans, boxes, out: Boolean(plans) };
+  return {
+    lane: lane.id,
+    plans,
+    consultPlans: plans === "no" ? consultPlans : undefined,
+    boxes,
+    out: done,
+    // Still no plans after CSA / Consultation: round again.
+    loop: plans === "no" && consultPlans === "no",
+  };
 }
 
 /** The lane for a customer type (from the form's parties), whatever the plans. */

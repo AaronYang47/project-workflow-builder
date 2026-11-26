@@ -58,6 +58,16 @@ async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) 
   void impact;
 }
 
+/** After CSA / Consultation: tap ✓ or ✗ at the second "Plans?". */
+async function chooseConsultPlans(page: Page, value: "Yes" | "No") {
+  await page
+    .locator("[data-route-selection-node] [data-qualification-route-flow]")
+    .getByRole("button", {
+      name: value === "Yes" ? "Plans after consultation: yes" : "Plans after consultation: no",
+    })
+    .click();
+}
+
 /** Plans: tap ✓ or ✗ at "Plans?" in the Route Selection chart. */
 async function choosePlans(page: Page, value: "Yes" | "No") {
   await page
@@ -373,8 +383,16 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
 
   await choosePlans(page, "No");
   await expect(route).toHaveText("Route: Owner → CSA → GC → PCS");
-  // Without plans the Owner's lane goes through CSA, then on to their GC and PCS.
+  // Without plans the Owner's lane goes through CSA; once plans are ready (second ✓)
+  // it goes on through Plan Ready to their GC and PCS.
   await expect(chosen).toHaveAttribute("data-route-plans", "no");
+  await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(0);
+  await chooseConsultPlans(page, "No");
+  await expect(chosen.locator('[data-route-part="loop"][data-route-part-on="true"]')).toHaveCount(
+    1,
+  );
+  await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(0);
+  await chooseConsultPlans(page, "Yes");
   await expect(chosen.locator('[data-qualification-flow-box="CSA"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="GC"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(1);
