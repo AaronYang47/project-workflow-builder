@@ -36,6 +36,7 @@ import {
   departmentLoad,
   isoDay,
   portfolioRange,
+  stackLabels,
   tasksOn,
   weekStart,
   type PortfolioProject,
@@ -74,6 +75,7 @@ export function PortfolioSchedule() {
 }
 
 const PX_PER_DAY = 5;
+const MILESTONE_LINE = 22;
 const LABEL_WIDTH = 280;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const shortDate = new Intl.DateTimeFormat("en-GB", {
@@ -544,15 +546,17 @@ function GanttRow({
   children,
   className = "",
   labelClassName = "",
+  height,
 }: {
   grid: GanttGrid;
   label: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
   labelClassName?: string;
+  height?: number;
 }) {
   return (
-    <div className={`flex border-b ${className}`} style={{ width: LABEL_WIDTH + width }}>
+    <div className={`flex border-b ${className}`} style={{ width: LABEL_WIDTH + width, height }}>
       <div
         className={`sticky left-0 z-10 flex shrink-0 items-center border-r bg-card px-3 text-xs ${labelClassName}`}
         style={{ width: LABEL_WIDTH }}
@@ -604,6 +608,31 @@ function PortfolioGantt({
   const todayX = x(todayIso());
 
   const grid = { first, width, weeks, todayX };
+  // Milestone labels stack onto extra lines where they would overlap.
+  const milestones = projects.flatMap((project) =>
+    (
+      [
+        ["Start", project.projectStartDate],
+        ["Handoff", project.handoffDate],
+      ] as const
+    ).flatMap(([kind, date]) => {
+      if (!date) return [];
+      const text = `${kind} ${fmt(date)}`;
+      return [
+        {
+          key: `${project.id}-${kind}`,
+          project,
+          kind,
+          date,
+          text,
+          x: x(date) + 3,
+          width: text.length * 7.2 + 12,
+        },
+      ];
+    }),
+  );
+  const milestoneLines = stackLabels(milestones);
+  const milestoneHeight = Math.max(44, 8 + milestoneLines.count * MILESTONE_LINE);
 
   return (
     <div data-portfolio-gantt className="relative min-w-max text-foreground">
@@ -653,7 +682,7 @@ function PortfolioGantt({
 
       <GanttRow
         grid={grid}
-        className="h-11"
+        height={milestoneHeight}
         label={
           <span className="flex flex-col leading-tight">
             <span className="font-bold uppercase tracking-wider">Milestones</span>
@@ -663,27 +692,21 @@ function PortfolioGantt({
           </span>
         }
       >
-        {projects.flatMap((project) =>
-          (
-            [
-              ["Start", project.projectStartDate],
-              ["Handoff", project.handoffDate],
-            ] as const
-          ).flatMap(([label, date]) =>
-            date ? (
-              <span
-                key={`${project.id}-${label}`}
-                title={`${project.name} · ${label === "Start" ? "Project start (Sales starts)" : "Technical handoff"} · ${fmt(date)}`}
-                className="absolute top-3 z-[16] whitespace-nowrap rounded px-1 text-[10px] font-bold leading-5 text-white"
-                style={{ left: x(date) + 3, backgroundColor: project.color }}
-              >
-                {label} {fmt(date)}
-              </span>
-            ) : (
-              []
-            ),
-          ),
-        )}
+        {milestones.map((item) => (
+          <span
+            key={item.key}
+            data-milestone-label={item.key}
+            title={`${item.project.name} · ${item.kind === "Start" ? "Project start (Sales starts)" : "Technical handoff"} · ${fmt(item.date)}`}
+            className="absolute z-[16] whitespace-nowrap rounded px-1 text-[10px] font-bold leading-5 text-white"
+            style={{
+              left: item.x,
+              top: 4 + (milestoneLines.lines.get(item.key) ?? 0) * MILESTONE_LINE,
+              backgroundColor: item.project.color,
+            }}
+          >
+            {item.text}
+          </span>
+        ))}
       </GanttRow>
       <GanttRow
         grid={grid}

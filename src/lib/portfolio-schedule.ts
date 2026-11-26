@@ -188,3 +188,19 @@ export function portfolioRange(projects: PortfolioProject[]) {
       .at(-1)!,
   };
 }
+
+/**
+ * Puts labels on as few lines as possible without overlapping: each label goes
+ * on the first line where it clears the label before it. Returns each key's line.
+ */
+export function stackLabels(items: { key: string; x: number; width: number }[], gap = 4) {
+  const lineEnds: number[] = [];
+  const lines = new Map<string, number>();
+  for (const item of [...items].sort((a, b) => a.x - b.x)) {
+    let line = lineEnds.findIndex((end) => end + gap <= item.x);
+    if (line < 0) line = lineEnds.length;
+    lineEnds[line] = item.x + item.width;
+    lines.set(item.key, line);
+  }
+  return { lines, count: Math.max(1, lineEnds.length) };
+}

@@ -2,6 +2,7 @@ import { expect, test } from "playwright/test";
 import {
   departmentLoad,
   portfolioRange,
+  stackLabels,
   tasksOn,
   weekStart,
   type PortfolioProject,
@@ -52,4 +53,20 @@ test("L6 lines projects up by date and counts projects sharing a department each
   expect(sales.weeks.get("2026-11-16")?.size).toBe(2);
   expect(tasksOn([a, b], "2026-11-10").map((task) => task.key)).toEqual(["A:NDA", "B:Survey"]);
   expect(portfolioRange([a, b])).toEqual({ start: "2026-11-02", end: "2026-11-20" });
+});
+
+test("L6 milestone labels that would overlap go on separate lines", () => {
+  const { lines, count } = stackLabels([
+    { key: "B start", x: 388, width: 98 },
+    { key: "A start", x: 298, width: 98 },
+    { key: "A handoff", x: 448, width: 113 },
+    { key: "B handoff", x: 538, width: 113 },
+    { key: "far", x: 900, width: 98 },
+  ]);
+  expect(lines.get("A start")).toBe(0);
+  expect(lines.get("B start")).toBe(1);
+  expect(lines.get("A handoff")).toBe(0);
+  expect(lines.get("B handoff")).toBe(1);
+  expect(lines.get("far")).toBe(0);
+  expect(count).toBe(2);
 });
