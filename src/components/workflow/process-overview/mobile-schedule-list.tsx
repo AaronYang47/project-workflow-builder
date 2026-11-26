@@ -1,5 +1,6 @@
 "use client";
 
+import { FACTORY_PRODUCTION_RED, isL5DrivenRow } from "@/lib/factory-production-row";
 import type { buildProcessSchedule, ScheduleTask } from "@/lib/process-schedule";
 import type { buildProcessTimeline } from "@/lib/schedule-calendar";
 import {
@@ -57,7 +58,12 @@ export function MobileScheduleList({
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {task.department} · {task.chapter}
             </p>
-            <h3 className="mt-1 text-sm font-semibold leading-5">{task.title}</h3>
+            <h3
+              className="mt-1 text-sm font-semibold leading-5"
+              style={isL5DrivenRow(task.condition) ? { color: FACTORY_PRODUCTION_RED } : undefined}
+            >
+              {task.title}
+            </h3>
             {closures.map((pause) => (
               <p
                 key={pause.start}

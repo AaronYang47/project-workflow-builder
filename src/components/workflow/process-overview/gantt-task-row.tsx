@@ -17,6 +17,7 @@ import { dayOffWarning, taskCalendarBadges } from "@/lib/calendar-badges";
 import { isSalesDepartmentName } from "@/lib/department-label";
 import { beginReleaseConditionDrag } from "@/lib/release-condition-drag";
 import { beginGanttBarDrag } from "@/lib/gantt-bar-drag";
+import { FACTORY_PRODUCTION_RED, isL5DrivenRow } from "@/lib/factory-production-row";
 import { beginGanttBarResize } from "@/lib/gantt-bar-resize";
 import type { GanttAxis } from "@/lib/gantt-axis";
 import { CalendarTags } from "../calendar-tags";
@@ -107,7 +108,11 @@ export function GanttTaskRow({
         title={`${task.title} · ${task.chapter} · ${phaseTitle}`}
       >
         <div className="min-w-0 flex-1">
-          <span className="line-clamp-2 break-words text-[11px] font-medium leading-[14px]">
+          <span
+            data-l5-driven={isL5DrivenRow(task.condition) || undefined}
+            className="line-clamp-2 break-words text-[11px] font-medium leading-[14px]"
+            style={isL5DrivenRow(task.condition) ? { color: FACTORY_PRODUCTION_RED } : undefined}
+          >
             {task.title}
           </span>
           {task.condition.simulated ? (
