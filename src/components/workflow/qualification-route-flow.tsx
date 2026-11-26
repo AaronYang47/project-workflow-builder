@@ -50,7 +50,7 @@ function Box({ box, boxHeight, on }: { box: PlanBox; boxHeight: number; on: bool
         y={box.y}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={9.5}
+        fontSize={box.fontSize ?? 9.5}
         fontWeight={800}
         fill={palette.text}
       >
@@ -88,6 +88,7 @@ export function QualificationRouteFlow({
   currentId,
   client,
   plans,
+  onChoosePlans,
   exitBus = false,
   scale = 1,
   svgRef,
@@ -102,6 +103,8 @@ export function QualificationRouteFlow({
   client?: string;
   /** Whether the project has plans (for situations that do not say so themselves). */
   plans?: "yes" | "no";
+  /** Tapping ✓ / ✗ at "Plans?" chooses it (tap again to clear). */
+  onChoosePlans?: (plans: "yes" | "no" | undefined) => void;
 }) {
   const layout = useMemo(() => routePlanLayout(), []);
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
@@ -246,7 +249,11 @@ export function QualificationRouteFlow({
               part: "yes",
               printColor: tagColor(lane.ends[0].text),
             })}
-            {line(lane.no, viaCsa, { arrow: true, part: "no", printColor: tagColor("CSA") })}
+            {line(lane.no, viaCsa, {
+              arrow: true,
+              part: "no",
+              printColor: tagColor(lane.csa.text),
+            })}
             {line(lane.loop, false, { arrow: true, part: "loop", dashed: true })}
             <text
               x={lane.loopLabel.x}
@@ -290,17 +297,54 @@ export function QualificationRouteFlow({
             {lane.chips.map((chip) => {
               const palette = chip.ok ? YES : NO;
               const lit = (chip.part === "yes" && viaPlans) || (chip.part !== "yes" && viaCsa);
+              // The ✓ / ✗ at "Plans?" are the plans choice itself.
+              const choice = chip.part === "yes" ? "yes" : chip.part === "no" ? "no" : undefined;
+              const chosen = Boolean(choice && plans === choice);
+              const clickable = Boolean(choice && onChoosePlans);
               return (
-                <g key={chip.part} data-route-chip={chip.part}>
+                <g
+                  key={chip.part}
+                  data-route-chip={chip.part}
+                  data-route-chip-chosen={chosen ? "true" : undefined}
+                  role={clickable ? "button" : undefined}
+                  aria-label={
+                    clickable ? (choice === "yes" ? "Plans: yes" : "Plans: no") : undefined
+                  }
+                  aria-pressed={clickable ? chosen : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  style={clickable ? { cursor: "pointer" } : undefined}
+                  onClick={
+                    clickable ? () => onChoosePlans!(chosen ? undefined : choice) : undefined
+                  }
+                  onKeyDown={
+                    clickable
+                      ? (event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          onChoosePlans!(chosen ? undefined : choice);
+                        }
+                      : undefined
+                  }
+                >
+                  {/* A larger, invisible tap area. */}
+                  {clickable ? (
+                    <rect
+                      x={chip.x - 4}
+                      y={chip.y - layout.chip.height / 2 - 4}
+                      width={layout.chip.width + 8}
+                      height={layout.chip.height + 8}
+                      fill="transparent"
+                    />
+                  ) : null}
                   <rect
                     x={chip.x}
                     y={chip.y - layout.chip.height / 2}
                     width={layout.chip.width}
                     height={layout.chip.height}
                     rx={2.5}
-                    fill={palette.fill}
+                    fill={chosen ? palette.stroke : palette.fill}
                     stroke={palette.stroke}
-                    strokeWidth={lit ? 1.6 : 0.9}
+                    strokeWidth={chosen || lit ? 1.6 : 0.9}
                   />
                   <text
                     x={chip.x + layout.chip.width / 2}
@@ -309,7 +353,8 @@ export function QualificationRouteFlow({
                     dominantBaseline="central"
                     fontSize={8}
                     fontWeight={800}
-                    fill={palette.text}
+                    fill={chosen ? "#ffffff" : palette.text}
+                    pointerEvents="none"
                   >
                     {chip.ok ? "✓" : "✗"}
                   </text>

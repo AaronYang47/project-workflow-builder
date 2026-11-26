@@ -63,7 +63,8 @@ test("every situation lights its own lane, with and without plans", () => {
         );
         continue;
       }
-      const middle = plans === "no" ? ["CSA"] : [];
+      // Without plans: Plan Consultation after an LOI, CSA otherwise.
+      const middle = plans === "no" ? [expected.loi ? "Plan Consultation" : "CSA"] : [];
       expect(result.boxes, label).toEqual([...start, ...middle, ...expected.ends]);
       expect(result.out, label).toBe(true);
       expect(routePathText(item, chosen), label).toBe(

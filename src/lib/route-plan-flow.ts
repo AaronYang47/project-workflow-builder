@@ -19,7 +19,18 @@ type Point = { x: number; y: number };
 
 export type PlanLaneId = "loi-gc" | "owner-regular" | "gc-vip" | "gc-regular";
 
-export type PlanBox = { text: string; x: number; width: number; y: number; loiTag: boolean };
+export type PlanBox = {
+  text: string;
+  x: number;
+  width: number;
+  y: number;
+  loiTag: boolean;
+  /** Smaller type for a long name (Plan Consultation). */
+  fontSize?: number;
+};
+
+/** After an LOI, the consultation without plans is Plan Consultation (styled like the LOI). */
+export const PLAN_CONSULTATION = "Plan Consultation";
 
 export type PlanLane = {
   id: PlanLaneId;
@@ -88,9 +99,10 @@ export function routePlanLayout(): PlanFlowLayout {
   const chipX = forkX + 8;
   const csaX = 210;
   const csaWidth = 34;
-  const backChipX = csaX + csaWidth + 8;
-  const mergeX = 278;
-  const endX = 290;
+  const consultationWidth = 94;
+  // Columns line up in every lane, so the merge sits past the widest box.
+  const mergeX = csaX + consultationWidth + 34;
+  const endX = mergeX + 12;
   const endGap = 14;
   const boxWidth = (text: string) => Math.ceil(text.length * 5.6 + 12);
 
@@ -123,7 +135,16 @@ export function routePlanLayout(): PlanFlowLayout {
     const loiBox: PlanBox | undefined = spec.loi
       ? { text: "LOI", x: loiX, width: loiWidth, y: yTop, loiTag: false }
       : undefined;
-    const csa: PlanBox = { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: spec.loi };
+    const csa: PlanBox = spec.loi
+      ? {
+          text: PLAN_CONSULTATION,
+          x: csaX,
+          width: consultationWidth,
+          y: yBottom,
+          loiTag: false,
+          fontSize: 8,
+        }
+      : { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: false };
     const ends: PlanBox[] = [];
     let x = endX;
     for (const text of spec.ends) {
@@ -174,7 +195,7 @@ export function routePlanLayout(): PlanFlowLayout {
       chips: [
         { x: chipX, y: yTop, ok: true, part: "yes" },
         { x: chipX, y: yBottom, ok: false, part: "no" },
-        { x: backChipX, y: yBottom, ok: true, part: "back" },
+        { x: csa.x + csa.width + 8, y: yBottom, ok: true, part: "back" },
       ],
       question: { x: chipX - 1, y: yTop + 11 },
       ends,
@@ -339,9 +360,11 @@ export function routePathText(
   const steps = [item.client, ...(lane.loi ? ["LOI"] : [])];
   const choice = plansOfCase(item, plans);
   if (!choice) return [...steps, "Plans?"].join(" → ");
-  return [...steps, ...(choice === "no" ? ["CSA"] : []), ...lane.ends.map((box) => box.text)].join(
-    " → ",
-  );
+  return [
+    ...steps,
+    ...(choice === "no" ? [lane.csa.text] : []),
+    ...lane.ends.map((box) => box.text),
+  ].join(" → ");
 }
 
 /**

@@ -17,7 +17,6 @@ import {
 } from "@/lib/qualification";
 import { ROUTE_FLOW_OFF, ROUTE_FLOW_ON } from "@/lib/route-flow-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { cn } from "@/lib/utils";
 import type { DomainNode } from "@/types/workflow";
 import { DepartmentHeaderBar } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
@@ -237,36 +236,6 @@ export function CommercialRouteGroupNode({
       )}
 
       <p className="mt-2 text-sm text-muted-foreground">Route from Qualification Form [1.01]</p>
-      <div data-route-plans-choice className="nodrag mt-1.5 flex items-center gap-2">
-        <span className="text-sm font-semibold text-foreground">Plans available?</span>
-        <div role="group" aria-label="Plans available" className="inline-flex gap-1">
-          {(["yes", "no"] as const).map((option) => {
-            const active = plans === option;
-            return (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={active}
-                disabled={!qualificationNode}
-                onClick={() => setPlans(active ? undefined : option)}
-                className={cn(
-                  "rounded-md border px-3 py-1 text-xs font-bold disabled:opacity-50",
-                  active
-                    ? option === "yes"
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-rose-600 bg-rose-600 text-white"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {option === "yes" ? "Yes" : "No"}
-              </button>
-            );
-          })}
-        </div>
-        {!plans ? (
-          <span className="text-xs text-muted-foreground">Choose to complete the route.</span>
-        ) : null}
-      </div>
       <QualificationRouteFlow
         id={node.id}
         svgRef={svgRef}
@@ -275,6 +244,7 @@ export function CommercialRouteGroupNode({
         currentId={activeCase?.id}
         client={activeCase?.client}
         plans={plans}
+        onChoosePlans={qualificationNode ? setPlans : undefined}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}
@@ -295,7 +265,8 @@ export function CommercialRouteGroupNode({
       >
         {!agreements.length && (
           <p className="rounded-xl border border-dashed p-3 text-[11px] text-muted-foreground">
-            The project parties in Q3 and the Plans choice above determine the agreement.
+            The project parties in Q3 and the ✓ / ✗ plans choice in the chart determine the
+            agreement.
           </p>
         )}
         {agreements.map((path) => {
