@@ -14,14 +14,13 @@ import {
   routePlanExitBus,
   routePlanLayout,
   type PlanBox,
-  type PlanLane,
 } from "@/lib/route-plan-flow";
 import { roundedPath } from "@/lib/semantic-edge-geometry";
 
 /**
- * Every customer's route from Qualification, as one lane each: [LOI] → plans?
- * → (consultant service until there are plans) → GC / PCS. The path from
- * Form [1.01] is highlighted.
+ * Every customer's route from Qualification. Customers on the same path share
+ * a lane: [LOI] → plans? → (CSA until there are plans) → GC / PCS. The path
+ * from Form [1.01] is highlighted.
  */
 
 /** The colour of a route's tag (LOI, CSA, PCS), which its lines take in the print. */
@@ -30,17 +29,9 @@ const LOI = ROUTE_STEP_COLORS.LOI;
 const YES = { stroke: "#059669", fill: "#ecfdf5", text: "#047857" };
 const NO = { stroke: "#dc2626", fill: "#fef2f2", text: "#b91c1c" };
 
-function Box({
-  box,
-  boxHeight,
-  on,
-  laneOn,
-}: {
-  box: PlanBox;
-  boxHeight: number;
-  on: boolean;
-  laneOn: boolean;
-}) {
+type Point = { x: number; y: number };
+
+function Box({ box, boxHeight, on }: { box: PlanBox; boxHeight: number; on: boolean }) {
   const palette = ROUTE_STEP_COLORS[box.text] ?? ROUTE_STEP_DEFAULT;
   const top = box.y - boxHeight / 2;
   return (
@@ -53,7 +44,7 @@ function Box({
         rx={3}
         fill={palette.fill}
         stroke={palette.stroke}
-        strokeWidth={on ? 1.8 : laneOn ? 1.2 : 1}
+        strokeWidth={on ? 1.8 : 1}
       />
       <text
         x={box.x + box.width / 2}
@@ -117,20 +108,17 @@ export function QualificationRouteFlow({
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
   const viewWidth = exitBus ? bus.width : layout.width;
   const current = QUALIFICATION_CASES.find((item) => item.id === currentId);
-  const litLane = laneOfCase(currentId);
+  const litLane = laneOfCase(currentId, layout);
   const litPlans = plansOfCase(current, plans);
   // The route reaches the end once we know which way the plans question goes.
   const finalLane = litLane && litPlans ? litLane : undefined;
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
 
-  const segment = (
-    lane: PlanLane,
-    points: { x: number; y: number }[],
+  const line = (
+    points: Point[],
     on: boolean,
-    options: { arrow?: boolean; printColor?: string; part: string; dashed?: boolean } = {
-      part: "",
-    },
+    options: { arrow?: boolean; printColor?: string; part: string; dashed?: boolean },
   ) =>
     points.length ? (
       <path
@@ -176,112 +164,104 @@ export function QualificationRouteFlow({
         ))}
       </defs>
 
-      {/* Each client box branches into its lanes. */}
-      {layout.clients.map((item) => {
-        const lanes = layout.lanes.filter((lane) => lane.client === item.client);
-        if (lanes.length < 2) return null;
-        const on = lanes.some((lane) => lane.id === litLane);
-        const trunkX = layout.clientWidth + 10;
+      {/* Client boxes → their situations → onto a lane. */}
+      {layout.trunks.map((trunk) => {
+        const on = Boolean(currentId && trunk.caseIds.includes(currentId));
         return (
-          <path
-            key={`trunk-${item.client}`}
-            d={roundedPath(
-              [
-                { x: trunkX, y: lanes[0].yTop },
-                { x: trunkX, y: lanes.at(-1)!.yTop },
-              ],
-              4,
-            )}
-            fill="none"
-            stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-            strokeWidth={on ? 2.2 : 1.2}
-          />
+          <g key={`trunk-${trunk.client}`} data-route-trunk={trunk.client}>
+            {line(trunk.points.slice(0, 2), on, { part: "client" })}
+            {line(trunk.points.slice(2), on, { part: "trunk" })}
+          </g>
+        );
+      })}
+      {layout.branches.map((branch) => {
+        const on = Boolean(currentId && branch.caseIds.includes(currentId));
+        const lane = layout.lanes.find((item) =>
+          item.cases.some((caseId) => branch.caseIds.includes(caseId)),
+        );
+        return (
+          <g
+            key={branch.caseIds.join("-")}
+            data-route-branch={branch.caseIds.join(" ")}
+            aria-label={[branch.client, branch.label].filter(Boolean).join(" · ")}
+            className={currentId && !on ? "opacity-55" : undefined}
+          >
+            {branch.label
+              ? line(
+                  [
+                    { x: layout.clientWidth + 10, y: branch.labelY! },
+                    { x: branch.labelX! - 2, y: branch.labelY! },
+                  ],
+                  on,
+                  { part: "branch" },
+                )
+              : null}
+            {branch.label ? (
+              <text
+                x={branch.labelX}
+                y={branch.labelY}
+                dominantBaseline="central"
+                fontSize={9.5}
+                fontWeight={on ? 800 : 600}
+                fill={on ? ROUTE_FLOW_ON : "currentColor"}
+              >
+                {branch.label}
+              </text>
+            ) : null}
+            {line(branch.points, on, {
+              part: "join",
+              printColor: lane?.loi ? LOI.stroke : undefined,
+            })}
+          </g>
         );
       })}
 
       {layout.lanes.map((lane) => {
         const laneOn = lane.id === litLane;
-        const dim = Boolean(currentId) && !laneOn;
         const viaPlans = laneOn && litPlans === "yes";
-        const viaService = laneOn && litPlans === "no";
-        const ends = viaPlans || viaService;
-        const trunkX = layout.clientWidth + 10;
+        const viaCsa = laneOn && litPlans === "no";
+        const ends = viaPlans || viaCsa;
         return (
           <g
             key={lane.id}
-            aria-label={[lane.client, lane.label].filter(Boolean).join(" · ")}
             data-qualification-route-lane={lane.id}
             data-qualification-route-case={laneOn ? currentId : undefined}
             data-route-plans={laneOn ? litPlans : undefined}
             data-active={laneOn ? "true" : undefined}
-            className={dim ? "opacity-55" : undefined}
+            className={currentId && !laneOn ? "opacity-55" : undefined}
           >
-            {/* Client box → its branch → the lane. */}
-            {lane.label
-              ? segment(
-                  lane,
-                  [
-                    {
-                      x: layout.clientWidth,
-                      y: layout.clients.find((c) => c.client === lane.client)!.mid,
-                    },
-                    { x: trunkX, y: layout.clients.find((c) => c.client === lane.client)!.mid },
-                  ],
-                  laneOn,
-                  { part: "client" },
-                )
-              : null}
-            {lane.label
-              ? segment(
-                  lane,
-                  [
-                    { x: trunkX, y: lane.yTop },
-                    { x: (lane.labelX ?? trunkX) - 2, y: lane.yTop },
-                  ],
-                  laneOn,
-                  { part: "branch" },
-                )
-              : null}
-            {lane.label ? (
-              <text
-                x={lane.labelX}
-                y={lane.yTop}
-                dominantBaseline="central"
-                fontSize={9.5}
-                fontWeight={laneOn ? 800 : 600}
-                fill={laneOn ? ROUTE_FLOW_ON : "currentColor"}
-              >
-                {lane.label}
-              </text>
-            ) : null}
-            {segment(lane, lane.entry, laneOn, {
+            {line(lane.entry, laneOn, {
               arrow: true,
               part: "entry",
               printColor: lane.loi ? LOI.stroke : undefined,
             })}
-            {segment(lane, lane.toFork, laneOn, {
+            {line(lane.toFork, laneOn, {
               part: "to-fork",
               printColor: lane.loi ? LOI.stroke : undefined,
             })}
-
-            {/* Plans? Yes: straight on. No: the consultant service, until there are plans. */}
-            {segment(lane, lane.yes, viaPlans, {
+            {/* Plans? Yes: straight on. No: CSA until there are plans, then back on the line. */}
+            {line(lane.yes, viaPlans, {
               arrow: true,
               part: "yes",
               printColor: tagColor(lane.ends[0].text),
             })}
-            {segment(lane, lane.no, viaService, {
+            {line(lane.no, viaCsa, { arrow: true, part: "no", printColor: tagColor("CSA") })}
+            {line(lane.loop, false, { arrow: true, part: "loop", dashed: true })}
+            <text
+              x={lane.loopLabel.x}
+              y={lane.loopLabel.y}
+              dominantBaseline="central"
+              fontSize={7}
+              fontStyle="italic"
+              fill="#64748b"
+            >
+              until plans
+            </text>
+            {line(lane.back, viaCsa, {
               arrow: true,
-              part: "no",
-              printColor: tagColor(lane.service.text),
-            })}
-            {segment(lane, lane.toFork2, viaService, { part: "to-fork2" })}
-            {segment(lane, lane.yes2, viaService, {
-              arrow: true,
-              part: "yes2",
+              part: "back",
               printColor: tagColor(lane.ends[0].text),
             })}
-            {segment(lane, lane.loop, false, { arrow: true, part: "loop", dashed: true })}
             {lane.endLinks.map((link, index) => (
               <line
                 key={`end-${index}`}
@@ -296,25 +276,19 @@ export function QualificationRouteFlow({
                 markerEnd={`url(#${ends ? markerOn : markerOff})`}
               />
             ))}
-
-            {lane.questions.map((point, index) => (
-              <text
-                key={`q-${index}`}
-                x={point.x}
-                y={point.y}
-                dominantBaseline="central"
-                fontSize={7}
-                fontStyle="italic"
-                fill="#64748b"
-              >
-                Plans?
-              </text>
-            ))}
+            <text
+              x={lane.question.x}
+              y={lane.question.y}
+              dominantBaseline="central"
+              fontSize={7}
+              fontStyle="italic"
+              fill="#64748b"
+            >
+              Plans?
+            </text>
             {lane.chips.map((chip) => {
               const palette = chip.ok ? YES : NO;
-              const lit =
-                (chip.part === "yes" && viaPlans) ||
-                ((chip.part === "no" || chip.part === "yes2") && viaService);
+              const lit = (chip.part === "yes" && viaPlans) || (chip.part !== "yes" && viaCsa);
               return (
                 <g key={chip.part} data-route-chip={chip.part}>
                   <rect
@@ -341,19 +315,12 @@ export function QualificationRouteFlow({
                 </g>
               );
             })}
-
             {lane.loiBox ? (
-              <Box box={lane.loiBox} boxHeight={layout.boxHeight} on={laneOn} laneOn={laneOn} />
+              <Box box={lane.loiBox} boxHeight={layout.boxHeight} on={laneOn} />
             ) : null}
-            <Box box={lane.service} boxHeight={layout.boxHeight} on={viaService} laneOn={laneOn} />
+            <Box box={lane.csa} boxHeight={layout.boxHeight} on={viaCsa} />
             {lane.ends.map((box) => (
-              <Box
-                key={box.text}
-                box={box}
-                boxHeight={layout.boxHeight}
-                on={ends}
-                laneOn={laneOn}
-              />
+              <Box key={box.text} box={box} boxHeight={layout.boxHeight} on={ends} />
             ))}
             <circle
               data-qualification-route-exit={lane.id}
@@ -410,7 +377,12 @@ export function QualificationRouteFlow({
       {layout.clients.map((item) => {
         const on =
           item.client === client ||
-          layout.lanes.some((lane) => lane.client === item.client && lane.id === litLane);
+          Boolean(
+            currentId &&
+            layout.branches.some(
+              (branch) => branch.client === item.client && branch.caseIds.includes(currentId),
+            ),
+          );
         return (
           <g
             key={item.client}

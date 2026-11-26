@@ -193,16 +193,20 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   const flow = routeNode.locator("[data-qualification-route-flow]");
   await expect(node.locator("[data-qualification-route-flow]")).toHaveCount(0);
   const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
-  // One lane per kind of customer: ProFab, Owner VIP / Regular, GC VIP / Regular.
-  await expect(flow.locator("[data-qualification-route-lane]")).toHaveCount(5);
-  // Each lane asks about plans twice and loops back through CS / CSA without them.
-  await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(5);
-  await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(3);
-  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
-  // Every box after an LOI carries a small LOI tag: CS, and the GC / PCS that follow.
-  await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(3 + 2 + 2 + 1);
+  // Customers on the same path share a lane: ProFab + Owner VIP (LOI), Owner
+  // Regular, GC VIP (LOI), GC Regular.
+  await expect(flow.locator("[data-qualification-route-lane]")).toHaveCount(4);
+  await expect(
+    flow.locator('[data-route-branch="owner-vip"] [data-route-part="join"]'),
+  ).toHaveCount(1);
+  // One "Plans?" per lane; without plans, CSA until there are plans.
+  await expect(flow.getByText("Plans?")).toHaveCount(4);
+  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(4);
+  await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(0);
+  // Every box after an LOI carries a small LOI tag: CSA, and the GC / PCS that follow.
+  await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(3 + 2);
   // Each lane leaves the chart on the right of its last box (PCS).
-  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(5);
+  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(4);
   expect(
     await flow.locator("[data-qualification-route-lane]").evaluateAll((lanes) =>
       lanes.map((lane) => {
@@ -212,7 +216,7 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
         return Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5;
       }),
     ),
-  ).toEqual([true, true, true, true, true]);
+  ).toEqual([true, true, true, true]);
   await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
   await expect(flow.getByRole("button")).toHaveCount(0);

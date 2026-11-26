@@ -1,64 +1,72 @@
 import type { QualificationCase } from "@/lib/qualification";
 
 /**
- * The Route Selection chart: each kind of customer runs along its own lane.
- * After any LOI, the lane asks whether there are plans. With plans it goes
- * straight on; without, it goes through a consultant service (CS after an LOI,
- * CSA otherwise), asks again, and loops back until there are plans. ProFab and
- * Owner lanes finish with the GC and PCS; GC lanes finish with PCS.
+ * The Route Selection chart. Customers that take the same path share a lane:
+ *
+ *   ProFab, Owner VIP  → LOI → Plans? → GC → PCS
+ *   Owner Regular      →       Plans? → GC → PCS
+ *   GC VIP             → LOI → Plans? → PCS
+ *   GC Regular         →       Plans? → PCS
+ *
+ * "Plans?" — with plans, straight on; without, CSA (with an LOI tag after an
+ * LOI) until there are plans, then back onto the line. Every box after an LOI
+ * carries a small LOI tag.
  *
  * Units are pixels at a 9–10px font; the canvas and the PDF both draw this.
  */
 
 type Point = { x: number; y: number };
 
-export type PlanLaneId = "profab" | "owner-vip" | "owner-regular" | "gc-vip" | "gc-regular";
+export type PlanLaneId = "loi-gc" | "owner-regular" | "gc-vip" | "gc-regular";
 
 export type PlanBox = { text: string; x: number; width: number; y: number; loiTag: boolean };
 
 export type PlanLane = {
   id: PlanLaneId;
-  client: "ProFab" | "Owner" | "GC";
-  /** "VIP" / "Regular"; ProFab has none. */
-  label?: string;
   loi: boolean;
-  /** Qualification situations shown on this lane. */
+  /** Qualification situations that run along this lane. */
   cases: string[];
   yTop: number;
   yBottom: number;
-  yLoop: number;
-  /** Client box (or its branch) to the first box or the first question. */
+  /** From where the customers join the lane to the LOI box or the fork. */
   entry: Point[];
-  labelX?: number;
   loiBox?: PlanBox;
-  /** From the LOI (or the entry) to the first "Plans?" fork. */
   toFork: Point[];
   forkX: number;
-  /** Plans: straight on along the top to the end boxes. */
+  /** Plans: straight on to the end boxes. */
   yes: Point[];
-  /** No plans: down to the consultant service. */
+  /** No plans: down to CSA. */
   no: Point[];
-  service: PlanBox;
-  /** Consultant service to the second fork. */
-  toFork2: Point[];
-  fork2X: number;
-  /** Plans now: back up onto the top line. */
-  yes2: Point[];
-  /** Still no plans: round and back into the consultant service. */
+  csa: PlanBox;
+  /** CSA until there are plans. */
   loop: Point[];
-  chips: { x: number; y: number; ok: boolean; part: "yes" | "no" | "yes2" | "loop" }[];
-  /** Where each "Plans?" question is written. */
-  questions: Point[];
+  loopLabel: Point;
+  /** Plans now: back up onto the line. */
+  back: Point[];
+  chips: { x: number; y: number; ok: boolean; part: "yes" | "no" | "back" }[];
+  question: Point;
   ends: PlanBox[];
-  /** Arrows between the end boxes. */
   endLinks: [Point, Point][];
   exit: Point;
+};
+
+/** A customer's own line from its client box onto its lane. */
+export type PlanBranch = {
+  caseIds: string[];
+  client: string;
+  label?: string;
+  labelX?: number;
+  labelY?: number;
+  points: Point[];
 };
 
 export type PlanClient = { client: string; top: number; bottom: number; mid: number };
 
 export type PlanFlowLayout = {
   lanes: PlanLane[];
+  branches: PlanBranch[];
+  /** The line a client box branches from, when it has two situations. */
+  trunks: { client: string; caseIds: string[]; points: Point[] }[];
   clients: PlanClient[];
   clientWidth: number;
   boxHeight: number;
@@ -67,96 +75,62 @@ export type PlanFlowLayout = {
   height: number;
 };
 
-const LANES: {
-  id: PlanLaneId;
-  client: PlanLane["client"];
-  label?: string;
-  loi: boolean;
-  cases: string[];
-}[] = [
-  { id: "profab", client: "ProFab", loi: true, cases: ["profab"] },
-  { id: "owner-vip", client: "Owner", label: "VIP", loi: true, cases: ["owner-vip"] },
-  {
-    id: "owner-regular",
-    client: "Owner",
-    label: "Regular",
-    loi: false,
-    cases: ["owner-no-plans", "owner-plans"],
-  },
-  { id: "gc-vip", client: "GC", label: "VIP", loi: true, cases: ["gc-vip"] },
-  {
-    id: "gc-regular",
-    client: "GC",
-    label: "Regular",
-    loi: false,
-    cases: ["gc-no-plans", "gc-plans"],
-  },
-];
-
 export function routePlanLayout(): PlanFlowLayout {
   const clientWidth = 56;
   const trunkX = clientWidth + 10;
   const labelX = trunkX + 8;
+  const joinX = 124;
   const boxHeight = 16;
   const chip = { width: 13, height: 11 };
-  const loiX = 124;
+  const loiX = 134;
   const loiWidth = 30;
-  const forkX = 168;
+  const forkX = 178;
   const chipX = forkX + 8;
-  const serviceX = 206;
-  const serviceWidth = 32;
-  const fork2X = serviceX + serviceWidth + 12;
-  const chip2X = fork2X + 8;
-  const mergeX = 294;
-  const endX = 306;
+  const csaX = 210;
+  const csaWidth = 34;
+  const backChipX = csaX + csaWidth + 8;
+  const mergeX = 278;
+  const endX = 290;
   const endGap = 14;
   const boxWidth = (text: string) => Math.ceil(text.length * 5.6 + 12);
-  const laneStep = 62;
-  const groupGap = 10;
 
-  const lanes: PlanLane[] = [];
-  const clients: PlanClient[] = [];
-  let y = 14;
-  let width = 0;
-  let previousClient = "";
-  for (const spec of LANES) {
-    if (previousClient && spec.client !== previousClient) y += groupGap;
-    previousClient = spec.client;
-    const yTop = y;
+  const yLane = { "loi-gc": 16, "owner-regular": 92, "gc-vip": 160, "gc-regular": 222 };
+  const specs: { id: PlanLaneId; loi: boolean; cases: string[]; ends: string[] }[] = [
+    { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC", "PCS"] },
+    {
+      id: "owner-regular",
+      loi: false,
+      cases: ["owner-no-plans", "owner-plans"],
+      ends: ["GC", "PCS"],
+    },
+    { id: "gc-vip", loi: true, cases: ["gc-vip"], ends: ["PCS"] },
+    { id: "gc-regular", loi: false, cases: ["gc-no-plans", "gc-plans"], ends: ["PCS"] },
+  ];
+
+  const lanes: PlanLane[] = specs.map((spec) => {
+    const yTop = yLane[spec.id];
     const yBottom = yTop + 22;
-    const yLoop = yBottom + 21;
     const half = boxHeight / 2;
-    const labelEnd = spec.label ? labelX + spec.label.length * 5.6 + 4 : clientWidth;
     const loiBox: PlanBox | undefined = spec.loi
       ? { text: "LOI", x: loiX, width: loiWidth, y: yTop, loiTag: false }
       : undefined;
-    const entryEnd = loiBox ? loiBox.x : forkX;
-    const service: PlanBox = {
-      text: spec.loi ? "CS" : "CSA",
-      x: serviceX,
-      width: serviceWidth,
-      y: yBottom,
-      loiTag: spec.loi,
-    };
-    const endTexts = spec.client === "GC" ? ["PCS"] : ["GC", "PCS"];
+    const csa: PlanBox = { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: spec.loi };
     const ends: PlanBox[] = [];
     let x = endX;
-    for (const text of endTexts) {
-      const w = boxWidth(text);
-      ends.push({ text, x, width: w, y: yTop, loiTag: spec.loi });
-      x += w + endGap;
+    for (const text of spec.ends) {
+      const width = boxWidth(text);
+      ends.push({ text, x, width, y: yTop, loiTag: spec.loi });
+      x += width + endGap;
     }
     const last = ends.at(-1)!;
-    const serviceMid = service.x + service.width / 2;
-    lanes.push({
+    const loopBottom = yBottom + half + 7;
+    return {
       ...spec,
       yTop,
       yBottom,
-      yLoop,
-      labelX: spec.label ? labelX : undefined,
       entry: [
-        { x: labelEnd + (spec.label ? 2 : 0), y: yTop },
-        { x: entryEnd, y: yTop },
+        { x: joinX, y: yTop },
+        { x: loiBox ? loiBox.x : forkX, y: yTop },
       ],
       loiBox,
       toFork: loiBox
@@ -173,68 +147,151 @@ export function routePlanLayout(): PlanFlowLayout {
       no: [
         { x: forkX, y: yTop },
         { x: forkX, y: yBottom },
-        { x: service.x, y: yBottom },
+        { x: csa.x, y: yBottom },
       ],
-      service,
-      toFork2: [
-        { x: service.x + service.width, y: yBottom },
-        { x: fork2X, y: yBottom },
+      csa,
+      loop: [
+        { x: csa.x + csa.width - 6, y: yBottom + half },
+        { x: csa.x + csa.width - 6, y: loopBottom },
+        { x: csa.x + 8, y: loopBottom },
+        { x: csa.x + 8, y: yBottom + half },
       ],
-      fork2X,
-      yes2: [
-        { x: fork2X, y: yBottom },
+      loopLabel: { x: csa.x + csa.width + 2, y: loopBottom },
+      back: [
+        { x: csa.x + csa.width, y: yBottom },
         { x: mergeX, y: yBottom },
         { x: mergeX, y: yTop },
-      ],
-      loop: [
-        { x: fork2X, y: yBottom },
-        { x: fork2X, y: yLoop },
-        { x: mergeX - 8, y: yLoop },
-        { x: mergeX - 8, y: yLoop + 8 },
-        { x: serviceMid, y: yLoop + 8 },
-        { x: serviceMid, y: yBottom + half },
       ],
       chips: [
         { x: chipX, y: yTop, ok: true, part: "yes" },
         { x: chipX, y: yBottom, ok: false, part: "no" },
-        { x: chip2X, y: yBottom, ok: true, part: "yes2" },
-        { x: chip2X, y: yLoop, ok: false, part: "loop" },
+        { x: backChipX, y: yBottom, ok: true, part: "back" },
       ],
-      questions: [
-        { x: chipX - 1, y: yTop + 11 },
-        { x: chip2X + 1, y: yBottom + 10.5 },
-      ],
+      question: { x: chipX - 1, y: yTop + 11 },
       ends,
       endLinks: ends.slice(1).map((box, index) => [
         { x: ends[index].x + ends[index].width, y: yTop },
         { x: box.x, y: yTop },
       ]),
       exit: { x: last.x + last.width, y: yTop },
-    });
-    width = Math.max(width, last.x + last.width + 6);
-    const client = clients.find((item) => item.client === spec.client);
-    const top = yTop - 12;
-    const bottom = yLoop + 12;
-    if (client) {
-      client.bottom = bottom;
-      client.mid = (client.top + client.bottom) / 2;
-    } else clients.push({ client: spec.client, top, bottom, mid: (top + bottom) / 2 });
-    y += laneStep;
-  }
+    };
+  });
+
+  const lane = (id: PlanLaneId) => lanes.find((item) => item.id === id)!;
+  const ownerVipY = yLane["loi-gc"] + 34;
+  const branches: PlanBranch[] = [
+    {
+      caseIds: ["profab"],
+      client: "ProFab",
+      points: [
+        { x: clientWidth, y: yLane["loi-gc"] },
+        { x: joinX, y: yLane["loi-gc"] },
+      ],
+    },
+    {
+      // Owner VIP rises into the ProFab lane: the same LOI path.
+      caseIds: ["owner-vip"],
+      client: "Owner",
+      label: "VIP",
+      labelX,
+      labelY: ownerVipY,
+      points: [
+        { x: labelX + 22, y: ownerVipY },
+        { x: joinX, y: ownerVipY },
+        { x: joinX, y: yLane["loi-gc"] },
+      ],
+    },
+    {
+      caseIds: lane("owner-regular").cases,
+      client: "Owner",
+      label: "Regular",
+      labelX,
+      labelY: yLane["owner-regular"],
+      points: [
+        { x: labelX + 44, y: yLane["owner-regular"] },
+        { x: joinX, y: yLane["owner-regular"] },
+      ],
+    },
+    {
+      caseIds: ["gc-vip"],
+      client: "GC",
+      label: "VIP",
+      labelX,
+      labelY: yLane["gc-vip"],
+      points: [
+        { x: labelX + 22, y: yLane["gc-vip"] },
+        { x: joinX, y: yLane["gc-vip"] },
+      ],
+    },
+    {
+      caseIds: lane("gc-regular").cases,
+      client: "GC",
+      label: "Regular",
+      labelX,
+      labelY: yLane["gc-regular"],
+      points: [
+        { x: labelX + 44, y: yLane["gc-regular"] },
+        { x: joinX, y: yLane["gc-regular"] },
+      ],
+    },
+  ];
+
+  const ownerTop = yLane["loi-gc"] + 24;
+  const ownerBottom = yLane["owner-regular"] + 34;
+  const gcTop = yLane["gc-vip"] - 12;
+  const gcBottom = yLane["gc-regular"] + 34;
+  const clients: PlanClient[] = [
+    {
+      client: "ProFab",
+      top: yLane["loi-gc"] - 14,
+      bottom: yLane["loi-gc"] + 14,
+      mid: yLane["loi-gc"],
+    },
+    { client: "Owner", top: ownerTop, bottom: ownerBottom, mid: (ownerTop + ownerBottom) / 2 },
+    { client: "GC", top: gcTop, bottom: gcBottom, mid: (gcTop + gcBottom) / 2 },
+  ];
+  const trunks = [
+    {
+      client: "Owner",
+      caseIds: ["owner-vip", ...lane("owner-regular").cases],
+      points: [
+        { x: clientWidth, y: clients[1].mid },
+        { x: trunkX, y: clients[1].mid },
+      ],
+      span: [ownerVipY, yLane["owner-regular"]],
+    },
+    {
+      client: "GC",
+      caseIds: ["gc-vip", ...lane("gc-regular").cases],
+      points: [
+        { x: clientWidth, y: clients[2].mid },
+        { x: trunkX, y: clients[2].mid },
+      ],
+      span: [yLane["gc-vip"], yLane["gc-regular"]],
+    },
+  ].map(({ span, ...trunk }) => ({
+    ...trunk,
+    // The box's line in, then the branch line up and down to both situations.
+    points: [...trunk.points, { x: trunkX, y: span[0] }, { x: trunkX, y: span[1] }],
+  }));
+  const width = Math.max(...lanes.map((item) => item.exit.x)) + 6;
   return {
     lanes,
+    branches,
+    trunks,
     clients,
     clientWidth,
     boxHeight,
     chip,
     width,
-    height: clients.at(-1)!.bottom + 2,
+    height: gcBottom + 2,
   };
 }
 
-/** The lane that shows a Qualification situation. */
-export const laneOfCase = (caseId: string | undefined) =>
-  caseId ? LANES.find((lane) => lane.cases.includes(caseId))?.id : undefined;
+/** The lane a Qualification situation runs along. */
+export function laneOfCase(caseId: string | undefined, layout: PlanFlowLayout) {
+  return caseId ? layout.lanes.find((lane) => lane.cases.includes(caseId))?.id : undefined;
+}
 
 /** With or without plans, for a situation (Regular situations say so themselves). */
 export function plansOfCase(
