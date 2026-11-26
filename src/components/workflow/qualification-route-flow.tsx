@@ -250,10 +250,31 @@ export function QualificationRouteFlow({
       {/* Client boxes → their situations → onto a lane. */}
       {layout.trunks.map((trunk) => {
         const on = trunk.client === litClient;
+        // Lit only from the box to the chosen situation, not on to the other one.
+        const litBranch = on
+          ? layout.branches.find(
+              (branch) =>
+                branch.client === trunk.client &&
+                layout.lanes
+                  .find((item) => item.id === litLane)
+                  ?.cases.some((caseId) => branch.caseIds.includes(caseId)),
+            )
+          : undefined;
+        const [, , ...ends] = trunk.points;
         return (
           <g key={`trunk-${trunk.client}`} data-route-trunk={trunk.client}>
             {line(trunk.points.slice(0, 2), on, { part: "client" })}
-            {line(trunk.points.slice(2), on, { part: "trunk" })}
+            {line(ends, false, { part: "trunk" })}
+            {litBranch?.labelY !== undefined
+              ? line(
+                  [
+                    { x: ends[0].x, y: trunk.points[1].y },
+                    { x: ends[0].x, y: litBranch.labelY },
+                  ],
+                  true,
+                  { part: "trunk-lit" },
+                )
+              : null}
           </g>
         );
       })}

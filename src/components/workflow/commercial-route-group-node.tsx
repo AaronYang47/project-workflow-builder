@@ -24,7 +24,10 @@ import { QualificationRouteFlow } from "./qualification-route-flow";
 import {
   ROUTE_FLOW_SCALE,
   laneForCustomer,
+  laneHighlight,
+  plansOfCase,
   pendingRouteText,
+  routeHighlight,
   routePathText,
   routePlanExitBus,
   routePlanLayout,
@@ -173,7 +176,17 @@ export function CommercialRouteGroupNode({
   const agreements = route ? AGREEMENTS[route] : [];
   const ready = commercialWorkflowReady(node, qualification);
   const activeCase = reached ? customerCase : undefined;
-  const exitActive = Boolean(activeCase);
+  // Lit as soon as the chart's path reaches the way out, so the line meets the dot.
+  const chartCase = activeCase ?? (choiceLane ? customerCase : undefined);
+  const chartOut = choiceLane
+    ? laneHighlight(
+        layout,
+        choiceLane,
+        plansOfCase(chartCase, plans),
+        qualification.routeConsultPlans,
+      ).out
+    : routeHighlight(layout, chartCase, plans, qualification.routeConsultPlans).out;
+  const exitActive = Boolean(activeCase) || chartOut;
   const lineColor = exitActive ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
 
   return (

@@ -397,6 +397,21 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(chosen.locator('[data-qualification-flow-box="GC"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="PCS"]')).toHaveCount(1);
+  // Only the Owner's line down to Regular is lit, not on up towards VIP.
+  const trunk = flow.locator('[data-route-trunk="Owner"]');
+  await expect(trunk.locator('[data-route-part="trunk"]')).not.toHaveAttribute(
+    "data-route-part-on",
+    "true",
+  );
+  const litTrunk = trunk.locator('[data-route-part="trunk-lit"]');
+  await expect(litTrunk).toHaveAttribute("data-route-part-on", "true");
+  const regularY = await flow.locator('[data-route-branch~="owner-plans"] text').getAttribute("y");
+  expect(await litTrunk.getAttribute("d")).toMatch(new RegExp(`L[\\d.]+,${regularY}$`));
+  // The finished path's green carries on to the card's way out.
+  await expect(routeNode.locator("[data-route-selection-exit-line]")).toHaveCSS(
+    "background-color",
+    "rgb(22, 163, 74)",
+  );
   await expect(estimate).toBeDisabled();
   await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");
   await expect(estimate).toBeEnabled();
