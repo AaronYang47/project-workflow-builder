@@ -206,6 +206,9 @@ export function ProcessOverview() {
     handoff.elapsedDays === null
       ? "Time after Sales handoff not estimated"
       : `${Number((handoff.elapsedDays / workingDaysPerWeek).toFixed(1))} ${handoff.elapsedDays === workingDaysPerWeek ? "week" : "weeks"} estimated${timeline.enabled ? " total elapsed time" : handoff.hasSalesDepartment ? " from Sales handoff" : ""}${schedule.unscheduled ? " · partial" : ""}`;
+  // Technical handoff: the end of the last Sales step (a date once the Calendar is set).
+  const handoffLabel =
+    handoff.originDay === null ? "" : timeline.handoffDate || axis.timeLabel(handoff.originDay);
   const viewToggle = (active: boolean) =>
     `min-h-10 flex-1 rounded-lg px-3 text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "border bg-background"}`;
 
@@ -309,6 +312,17 @@ export function ProcessOverview() {
                     commit((current) => ({ ...current, factoryProduction }))
                   }
                 />
+                {handoff.hasSalesDepartment ? (
+                  <span
+                    data-technical-handoff-summary
+                    className="rounded-lg border border-blue-600/40 bg-blue-600/10 px-3 py-2 font-semibold text-blue-700 dark:text-blue-300"
+                  >
+                    Technical handoff ·{" "}
+                    {handoff.originDay === null
+                      ? "set every Sales duration"
+                      : timeline.handoffDate || handoffLabel}
+                  </span>
+                ) : null}
                 <span className="rounded-lg border bg-primary/10 px-3 py-2 font-semibold">
                   {elapsedSummary}
                 </span>
@@ -384,6 +398,28 @@ export function ProcessOverview() {
                 className={`${mobileGanttView === "timeline" ? "block" : "hidden sm:block"} overflow-x-auto overscroll-x-contain data-[gantt-panning=true]:cursor-grabbing`}
               >
                 <div className="relative" style={{ minWidth: 168 + minimumTimelineWidth }}>
+                  {handoff.hasSalesDepartment &&
+                  handoff.originDay !== null &&
+                  handoff.originDay > 0 ? (
+                    <div
+                      aria-hidden="true"
+                      className={`${ROW_GRID} pointer-events-none absolute inset-0 z-[15]`}
+                    >
+                      <div />
+                      <div className="relative">
+                        <div
+                          data-technical-handoff={handoffLabel}
+                          title={`Technical handoff · ${handoffLabel}`}
+                          className="absolute inset-y-0 -translate-x-1/2 border-l-2 border-dashed border-blue-600"
+                          style={{ left: `${(handoff.originDay / total) * 100}%` }}
+                        >
+                          <span className="absolute left-1 top-[86px] whitespace-nowrap rounded bg-blue-600 px-1 text-[9px] font-bold leading-4 text-white">
+                            Technical handoff · {handoffLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {completionDay !== undefined ? (
                     <div
                       aria-hidden="true"

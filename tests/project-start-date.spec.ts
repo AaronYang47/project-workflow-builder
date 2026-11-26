@@ -56,3 +56,22 @@ test("L6 shows each project's start and handoff, and its drags save like L4", ()
       .find((item) => item.scheduleKey === task.scheduleKey)!.days,
   ).toBe(task.days + 2);
 });
+
+test("L4 shows the Technical handoff date as a line and in the summary", async ({ page }) => {
+  const { seedE2EWorkflow } = await import("./support/e2e-workflow");
+  const file = withDurations();
+  file.calendar = { startDate: "2026-10-05", projectStartDate: "2026-10-05", shutdowns: [] };
+  // Make the Project Start department a Sales one, so there is a handoff.
+  const start = file.graph.nodes.find((node) => node.type === "projectStart")!;
+  start.config.stage = "Sales";
+  const schedule = buildProcessSchedule(file);
+  const timeline = buildProcessTimeline(file, schedule);
+  expect(timeline.originDay).toBeGreaterThan(0);
+  await seedE2EWorkflow(page, file);
+  await page.goto("/process-overview");
+  await expect(page.locator("[data-technical-handoff-summary]")).toContainText(timeline.handoffDate);
+  await expect(page.locator("[data-technical-handoff]")).toHaveAttribute(
+    "data-technical-handoff",
+    timeline.handoffDate,
+  );
+});

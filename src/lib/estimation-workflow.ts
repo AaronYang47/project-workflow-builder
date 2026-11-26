@@ -339,13 +339,25 @@ export function ensureEstimationWorkflow(input: WorkflowFile, estimationId?: str
   const estimationNode = file.graph.nodes.find((node) => node.id === id);
   if (estimationNode && !estimationNode.conditions.length)
     estimationNode.conditions = [
-      { id: ESTIMATION_STEP_ID, label: estimationNode.title || "Estimation", required: true },
+      {
+        id: ESTIMATION_STEP_ID,
+        label: estimationNode.title || "Estimation",
+        required: true,
+        duration: 1,
+        durationUnit: "weeks",
+      },
     ];
   // Qualification likewise is one step: filling in Form [1.01].
   const qualificationNode = file.graph.nodes.find((node) => node.id === qualification.id);
   if (qualificationNode && !qualificationNode.conditions.length)
     qualificationNode.conditions = [
-      { id: QUALIFICATION_STEP_ID, label: "Qualification Form [1.01]", required: true },
+      {
+        id: QUALIFICATION_STEP_ID,
+        label: "Qualification Form [1.01]",
+        required: true,
+        duration: 1,
+        durationUnit: "weeks",
+      },
     ];
   return file;
 }
