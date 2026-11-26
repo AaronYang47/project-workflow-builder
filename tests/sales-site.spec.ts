@@ -124,6 +124,18 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await expect.poll(() => server.drafts.at(-1)?.jobNumber).toBe("26014");
   await expect(page.locator('[data-sales-save-state="saved"]')).toBeVisible();
 
+  // A real swipe scrolls the page (the app's canvas pages lock scrolling).
+  await page.locator('[data-step-index="1"]').click();
+  await page.mouse.move(180, 500);
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  // The Back / Next bar steps aside while typing, so it never covers the field.
+  await expect(page.locator("[data-sales-nav]")).toBeVisible();
+  await page.getByLabel("Owner company").focus();
+  await expect(page.locator("[data-sales-nav]")).toBeHidden();
+  await page.getByLabel("Owner company").blur();
+  await expect(page.locator("[data-sales-nav]")).toBeVisible();
+
   // Every step fits the phone screen.
   for (let step = 1; step <= 7; step++) {
     await page.locator(`[data-step-index="${step}"]`).click();

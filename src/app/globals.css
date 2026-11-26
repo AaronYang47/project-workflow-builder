@@ -1351,3 +1351,20 @@ button:disabled {
     font-size: 16px;
   }
 }
+
+/*
+ * Sales site: a normal scrolling page. The app's canvas pages lock html/body
+ * scrolling; that lock is lifted wherever the Sales site is on screen.
+ */
+html:has(.sales-site),
+html:has(.sales-site) body {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+html:has(.sales-site) {
+  /* Keep a focused field clear of the sticky header and the bottom buttons. */
+  scroll-padding-top: 132px;
+  scroll-padding-bottom: 96px;
+  -webkit-text-size-adjust: 100%;
+}

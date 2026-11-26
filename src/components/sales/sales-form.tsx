@@ -231,6 +231,23 @@ export function SalesForm({
   );
   const [submitted, setSubmitted] = useState<SubmitResult | null>(null);
   const lastSaved = useRef<Draft | null>(null);
+  // While the phone keyboard is up, the Back / Next bar steps aside.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const isField = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.matches("textarea, select") ||
+        (target instanceof HTMLInputElement &&
+          !["checkbox", "radio", "button", "submit"].includes(target.type)));
+    const onIn = (event: FocusEvent) => setTyping(isField(event.target));
+    const onOut = () => setTyping(false);
+    document.addEventListener("focusin", onIn);
+    document.addEventListener("focusout", onOut);
+    return () => {
+      document.removeEventListener("focusin", onIn);
+      document.removeEventListener("focusout", onOut);
+    };
+  }, []);
   const stepsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -432,7 +449,7 @@ export function SalesForm({
         </div>
         <div
           ref={stepsRef}
-          className="scroll-thin mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 pb-2"
+          className="scroll-thin mx-auto flex max-w-2xl snap-x snap-mandatory scroll-px-3 gap-1.5 overflow-x-auto overscroll-x-contain px-3 pb-2"
           role="tablist"
           aria-label="Form steps"
         >
@@ -445,7 +462,7 @@ export function SalesForm({
               aria-selected={index === step}
               onClick={() => goTo(index)}
               className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-semibold",
+                "inline-flex h-9 shrink-0 snap-start items-center gap-1 rounded-full border px-3 text-xs font-semibold",
                 index === step
                   ? "border-primary bg-primary text-primary-foreground"
                   : "bg-background text-muted-foreground",
@@ -620,7 +637,11 @@ export function SalesForm({
       </div>
 
       {step < REVIEW ? (
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)]">
+        <nav
+          data-sales-nav
+          data-hidden={typing || undefined}
+          className="data-[hidden]:max-sm:hidden fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)]"
+        >
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
             <Button
               variant="outline"
