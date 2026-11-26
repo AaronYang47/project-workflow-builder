@@ -58,7 +58,7 @@ async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) 
   void impact;
 }
 
-/** After CSA / Consultation: tap ✓ or ✗ at the second "Plans?". */
+/** After CSA: tap ✓ or ✗ at the second "Plans?". */
 async function chooseConsultPlans(page: Page, value: "Yes" | "No") {
   await page
     .locator("[data-route-selection-node] [data-qualification-route-flow]")
@@ -219,27 +219,35 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(
     flow.locator('[data-route-branch="owner-vip"] [data-route-part="join"]'),
   ).toHaveCount(1);
-  // Each lane asks "Plans?" twice: ✓ on, ✗ to CSA / Consultation and round again.
+  // Each lane asks "Plans?" twice: ✓ on, ✗ to CSA and round again.
   await expect(flow.getByText("Plans?")).toHaveCount(8);
   await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(4);
   await expect(flow.getByText("until plans")).toHaveCount(0);
-  // Without plans: CSA, or the purple Consultation after an LOI.
-  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
+  // Without plans: CSA in every lane (with the LOI tag after an LOI).
+  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(4);
   // Every lane reaches a green Plan Ready before its GC / PCS.
   await expect(flow.locator('[data-route-box="Plan Ready"]')).toHaveCount(4);
-  await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(2);
+  await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(0);
+  // No PCS after an LOI: only the two Regular lanes have one.
+  await expect(flow.locator('[data-route-box="PCS"]')).toHaveCount(2);
   await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(0);
-  // The GC / PCS after an LOI carry a small LOI tag.
+  // The CSA and GC after an LOI carry a small LOI tag.
   await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(2 + 1);
   // ProFab, Owner and GC each have their own way in.
   await expect(flow.locator("[data-route-entry]")).toHaveCount(3);
-  // Each lane leaves the chart on the right of its last box (PCS).
+  // Each lane leaves the chart on the right of its last box (PCS, GC after an LOI, or
+  // Plan Ready for GC VIP).
   await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(4);
   expect(
     await flow.locator("[data-qualification-route-lane]").evaluateAll((lanes) =>
       lanes.map((lane) => {
         const exit = lane.querySelector("[data-qualification-route-exit]")!;
-        const last = Array.from(lane.querySelectorAll('[data-route-box="PCS"] > rect')).at(-1)!;
+        const last = Array.from(lane.querySelectorAll("[data-route-box] > rect"))
+          .filter(
+            (rect) => rect.closest("[data-route-box]")!.getAttribute("data-route-box") !== "CSA",
+          )
+          .sort((a, b) => Number(a.getAttribute("x")) - Number(b.getAttribute("x")))
+          .at(-1)!;
         const right = Number(last.getAttribute("x")) + Number(last.getAttribute("width"));
         return Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5;
       }),
@@ -428,8 +436,8 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await answerParty(page, "Our client (PROFAB) company", "Internal");
   await answerParty(page, "Our client (PROFAB) contact", "Alex", /Q9 is exempt/);
   await form.getByRole("button", { name: "Save Form" }).click();
-  // ProFab takes the LOI lane; with plans it goes on to GC and PCS.
-  await expect(route).toHaveText("Route: ProFab → LOI → GC → PCS");
+  // ProFab takes the LOI lane; with plans it goes on to the GC (no PCS after an LOI).
+  await expect(route).toHaveText("Route: ProFab → LOI → GC");
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "profab");
 
   // Saved with the project: Qualification → CSA / PCS / LOI → Estimation → Project Start.

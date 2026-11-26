@@ -146,7 +146,6 @@ export const ROUTE_STEP_COLORS: Record<string, { stroke: string; fill: string; t
   PCS: { stroke: "#d97706", fill: "#fffbeb", text: "#b45309" },
   LOI: { stroke: "#7c3aed", fill: "#f5f3ff", text: "#6d28d9" },
   "Plan Ready": { stroke: "#16a34a", fill: "#f0fdf4", text: "#15803d" },
-  Consultation: { stroke: "#7c3aed", fill: "#f5f3ff", text: "#6d28d9" },
   "Owner's GC": { stroke: "#b45309", fill: "#fef3c7", text: "#92400e" },
 };
 export const ROUTE_STEP_DEFAULT = { stroke: "#475569", fill: "#f1f5f9", text: "#334155" };

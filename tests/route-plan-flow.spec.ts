@@ -25,8 +25,8 @@ const EXPECTED: Record<
   string,
   { lane: string; loi: boolean; ends: string[]; ownPlans?: "yes" | "no"; client: string }
 > = {
-  profab: { lane: "loi-gc", loi: true, ends: ["GC", "PCS"], client: "ProFab" },
-  "owner-vip": { lane: "loi-gc", loi: true, ends: ["GC", "PCS"], client: "Owner" },
+  profab: { lane: "loi-gc", loi: true, ends: ["GC"], client: "ProFab" },
+  "owner-vip": { lane: "loi-gc", loi: true, ends: ["GC"], client: "Owner" },
   "owner-plans": {
     lane: "owner-regular",
     loi: false,
@@ -41,7 +41,8 @@ const EXPECTED: Record<
     ownPlans: "no",
     client: "Owner",
   },
-  "gc-vip": { lane: "gc-vip", loi: true, ends: ["PCS"], client: "GC" },
+  // After an LOI there is no PCS.
+  "gc-vip": { lane: "gc-vip", loi: true, ends: [], client: "GC" },
   "gc-plans": { lane: "gc-regular", loi: false, ends: ["PCS"], ownPlans: "yes", client: "GC" },
   "gc-no-plans": { lane: "gc-regular", loi: false, ends: ["PCS"], ownPlans: "no", client: "GC" },
 };
@@ -67,8 +68,8 @@ test("every situation lights its own lane, with and without plans", () => {
         );
         continue;
       }
-      // Without plans: Consultation after an LOI, CSA otherwise.
-      const middle = plans === "no" ? [expected.loi ? "Consultation" : "CSA"] : [];
+      // Without plans: CSA (with the LOI tag after an LOI).
+      const middle = plans === "no" ? ["CSA"] : [];
       expect(routePathText(item, chosen), label).toBe(
         [expected.client, ...start, ...middle, ...expected.ends].join(" → "),
       );
@@ -78,7 +79,7 @@ test("every situation lights its own lane, with and without plans", () => {
         expect(result.out, label).toBe(true);
         continue;
       }
-      // The second "Plans?", after CSA / Consultation.
+      // The second "Plans?", after CSA.
       for (const consult of ["yes", "no", undefined] as Plans[]) {
         const again = lit(item.id, chosen, consult);
         const sub = `${label} / after consultation ${consult ?? "not chosen"}`;
@@ -144,7 +145,7 @@ test("the chart is laid out evenly", () => {
     expect(lane.no.at(-1)!.x).toBe(lane.csa.x);
     expect(lane.toFork2[0].x).toBe(lane.csa.x + lane.csa.width);
     expect(lane.back[0].x).toBe(lane.fork2X);
-    // ✗ at the second "Plans?" loops back into CSA / Consultation from below.
+    // ✗ at the second "Plans?" loops back into CSA from below.
     expect(lane.loop.at(-1)!.x).toBe(lane.csa.x + lane.csa.width / 2);
     expect(lane.loop.at(-1)!.y).toBe(lane.csa.y + layout.boxHeight / 2);
     expect(lane.questions).toHaveLength(2);

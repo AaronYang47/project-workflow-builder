@@ -26,12 +26,9 @@ export type PlanBox = {
   width: number;
   y: number;
   loiTag: boolean;
-  /** Smaller type for a long name (Plan Consultation). */
+  /** Smaller type for a long name (Plan Ready). */
   fontSize?: number;
 };
-
-/** After an LOI, the consultation without plans is Consultation (styled like the LOI). */
-export const PLAN_CONSULTATION = "Consultation";
 
 /**
  * One corner radius for every bend in the chart. Every segment next to a bend
@@ -115,9 +112,8 @@ export function routePlanLayout(): PlanFlowLayout {
   const chipX = forkX + 8;
   const csaX = 210;
   const csaWidth = 34;
-  const consultationWidth = 74;
-  // Columns line up in every lane: the second "Plans?" sits past the widest box.
-  const fork2X = csaX + consultationWidth + 12;
+  // Columns line up in every lane: the second "Plans?" sits just past CSA.
+  const fork2X = csaX + csaWidth + 12;
   const chip2X = fork2X + 8;
   const mergeX = fork2X + 34;
   const endX = mergeX + 12;
@@ -135,14 +131,15 @@ export function routePlanLayout(): PlanFlowLayout {
     "gc-regular": 204 + branchGap,
   };
   const specs: { id: PlanLaneId; loi: boolean; cases: string[]; ends: string[] }[] = [
-    { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC", "PCS"] },
+    // After an LOI there is no PCS: on to the GC, or done at Plan Ready.
+    { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC"] },
     {
       id: "owner-regular",
       loi: false,
       cases: ["owner-no-plans", "owner-plans"],
       ends: ["GC", "PCS"],
     },
-    { id: "gc-vip", loi: true, cases: ["gc-vip"], ends: ["PCS"] },
+    { id: "gc-vip", loi: true, cases: ["gc-vip"], ends: [] },
     { id: "gc-regular", loi: false, cases: ["gc-no-plans", "gc-plans"], ends: ["PCS"] },
   ];
 
@@ -153,16 +150,8 @@ export function routePlanLayout(): PlanFlowLayout {
     const loiBox: PlanBox | undefined = spec.loi
       ? { text: "LOI", x: loiX, width: loiWidth, y: yTop, loiTag: false }
       : undefined;
-    const csa: PlanBox = spec.loi
-      ? {
-          text: PLAN_CONSULTATION,
-          x: csaX,
-          width: consultationWidth,
-          y: yBottom,
-          loiTag: false,
-          fontSize: 8.5,
-        }
-      : { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: false };
+    // Without plans: CSA, with the LOI tag after an LOI.
+    const csa: PlanBox = { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: spec.loi };
     const ends: PlanBox[] = [
       { text: PLAN_READY, x: endX, width: 62, y: yTop, loiTag: false, fontSize: 8.5 },
     ];

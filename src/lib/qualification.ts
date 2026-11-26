@@ -27,7 +27,7 @@ export type Qualification = {
   commercialPath?: (typeof COMMERCIAL_PATHS)[number];
   /** Plans available, chosen by hand on Route Selection; it decides the plans branch of the route. */
   routePlans?: "yes" | "no";
-  /** After CSA / Consultation: plans now ready (yes) or still none (no), chosen on Route Selection. */
+  /** After CSA: plans now ready (yes) or still none (no), chosen on Route Selection. */
   routeConsultPlans?: "yes" | "no";
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
   form101?: QualificationForm101;

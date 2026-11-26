@@ -125,7 +125,7 @@ export function QualificationRouteFlow({
   laneId?: PlanLaneId;
   /** Tapping ✓ / ✗ at "Plans?" on the lit lane chooses it (tap again to clear). */
   onChoosePlans?: (plans: "yes" | "no" | undefined) => void;
-  /** The second "Plans?", after CSA / Consultation. */
+  /** The second "Plans?", after CSA. */
   consultPlans?: "yes" | "no";
   onChooseConsultPlans?: (plans: "yes" | "no" | undefined) => void;
 }) {
@@ -351,7 +351,7 @@ export function QualificationRouteFlow({
         const laneOn = lane.id === litLane;
         const viaPlans = laneOn && litPlans === "yes";
         const viaCsa = laneOn && litPlans === "no";
-        // Second "Plans?": ✓ on to Plan Ready, ✗ round again into CSA / Consultation.
+        // Second "Plans?": ✓ on to Plan Ready, ✗ round again into CSA.
         const consultDone = viaCsa && highlight.consultPlans === "yes";
         const consultLoop = viaCsa && highlight.loop;
         const ends = highlight.out && laneOn;
@@ -384,7 +384,7 @@ export function QualificationRouteFlow({
               part: "no",
               printColor: printStage(lane.loi, "before"),
             })}
-            {/* Second "Plans?": ✓ back onto the line, ✗ round and back into CSA / Consultation. */}
+            {/* Second "Plans?": ✓ back onto the line, ✗ round and back into CSA. */}
             {line(lane.toFork2, viaCsa, {
               part: "to-fork2",
               printColor: printStage(lane.loi, "csa"),
@@ -430,7 +430,7 @@ export function QualificationRouteFlow({
             {lane.chips.map((chip) => {
               // Grey until chosen; only the lit lane's ✓ / ✗ can be chosen.
               const palette = chip.ok ? YES : NO;
-              // First "Plans?" (yes / no) and the second, after CSA / Consultation (back / loop).
+              // First "Plans?" (yes / no) and the second, after CSA (back / loop).
               const second = chip.part === "back" || chip.part === "loop";
               const choice: "yes" | "no" = chip.ok ? "yes" : "no";
               const current = second ? highlight.consultPlans : litPlans;

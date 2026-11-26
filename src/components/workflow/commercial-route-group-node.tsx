@@ -81,7 +81,7 @@ export function CommercialRouteGroupNode({
     formAnswers && evaluateQualificationGate(qualification).scorePassed
       ? laneForCustomer(formAnswers.clientCategory, formAnswers.customerTier)
       : undefined;
-  /** After CSA / Consultation: plans ready now (on to Plan Ready) or still none (round again). */
+  /** After CSA: plans ready now (on to Plan Ready) or still none (round again). */
   const setConsultPlans = (next: "yes" | "no" | undefined) => {
     if (!qualificationNode) return;
     const store = useWorkflowStore.getState();
