@@ -215,6 +215,8 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(flow.getByText("until plans")).toHaveCount(0);
   // Without plans: CSA, or the purple Consultation after an LOI.
   await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
+  // Every lane reaches a green Plan Ready before its GC / PCS.
+  await expect(flow.locator('[data-route-box="Plan Ready"]')).toHaveCount(4);
   await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(2);
   await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(0);
   // The GC / PCS after an LOI carry a small LOI tag.
@@ -375,6 +377,7 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(chosen).toHaveAttribute("data-route-plans", "no");
   await expect(chosen.locator('[data-qualification-flow-box="CSA"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="GC"]')).toHaveCount(1);
+  await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="PCS"]')).toHaveCount(1);
   await expect(estimate).toBeDisabled();
   await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");

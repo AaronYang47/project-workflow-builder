@@ -32,6 +32,9 @@ export type PlanBox = {
 /** After an LOI, the consultation without plans is Consultation (styled like the LOI). */
 export const PLAN_CONSULTATION = "Consultation";
 
+/** Every lane reaches Plan Ready (green) before the GC / PCS. */
+export const PLAN_READY = "Plan Ready";
+
 export type PlanLane = {
   id: PlanLaneId;
   loi: boolean;
@@ -151,8 +154,10 @@ export function routePlanLayout(): PlanFlowLayout {
           fontSize: 8.5,
         }
       : { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: false };
-    const ends: PlanBox[] = [];
-    let x = endX;
+    const ends: PlanBox[] = [
+      { text: PLAN_READY, x: endX, width: 62, y: yTop, loiTag: false, fontSize: 8.5 },
+    ];
+    let x = endX + 62 + endGap;
     for (const text of spec.ends) {
       const width = boxWidth(text);
       ends.push({ text, x, width, y: yTop, loiTag: spec.loi });
@@ -381,7 +386,8 @@ export function routePathText(
   return [
     ...steps,
     ...(choice === "no" ? [lane.csa.text] : []),
-    ...lane.ends.map((box) => box.text),
+    // Plan Ready is a state on the way, not an agreement in the route.
+    ...lane.ends.filter((box) => box.text !== PLAN_READY).map((box) => box.text),
   ].join(" → ");
 }
 

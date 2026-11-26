@@ -65,7 +65,8 @@ test("every situation lights its own lane, with and without plans", () => {
       }
       // Without plans: Consultation after an LOI, CSA otherwise.
       const middle = plans === "no" ? [expected.loi ? "Consultation" : "CSA"] : [];
-      expect(result.boxes, label).toEqual([...start, ...middle, ...expected.ends]);
+      // Every path reaches the green Plan Ready before the GC / PCS.
+      expect(result.boxes, label).toEqual([...start, ...middle, "Plan Ready", ...expected.ends]);
       expect(result.out, label).toBe(true);
       expect(routePathText(item, chosen), label).toBe(
         [expected.client, ...start, ...middle, ...expected.ends].join(" → "),
