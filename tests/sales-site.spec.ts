@@ -63,6 +63,9 @@ async function mockSalesServer(page: Page) {
           at: "2026-11-26T12:00:00Z",
           revision: "1",
         },
+        history: [
+          { revision: "0", at: "2026-11-20T12:00:00Z", by: "Ann", first: true, changes: [] },
+        ],
       },
     });
   });
@@ -80,6 +83,11 @@ async function mockSalesServer(page: Page) {
         form101,
         submission: { by: "Ann", email: "", at: "2026-11-20T12:00:00Z", revision: "0" },
         draftSavedAt: null,
+        savedJobNumber: "",
+        savedForm101: form101,
+        history: [
+          { revision: "0", at: "2026-11-20T12:00:00Z", by: "Ann", first: true, changes: [] },
+        ],
       },
     });
   });
@@ -114,7 +122,8 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await page.locator('[data-sales-project="26014 Maison Laurier"]').click();
 
   await expect(page.locator("[data-sales-form-title]")).toHaveText("26014 Maison Laurier");
-  await expect(page.getByText("Last submitted by Ann")).toBeVisible();
+  // An update: the last answers are already there.
+  await expect(page.locator("[data-sales-update-banner]")).toContainText("Updating Rev 0");
   const jobNumber = page.locator("[data-sales-job-number]");
   await jobNumber.fill("26a01");
   await expect(jobNumber).toHaveValue("2601");
@@ -162,7 +171,17 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await expect(page.getByLabel("2. Architecture item 1", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("1. Civil item 1", { exact: true })).toHaveValue("Foundation plan");
 
+  // Changed questions are marked as Sales edit them.
+  await page.locator('[data-step-index="2"]').click();
+  await expect(page.locator('[data-sales-question="q3"] [data-sales-changed]')).toBeVisible();
+  await expect(page.locator('[data-sales-question="q4"] [data-sales-changed]')).toHaveCount(0);
+
   await page.locator('[data-step-index="8"]').click();
+  const changes = page.locator("[data-sales-changes]");
+  await expect(changes).toContainText("This update changes");
+  await expect(changes).toContainText("Owner company");
+  await expect(changes).toContainText("Job number");
+  await expect(page.locator("[data-sales-submit]")).toHaveText(/Submit update \(Rev 1\)/);
   await expect(page.locator("[data-sales-missing] button").first()).toBeVisible();
   await page.locator("[data-sales-submit]").click();
 
@@ -197,4 +216,17 @@ test("a wrong access code says so and shows no projects", async ({ page }) => {
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("This access code is not valid.")).toBeVisible();
   await expect(page.locator("[data-sales-project]")).toHaveCount(0);
+});
+
+test("an update with nothing changed cannot be submitted", async ({ page }) => {
+  const server = await mockSalesServer(page);
+  server.signedIn = true;
+  server.linked = true;
+  await page.goto("/sales?form=p1");
+  await expect(page.locator("[data-sales-update-banner]")).toBeVisible();
+  await page.locator('[data-step-index="8"]').click();
+  await expect(page.locator("[data-sales-changes]")).toContainText(
+    "Nothing has changed since Rev 0",
+  );
+  await expect(page.locator("[data-sales-submit]")).toBeDisabled();
 });

@@ -1,6 +1,7 @@
 import type { jsPDF as JsPdf } from "jspdf";
 import { QF_ANNEX_1, QF_ANNEX_2 } from "@/lib/qf-pdf-annex";
 import type { DisciplineKey, QualificationForm101 } from "@/lib/qualification-form-101";
+import { describeChange, type RevisionEntry } from "@/lib/qf-changes";
 
 /**
  * PROFAB Qualification Form [1.01] as a PDF laid out like the Word form
@@ -52,6 +53,8 @@ type Table = {
   /** Keep this table on the same page as the start of the next block. */
   keepWithNext?: boolean;
   spaceBefore?: number;
+  /** Body rows kept with the header / heading on a page (Word "keep with next"). */
+  keepRows?: number;
 };
 
 const t = (text: string, style: { bold?: boolean; italic?: boolean } = {}): Seg => ({
@@ -527,11 +530,55 @@ function rfiTable(form: QualificationForm101): Table {
   );
 }
 
+const MAX_LOG_LINES = 30;
+
+/** Revision log: one row per Sales submission, with what it changed. */
+function revisionLogTable(revisions: RevisionEntry[]): Table {
+  const logDate = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime())
+      ? iso
+      : `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+          date.getDate(),
+        ).padStart(2, "0")}`;
+  };
+  const rows: Row[] = [...revisions].reverse().map((entry) => {
+    const lines = entry.first
+      ? ["Soumission initiale / First submission"]
+      : entry.changes.length
+        ? entry.changes
+            .slice(0, MAX_LOG_LINES)
+            // The PDF's built-in font has no arrow.
+            .map((change) => describeChange(change).replace(" → ", " » "))
+        : ["Aucune modification / No changes"];
+    if (entry.changes.length > MAX_LOG_LINES)
+      lines.push(`+ ${entry.changes.length - MAX_LOG_LINES} autres / more`);
+    return {
+      cells: [
+        cell([p(t(entry.revision || "—"))]),
+        cell([p(t(logDate(entry.at)))]),
+        cell([p(t(entry.by))]),
+        cell(lines.map((line) => p(t(`• ${line}`)))),
+      ],
+      minHeight: 18,
+    };
+  });
+  return narrowGrid(
+    tw(1000, 1500, 1900, 4960),
+    ["RÉV. / REV.", "DATE", "PAR / BY", "MODIFICATIONS / CHANGES"],
+    padRows(rows, 3, () => ({
+      cells: [cell([]), cell([]), cell([]), cell([])],
+      minHeight: 18,
+    })),
+  );
+}
+
 const annexTable = (groups: typeof QF_ANNEX_1): Table => ({
   cols: tw(4680, 4680),
   font: { size: 10.5, narrow: true },
   pad: [1.1, 3.25, 1.1, 3.25],
   spaceBefore: 3,
+  keepRows: 4,
   rows: groups.flatMap((group) => [
     {
       cells: [
@@ -548,6 +595,8 @@ export type QfPdfMeta = {
   jobNumber?: string;
   /** PNG data URL of the PROFAB logo for the page header. */
   logoDataUrl?: string;
+  /** Sales submissions, oldest first, for the revision log. */
+  revisions?: RevisionEntry[];
   /** Compressed by default; tests read the plain text. */
   compress?: boolean;
 };
@@ -679,6 +728,13 @@ function formBlocks(form: QualificationForm101, meta: QfPdfMeta): Table[] {
       10.5,
     ),
     rfiTable(form),
+    heading("Journal des révisions", "Revision log", 8),
+    note(
+      ["Chaque soumission des ventes et ce qu’elle a modifié."],
+      ["Each Sales submission and what it changed."],
+      10.5,
+    ),
+    revisionLogTable(meta.revisions ?? []),
     heading("Annexe 1 — Exemples d’éléments particuliers", "Annex 1 — Special item examples", 8),
     annexTable(QF_ANNEX_1),
     heading("Annexe 2 — Exemples par discipline", "Annex 2 — Examples by discipline", 8),
@@ -903,7 +959,7 @@ class Renderer {
 
 /** Height a table's opening needs on a page: header rows and the first body row. */
 function openingHeight(renderer: Renderer, table: Table) {
-  const rows = table.rows.slice(0, (table.headerRows ?? 0) + 1);
+  const rows = table.rows.slice(0, (table.headerRows ?? 0) + (table.keepRows ?? 1));
   return rows.reduce((sum, row) => sum + renderer.rowHeight(table, row), table.spaceBefore ?? 0);
 }
 

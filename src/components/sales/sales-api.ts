@@ -1,5 +1,6 @@
 import type { QualificationForm101 } from "@/lib/qualification-form-101";
 import type { SalesSubmission } from "@/lib/sales-intake";
+import type { RevisionEntry } from "@/lib/qf-changes";
 
 /** Client for the Sales site's own API (/api/sales/*). */
 
@@ -60,6 +61,10 @@ export type SalesForm = {
   form101: QualificationForm101;
   submission: SalesSubmission | null;
   draftSavedAt: string | null;
+  /** What the project holds now (null for a new project). */
+  savedJobNumber: string;
+  savedForm101: QualificationForm101 | null;
+  history: RevisionEntry[];
 };
 
 export type SubmitResult = {
@@ -67,6 +72,7 @@ export type SubmitResult = {
   projectName: string;
   jobNumber: string;
   submission: SalesSubmission;
+  history: RevisionEntry[];
 };
 
 export const salesEndpoints = {

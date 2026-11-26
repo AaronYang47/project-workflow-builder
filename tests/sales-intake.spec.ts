@@ -12,6 +12,7 @@ import {
   templateFromWorkflow,
 } from "../src/lib/sales-intake";
 import { buildQualificationFormPdf, qualificationFormPdfName } from "../src/lib/qf-pdf";
+import { changedQuestions, describeChange, formChanges } from "../src/lib/qf-changes";
 
 const projectWithCards = () => {
   const file = createProjectWorkflow("Maison Laurier");
@@ -155,4 +156,82 @@ test("the Qualification Form PDF follows the 261126 form and carries the answers
   expect(qualificationFormPdfName(form, { projectName: "Côté", jobNumber: "26099" })).toBe(
     "S_1.01_QF_26099_Cote_rev2.pdf",
   );
+});
+
+test("an update records exactly which answers changed", () => {
+  const before = filledForm();
+  const after = structuredClone(before);
+  after.sectionA.parties.owner.company = "Immeubles Laurier inc.";
+  after.sectionA.targetDates.delivery = "2027.07.15";
+  after.sectionA.documents.bylawsZoning = { available: "yes", locationOrDate: "Drive/Zoning" };
+  after.sectionB.disciplines.civil.items[0].remark = "Plan received";
+  after.sectionB.disciplines.plumbing.items = [{ id: "p1", item: "Water heater", remark: "" }];
+  after.sectionC.rfis = [];
+  const changes = formChanges(before, after, { before: "26014", after: "26015" });
+  const lines = changes.map(describeChange);
+  expect(lines).toEqual([
+    "Job number: 26014 → 26015",
+    "Owner company: Immeubles Laurier → Immeubles Laurier inc.",
+    "Target date: Delivery: 2027-06-01 → 2027.07.15",
+    "Applicable municipal bylaws / zoning: Yes · Drive/Zoning (added)",
+    "Civil: Foundation plan: Foundation plan · Georeferenced plan by Dec 5 → Foundation plan · Plan received",
+    "Plumbing: Water heater: Water heater (added)",
+    "Open item: 001: 001 · Module stacking · AY (removed)",
+  ]);
+  expect(changedQuestions({ revision: "1", at: "", by: "", changes }).has("q11")).toBe(true);
+  expect(formChanges(before, structuredClone(before))).toEqual([]);
+});
+
+test("each Sales submission is kept in the project's history; templates drop it", () => {
+  const first = applySalesIntake(
+    projectWithCards(),
+    { jobNumber: "26014", form101: filledForm() },
+    { by: "Sam", email: "", at: "2026-11-26T12:00:00Z", revision: "0" },
+    { revision: "0", at: "2026-11-26T12:00:00Z", by: "Sam", first: true, changes: [] },
+  );
+  const changed = filledForm();
+  changed.sectionA.projectAddress = "121 rue Principale";
+  const second = applySalesIntake(
+    first,
+    { jobNumber: "26014", form101: changed },
+    { by: "Sam", email: "", at: "2026-11-27T12:00:00Z", revision: "1" },
+    {
+      revision: "1",
+      at: "2026-11-27T12:00:00Z",
+      by: "Sam",
+      changes: formChanges(readSalesIntake(first).form101, changed),
+    },
+  );
+  const history = readSalesIntake(second).history;
+  expect(history.map((entry) => entry.revision)).toEqual(["0", "1"]);
+  expect(history[1].changes.map((change) => change.label)).toEqual(["Project address"]);
+  expect(readSalesIntake(templateFromWorkflow(second)).history).toEqual([]);
+});
+
+test("the PDF's revision log lists every submission and its changes", async () => {
+  const doc = await buildQualificationFormPdf(filledForm(), {
+    projectName: "26014 Maison Laurier",
+    compress: false,
+    revisions: [
+      { revision: "0", at: "2026-11-26T12:00:00Z", by: "Sam", first: true, changes: [] },
+      {
+        revision: "1",
+        at: "2026-11-27T12:00:00Z",
+        by: "Sam",
+        changes: [
+          { question: "q2", label: "Project address", before: "120 rue", after: "121 rue" },
+        ],
+      },
+    ],
+  });
+  const text = doc.output();
+  for (const word of [
+    "(Journal)",
+    "(Revision)",
+    "(First)",
+    "(address:)",
+    "(»)",
+    "(2026.11.27)",
+  ])
+    expect(text, word).toContain(word);
 });

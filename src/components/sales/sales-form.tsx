@@ -18,10 +18,12 @@ import { cn } from "@/lib/utils";
 import { isForm101StepComplete } from "@/components/workflow/qualification-form-101/steps";
 import { qualificationRoute } from "@/lib/qualification";
 import {
+  compactQualificationForm101,
   evaluateQualificationForm101,
   normalizeQualificationForm101,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
+import { formChanges, type RevisionEntry } from "@/lib/qf-changes";
 import { isValidJobNumberInput } from "@/lib/sales-intake";
 import { loadQfLogo, qualificationFormPdfBlob, qualificationFormPdfName } from "@/lib/qf-pdf";
 import {
@@ -30,7 +32,7 @@ import {
   type SalesForm as SalesFormData,
   type SubmitResult,
 } from "./sales-api";
-import { INPUT, SALES_FORM_STEPS, salesStepOf } from "./sales-questions";
+import { ChangedQuestions, INPUT, SALES_FORM_STEPS, salesStepOf } from "./sales-questions";
 
 type Draft = { projectName: string; jobNumber: string; form101: QualificationForm101 };
 type SaveState = "idle" | "saving" | "saved" | "offline";
@@ -111,11 +113,14 @@ function PdfActions({
   draft,
   projectName,
   revision,
+  revisions,
   primary = false,
 }: {
   draft: Draft;
   projectName: string;
   revision?: string;
+  /** Sales submissions so far, for the PDF's revision log. */
+  revisions: RevisionEntry[];
   primary?: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -129,6 +134,7 @@ function PdfActions({
     try {
       const blob = await qualificationFormPdfBlob(form, {
         ...meta,
+        revisions,
         logoDataUrl: await loadQfLogo(),
       });
       setFile(new File([blob], qualificationFormPdfName(form, meta), { type: "application/pdf" }));
@@ -346,6 +352,33 @@ export function SalesForm({
   const jobNumberValid = isValidJobNumberInput(draft.jobNumber);
   const nameMissing = data.isNew && !draft.projectName.trim();
   const missing = evaluateQualificationForm101({ form101: draft.form101 }).missingItems;
+  // An update: what it changes compared with what the project holds now.
+  const isUpdate = Boolean(data.submission && data.savedForm101);
+  const changes = isUpdate
+    ? formChanges(
+        // The same Q1 pre-fill as the form, so it never counts as a change.
+        compactQualificationForm101(
+          withFormProjectName(
+            {
+              projectName: data.projectName,
+              jobNumber: data.savedJobNumber,
+              form101: normalizeQualificationForm101(data.savedForm101!),
+            },
+            data.projectName,
+          ).form101,
+        ),
+        compactQualificationForm101(draft.form101),
+        { before: data.savedJobNumber, after: draft.jobNumber.trim() },
+      )
+    : [];
+  const changedIds = new Set(changes.map((change) => change.question));
+  const changedSteps = new Set(
+    changes.map((change) => (change.question === "job" ? 0 : salesStepOf(change.question) + 1)),
+  );
+  const nextRevision = (() => {
+    const last = Number.parseInt(data.submission?.revision ?? "", 10);
+    return Number.isFinite(last) ? String(last + 1) : "";
+  })();
   const goTo = (index: number, anchor?: string) => {
     setStep(Math.max(0, Math.min(REVIEW, index)));
     requestAnimationFrame(() => {
@@ -409,6 +442,7 @@ export function SalesForm({
             draft={{ ...draft, jobNumber: submitted.jobNumber || draft.jobNumber }}
             projectName={submitted.projectName}
             revision={submitted.submission.revision}
+            revisions={submitted.history}
             primary
           />
           <button type="button" className={cn(SECONDARY_BUTTON, "w-full")} onClick={onClose}>
@@ -485,213 +519,302 @@ export function SalesForm({
             >
               {stepDone(index) && index !== step ? <Check className="size-3.5" /> : null}
               {item.title}
+              {changedSteps.has(index) ? (
+                <span
+                  aria-label="changed"
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    index === step ? "bg-white" : "bg-violet-500",
+                  )}
+                />
+              ) : null}
             </button>
           ))}
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl space-y-3 px-4 pb-32 pt-4" data-sales-step={current.id}>
-        {data.submission && step === 0 ? (
-          <p className="rounded-2xl border border-[#d1e0f0] bg-[#f5f8fc] px-4 py-3 text-sm text-[#344054]">
-            Last submitted by <b>{data.submission.by}</b> on{" "}
-            {new Date(data.submission.at).toLocaleDateString()} (Rev {data.submission.revision}).
-            What you submit now becomes the next revision.
-          </p>
-        ) : null}
+      <ChangedQuestions.Provider value={changedIds}>
+        <div className="mx-auto max-w-2xl space-y-3 px-4 pb-32 pt-4" data-sales-step={current.id}>
+          {data.submission && step === 0 ? (
+            <div
+              data-sales-update-banner
+              className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-[#344054]"
+            >
+              <p className="font-semibold text-violet-800">
+                Updating Rev {data.submission.revision}
+              </p>
+              <p className="mt-1 leading-relaxed">
+                The answers from the last submission ({data.submission.by},{" "}
+                {new Date(data.submission.at).toLocaleDateString()}) are already filled in. Change
+                only what is new — every change is marked and recorded as Rev{" "}
+                {nextRevision || "next"}.
+              </p>
+            </div>
+          ) : null}
 
-        {step === 0 ? (
-          <>
-            <section className="space-y-4 rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-              {data.isNew ? (
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-[#344054]">Project name</span>
-                  <input
-                    data-sales-project-name
-                    value={draft.projectName}
-                    maxLength={200}
-                    onChange={(event) => {
-                      // Q1 follows the new project's name until it is changed by hand.
-                      const followsName =
-                        draft.form101.sectionA.projectName === draft.projectName.trim();
-                      const next = { ...draft, projectName: event.target.value };
-                      setDraft(
-                        followsName
-                          ? {
-                              ...next,
-                              form101: {
-                                ...next.form101,
-                                sectionA: {
-                                  ...next.form101.sectionA,
-                                  projectName: event.target.value.trim(),
+          {step === 0 ? (
+            <>
+              <section className="space-y-4 rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                {data.isNew ? (
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-[#344054]">Project name</span>
+                    <input
+                      data-sales-project-name
+                      value={draft.projectName}
+                      maxLength={200}
+                      onChange={(event) => {
+                        // Q1 follows the new project's name until it is changed by hand.
+                        const followsName =
+                          draft.form101.sectionA.projectName === draft.projectName.trim();
+                        const next = { ...draft, projectName: event.target.value };
+                        setDraft(
+                          followsName
+                            ? {
+                                ...next,
+                                form101: {
+                                  ...next.form101,
+                                  sectionA: {
+                                    ...next.form101.sectionA,
+                                    projectName: event.target.value.trim(),
+                                  },
                                 },
-                              },
-                            }
-                          : next,
-                      );
-                    }}
-                    placeholder="e.g. Maison Laurier — Phase 2"
-                    className={INPUT}
+                              }
+                            : next,
+                        );
+                      }}
+                      placeholder="e.g. Maison Laurier — Phase 2"
+                      className={INPUT}
+                    />
+                    <span className="block text-xs text-[#667085]">
+                      The project is created from your team&apos;s template when you submit.
+                    </span>
+                  </label>
+                ) : (
+                  <div>
+                    <p className="text-sm font-medium text-[#344054]">Project</p>
+                    <p className="mt-1 text-lg font-semibold text-[#172033]">{data.projectName}</p>
+                  </div>
+                )}
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-[#344054]">
+                    Job number
+                    {changedIds.has("job") ? (
+                      <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                        Changed
+                      </span>
+                    ) : null}
+                  </span>
+                  <input
+                    data-sales-job-number
+                    value={draft.jobNumber}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={5}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        jobNumber: event.target.value.replace(/\D/g, "").slice(0, 5),
+                      })
+                    }
+                    placeholder="5 digits, e.g. 26014"
+                    className={cn(
+                      INPUT,
+                      "font-mono text-lg tracking-[0.2em]",
+                      !jobNumberValid && "border-[#f04438]",
+                    )}
                   />
-                  <span className="block text-xs text-[#667085]">
-                    The project is created from your team&apos;s template when you submit.
+                  <span
+                    className={cn(
+                      "block text-xs",
+                      jobNumberValid ? "text-[#667085]" : "text-[#b42318]",
+                    )}
+                  >
+                    {jobNumberValid
+                      ? "Leave it empty if there is no job number yet."
+                      : "The Job number has 5 digits."}
                   </span>
                 </label>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium text-[#344054]">Project</p>
-                  <p className="mt-1 text-lg font-semibold text-[#172033]">{data.projectName}</p>
-                </div>
-              )}
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-[#344054]">Job number</span>
-                <input
-                  data-sales-job-number
-                  value={draft.jobNumber}
-                  inputMode="numeric"
-                  autoComplete="off"
-                  maxLength={5}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      jobNumber: event.target.value.replace(/\D/g, "").slice(0, 5),
-                    })
-                  }
-                  placeholder="5 digits, e.g. 26014"
-                  className={cn(
-                    INPUT,
-                    "font-mono text-lg tracking-[0.2em]",
-                    !jobNumberValid && "border-[#f04438]",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "block text-xs",
-                    jobNumberValid ? "text-[#667085]" : "text-[#b42318]",
-                  )}
-                >
-                  {jobNumberValid
-                    ? "Leave it empty if there is no job number yet."
-                    : "The Job number has 5 digits."}
-                </span>
-              </label>
-            </section>
-            <div className="rounded-2xl bg-[#f5f8fc] px-4 py-3 text-sm leading-relaxed text-[#475467]">
-              Answer what you know and leave the rest empty. Everything saves as you type, so you
-              can stop and come back any time. Nothing reaches the team until you press Submit.
-            </div>
-          </>
-        ) : topic ? (
-          <topic.Step form={draft.form101} patch={setForm} isLoi={isLoi} />
-        ) : (
-          <section className="space-y-4">
-            <div className="rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-              <p className="text-lg font-semibold text-[#172033]">{projectName || "New project"}</p>
-              <p className="text-sm text-[#667085]">
-                {draft.jobNumber ? `Job ${draft.jobNumber}` : "No Job number yet"}
-              </p>
-              <div className="mt-4 space-y-1">
-                {STEPS.slice(1, REVIEW).map((item, offset) => {
-                  const index = offset + 1;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => goTo(index)}
-                      className="flex min-h-11 w-full items-center gap-3 rounded-lg px-1 text-left active:bg-[#f9fafb]"
-                    >
-                      <span
-                        className={cn(
-                          "flex size-5 items-center justify-center rounded-full border",
-                          stepDone(index)
-                            ? "border-emerald-500 bg-emerald-500 text-white"
-                            : "border-[#cfd6e0]",
-                        )}
+              </section>
+              <div className="rounded-2xl bg-[#f5f8fc] px-4 py-3 text-sm leading-relaxed text-[#475467]">
+                Answer what you know and leave the rest empty. Everything saves as you type, so you
+                can stop and come back any time. Nothing reaches the team until you press Submit.
+              </div>
+            </>
+          ) : topic ? (
+            <topic.Step form={draft.form101} patch={setForm} isLoi={isLoi} />
+          ) : (
+            <section className="space-y-4">
+              <div className="rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                <p className="text-lg font-semibold text-[#172033]">
+                  {projectName || "New project"}
+                </p>
+                <p className="text-sm text-[#667085]">
+                  {draft.jobNumber ? `Job ${draft.jobNumber}` : "No Job number yet"}
+                </p>
+                <div className="mt-4 space-y-1">
+                  {STEPS.slice(1, REVIEW).map((item, offset) => {
+                    const index = offset + 1;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => goTo(index)}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-lg px-1 text-left active:bg-[#f9fafb]"
                       >
-                        {stepDone(index) ? <Check className="size-3.5" strokeWidth={3} /> : null}
-                      </span>
-                      <span className="flex-1 text-[15px] text-[#344054]">{item.title}</span>
-                      <ChevronRight className="size-4 text-[#98a2b3]" />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {missing.length ? (
-              <div className="rounded-2xl border border-[#fedf89] bg-[#fffcf5] p-4">
-                <p className="flex items-center gap-1.5 font-semibold text-[#b54708]">
-                  <AlertCircle className="size-4" /> {missing.length}{" "}
-                  {missing.length === 1 ? "answer" : "answers"} still empty
-                </p>
-                <p className="mt-1 text-sm text-[#667085]">
-                  You can submit now and fill them in later. Tap one to go to it.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-1.5" data-sales-missing>
-                  {missing.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        const index = salesStepOf(item.id);
-                        if (index >= 0) goTo(index + 1, `sales-${item.id}`);
-                      }}
-                      className="min-h-9 rounded-xl border border-[#fedf89] bg-white px-3 py-1.5 text-left text-sm text-[#93370d]"
-                    >
-                      {item.label.replace(/^Q\d+\s*/, "")}
-                    </button>
-                  ))}
+                        <span
+                          className={cn(
+                            "flex size-5 items-center justify-center rounded-full border",
+                            stepDone(index)
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : "border-[#cfd6e0]",
+                          )}
+                        >
+                          {stepDone(index) ? <Check className="size-3.5" strokeWidth={3} /> : null}
+                        </span>
+                        <span className="flex-1 text-[15px] text-[#344054]">{item.title}</span>
+                        <ChevronRight className="size-4 text-[#98a2b3]" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ) : (
-              <p className="flex items-center gap-1.5 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-700">
-                <Check className="size-5" /> Every answer is filled in.
-              </p>
-            )}
-            {nameMissing ? (
-              <p className="text-sm text-[#b42318]">Enter the project name on the first step.</p>
-            ) : null}
-            {!jobNumberValid ? (
-              <p className="text-sm text-[#b42318]">Fix the Job number on the first step.</p>
-            ) : null}
-            {submitError ? (
-              <div
-                role="alert"
-                className="space-y-2 rounded-2xl bg-[#fef3f2] px-4 py-3 text-sm text-[#b42318]"
-              >
-                <p>{submitError.message}</p>
-                {submitError.projectId ? (
-                  <button
-                    type="button"
-                    className={SECONDARY_BUTTON}
-                    onClick={() => onOpenProject(submitError.projectId!)}
-                  >
-                    Open that project
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            <button
-              type="button"
-              data-sales-submit
-              className={cn(PRIMARY_BUTTON, "h-14 w-full rounded-2xl text-[17px]")}
-              disabled={submitting || nameMissing || !jobNumberValid}
-              onClick={() => void submit()}
-            >
-              {submitting ? (
-                <LoaderCircle className="size-5 animate-spin" />
+              {isUpdate ? (
+                <div
+                  data-sales-changes
+                  className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
+                >
+                  <p className="font-semibold text-violet-800">
+                    {changes.length
+                      ? `This update changes ${changes.length} ${
+                          changes.length === 1 ? "answer" : "answers"
+                        } (Rev ${nextRevision})`
+                      : `Nothing has changed since Rev ${data.submission!.revision}`}
+                  </p>
+                  {changes.length ? (
+                    <ul className="mt-2 divide-y divide-[#eef1f5]">
+                      {changes.map((change, index) => (
+                        <li key={`${change.label}-${index}`}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              change.question === "job"
+                                ? goTo(0)
+                                : goTo(salesStepOf(change.question) + 1, `sales-${change.question}`)
+                            }
+                            className="w-full py-2.5 text-left text-sm leading-snug"
+                          >
+                            <span className="block font-medium text-[#172033]">{change.label}</span>
+                            <span className="block text-[#667085]">
+                              {change.before ? (
+                                <span className="line-through decoration-[#98a2b3]">
+                                  {change.before}
+                                </span>
+                              ) : (
+                                <span className="italic">empty</span>
+                              )}{" "}
+                              →{" "}
+                              <span className="font-medium text-violet-800">
+                                {change.after || "removed"}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-[#667085]">
+                      Change an answer before submitting an update.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              {missing.length ? (
+                <div className="rounded-2xl border border-[#fedf89] bg-[#fffcf5] p-4">
+                  <p className="flex items-center gap-1.5 font-semibold text-[#b54708]">
+                    <AlertCircle className="size-4" /> {missing.length}{" "}
+                    {missing.length === 1 ? "answer" : "answers"} still empty
+                  </p>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    You can submit now and fill them in later. Tap one to go to it.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5" data-sales-missing>
+                    {missing.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          const index = salesStepOf(item.id);
+                          if (index >= 0) goTo(index + 1, `sales-${item.id}`);
+                        }}
+                        className="min-h-9 rounded-xl border border-[#fedf89] bg-white px-3 py-1.5 text-left text-sm text-[#93370d]"
+                      >
+                        {item.label.replace(/^Q\d+\s*/, "")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
-                <Send className="size-5" />
+                <p className="flex items-center gap-1.5 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-700">
+                  <Check className="size-5" /> Every answer is filled in.
+                </p>
               )}
-              {submitting ? "Submitting…" : "Submit to the technical team"}
-            </button>
-            <div className="border-t border-[#e3e8ef] pt-4">
-              <p className="mb-2 text-sm text-[#667085]">
-                Want to check the PDF first? It shows what you have filled in so far.
-              </p>
-              <PdfActions draft={draft} projectName={projectName || "New project"} />
-            </div>
-          </section>
-        )}
-      </div>
+              {nameMissing ? (
+                <p className="text-sm text-[#b42318]">Enter the project name on the first step.</p>
+              ) : null}
+              {!jobNumberValid ? (
+                <p className="text-sm text-[#b42318]">Fix the Job number on the first step.</p>
+              ) : null}
+              {submitError ? (
+                <div
+                  role="alert"
+                  className="space-y-2 rounded-2xl bg-[#fef3f2] px-4 py-3 text-sm text-[#b42318]"
+                >
+                  <p>{submitError.message}</p>
+                  {submitError.projectId ? (
+                    <button
+                      type="button"
+                      className={SECONDARY_BUTTON}
+                      onClick={() => onOpenProject(submitError.projectId!)}
+                    >
+                      Open that project
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                data-sales-submit
+                className={cn(PRIMARY_BUTTON, "h-14 w-full rounded-2xl text-[17px]")}
+                disabled={
+                  submitting || nameMissing || !jobNumberValid || (isUpdate && !changes.length)
+                }
+                onClick={() => void submit()}
+              >
+                {submitting ? (
+                  <LoaderCircle className="size-5 animate-spin" />
+                ) : (
+                  <Send className="size-5" />
+                )}
+                {submitting
+                  ? "Submitting…"
+                  : isUpdate
+                    ? `Submit update (Rev ${nextRevision})`
+                    : "Submit to the technical team"}
+              </button>
+              <div className="border-t border-[#e3e8ef] pt-4">
+                <p className="mb-2 text-sm text-[#667085]">
+                  Want to check the PDF first? It shows what you have filled in so far.
+                </p>
+                <PdfActions
+                  draft={draft}
+                  projectName={projectName || "New project"}
+                  revisions={data.history}
+                />
+              </div>
+            </section>
+          )}
+        </div>
+      </ChangedQuestions.Provider>
 
       {step < REVIEW ? (
         <nav

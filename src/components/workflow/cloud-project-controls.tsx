@@ -511,6 +511,45 @@ export function CloudProjectControls({
       window.removeEventListener("pagehide", flush);
     };
   }, [user, activeProjectId]);
+  // Pick up saves made elsewhere — a Sales submission, another device — while
+  // this copy has no unsaved changes: on focus and once a minute.
+  useEffect(() => {
+    if (readOnly || !cloudReady || !user || !activeProjectId || isAuthBypass()) return;
+    let running = false;
+    const check = async () => {
+      if (running || document.visibilityState !== "visible") return;
+      const state = useWorkflowStore.getState();
+      if (!state.activeProjectId || !state.cloudUpdatedAt || state.dirty || inFlight.current)
+        return;
+      running = true;
+      try {
+        const list = await api<{ projects: Project[] }>("/api/projects");
+        const row = list.projects.find((project) => project.id === state.activeProjectId);
+        if (!row || row.updated_at <= state.cloudUpdatedAt) return;
+        const latest = await api<{ project: Project }>(`/api/projects/${row.id}`);
+        const now = useWorkflowStore.getState();
+        if (now.dirty || now.activeProjectId !== row.id || inFlight.current) return;
+        now.loadProject(
+          parseWorkflow(JSON.stringify(latest.project.workflow)),
+          row.id,
+          now.workspaceOwnerId,
+          latest.project.updated_at,
+        );
+      } catch {
+        // Offline or signed out: the next check tries again.
+      } finally {
+        running = false;
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 60_000);
+    window.addEventListener("focus", check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [readOnly, cloudReady, user, activeProjectId]);
+
   const openProject = async (id: string) => {
     if (!confirmReplaceWorkspace()) return;
     setBusy(true);

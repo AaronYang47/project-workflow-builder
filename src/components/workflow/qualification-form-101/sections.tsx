@@ -1,6 +1,14 @@
 "use client";
 
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  createContext,
+  useContext,
+} from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowRight, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,6 +50,25 @@ const uid = () =>
     ? crypto.randomUUID().slice(0, 8)
     : Math.random().toString(36).slice(2, 10);
 
+/** Questions the latest Sales update changed, and the tag to show on them. */
+export const UpdatedQuestionsContext = createContext<{ ids: ReadonlySet<string>; tag: string }>({
+  ids: new Set(),
+  tag: "",
+});
+
+function UpdatedTag({ question }: { question: string }) {
+  const { ids, tag } = useContext(UpdatedQuestionsContext);
+  if (!ids.has(question)) return null;
+  return (
+    <span
+      data-updated-question={question}
+      className="ml-1.5 inline-flex items-center rounded-full bg-violet-500/15 px-1.5 py-0.5 align-middle text-[10px] font-bold text-violet-700 dark:text-violet-300"
+    >
+      {tag}
+    </span>
+  );
+}
+
 function QuestionCard({
   id,
   number,
@@ -66,6 +93,7 @@ function QuestionCard({
               {number}
             </span>
             {title}
+            {id ? <UpdatedTag question={id.replace(/^q101-/, "")} /> : null}
           </p>
           {hint ? <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p> : null}
         </div>
@@ -1030,7 +1058,10 @@ export function SectionBIntake({
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="text-xs font-bold text-foreground">{discipline.sectionTitle}</p>
+                <p className="text-xs font-bold text-foreground">
+                  {discipline.sectionTitle}
+                  <UpdatedTag question={`b-${discipline.key}`} />
+                </p>
                 {"note" in discipline && discipline.note ? (
                   <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
                     {discipline.note}
@@ -1217,6 +1248,7 @@ export function SectionBIntake({
             <div className="max-w-2xl space-y-1">
               <p className="text-xs font-bold text-foreground">
                 8. Special products and items (all disciplines)
+                <UpdatedTag question="b-special" />
               </p>
               <p className="text-[11px] text-muted-foreground">
                 Is there anything special, by us or by others, that impacts the PROFAB scope? This

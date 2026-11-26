@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { ClipboardCheck, FileDown, FileSpreadsheet, Megaphone } from "lucide-react";
+import { ClipboardCheck, FileDown, FileSpreadsheet, History, Megaphone, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qualificationOf, qualificationRoute, type Qualification } from "@/lib/qualification";
 import {
@@ -22,7 +22,9 @@ import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-fo
 import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
-import { salesSubmissionOf } from "@/lib/sales-intake";
+import { salesHistoryOf, salesSubmissionOf } from "@/lib/sales-intake";
+import { describeChange } from "@/lib/qf-changes";
+import * as Dialog from "@radix-ui/react-dialog";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { loadQfLogo, qualificationFormPdfBlob, qualificationFormPdfName } from "@/lib/qf-pdf";
 import { DepartmentHeaderBar } from "./node-department-field";
@@ -36,6 +38,9 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
   const gate = evaluateQualificationGate(qualification);
   const route = qualificationRoute(qualification);
   const salesSubmission = salesSubmissionOf(qualification);
+  const salesHistory = salesHistoryOf(qualification);
+  const latestEntry = salesHistory.at(-1);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const downloadPdf = async () => {
     setPdfBusy(true);
@@ -48,6 +53,7 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
       };
       const blob = await qualificationFormPdfBlob(form, {
         ...meta,
+        revisions: salesHistory,
         logoDataUrl: await loadQfLogo(),
       });
       const url = URL.createObjectURL(blob);
@@ -201,11 +207,26 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
               title={salesSubmission.email}
             >
               <Megaphone className="mt-px size-3.5 shrink-0" />
-              <span>
+              <span className="min-w-0 flex-1">
                 Submitted by Sales: {salesSubmission.by} ·{" "}
                 {new Date(salesSubmission.at).toLocaleDateString()} · Rev {salesSubmission.revision}
+                {latestEntry && !latestEntry.first
+                  ? ` · ${latestEntry.changes.length} ${
+                      latestEntry.changes.length === 1 ? "change" : "changes"
+                    }`
+                  : ""}
               </span>
             </p>
+          ) : null}
+          {salesHistory.length ? (
+            <button
+              type="button"
+              data-sales-history-open
+              onClick={() => setHistoryOpen(true)}
+              className="nodrag mt-1.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-500/35 px-2 py-1 text-[11px] font-semibold text-violet-800 hover:bg-violet-500/10 dark:text-violet-200"
+            >
+              <History className="size-3.5" /> Update history ({salesHistory.length})
+            </button>
           ) : null}
           <button
             type="button"
@@ -226,6 +247,53 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
         </section>
       </div>
 
+      <Dialog.Root open={historyOpen} onOpenChange={setHistoryOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="liquid-glass-overlay fixed inset-0 z-[70]" />
+          <Dialog.Content
+            data-sales-history
+            className="liquid-glass-panel fixed left-1/2 top-1/2 z-[71] max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border p-5 shadow-2xl outline-none"
+          >
+            <div className="mb-3 flex items-center">
+              <Dialog.Title className="text-lg font-bold">Sales update history</Dialog.Title>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="ml-auto rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </button>
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">
+              Each Sales submission and what it changed.
+            </Dialog.Description>
+            <ol className="space-y-3">
+              {[...salesHistory].reverse().map((entry) => (
+                <li key={`${entry.revision}-${entry.at}`} className="rounded-xl border p-3">
+                  <p className="text-sm font-semibold">
+                    Rev {entry.revision} · {entry.by} · {new Date(entry.at).toLocaleString()}
+                  </p>
+                  {entry.first ? (
+                    <p className="mt-1 text-xs text-muted-foreground">First submission</p>
+                  ) : entry.changes.length ? (
+                    <ul className="mt-1.5 space-y-1 text-xs">
+                      {entry.changes.map((change, index) => (
+                        <li key={`${change.label}-${index}`} className="leading-snug">
+                          {describeChange(change)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">No changes</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
       <QualificationForm101Dialog
         open={formOpen}
         onOpenChange={setFormOpen}

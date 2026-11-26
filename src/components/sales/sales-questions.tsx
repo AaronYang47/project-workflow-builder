@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qualificationPartyIssue } from "@/lib/qualification";
@@ -37,6 +37,9 @@ const uid = () => crypto.randomUUID().slice(0, 12);
 
 /* ------------------------------------------------------------ primitives */
 
+/** Questions this update changes compared with the last submission. */
+export const ChangedQuestions = createContext<ReadonlySet<string>>(new Set());
+
 export const INPUT =
   "h-12 w-full rounded-xl border border-[#d5dbe4] bg-white px-3.5 text-base text-[#172033] shadow-[0_1px_0_rgba(16,24,40,0.03)] outline-none placeholder:text-[#9aa4b2] focus:border-[#245e9b] focus:ring-4 focus:ring-[#245e9b]/12";
 
@@ -53,6 +56,11 @@ function Question({
   done?: boolean;
   children: ReactNode;
 }) {
+  const changedIds = useContext(ChangedQuestions);
+  const changed =
+    changedIds.has(id) ||
+    (id === "b-disciplines" &&
+      [...changedIds].some((item) => item.startsWith("b-") && item !== "b-special"));
   return (
     <section
       id={`sales-${id}`}
@@ -62,6 +70,14 @@ function Question({
       <div className="mb-3 flex items-start gap-3">
         <h3 className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-[#172033]">
           {title}
+          {changed ? (
+            <span
+              data-sales-changed
+              className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full bg-violet-100 px-2 py-0.5 align-middle text-[11px] font-semibold text-violet-700"
+            >
+              Changed
+            </span>
+          ) : null}
         </h3>
         <span
           aria-label={done ? "Answered" : "Not answered yet"}

@@ -34,6 +34,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       form101: normalizeQualificationForm101(draft?.form101),
       submission: null,
       draftSavedAt: draft?.updatedAt || null,
+      savedJobNumber: "",
+      savedForm101: null,
+      history: [],
     });
   const project = await loadOwnerProject(env, auth.sales.ownerUserId, key);
   if (!project) return json({ error: "Project not found." }, 404);
@@ -48,6 +51,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     form101: draft ? normalizeQualificationForm101(draft.form101) : saved.form101,
     submission: saved.submission ?? null,
     draftSavedAt: draft?.updatedAt || null,
+    // What the project holds now, so Sales see what their update changes.
+    savedJobNumber: saved.jobNumber,
+    savedForm101: saved.form101,
+    history: saved.history,
   });
 };
 

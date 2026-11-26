@@ -15,6 +15,7 @@ import {
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import type { DomainNode, WorkflowFile } from "@/types/workflow";
+import { normalizeRevisionHistory, type RevisionEntry } from "@/lib/qf-changes";
 
 /**
  * The Sales intake site (/sales): Sales fill in only the Job number and the
@@ -70,8 +71,18 @@ export function readSalesIntake(file: WorkflowFile) {
     jobNumber: workflowLegacyJobNumber(file),
     form101: normalizeQualificationForm101(qualification.form101),
     submission: salesSubmissionOf(qualification),
+    history: salesHistoryOf(qualification),
   };
 }
+
+/** Every Sales submission, oldest first, with what each one changed. */
+export function salesHistoryOf(qualification: Qualification): RevisionEntry[] {
+  return normalizeRevisionHistory(
+    (qualification as Qualification & { salesHistory?: unknown }).salesHistory,
+  );
+}
+
+const MAX_HISTORY = 60;
 
 /** Next revision for a Sales submission: kept on the first one, then +1. */
 export function nextSalesRevision(previous: SalesSubmission | undefined, formRevision: string) {
@@ -110,12 +121,19 @@ export function applySalesIntake(
   input: WorkflowFile,
   intake: SalesIntake,
   submission?: SalesSubmission,
+  historyEntry?: RevisionEntry,
 ): WorkflowFile {
   let file = qualificationNode(input) ? input : addQualificationNode(input);
   const node = qualificationNode(file)!;
   const form = compactQualificationForm101(normalizeQualificationForm101(intake.form101));
   const previous = qualificationOf(node);
-  const next: Qualification & { salesSubmission?: SalesSubmission } = {
+  const history = historyEntry
+    ? [...salesHistoryOf(previous), historyEntry].slice(-MAX_HISTORY)
+    : undefined;
+  const next: Qualification & {
+    salesSubmission?: SalesSubmission;
+    salesHistory?: RevisionEntry[];
+  } = {
     ...previous,
     form101: {
       ...form,
@@ -128,6 +146,7 @@ export function applySalesIntake(
     plansAvailable: undefined,
     commercialPath: undefined,
     ...(submission ? { salesSubmission: submission } : {}),
+    ...(history ? { salesHistory: history } : {}),
   };
   next.commercialPath = qualificationRoute(next);
   file = {
@@ -164,9 +183,13 @@ export function templateFromWorkflow(input: WorkflowFile): WorkflowFile {
   let file = clone(input);
   file.graph.nodes = file.graph.nodes.map((node) => {
     if (node.type !== "qualification") return node;
-    const rest = { ...qualificationOf(node) } as Qualification & { salesSubmission?: unknown };
+    const rest = { ...qualificationOf(node) } as Qualification & {
+      salesSubmission?: unknown;
+      salesHistory?: unknown;
+    };
     delete rest.form101;
     delete rest.salesSubmission;
+    delete rest.salesHistory;
     delete rest.techReview;
     return { ...node, config: { ...node.config, qualification: rest } };
   });

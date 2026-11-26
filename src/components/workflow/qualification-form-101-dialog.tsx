@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { salesHistoryOf } from "@/lib/sales-intake";
+import { changedQuestions, describeChange } from "@/lib/qf-changes";
 import { qualificationRoute, type Qualification } from "@/lib/qualification";
 import {
   FORM_101_CODE,
@@ -40,6 +42,7 @@ import {
   SectionAIntake,
   SectionBIntake,
   SectionCIntake,
+  UpdatedQuestionsContext,
 } from "./qualification-form-101/sections";
 import {
   FORM_101_GROUPS,
@@ -102,6 +105,14 @@ function QualificationForm101DialogBody({
   const gate = evaluateQualificationGate(previewQualification);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // What the latest Sales update changed, tagged on the questions it touched.
+  const latestUpdate = salesHistoryOf(qualification)
+    .filter((entry) => !entry.first)
+    .at(-1);
+  const updated = {
+    ids: changedQuestions(latestUpdate),
+    tag: latestUpdate ? `Updated · Rev ${latestUpdate.revision}` : "",
+  };
   const totalSteps = FORM_101_GROUPS.length;
   const currentStep = FORM_101_GROUPS[stepIndex];
   const progressPct = Math.round(((stepIndex + 1) / totalSteps) * 100);
@@ -196,7 +207,14 @@ function QualificationForm101DialogBody({
 
   const renderGroup = (group: FormGroup, editable: boolean) => (
     <section key={group.id} className="space-y-3">
-      <h2 className="text-sm font-bold text-primary">{group.title}</h2>
+      <h2 className="text-sm font-bold text-primary">
+        {group.title}
+        {group.questions.some((id) => updated.ids.has(id)) ? (
+          <span className="ml-2 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-300">
+            {updated.tag}
+          </span>
+        ) : null}
+      </h2>
       {group.section === "a" ? (
         <SectionAIntake
           form={draft}
@@ -435,6 +453,26 @@ function QualificationForm101DialogBody({
         ref={scrollRef}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6"
       >
+        {latestUpdate?.changes.length ? (
+          <details
+            data-form101-sales-update
+            open
+            className="mb-3 rounded-lg border border-violet-500/35 bg-violet-500/8 px-3 py-2 text-xs"
+          >
+            <summary className="cursor-pointer font-semibold text-violet-800 dark:text-violet-200">
+              Sales update Rev {latestUpdate.revision} · {latestUpdate.by} ·{" "}
+              {new Date(latestUpdate.at).toLocaleDateString()} · {latestUpdate.changes.length}{" "}
+              {latestUpdate.changes.length === 1 ? "change" : "changes"}
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {latestUpdate.changes.map((change, index) => (
+                <li key={`${change.label}-${index}`} className="leading-snug">
+                  {describeChange(change)}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
         <details className="mb-3 rounded-lg border px-3 py-2 text-xs">
           <summary className="cursor-pointer font-semibold">How scores are interpreted</summary>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -448,24 +486,26 @@ function QualificationForm101DialogBody({
             ))}
           </ul>
         </details>
-        {viewMode === "wizard" ? (
-          <div data-form101-wizard-step={currentStep.id} className="mx-auto max-w-2xl">
-            {renderGroup(currentStep, true)}
-          </div>
-        ) : viewMode === "all" ? (
-          <fieldset disabled className="space-y-6">
-            <legend className="text-xs text-muted-foreground">
-              Review only. Use Step-by-step to fill in answers in order.
-            </legend>
-            {FORM_101_GROUPS.map((group) => renderGroup(group, false))}
-          </fieldset>
-        ) : (
-          <AnnexReferenceTab
-            canInsert={stepIsUnlocked}
-            onInsertSpecial={insertSpecialItem}
-            onInsertDiscipline={insertDisciplineItem}
-          />
-        )}
+        <UpdatedQuestionsContext.Provider value={updated}>
+          {viewMode === "wizard" ? (
+            <div data-form101-wizard-step={currentStep.id} className="mx-auto max-w-2xl">
+              {renderGroup(currentStep, true)}
+            </div>
+          ) : viewMode === "all" ? (
+            <fieldset disabled className="space-y-6">
+              <legend className="text-xs text-muted-foreground">
+                Review only. Use Step-by-step to fill in answers in order.
+              </legend>
+              {FORM_101_GROUPS.map((group) => renderGroup(group, false))}
+            </fieldset>
+          ) : (
+            <AnnexReferenceTab
+              canInsert={stepIsUnlocked}
+              onInsertSpecial={insertSpecialItem}
+              onInsertDiscipline={insertDisciplineItem}
+            />
+          )}
+        </UpdatedQuestionsContext.Provider>
       </div>
 
       {/* Footer Actions */}
