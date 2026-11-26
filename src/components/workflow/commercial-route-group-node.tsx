@@ -10,21 +10,17 @@ import {
   type CommercialRoute,
 } from "@/lib/commercial-routes";
 import {
-  QUALIFICATION_CASES,
+  qualificationFormRouteAnswers,
   qualificationCaseFor,
   qualificationOf,
   qualificationRoute,
 } from "@/lib/qualification";
-import {
-  ROUTE_FLOW_OFF,
-  ROUTE_FLOW_ON,
-  routeFlowExitBus,
-  routeFlowLayout,
-} from "@/lib/route-flow-layout";
+import { ROUTE_FLOW_OFF, ROUTE_FLOW_ON } from "@/lib/route-flow-layout";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { DepartmentHeaderBar } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
+import { routePlanExitBus, routePlanLayout } from "@/lib/route-plan-flow";
 
 const cad = (amount: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -91,8 +87,8 @@ export function CommercialRouteGroupNode({
     });
 
   // The one way out sits level with the bus that every route joins.
-  const layout = useMemo(() => routeFlowLayout(QUALIFICATION_CASES, { row: 26 }), []);
-  const bus = useMemo(() => routeFlowExitBus(layout), [layout]);
+  const layout = useMemo(() => routePlanLayout(), []);
+  const bus = useMemo(() => routePlanExitBus(layout), [layout]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [exit, setExit] = useState<{ top: number; left: number } | null>(null);
@@ -230,6 +226,11 @@ export function CommercialRouteGroupNode({
         scale={FLOW_SCALE}
         currentId={activeCase?.id}
         client={activeCase?.client}
+        plans={
+          qualification.form101
+            ? qualificationFormRouteAnswers(qualification.form101.sectionA).plansAvailable
+            : qualification.plansAvailable
+        }
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}

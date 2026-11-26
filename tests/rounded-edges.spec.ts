@@ -85,7 +85,7 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
   expect(Math.abs(levels.line - levels.handle)).toBeLessThan(3);
   // Every exit bends onto the bus with an arc, never a right angle.
   const exitLines = await node
-    .locator("[data-qualification-route-exit-line], [data-qualification-route-case] path")
+    .locator("[data-qualification-route-exit-line], [data-qualification-route-lane] path")
     .evaluateAll((paths) => paths.map((path) => path.getAttribute("d") ?? ""));
   expect(exitLines.length).toBeGreaterThan(6);
   expect(exitLines.every((d) => d.includes("Q") || !d.includes("L", d.indexOf("L") + 1))).toBe(
@@ -115,5 +115,6 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
         }
       ).printed,
   );
-  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 2, routeLines: true });
+  // Owners now carry on in their own lane: no hand-over lines to the GC.
+  expect(printed).toEqual({ flows: 1, exits: 1, handoffYellow: 0, routeLines: true });
 });

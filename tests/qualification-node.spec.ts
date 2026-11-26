@@ -49,7 +49,9 @@ async function openQuestionGroup(
 async function answerDrawings(page: Page, value: "Yes" | "No", impact?: RegExp) {
   await openQuestionGroup(page, "Yes / No");
   await page
-    .getByRole("group", { name: "Latest architectural drawing set (including site plan) available" })
+    .getByRole("group", {
+      name: "Latest architectural drawing set (including site plan) available",
+    })
     .getByRole("button", { name: value.toLowerCase(), exact: true })
     .click();
   await dismissRouteImpact(page, impact);
@@ -191,19 +193,23 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   const flow = routeNode.locator("[data-qualification-route-flow]");
   await expect(node.locator("[data-qualification-route-flow]")).toHaveCount(0);
   const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
-  // Every situation is on the flowchart, each with its own branch.
-  await expect(flow.locator("[data-qualification-route-case]")).toHaveCount(7);
-  // Each branch that ends in a step has a way out on the right of its last box.
+  // One lane per kind of customer: ProFab, Owner VIP / Regular, GC VIP / Regular.
+  await expect(flow.locator("[data-qualification-route-lane]")).toHaveCount(5);
+  // Each lane asks about plans twice and loops back through CS / CSA without them.
+  await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(5);
+  await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(3);
+  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
+  // Every box after an LOI carries a small LOI tag: CS, and the GC / PCS that follow.
+  await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(3 + 2 + 2 + 1);
+  // Each lane leaves the chart on the right of its last box (PCS).
   await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(5);
   expect(
-    await flow.locator("[data-qualification-route-case]").evaluateAll((rows) =>
-      rows.flatMap((row) => {
-        const exit = row.querySelector("[data-qualification-route-exit]");
-        const boxes = Array.from(row.querySelectorAll("rect[x]")).slice(1);
-        const last = boxes.at(-1);
-        if (!exit || !last) return [];
+    await flow.locator("[data-qualification-route-lane]").evaluateAll((lanes) =>
+      lanes.map((lane) => {
+        const exit = lane.querySelector("[data-qualification-route-exit]")!;
+        const last = Array.from(lane.querySelectorAll('[data-route-box="PCS"] > rect')).at(-1)!;
         const right = Number(last.getAttribute("x")) + Number(last.getAttribute("width"));
-        return [Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5];
+        return Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5;
       }),
     ),
   ).toEqual([true, true, true, true, true]);
@@ -314,8 +320,9 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await form.getByRole("button", { name: "Save Form" }).click();
   await expect(route).toHaveText("Route: Owner → GC → PCS");
   await expect(flow.locator("[data-qualification-route-client]")).toHaveCount(3);
-  await expect(chosen).toHaveCount(2);
-  await expect(flow.locator('[data-qualification-route-handoff="owner-plans"]')).toBeVisible();
+  // The Owner's own lane, straight on with plans to their GC and PCS.
+  await expect(chosen).toHaveAttribute("data-qualification-route-lane", "owner-regular");
+  await expect(chosen).toHaveAttribute("data-route-plans", "yes");
 
   const pcs = routeNode.getByRole("spinbutton", { name: "PCS module count" });
   const estimate = page
@@ -327,7 +334,9 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   form = await openForm();
   await openQuestionGroup(page, "Yes / No");
   await form
-    .getByRole("group", { name: "Latest architectural drawing set (including site plan) available" })
+    .getByRole("group", {
+      name: "Latest architectural drawing set (including site plan) available",
+    })
     .getByRole("button", { name: "no", exact: true })
     .click();
   const impact = page.getByRole("dialog", { name: "Route impact" });
@@ -335,10 +344,10 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await impact.getByRole("button", { name: "Save & apply route" }).click();
   await expect(form).toHaveCount(0);
   await expect(route).toHaveText("Route: Owner → CSA → GC → PCS");
-  // The Owner's row lights its CSA and hands over to the GC row that does PCS.
-  await expect(chosen).toHaveCount(2);
-  await expect(flow.locator('[data-qualification-route-handoff="owner-no-plans"]')).toBeVisible();
+  // Without plans the Owner's lane goes through CSA, then on to their GC and PCS.
+  await expect(chosen).toHaveAttribute("data-route-plans", "no");
   await expect(chosen.locator('[data-qualification-flow-box="CSA"]')).toHaveCount(1);
+  await expect(chosen.locator('[data-qualification-flow-box="GC"]')).toHaveCount(1);
   await expect(chosen.locator('[data-qualification-flow-box="PCS"]')).toHaveCount(1);
   await expect(estimate).toBeDisabled();
   await routeNode.getByRole("spinbutton", { name: "CSA billable hours" }).fill("5");
