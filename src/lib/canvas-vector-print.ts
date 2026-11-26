@@ -339,6 +339,15 @@ function dashRouteSelectionLines(root: HTMLElement) {
     svg
       .querySelectorAll<SVGElement>("[data-qualification-route-handoff]")
       .forEach((line) => paint(line, PRINT_HANDOFF_YELLOW));
+    // Plans? ✓ green and ✗ red, chosen or not.
+    svg.querySelectorAll<SVGElement>("[data-print-chip-fill]").forEach((chip) => {
+      chip.setAttribute("fill", chip.getAttribute("data-print-chip-fill")!);
+      chip.setAttribute("stroke", chip.getAttribute("data-print-chip-stroke")!);
+      chip.setAttribute("stroke-width", "1.2");
+    });
+    svg
+      .querySelectorAll<SVGElement>("[data-print-chip-text]")
+      .forEach((mark) => mark.setAttribute("fill", mark.getAttribute("data-print-chip-text")!));
   });
   root.querySelectorAll<HTMLElement>("[data-route-selection-exit-line]").forEach((line) => {
     line.style.backgroundColor = "transparent";

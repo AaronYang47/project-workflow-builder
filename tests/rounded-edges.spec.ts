@@ -92,6 +92,15 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
                 ?.getAttribute("stroke"),
             ]),
           ),
+          // Every Plans? ✓ prints green and every ✗ red.
+          chips: Array.from(
+            root.querySelectorAll<SVGElement>(
+              "[data-route-selection-node] [data-route-chip] rect[data-print-chip-stroke]",
+            ),
+          ).map(
+            (rect) =>
+              `${rect.closest("[data-route-chip]")!.getAttribute("data-route-chip")} ${rect.getAttribute("stroke")} ${rect.parentElement!.querySelector("text")!.getAttribute("fill")}`,
+          ),
           exits: root.querySelectorAll(
             '.react-flow__edge[data-id^="edge-commercial-route-group-"] .react-flow__edge-path',
           ).length,
@@ -168,6 +177,7 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
             handoffYellow: number;
             routeLines: boolean;
             uncoloured: number;
+            chips: string[];
             stages: Record<string, string>;
           }[];
         }
@@ -181,6 +191,12 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
     handoffYellow: 0,
     routeLines: true,
     uncoloured: 0,
+    chips: Array.from({ length: 4 }, () => [
+      "yes #059669 #059669",
+      "no #dc2626 #dc2626",
+      "back #059669 #059669",
+      "loop #dc2626 #dc2626",
+    ]).flat(),
     stages: {
       "owner-regular entry": orange,
       "owner-regular yes": orange,

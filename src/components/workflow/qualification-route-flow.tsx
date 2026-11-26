@@ -481,6 +481,9 @@ export function QualificationRouteFlow({
                     width={layout.chip.width}
                     height={layout.chip.height}
                     rx={2.5}
+                    // In the PDF every ✓ prints green and every ✗ red (the chosen one solid).
+                    data-print-chip-fill={chosen ? palette.stroke : palette.fill}
+                    data-print-chip-stroke={palette.stroke}
                     fill={chosen ? colour.stroke : colour.fill}
                     stroke={colour.stroke}
                     strokeWidth={chosen || lit ? 1.6 : clickable ? 1.2 : 0.9}
@@ -493,6 +496,7 @@ export function QualificationRouteFlow({
                     fontSize={8}
                     fontWeight={800}
                     fill={chosen ? "#ffffff" : colour.text}
+                    data-print-chip-text={chosen ? "#ffffff" : palette.stroke}
                     pointerEvents="none"
                   >
                     {chip.ok ? "✓" : "✗"}
