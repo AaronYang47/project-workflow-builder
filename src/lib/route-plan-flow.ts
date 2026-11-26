@@ -29,8 +29,8 @@ export type PlanBox = {
   fontSize?: number;
 };
 
-/** After an LOI, the consultation without plans is Plan Consultation (styled like the LOI). */
-export const PLAN_CONSULTATION = "Plan Consultation";
+/** After an LOI, the consultation without plans is Consultation (styled like the LOI). */
+export const PLAN_CONSULTATION = "Consultation";
 
 export type PlanLane = {
   id: PlanLaneId;
@@ -99,7 +99,7 @@ export function routePlanLayout(): PlanFlowLayout {
   const chipX = forkX + 8;
   const csaX = 210;
   const csaWidth = 34;
-  const consultationWidth = 94;
+  const consultationWidth = 74;
   // Columns line up in every lane, so the merge sits past the widest box.
   const mergeX = csaX + consultationWidth + 34;
   const endX = mergeX + 12;
@@ -142,7 +142,7 @@ export function routePlanLayout(): PlanFlowLayout {
           width: consultationWidth,
           y: yBottom,
           loiTag: false,
-          fontSize: 8,
+          fontSize: 8.5,
         }
       : { text: "CSA", x: csaX, width: csaWidth, y: yBottom, loiTag: false };
     const ends: PlanBox[] = [];
@@ -342,7 +342,8 @@ export function routePlanExitBus(layout: PlanFlowLayout) {
   const exits = layout.lanes.map((lane) => lane.exit.y);
   const busX = layout.width + 16;
   const busY = (Math.min(...exits) + Math.max(...exits)) / 2;
-  return { busX, busY, width: busX + 16 };
+  // Room on the left for each client's own entry arrow.
+  return { busX, busY, width: busX + 16, left: 18 };
 }
 
 /**
@@ -377,10 +378,17 @@ export function routeHighlight(
   item: QualificationCase | undefined,
   plansAvailable?: "yes" | "no",
 ) {
-  const lane = item
-    ? layout.lanes.find((candidate) => candidate.cases.includes(item.id))
-    : undefined;
-  const plans = plansOfCase(item, plansAvailable);
+  const laneId = item ? layout.lanes.find((lane) => lane.cases.includes(item.id))?.id : undefined;
+  return laneHighlight(layout, laneId, plansOfCase(item, plansAvailable));
+}
+
+/** The same for a lane, when the customer is known but plans may not be chosen yet. */
+export function laneHighlight(
+  layout: PlanFlowLayout,
+  laneId: PlanLaneId | undefined,
+  plans: "yes" | "no" | undefined,
+) {
+  const lane = laneId ? layout.lanes.find((candidate) => candidate.id === laneId) : undefined;
   if (!lane) return { lane: undefined, plans, boxes: [] as string[], out: false };
   const boxes = [
     ...(lane.loiBox ? [lane.loiBox.text] : []),
@@ -388,6 +396,17 @@ export function routeHighlight(
     ...(plans ? lane.ends.map((box) => box.text) : []),
   ];
   return { lane: lane.id, plans, boxes, out: Boolean(plans) };
+}
+
+/** The lane for a customer type (from the form's parties), whatever the plans. */
+export function laneForCustomer(
+  clientCategory: "ProFab" | "Owner" | "GC" | undefined,
+  customerTier: "vip" | "regular" | undefined,
+): PlanLaneId | undefined {
+  if (clientCategory === "ProFab") return "loi-gc";
+  if (clientCategory === "Owner") return customerTier === "vip" ? "loi-gc" : "owner-regular";
+  if (clientCategory === "GC") return customerTier === "vip" ? "gc-vip" : "gc-regular";
+  return undefined;
 }
 
 /** The route so far when the customer is known but plans are not chosen yet. */

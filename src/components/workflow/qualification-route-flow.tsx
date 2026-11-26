@@ -9,10 +9,13 @@ import {
   ROUTE_STEP_DEFAULT,
 } from "@/lib/route-flow-layout";
 import {
+  laneHighlight,
+  plansOfCase,
   routeHighlight,
   routePlanExitBus,
   routePlanLayout,
   type PlanBox,
+  type PlanLaneId,
 } from "@/lib/route-plan-flow";
 import { roundedPath } from "@/lib/semantic-edge-geometry";
 
@@ -27,6 +30,7 @@ const tagColor = (text?: string) => (text ? ROUTE_STEP_COLORS[text]?.stroke : un
 const LOI = ROUTE_STEP_COLORS.LOI;
 const YES = { stroke: "#059669", fill: "#ecfdf5", text: "#047857" };
 const NO = { stroke: "#dc2626", fill: "#fef2f2", text: "#b91c1c" };
+const GREY = { stroke: "#94a3b8", fill: "#f8fafc", text: "#64748b" };
 
 type Point = { x: number; y: number };
 
@@ -88,6 +92,7 @@ export function QualificationRouteFlow({
   currentId,
   client,
   plans,
+  laneId,
   onChoosePlans,
   exitBus = false,
   scale = 1,
@@ -103,18 +108,25 @@ export function QualificationRouteFlow({
   client?: string;
   /** Whether the project has plans (for situations that do not say so themselves). */
   plans?: "yes" | "no";
-  /** Tapping ✓ / ✗ at "Plans?" chooses it (tap again to clear). */
+  /** The lane of the customer the form describes, lit even before plans are chosen. */
+  laneId?: PlanLaneId;
+  /** Tapping ✓ / ✗ at "Plans?" on the lit lane chooses it (tap again to clear). */
   onChoosePlans?: (plans: "yes" | "no" | undefined) => void;
 }) {
   const layout = useMemo(() => routePlanLayout(), []);
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
   const viewWidth = exitBus ? bus.width : layout.width;
+  const left = bus.left;
   const current = QUALIFICATION_CASES.find((item) => item.id === currentId);
   // The same rule the tests check: lane, boxes along the path, and the way out.
-  const highlight = routeHighlight(layout, current, plans);
+  const highlight = laneId
+    ? laneHighlight(layout, laneId, plansOfCase(current, plans))
+    : routeHighlight(layout, current, plans);
   const litLane = highlight.lane;
   const litPlans = highlight.plans;
   const finalLane = highlight.out ? litLane : undefined;
+  // The customer type the form describes: its box, its own way in and its branch light up.
+  const litClient = litLane ? client : undefined;
   const boxOn = (laneOn: boolean, text: string) => laneOn && highlight.boxes.includes(text);
   const markerOn = `route-flow-on-${id}`;
   const markerOff = `route-flow-off-${id}`;
@@ -144,9 +156,9 @@ export function QualificationRouteFlow({
       role="img"
       aria-label="Customer routing paths from Qualification"
       data-qualification-route-flow
-      viewBox={`0 0 ${viewWidth} ${layout.height}`}
+      viewBox={`${-left} 0 ${viewWidth + left} ${layout.height}`}
       className="nodrag mt-1 block h-auto overflow-visible text-foreground"
-      style={{ fontFamily: "inherit", width: viewWidth * scale, maxWidth: "100%" }}
+      style={{ fontFamily: "inherit", width: (viewWidth + left) * scale, maxWidth: "100%" }}
     >
       <defs>
         {[
@@ -168,9 +180,42 @@ export function QualificationRouteFlow({
         ))}
       </defs>
 
+      {/* Each client has its own way in from the left. */}
+      <g data-route-entries pointerEvents="none">
+        <path
+          d={roundedPath(
+            [
+              { x: -left + 4, y: layout.clients[0].mid },
+              { x: -left + 4, y: layout.clients.at(-1)!.mid },
+            ],
+            4,
+          )}
+          fill="none"
+          stroke={ROUTE_FLOW_OFF}
+          strokeWidth={1.2}
+        />
+        {layout.clients.map((item) => {
+          const on = litClient === item.client;
+          return (
+            <line
+              key={`entry-${item.client}`}
+              data-route-entry={item.client}
+              data-route-entry-on={on ? "true" : undefined}
+              x1={-left + 4}
+              y1={item.mid}
+              x2={1}
+              y2={item.mid}
+              stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+              strokeWidth={on ? 2.2 : 1.2}
+              markerEnd={`url(#${on ? markerOn : markerOff})`}
+            />
+          );
+        })}
+      </g>
+
       {/* Client boxes → their situations → onto a lane. */}
       {layout.trunks.map((trunk) => {
-        const on = Boolean(currentId && trunk.caseIds.includes(currentId));
+        const on = trunk.client === litClient;
         return (
           <g key={`trunk-${trunk.client}`} data-route-trunk={trunk.client}>
             {line(trunk.points.slice(0, 2), on, { part: "client" })}
@@ -179,10 +224,10 @@ export function QualificationRouteFlow({
         );
       })}
       {layout.branches.map((branch) => {
-        const on = Boolean(currentId && branch.caseIds.includes(currentId));
         const lane = layout.lanes.find((item) =>
           item.cases.some((caseId) => branch.caseIds.includes(caseId)),
         );
+        const on = branch.client === litClient && lane?.id === litLane;
         return (
           <g
             key={branch.caseIds.join("-")}
@@ -295,12 +340,14 @@ export function QualificationRouteFlow({
               Plans?
             </text>
             {lane.chips.map((chip) => {
+              // Grey until chosen; only the lit lane's ✓ / ✗ can be chosen.
               const palette = chip.ok ? YES : NO;
               const lit = (chip.part === "yes" && viaPlans) || (chip.part !== "yes" && viaCsa);
               // The ✓ / ✗ at "Plans?" are the plans choice itself.
               const choice = chip.part === "yes" ? "yes" : chip.part === "no" ? "no" : undefined;
-              const chosen = Boolean(choice && plans === choice);
-              const clickable = Boolean(choice && onChoosePlans);
+              const chosen = Boolean(laneOn && choice && litPlans === choice);
+              const clickable = Boolean(laneOn && choice && onChoosePlans);
+              const colour = chosen || (lit && chip.part === "back") ? palette : GREY;
               return (
                 <g
                   key={chip.part}
@@ -342,9 +389,9 @@ export function QualificationRouteFlow({
                     width={layout.chip.width}
                     height={layout.chip.height}
                     rx={2.5}
-                    fill={chosen ? palette.stroke : palette.fill}
-                    stroke={palette.stroke}
-                    strokeWidth={chosen || lit ? 1.6 : 0.9}
+                    fill={chosen ? colour.stroke : colour.fill}
+                    stroke={colour.stroke}
+                    strokeWidth={chosen || lit ? 1.6 : clickable ? 1.2 : 0.9}
                   />
                   <text
                     x={chip.x + layout.chip.width / 2}
@@ -353,7 +400,7 @@ export function QualificationRouteFlow({
                     dominantBaseline="central"
                     fontSize={8}
                     fontWeight={800}
-                    fill={chosen ? "#ffffff" : palette.text}
+                    fill={chosen ? "#ffffff" : colour.text}
                     pointerEvents="none"
                   >
                     {chip.ok ? "✓" : "✗"}
@@ -430,14 +477,7 @@ export function QualificationRouteFlow({
       )}
 
       {layout.clients.map((item) => {
-        const on =
-          item.client === client ||
-          Boolean(
-            currentId &&
-            layout.branches.some(
-              (branch) => branch.client === item.client && branch.caseIds.includes(currentId),
-            ),
-          );
+        const on = item.client === litClient;
         return (
           <g
             key={item.client}

@@ -211,15 +211,14 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   ).toHaveCount(1);
   // One "Plans?" per lane; without plans, CSA until there are plans.
   await expect(flow.getByText("Plans?")).toHaveCount(4);
-  // Without plans: CSA, or the purple Plan Consultation after an LOI.
+  // Without plans: CSA, or the purple Consultation after an LOI.
   await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
-  await expect(flow.locator('[data-route-box="Plan Consultation"]')).toHaveCount(2);
+  await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(2);
   await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(0);
   // The GC / PCS after an LOI carry a small LOI tag.
   await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(2 + 1);
-  // ✓ / ✗ at each "Plans?" are the plans choice.
-  await expect(flow.getByRole("button", { name: "Plans: yes" })).toHaveCount(4);
-  await expect(flow.getByRole("button", { name: "Plans: no" })).toHaveCount(4);
+  // ProFab, Owner and GC each have their own way in.
+  await expect(flow.locator("[data-route-entry]")).toHaveCount(3);
   // Each lane leaves the chart on the right of its last box (PCS).
   await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(4);
   expect(
@@ -234,8 +233,8 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   ).toEqual([true, true, true, true]);
   await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
-  // The only buttons are ✓ / ✗ at each "Plans?".
-  await expect(flow.getByRole("button")).toHaveCount(8);
+  // ✓ / ✗ can only be chosen on the lit lane, and none is lit yet.
+  await expect(flow.getByRole("button")).toHaveCount(0);
 });
 
 test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({ page }) => {
@@ -332,8 +331,19 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await form.getByRole("button", { name: "Save Form" }).click();
   // The form decides who the customer is; plans are chosen on Route Selection.
   await expect(route).toHaveText("Route: GC → Plans?");
+  // Only the GC Regular lane is lit, so only its ✓ / ✗ can be chosen; both start grey.
+  await expect(flow.getByRole("button")).toHaveCount(2);
+  await expect(flow.locator("[data-route-chip-chosen]")).toHaveCount(0);
+  await expect(flow.locator('[data-route-entry="GC"]')).toHaveAttribute(
+    "data-route-entry-on",
+    "true",
+  );
   await choosePlans(page, "No");
   await expect(route).toHaveText("Route: GC → CSA → PCS");
+  await expect(
+    flow.locator('[data-qualification-route-lane="gc-regular"] [data-route-chip-chosen]'),
+  ).toHaveAttribute("data-route-chip", "no");
+  await expect(flow.locator("[data-route-chip-chosen]")).toHaveCount(1);
   await expect(chosen).toHaveAttribute("data-qualification-route-case", "gc-no-plans");
 
   await choosePlans(page, "Yes");

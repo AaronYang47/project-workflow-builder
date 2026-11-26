@@ -16,11 +16,13 @@ import {
   qualificationRoute,
 } from "@/lib/qualification";
 import { ROUTE_FLOW_OFF, ROUTE_FLOW_ON } from "@/lib/route-flow-layout";
+import { evaluateQualificationGate } from "@/lib/qualification-form-101";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { DomainNode } from "@/types/workflow";
 import { DepartmentHeaderBar } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
 import {
+  laneForCustomer,
   pendingRouteText,
   routePathText,
   routePlanExitBus,
@@ -66,6 +68,15 @@ export function CommercialRouteGroupNode({
   const customerCase = qualificationCaseFor(qualification);
   // Plans are chosen by hand here; with the form's parties they decide the route.
   const plans = qualification.form101 ? qualification.routePlans : qualification.plansAvailable;
+  // Once the form scores enough and says who the customer is, their lane lights
+  // up to "Plans?" so its ✓ / ✗ can be chosen.
+  const formAnswers = qualification.form101
+    ? qualificationFormRouteAnswers(qualification.form101.sectionA, plans)
+    : undefined;
+  const choiceLane =
+    formAnswers && evaluateQualificationGate(qualification).scorePassed
+      ? laneForCustomer(formAnswers.clientCategory, formAnswers.customerTier)
+      : undefined;
   const setPlans = (next: "yes" | "no" | undefined) => {
     if (!qualificationNode) return;
     const store = useWorkflowStore.getState();
@@ -120,7 +131,7 @@ export function CommercialRouteGroupNode({
       const rootBox = root.getBoundingClientRect();
       const zoom = rootBox.width / root.offsetWidth || 1;
       const box = svg.getBoundingClientRect();
-      const scale = box.width / zoom / bus.width;
+      const scale = box.width / zoom / (bus.width + bus.left);
       const next = {
         top: Math.round((box.top - rootBox.top) / zoom - root.clientTop + bus.busY * scale),
         left: Math.round((box.right - rootBox.left) / zoom - root.clientLeft),
@@ -241,8 +252,9 @@ export function CommercialRouteGroupNode({
         svgRef={svgRef}
         exitBus
         scale={FLOW_SCALE}
-        currentId={activeCase?.id}
-        client={activeCase?.client}
+        currentId={activeCase?.id ?? (choiceLane ? customerCase?.id : undefined)}
+        client={choiceLane ? formAnswers?.clientCategory : activeCase?.client}
+        laneId={choiceLane}
         plans={plans}
         onChoosePlans={qualificationNode ? setPlans : undefined}
       />
