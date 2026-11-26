@@ -574,3 +574,36 @@ test("suggested fixes are checked with Auto schedule before they are offered", (
   }
   expect(fixes.map((fix) => fix.title).join(" ")).toContain("move the due date to");
 });
+
+test("a project that starts later feeds in at the entrance, not all along an empty stretch", () => {
+  // A: 18 modules from the start, 8 working days a module (2 weeks on a 4-day week).
+  // B: starts once A's modules have nearly all left the line.
+  const result = simulateScenario(
+    scenario([
+      project("A", { modules: 18, weeksPerModule: 2 }),
+      project("B", { modules: 16, weeksPerModule: 2, earliestStart: "2027-01-27" }),
+    ]),
+    ["A", "B"],
+  );
+  const firstB = result.days.findIndex((day) => day.line.some((item) => item.projectId === "B"));
+  expect(firstB).toBeGreaterThan(0);
+  const dayOne = result.days[firstB];
+  const onLine = dayOne.line.filter((item) => item.projectId === "B");
+  // Only what the line's move that day lets in: one or two, at the entrance.
+  expect(onLine.length).toBeLessThanOrEqual(2);
+  for (const item of onLine) expect(item.progress).toBeLessThan(0.2);
+  // Every day a B module joins, it joins at the entrance: none ever appears
+  // further along than the line moved that day.
+  let loaded = 0;
+  for (const day of result.days.slice(firstB)) {
+    const b = day.line.filter((item) => item.projectId === "B");
+    const newest = Math.max(0, ...b.map((item) => item.module));
+    if (newest > loaded) {
+      const joined = b.filter((item) => item.module > loaded);
+      for (const item of joined) expect(item.progress).toBeLessThan(0.2);
+      loaded = newest;
+    }
+  }
+  expect(loaded).toBe(16);
+  expect(result.projects.every((item) => item.finished)).toBe(true);
+});

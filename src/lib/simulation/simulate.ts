@@ -170,6 +170,8 @@ export function simulateScenario(
     const working = factoryCalendar.isWorking(day);
     let blocked = false;
     let paceDays = 0;
+    /** How far the line moved today: a module joining today can't be further in than this. */
+    let moved = 0;
 
     // Dispatch first to release yard capacity before deciding whether the line
     // can move. Dispatch again after production so newly completed modules can
@@ -240,6 +242,7 @@ export function simulateScenario(
           blockedDays += 1;
           events.push("Line stopped: the yard is full.");
         } else {
+          moved = step;
           line = line
             .map((item) => ({
               ...item,
@@ -290,7 +293,10 @@ export function simulateScenario(
           line.push({
             projectId: next.project.id,
             module: next.loaded,
-            progress: line.length ? newest - gap : 0,
+            // Modules come in at the entrance: behind the last one, but never further
+            // along than the line moved today, so a new project feeds in one by one
+            // instead of appearing all along an empty stretch.
+            progress: line.length ? Math.min(newest - gap, moved) : 0,
             productionDays: 0,
             productionDaysRequired: next.lineDays,
             lineDays: next.lineDays,
