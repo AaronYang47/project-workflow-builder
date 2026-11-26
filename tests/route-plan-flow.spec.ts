@@ -10,23 +10,26 @@ import {
   routePlanExitBus,
   routePathText,
   routePlanLayout,
+  type PlanEndChoice,
   type PlanFlowLayout,
 } from "../src/lib/route-plan-flow";
 
 type Plans = "yes" | "no" | undefined;
+type End = PlanEndChoice | undefined;
 
 /** What the chart lights for one situation: its lane, its boxes, and whether it reaches the exit. */
-function lit(caseId: string, plans: Plans, consult?: Plans) {
+function lit(caseId: string, plans: Plans, consult?: Plans, end?: End) {
   const item = QUALIFICATION_CASES.find((candidate) => candidate.id === caseId);
-  return routeHighlight(routePlanLayout(), item, plans, consult);
+  return routeHighlight(routePlanLayout(), item, plans, consult, end);
 }
 
 const EXPECTED: Record<
   string,
   { lane: string; loi: boolean; ends: string[]; ownPlans?: "yes" | "no"; client: string }
 > = {
-  profab: { lane: "loi-gc", loi: true, ends: ["GC"], client: "ProFab" },
-  "owner-vip": { lane: "loi-gc", loi: true, ends: ["GC"], client: "Owner" },
+  profab: { lane: "profab", loi: true, ends: ["GC"], client: "ProFab" },
+  // Owner VIP has its own lane: after Plan Ready, GC (LOI) or GC + PCS (see below).
+  "owner-vip": { lane: "owner-vip", loi: true, ends: ["GC"], client: "Owner" },
   "owner-plans": {
     lane: "owner-regular",
     loi: false,
@@ -52,6 +55,11 @@ test("every situation lights its own lane, with and without plans", () => {
   expect(Object.keys(EXPECTED).sort()).toEqual(QUALIFICATION_CASES.map((item) => item.id).sort());
   for (const item of QUALIFICATION_CASES) {
     const expected = EXPECTED[item.id];
+    // Owner VIP chooses its way on after Plan Ready: checked in its own test.
+    if (item.id === "owner-vip") {
+      expect(laneOfCase(item.id, layout)).toBe("owner-vip");
+      continue;
+    }
     expect(laneOfCase(item.id, layout), item.id).toBe(expected.lane);
     for (const chosen of ["yes", "no", undefined] as Plans[]) {
       const plans = expected.ownPlans ?? chosen;
@@ -96,6 +104,54 @@ test("every situation lights its own lane, with and without plans", () => {
       }
     }
   }
+});
+
+test("Owner VIP has its own LOI lane: after Plan Ready, GC (LOI) or GC + PCS", () => {
+  const item = QUALIFICATION_CASES.find((candidate) => candidate.id === "owner-vip")!;
+  const layout = routePlanLayout();
+  const lane = layout.lanes.find((candidate) => candidate.id === "owner-vip")!;
+  // Not shared with ProFab any more.
+  expect(layout.lanes.find((candidate) => candidate.id === "profab")!.cases).toEqual(["profab"]);
+  expect(lane.cases).toEqual(["owner-vip"]);
+  expect(lane.ends.map((box) => [box.text, box.loiTag])).toEqual([
+    ["Plan Ready", false],
+    ["GC", true],
+  ]);
+  expect(lane.alt!.ends.map((box) => box.text)).toEqual(["GC", "PCS"]);
+  // The second way leaves Plan Ready and drops to the row below.
+  expect(lane.alt!.link[0]).toEqual({ x: lane.ends[0].x + lane.ends[0].width, y: lane.yTop });
+  expect(lane.alt!.link.at(-1)).toEqual({ x: lane.alt!.ends[0].x, y: lane.yBottom });
+  expect(lane.alt!.ends[0].x).toBe(lane.ends[1].x);
+
+  for (const [plans, consult, middle] of [
+    ["yes", undefined, []],
+    ["no", "yes", ["CSA"]],
+  ] as [Plans, Plans, string[]][]) {
+    // Plan Ready lights, but it goes on only once a way is chosen.
+    const open = lit("owner-vip", plans, consult);
+    expect(open.boxes).toEqual(["LOI", ...middle, "Plan Ready"]);
+    expect(open.out).toBe(false);
+    expect(routePathText(item, plans, layout, undefined, consult)).toBe(
+      ["Owner", "LOI", ...middle, "GC (LOI) or GC + PCS?"].join(" → "),
+    );
+    const loi = lit("owner-vip", plans, consult, "gc-loi");
+    expect(loi.boxes).toEqual(["LOI", ...middle, "Plan Ready", "GC"]);
+    expect(loi.out).toBe(true);
+    expect(routePathText(item, plans, layout, "gc-loi", consult)).toBe(
+      ["Owner", "LOI", ...middle, "GC (LOI)"].join(" → "),
+    );
+    const pcs = lit("owner-vip", plans, consult, "gc-pcs");
+    expect(pcs.boxes).toEqual(["LOI", ...middle, "Plan Ready", "GC", "PCS"]);
+    expect(pcs.out).toBe(true);
+    expect(routePathText(item, plans, layout, "gc-pcs", consult)).toBe(
+      ["Owner", "LOI", ...middle, "GC", "PCS"].join(" → "),
+    );
+  }
+  // Before Plan Ready, the choice changes nothing.
+  expect(lit("owner-vip", "no", undefined, "gc-pcs").boxes).toEqual(["LOI", "CSA"]);
+  expect(routePathText(item, "no", layout, "gc-pcs")).toBe("Owner → LOI → CSA → Plans?");
+  // ProFab goes straight on to its GC (LOI).
+  expect(lit("profab", "yes").out).toBe(true);
 });
 
 test("plans come from the choice on Route Selection, not from the form's drawings answer", () => {
@@ -167,19 +223,28 @@ test("every bend in the chart has the same radius", () => {
   for (const lane of layout.lanes) {
     for (const key of ["entry", "toFork", "yes", "no", "toFork2", "loop", "back"] as const)
       polylines.push([`${lane.id} ${key}`, lane[key]]);
-    polylines.push([
-      `${lane.id} exit`,
-      [
-        { x: lane.exit.x + 3.5, y: lane.exit.y },
-        { x: bus.busX, y: lane.exit.y },
-        { x: bus.busX, y: bus.busY },
-        { x: bus.width, y: bus.busY },
-      ],
-    ]);
+    for (const [name, exit] of [
+      ["exit", lane.exit],
+      ...(lane.alt ? [["alt exit", lane.alt.exit] as const] : []),
+    ] as const)
+      polylines.push([
+        `${lane.id} ${name}`,
+        [
+          { x: exit.x + 3.5, y: exit.y },
+          { x: bus.busX, y: exit.y },
+          { x: bus.busX, y: bus.busY },
+          { x: bus.width, y: bus.busY },
+        ],
+      ]);
+    if (lane.alt) polylines.push([`${lane.id} alt`, lane.alt.link]);
   }
   for (const branch of layout.branches)
     polylines.push([`${branch.caseIds.join("+")} branch`, branch.points]);
-  for (const [name, points] of polylines)
+  for (const [name, all] of polylines) {
+    // A lane level with the bus runs straight into it: no bend there.
+    const points = all.filter(
+      (point, index) => !index || point.x !== all[index - 1].x || point.y !== all[index - 1].y,
+    );
     for (let index = 1; index < points.length - 1; index++) {
       const before = Math.hypot(
         points[index].x - points[index - 1].x,
@@ -194,6 +259,7 @@ test("every bend in the chart has the same radius", () => {
         2 * ROUTE_CORNER - 1e-9,
       );
     }
+  }
   // The chart's corners match the canvas connectors at the card's scale.
   expect(ROUTE_CORNER * ROUTE_FLOW_SCALE).toBeCloseTo(EDGE_CORNER_RADIUS, 5);
 });

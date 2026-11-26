@@ -1,4 +1,9 @@
-import { qualificationRoute, type Qualification } from "@/lib/qualification";
+import {
+  qualificationCaseFor,
+  qualificationRoute,
+  qualificationRouteAnswers,
+  type Qualification,
+} from "@/lib/qualification";
 import type { DomainNode } from "@/types/workflow";
 
 export const COMMERCIAL_ROUTES = ["CSA", "PCS", "LOI"] as const;
@@ -33,7 +38,45 @@ export function commercialRouteReady(node: DomainNode, route: CommercialRoute | 
   return false;
 }
 
+function ownerVipHandoff(qualification: Qualification) {
+  const { plansAvailable } = qualificationRouteAnswers(qualification);
+  if (plansAvailable !== "yes" && !(plansAvailable === "no" && qualification.routeConsultPlans === "yes"))
+    return undefined;
+  const handoff = qualification.routeOwnerVipEnd;
+  return handoff === "gc-loi" || handoff === "gc-pcs" ? handoff : undefined;
+}
+
+export function commercialWorkflowAgreements(
+  qualification: Qualification,
+): readonly CommercialRoute[] {
+  const route = qualificationRoute(qualification);
+  const situation = qualificationCaseFor(qualification);
+  if (situation?.id === "owner-vip") {
+    return ownerVipHandoff(qualification) === "gc-pcs" ? ["LOI", "PCS"] : ["LOI"];
+  }
+  if (situation?.id === "owner-no-plans") {
+    return qualification.routeConsultPlans === "yes" ? ["CSA", "PCS"] : ["CSA"];
+  }
+  if (route === "CSA") return ["CSA", "PCS"];
+  return route ? [route] : [];
+}
+
 export function commercialWorkflowReady(node: DomainNode, qualification: Qualification) {
+  const situation = qualificationCaseFor(qualification);
+  if (situation?.id === "owner-vip") {
+    if (!ownerVipHandoff(qualification)) return false;
+    return commercialWorkflowAgreements(qualification).every((route) =>
+      commercialRouteReady(node, route),
+    );
+  }
+  if (situation?.id === "owner-no-plans") {
+    return (
+      qualification.routeConsultPlans === "yes" &&
+      commercialWorkflowAgreements(qualification).every((route) =>
+        commercialRouteReady(node, route),
+      )
+    );
+  }
   return commercialRouteReady(node, qualificationRoute(qualification));
 }
 

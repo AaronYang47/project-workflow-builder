@@ -213,38 +213,44 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   const flow = routeNode.locator("[data-qualification-route-flow]");
   await expect(node.locator("[data-qualification-route-flow]")).toHaveCount(0);
   const chosen = flow.locator('[data-qualification-route-case][data-active="true"]');
-  // Customers on the same path share a lane: ProFab + Owner VIP (LOI), Owner
-  // Regular, GC VIP (LOI), GC Regular.
-  await expect(flow.locator("[data-qualification-route-lane]")).toHaveCount(4);
+  // A lane each: ProFab (LOI), Owner VIP (LOI), Owner Regular, GC VIP (LOI), GC Regular.
+  await expect(flow.locator("[data-qualification-route-lane]")).toHaveCount(5);
   await expect(
     flow.locator('[data-route-branch="owner-vip"] [data-route-part="join"]'),
   ).toHaveCount(1);
   // Each lane asks "Plans?" twice: ✓ on, ✗ to CSA and round again.
-  await expect(flow.getByText("Plans?")).toHaveCount(8);
-  await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(4);
+  await expect(flow.getByText("Plans?")).toHaveCount(10);
+  await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(5);
   await expect(flow.getByText("until plans")).toHaveCount(0);
   // Without plans: CSA in every lane (with the LOI tag after an LOI).
-  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(4);
+  await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(5);
   // Every lane reaches a green Plan Ready before its GC / PCS.
-  await expect(flow.locator('[data-route-box="Plan Ready"]')).toHaveCount(4);
+  await expect(flow.locator('[data-route-box="Plan Ready"]')).toHaveCount(5);
   await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(0);
-  // No PCS after an LOI: only the two Regular lanes have one.
-  await expect(flow.locator('[data-route-box="PCS"]')).toHaveCount(2);
+  // No PCS under an LOI: the two Regular lanes have one, and Owner VIP's GC + PCS.
+  await expect(flow.locator('[data-route-box="PCS"]')).toHaveCount(3);
+  await expect(flow.locator("[data-route-end-choice]")).toHaveCount(2);
   await expect(flow.locator('[data-route-box="CS"]')).toHaveCount(0);
   // The CSA and GC after an LOI carry a small LOI tag.
-  await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(2 + 1);
+  await expect(flow.locator("[data-route-loi-tag]")).toHaveCount(3 + 2);
   // ProFab, Owner and GC each have their own way in.
   await expect(flow.locator("[data-route-entry]")).toHaveCount(3);
   // Each lane leaves the chart on the right of its last box (PCS, GC after an LOI, or
   // Plan Ready for GC VIP).
-  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(4);
+  // Owner VIP has two: GC (LOI), and GC + PCS on the row below.
+  await expect(flow.locator("[data-qualification-route-exit]")).toHaveCount(6);
   expect(
-    await flow.locator("[data-qualification-route-lane]").evaluateAll((lanes) =>
-      lanes.map((lane) => {
-        const exit = lane.querySelector("[data-qualification-route-exit]")!;
+    await flow.locator("[data-qualification-route-exit]").evaluateAll((exits) =>
+      exits.map((exit) => {
+        const y = Number(exit.getAttribute("cy"));
+        const lane = exit.closest("[data-qualification-route-lane]")!;
+        // The last box on the exit's own row.
         const last = Array.from(lane.querySelectorAll("[data-route-box] > rect"))
           .filter(
-            (rect) => rect.closest("[data-route-box]")!.getAttribute("data-route-box") !== "CSA",
+            (rect) =>
+              Math.abs(
+                Number(rect.getAttribute("y")) + Number(rect.getAttribute("height")) / 2 - y,
+              ) < 0.5,
           )
           .sort((a, b) => Number(a.getAttribute("x")) - Number(b.getAttribute("x")))
           .at(-1)!;
@@ -252,7 +258,7 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
         return Math.abs(Number(exit.getAttribute("cx")) - right) < 0.5;
       }),
     ),
-  ).toEqual([true, true, true, true]);
+  ).toEqual([true, true, true, true, true, true]);
   await expect(route).toHaveText("Route: Complete Form [1.01]");
   await expect(chosen).toHaveCount(0);
   // ✓ / ✗ can only be chosen on the lit lane, and none is lit yet.
@@ -395,6 +401,8 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   // it goes on through Plan Ready to their GC and PCS.
   await expect(chosen).toHaveAttribute("data-route-plans", "no");
   await expect(chosen.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(0);
+  await expect(pcs).toHaveCount(0);
+  await expect(estimate).toBeDisabled();
   await chooseConsultPlans(page, "No");
   await expect(chosen.locator('[data-route-part="loop"][data-route-part-on="true"]')).toHaveCount(
     1,
@@ -428,6 +436,39 @@ test("Qualification routes use completed Q3 pairs and Q12 in sequence", async ({
   await expect(route).toHaveText("Route: Owner → GC → PCS");
   await expect(pcs).toHaveValue("14");
   await expect(estimate).toBeEnabled();
+
+  const ownerStatus = routeNode.getByRole("group", { name: "Owner status" });
+  await ownerStatus.getByRole("button", { name: "VIP", exact: true }).click();
+  const vipLane = flow.locator('[data-qualification-route-lane="owner-vip"]');
+  await expect(vipLane).toHaveAttribute("data-active", "true");
+  await expect(vipLane.locator('[data-qualification-flow-box="Plan Ready"]')).toHaveCount(1);
+  await expect(estimate).toBeDisabled();
+  const price = routeNode.getByRole("textbox", {
+    name: "LOI estimated project price or range in CAD",
+  });
+  await price.fill("500,000");
+  await price.press("Tab");
+  await routeNode.getByRole("checkbox", { name: "LOI signed by the company CEO" }).check();
+  await expect(estimate).toBeDisabled();
+
+  await vipLane.locator('[data-route-end-choice="gc-pcs"]').click();
+  await expect(route).toHaveText("Route: Owner → LOI → GC → PCS");
+  await pcs.fill("");
+  await expect(estimate).toBeDisabled();
+  await pcs.fill("14");
+  await expect(estimate).toBeEnabled();
+
+  await vipLane.locator('[data-route-end-choice="gc-loi"]').click();
+  await expect(route).toHaveText("Route: Owner → LOI → GC (LOI)");
+  await expect(pcs).toHaveCount(0);
+  await expect(estimate).toBeEnabled();
+  await page.getByRole("button", { name: /fit view/i }).click();
+  await choosePlans(page, "No");
+  await expect(route).toHaveText("Route: Owner → LOI → CSA → Plans?");
+  await expect(vipLane.locator('[data-route-end-choice][role="button"]')).toHaveCount(0);
+  await expect(estimate).toBeDisabled();
+  await choosePlans(page, "Yes");
+  await expect(estimate).toBeDisabled();
 
   form = await openForm();
   await openQuestionGroup(page, "Written answers");

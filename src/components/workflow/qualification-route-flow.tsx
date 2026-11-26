@@ -15,6 +15,7 @@ import {
   routePlanExitBus,
   routePlanLayout,
   type PlanBox,
+  type PlanEndChoice,
   type PlanLaneId,
   PLAN_READY,
   ROUTE_CORNER,
@@ -107,6 +108,8 @@ export function QualificationRouteFlow({
   laneId,
   onChoosePlans,
   onChooseConsultPlans,
+  endChoice,
+  onChooseEnd,
   exitBus = false,
   scale = 1,
   svgRef,
@@ -128,6 +131,10 @@ export function QualificationRouteFlow({
   /** The second "Plans?", after CSA. */
   consultPlans?: "yes" | "no";
   onChooseConsultPlans?: (plans: "yes" | "no" | undefined) => void;
+  /** Owner VIP after Plan Ready: GC (LOI), or GC + PCS. */
+  endChoice?: PlanEndChoice;
+  /** Tapping either way on after Plan Ready chooses it (tap again to clear). */
+  onChooseEnd?: (choice: PlanEndChoice | undefined) => void;
 }) {
   const layout = useMemo(() => routePlanLayout(), []);
   const bus = useMemo(() => routePlanExitBus(layout), [layout]);
@@ -136,8 +143,8 @@ export function QualificationRouteFlow({
   const current = QUALIFICATION_CASES.find((item) => item.id === currentId);
   // The same rule the tests check: lane, boxes along the path, and the way out.
   const highlight = laneId
-    ? laneHighlight(layout, laneId, plansOfCase(current, plans), consultPlans)
-    : routeHighlight(layout, current, plans, consultPlans);
+    ? laneHighlight(layout, laneId, plansOfCase(current, plans), consultPlans, endChoice)
+    : routeHighlight(layout, current, plans, consultPlans, endChoice);
   const litLane = highlight.lane;
   const litPlans = highlight.plans;
   const finalLane = highlight.out ? litLane : undefined;
@@ -169,7 +176,7 @@ export function QualificationRouteFlow({
   return (
     <svg
       ref={svgRef}
-      role="img"
+      role="group"
       aria-label="Customer routing paths from Qualification"
       data-qualification-route-flow
       viewBox={`${-left} 0 ${viewWidth + left} ${layout.height}`}
@@ -354,7 +361,55 @@ export function QualificationRouteFlow({
         // Second "Plans?": ✓ on to Plan Ready, ✗ round again into CSA.
         const consultDone = viaCsa && highlight.consultPlans === "yes";
         const consultLoop = viaCsa && highlight.loop;
-        const ends = highlight.out && laneOn;
+        // The way on after Plan Ready: the top row, or (Owner VIP) the row below.
+        const mainOn = laneOn && highlight.out && (!lane.alt || highlight.endChoice === "gc-loi");
+        const altOn = laneOn && highlight.out && highlight.endChoice === "gc-pcs";
+        const readyOn = laneOn && highlight.boxes.includes(PLAN_READY);
+        const choosing = Boolean(lane.alt && readyOn && onChooseEnd);
+        /** Owner VIP: tap a way on after Plan Ready to choose it. */
+        const choice = (value: PlanEndChoice, label: string) =>
+          choosing
+            ? {
+                role: "button",
+                "aria-label": `After Plan Ready: ${label}`,
+                "aria-pressed": highlight.endChoice === value,
+                tabIndex: 0,
+                style: { cursor: "pointer" },
+                onClick: () => onChooseEnd!(highlight.endChoice === value ? undefined : value),
+                onKeyDown: (event: React.KeyboardEvent) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  onChooseEnd!(highlight.endChoice === value ? undefined : value);
+                },
+              }
+            : {};
+        const endLine = (link: [Point, Point], on: boolean, key: string) => (
+          <line
+            key={key}
+            data-route-part="end"
+            data-print-route-color={printStage(lane.loi, "ready")}
+            x1={link[0].x}
+            y1={link[0].y}
+            x2={link[1].x}
+            y2={link[1].y}
+            stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+            strokeWidth={on ? 2.2 : 1.2}
+            markerEnd={`url(#${on ? markerOn : markerOff})`}
+          />
+        );
+        const exitDot = (point: Point, on: boolean, key: string) => (
+          <circle
+            key={key}
+            data-qualification-route-exit={key}
+            data-print-route-color={printStage(lane.loi, "ready")}
+            cx={point.x}
+            cy={point.y}
+            r={3.5}
+            fill={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
+            stroke="#ffffff"
+            strokeWidth={1.2}
+          />
+        );
         return (
           <g
             key={lane.id}
@@ -400,20 +455,15 @@ export function QualificationRouteFlow({
               part: "back",
               printColor: printStage(lane.loi, "csa"),
             })}
-            {lane.endLinks.map((link, index) => (
-              <line
-                key={`end-${index}`}
-                data-route-part="end"
-                data-print-route-color={printStage(lane.loi, "ready")}
-                x1={link[0].x}
-                y1={link[0].y}
-                x2={link[1].x}
-                y2={link[1].y}
-                stroke={ends ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-                strokeWidth={ends ? 2.2 : 1.2}
-                markerEnd={`url(#${ends ? markerOn : markerOff})`}
-              />
-            ))}
+            {lane.endLinks.map((link, index) => endLine(link, mainOn, `end-${index}`))}
+            {lane.alt
+              ? line(lane.alt.link, altOn, {
+                  arrow: true,
+                  part: "alt",
+                  printColor: printStage(lane.loi, "ready"),
+                })
+              : null}
+            {lane.alt?.endLinks.map((link, index) => endLine(link, altOn, `alt-end-${index}`))}
             {lane.questions.map((point, index) => (
               <text
                 key={`question-${index}`}
@@ -512,24 +562,31 @@ export function QualificationRouteFlow({
               />
             ) : null}
             <Box box={lane.csa} boxHeight={layout.boxHeight} on={boxOn(laneOn, lane.csa.text)} />
-            {lane.ends.map((box) => (
-              <Box
-                key={box.text}
-                box={box}
-                boxHeight={layout.boxHeight}
-                on={boxOn(laneOn, box.text)}
-              />
-            ))}
-            <circle
-              data-qualification-route-exit={lane.id}
-              data-print-route-color={printStage(lane.loi, "ready")}
-              cx={lane.exit.x}
-              cy={lane.exit.y}
-              r={3.5}
-              fill={lane.id === finalLane ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
-              stroke="#ffffff"
-              strokeWidth={1.2}
-            />
+            <Box box={lane.ends[0]} boxHeight={layout.boxHeight} on={readyOn} />
+            <g
+              data-route-end-choice={lane.alt ? "gc-loi" : undefined}
+              {...choice("gc-loi", "GC (LOI)")}
+            >
+              {lane.ends.slice(1).map((box) => (
+                <Box key={box.text} box={box} boxHeight={layout.boxHeight} on={mainOn} />
+              ))}
+            </g>
+            {lane.alt ? (
+              <g data-route-end-choice="gc-pcs" {...choice("gc-pcs", "GC + PCS")}>
+                <rect
+                  x={lane.alt.ends[0].x}
+                  y={lane.alt.exit.y - layout.boxHeight / 2}
+                  width={lane.alt.exit.x - lane.alt.ends[0].x}
+                  height={layout.boxHeight}
+                  fill="transparent"
+                />
+                {lane.alt.ends.map((box) => (
+                  <Box key={box.text} box={box} boxHeight={layout.boxHeight} on={altOn} />
+                ))}
+              </g>
+            ) : null}
+            {exitDot(lane.exit, mainOn, lane.id)}
+            {lane.alt ? exitDot(lane.alt.exit, altOn, `${lane.id}-alt`) : null}
           </g>
         );
       })}
@@ -547,20 +604,37 @@ export function QualificationRouteFlow({
             stroke={finalLane ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
             strokeWidth={finalLane ? 2.2 : 1.2}
           />
-          {[...layout.lanes]
-            .sort((left, right) => Number(left.id === finalLane) - Number(right.id === finalLane))
-            .map((lane) => {
-              const on = lane.id === finalLane;
+          {layout.lanes
+            .flatMap((lane) => [
+              {
+                lane,
+                key: lane.id,
+                exit: lane.exit,
+                on: lane.id === finalLane && (!lane.alt || highlight.endChoice === "gc-loi"),
+              },
+              ...(lane.alt
+                ? [
+                    {
+                      lane,
+                      key: `${lane.id}-alt`,
+                      exit: lane.alt.exit,
+                      on: lane.id === finalLane && highlight.endChoice === "gc-pcs",
+                    },
+                  ]
+                : []),
+            ])
+            .sort((left, right) => Number(left.on) - Number(right.on))
+            .map(({ lane, key, exit, on }) => {
               const points = [
-                { x: lane.exit.x + 3.5, y: lane.exit.y },
-                { x: bus.busX, y: lane.exit.y },
+                { x: exit.x + 3.5, y: exit.y },
+                { x: bus.busX, y: exit.y },
                 { x: bus.busX, y: bus.busY },
                 ...(on ? [{ x: viewWidth, y: bus.busY }] : []),
               ];
               return (
                 <path
-                  key={`bus-${lane.id}`}
-                  data-qualification-route-exit-line={lane.id}
+                  key={`bus-${key}`}
+                  data-qualification-route-exit-line={key}
                   data-print-route-color={printStage(lane.loi, "ready")}
                   d={roundedPath(points, ROUTE_CORNER)}
                   fill="none"

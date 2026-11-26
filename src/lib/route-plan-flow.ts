@@ -4,21 +4,25 @@ import { EDGE_CORNER_RADIUS } from "@/lib/semantic-edge-geometry";
 /**
  * The Route Selection chart. Customers that take the same path share a lane:
  *
- *   ProFab, Owner VIP  → LOI → Plans? → GC → PCS
- *   Owner Regular      →       Plans? → GC → PCS
- *   GC VIP             → LOI → Plans? → PCS
- *   GC Regular         →       Plans? → PCS
+ *   ProFab         → LOI → Plans? → Plan Ready → GC (LOI)
+ *   Owner VIP      → LOI → Plans? → Plan Ready → GC (LOI), or GC → PCS
+ *   Owner Regular  →       Plans? → Plan Ready → GC → PCS
+ *   GC VIP         → LOI → Plans? → Plan Ready
+ *   GC Regular     →       Plans? → Plan Ready → PCS
  *
- * "Plans?" — with plans, straight on; without, CSA (Consultation after an
- * LOI), then "Plans?" again: with plans back onto the line, without, round again. Every box after an LOI
- * carries a small LOI tag.
+ * "Plans?" — with plans, straight on; without, CSA, then "Plans?" again: with
+ * plans back onto the line, without, round again. The CSA and GC after an LOI
+ * carry a small LOI tag.
  *
  * Units are pixels at a 9–10px font; the canvas and the PDF both draw this.
  */
 
 type Point = { x: number; y: number };
 
-export type PlanLaneId = "loi-gc" | "owner-regular" | "gc-vip" | "gc-regular";
+export type PlanLaneId = "profab" | "owner-vip" | "owner-regular" | "gc-vip" | "gc-regular";
+
+/** Owner VIP after Plan Ready: the GC under the LOI, or the GC and a PCS. */
+export type PlanEndChoice = "gc-loi" | "gc-pcs";
 
 export type PlanBox = {
   text: string;
@@ -59,10 +63,10 @@ export type PlanLane = {
   no: Point[];
   csa: PlanBox;
   /** CSA until there are plans. */
-  /** CSA / Consultation to the second "Plans?". */
+  /** CSA to the second "Plans?". */
   toFork2: Point[];
   fork2X: number;
-  /** Still no plans: round and back into CSA / Consultation. */
+  /** Still no plans: round and back into CSA. */
   loop: Point[];
   /** Plans now: back up onto the line. */
   back: Point[];
@@ -72,6 +76,11 @@ export type PlanLane = {
   ends: PlanBox[];
   endLinks: [Point, Point][];
   exit: Point;
+  /**
+   * Owner VIP: a second way on from Plan Ready, on the row below (GC → PCS).
+   * The top row is then the "gc-loi" choice, this one "gc-pcs".
+   */
+  alt?: { link: Point[]; ends: PlanBox[]; endLinks: [Point, Point][]; exit: Point };
 };
 
 /** A customer's own line from its client box onto its lane. */
@@ -123,16 +132,26 @@ export function routePlanLayout(): PlanFlowLayout {
   // Even spacing: each client box sits exactly between its two situations
   // (Owner VIP / Regular, GC VIP / Regular), so both branch lines are the same
   // distance from the box's middle line.
+  // Lanes are this far apart (the loop under one clears the next).
   const branchGap = 72;
   const yLane = {
-    "loi-gc": 16,
-    "owner-regular": 128,
-    "gc-vip": 204,
-    "gc-regular": 204 + branchGap,
+    profab: 16,
+    "owner-vip": 16 + branchGap,
+    "owner-regular": 16 + 2 * branchGap,
+    "gc-vip": 16 + 3 * branchGap,
+    "gc-regular": 16 + 4 * branchGap,
   };
-  const specs: { id: PlanLaneId; loi: boolean; cases: string[]; ends: string[] }[] = [
-    // After an LOI there is no PCS: on to the GC, or done at Plan Ready.
-    { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC"] },
+  const specs: {
+    id: PlanLaneId;
+    loi: boolean;
+    cases: string[];
+    ends: string[];
+    alt?: string[];
+  }[] = [
+    // After an LOI there is no PCS of its own: on to the GC, or done at Plan Ready.
+    { id: "profab", loi: true, cases: ["profab"], ends: ["GC"] },
+    // Owner VIP: after Plan Ready, the GC under the LOI, or the GC and a PCS.
+    { id: "owner-vip", loi: true, cases: ["owner-vip"], ends: ["GC"], alt: ["GC", "PCS"] },
     {
       id: "owner-regular",
       loi: false,
@@ -155,13 +174,43 @@ export function routePlanLayout(): PlanFlowLayout {
     const ends: PlanBox[] = [
       { text: PLAN_READY, x: endX, width: 62, y: yTop, loiTag: false, fontSize: 8.5 },
     ];
-    let x = endX + 62 + endGap;
-    for (const text of spec.ends) {
-      const width = boxWidth(text);
-      ends.push({ text, x, width, y: yTop, loiTag: spec.loi });
-      x += width + endGap;
-    }
+    const readyRight = endX + 62;
+    // With a second way on, it leaves Plan Ready endGap along: the GCs sit past that turn.
+    const firstEndX = readyRight + (spec.alt ? 2 * endGap : endGap);
+    const row = (texts: string[], y: number, loiTag: boolean) => {
+      const boxes: PlanBox[] = [];
+      let x = firstEndX;
+      for (const text of texts) {
+        const width = boxWidth(text);
+        boxes.push({ text, x, width, y, loiTag });
+        x += width + endGap;
+      }
+      return boxes;
+    };
+    ends.push(...row(spec.ends, yTop, spec.loi));
     const last = ends.at(-1)!;
+    const links = (boxes: PlanBox[], y: number) =>
+      boxes.slice(1).map((box, index): [Point, Point] => [
+        { x: boxes[index].x + boxes[index].width, y },
+        { x: box.x, y },
+      ]);
+    let alt: PlanLane["alt"];
+    if (spec.alt) {
+      const altEnds = row(spec.alt, yBottom, false);
+      const turnX = readyRight + endGap;
+      const altLast = altEnds.at(-1)!;
+      alt = {
+        link: [
+          { x: readyRight, y: yTop },
+          { x: turnX, y: yTop },
+          { x: turnX, y: yBottom },
+          { x: altEnds[0].x, y: yBottom },
+        ],
+        ends: altEnds,
+        endLinks: links(altEnds, yBottom),
+        exit: { x: altLast.x + altLast.width, y: yBottom },
+      };
+    }
     // The second "Plans?" opens as wide as the first.
     const yLoop = yBottom + 22;
     return {
@@ -219,27 +268,25 @@ export function routePlanLayout(): PlanFlowLayout {
         { x: chip2X - 1, y: yBottom + 11 },
       ],
       ends,
-      endLinks: ends.slice(1).map((box, index) => [
-        { x: ends[index].x + ends[index].width, y: yTop },
-        { x: box.x, y: yTop },
-      ]),
+      endLinks: links(ends, yTop),
       exit: { x: last.x + last.width, y: yTop },
+      alt,
     };
   });
 
   const lane = (id: PlanLaneId) => lanes.find((item) => item.id === id)!;
-  const ownerVipY = yLane["owner-regular"] - branchGap;
+  const ownerVipY = yLane["owner-vip"];
   const branches: PlanBranch[] = [
     {
       caseIds: ["profab"],
       client: "ProFab",
       points: [
-        { x: clientWidth, y: yLane["loi-gc"] },
-        { x: joinX, y: yLane["loi-gc"] },
+        { x: clientWidth, y: yLane.profab },
+        { x: joinX, y: yLane.profab },
       ],
     },
     {
-      // Owner VIP rises into the ProFab lane: the same LOI path.
+      // Owner VIP has its own LOI lane: after Plan Ready it may go another way.
       caseIds: ["owner-vip"],
       client: "Owner",
       label: "VIP",
@@ -248,7 +295,6 @@ export function routePlanLayout(): PlanFlowLayout {
       points: [
         { x: labelX + 22, y: ownerVipY },
         { x: joinX, y: ownerVipY },
-        { x: joinX, y: yLane["loi-gc"] },
       ],
     },
     {
@@ -295,9 +341,9 @@ export function routePlanLayout(): PlanFlowLayout {
   const clients: PlanClient[] = [
     {
       client: "ProFab",
-      top: yLane["loi-gc"] - pad,
-      bottom: yLane["loi-gc"] + pad,
-      mid: yLane["loi-gc"],
+      top: yLane.profab - pad,
+      bottom: yLane.profab + pad,
+      mid: yLane.profab,
     },
     { client: "Owner", top: ownerTop, bottom: ownerBottom, mid: (ownerTop + ownerBottom) / 2 },
     { client: "GC", top: gcTop, bottom: gcBottom, mid: (gcTop + gcBottom) / 2 },
@@ -326,7 +372,8 @@ export function routePlanLayout(): PlanFlowLayout {
     // The box's line in, then the branch line up and down to both situations.
     points: [...trunk.points, { x: trunkX, y: span[0] }, { x: trunkX, y: span[1] }],
   }));
-  const width = Math.max(...lanes.map((item) => item.exit.x)) + 6;
+  const width =
+    Math.max(...lanes.flatMap((item) => [item.exit.x, ...(item.alt ? [item.alt.exit.x] : [])])) + 6;
   return {
     lanes,
     branches,
@@ -359,7 +406,10 @@ export function plansOfCase(
 
 /** Where every lane leaves the chart: onto one bus, and one line out from its middle. */
 export function routePlanExitBus(layout: PlanFlowLayout) {
-  const exits = layout.lanes.map((lane) => lane.exit.y);
+  const exits = layout.lanes.flatMap((lane) => [
+    lane.exit.y,
+    ...(lane.alt ? [lane.alt.exit.y] : []),
+  ]);
   const busX = layout.width + 16;
   const busY = (Math.min(...exits) + Math.max(...exits)) / 2;
   // Room on the left for each client's own entry arrow; the way in joins the
@@ -376,6 +426,9 @@ export function routePathText(
   item: QualificationCase | undefined,
   plans: "yes" | "no" | undefined,
   layout: PlanFlowLayout = routePlanLayout(),
+  /** Owner VIP: the way on after Plan Ready. */
+  endChoice?: PlanEndChoice,
+  consultPlans?: "yes" | "no",
 ) {
   if (!item) return undefined;
   const lane = layout.lanes.find((candidate) => candidate.cases.includes(item.id));
@@ -383,12 +436,16 @@ export function routePathText(
   const steps = [item.client, ...(lane.loi ? ["LOI"] : [])];
   const choice = plansOfCase(item, plans);
   if (!choice) return [...steps, "Plans?"].join(" → ");
-  return [
-    ...steps,
-    ...(choice === "no" ? [lane.csa.text] : []),
-    // Plan Ready is a state on the way, not an agreement in the route.
-    ...lane.ends.filter((box) => box.text !== PLAN_READY).map((box) => box.text),
-  ].join(" → ");
+  if (lane.alt && choice === "no" && consultPlans !== "yes")
+    return [...steps, lane.csa.text, "Plans?"].join(" → ");
+  const ends =
+    lane.alt && endChoice === "gc-pcs"
+      ? lane.alt.ends.map((box) => box.text)
+      : lane.alt
+        ? [endChoice === "gc-loi" ? "GC (LOI)" : "GC (LOI) or GC + PCS?"]
+        : // Plan Ready is a state on the way, not an agreement in the route.
+          lane.ends.filter((box) => box.text !== PLAN_READY).map((box) => box.text);
+  return [...steps, ...(choice === "no" ? [lane.csa.text] : []), ...ends].join(" → ");
 }
 
 /**
@@ -401,9 +458,10 @@ export function routeHighlight(
   item: QualificationCase | undefined,
   plansAvailable?: "yes" | "no",
   consultPlans?: "yes" | "no",
+  endChoice?: PlanEndChoice,
 ) {
   const laneId = item ? layout.lanes.find((lane) => lane.cases.includes(item.id))?.id : undefined;
-  return laneHighlight(layout, laneId, plansOfCase(item, plansAvailable), consultPlans);
+  return laneHighlight(layout, laneId, plansOfCase(item, plansAvailable), consultPlans, endChoice);
 }
 
 /** The same for a lane, when the customer is known but plans may not be chosen yet. */
@@ -411,26 +469,43 @@ export function laneHighlight(
   layout: PlanFlowLayout,
   laneId: PlanLaneId | undefined,
   plans: "yes" | "no" | undefined,
-  /** The second "Plans?", after CSA / Consultation. */
+  /** The second "Plans?", after CSA. */
   consultPlans?: "yes" | "no",
+  /** Owner VIP: the way on after Plan Ready. */
+  endChoice?: PlanEndChoice,
 ) {
   const lane = laneId ? layout.lanes.find((candidate) => candidate.id === laneId) : undefined;
   if (!lane)
-    return { lane: undefined, plans, consultPlans, boxes: [] as string[], out: false, loop: false };
-  // Every finished path goes through Plan Ready: plans at once, or after CSA / Consultation.
+    return {
+      lane: undefined,
+      plans,
+      consultPlans,
+      endChoice: undefined,
+      boxes: [] as string[],
+      out: false,
+      loop: false,
+    };
+  // Every finished path goes through Plan Ready: plans at once, or after CSA.
   const done = plans === "yes" || (plans === "no" && consultPlans === "yes");
+  // Owner VIP goes on only once the way after Plan Ready is chosen.
+  const chosenEnd = done && lane.alt ? endChoice : undefined;
+  const out = done && (!lane.alt || Boolean(chosenEnd));
+  const after =
+    chosenEnd === "gc-pcs" ? lane.alt!.ends : lane.ends.filter((box) => box.text !== PLAN_READY);
   const boxes = [
     ...(lane.loiBox ? [lane.loiBox.text] : []),
     ...(plans === "no" ? [lane.csa.text] : []),
-    ...(done ? lane.ends.map((box) => box.text) : []),
+    ...(done ? [PLAN_READY] : []),
+    ...(out ? after.map((box) => box.text) : []),
   ];
   return {
     lane: lane.id,
     plans,
     consultPlans: plans === "no" ? consultPlans : undefined,
+    endChoice: chosenEnd,
     boxes,
-    out: done,
-    // Still no plans after CSA / Consultation: round again.
+    out,
+    // Still no plans after CSA: round again.
     loop: plans === "no" && consultPlans === "no",
   };
 }
@@ -440,8 +515,8 @@ export function laneForCustomer(
   clientCategory: "ProFab" | "Owner" | "GC" | undefined,
   customerTier: "vip" | "regular" | undefined,
 ): PlanLaneId | undefined {
-  if (clientCategory === "ProFab") return "loi-gc";
-  if (clientCategory === "Owner") return customerTier === "vip" ? "loi-gc" : "owner-regular";
+  if (clientCategory === "ProFab") return "profab";
+  if (clientCategory === "Owner") return customerTier === "vip" ? "owner-vip" : "owner-regular";
   if (clientCategory === "GC") return customerTier === "vip" ? "gc-vip" : "gc-regular";
   return undefined;
 }

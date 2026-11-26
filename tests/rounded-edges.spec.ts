@@ -80,9 +80,9 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
               ["owner-regular", "loop"],
               ["owner-regular", "back"],
               ["owner-regular", "end"],
-              ["loi-gc", "no"],
-              ["loi-gc", "to-fork2"],
-              ["loi-gc", "end"],
+              ["profab", "no"],
+              ["profab", "to-fork2"],
+              ["profab", "end"],
             ].map(([lane, part]) => [
               `${lane} ${part}`,
               root
@@ -191,7 +191,7 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
     handoffYellow: 0,
     routeLines: true,
     uncoloured: 0,
-    chips: Array.from({ length: 4 }, () => [
+    chips: Array.from({ length: 5 }, () => [
       "yes #059669 #059669",
       "no #dc2626 #dc2626",
       "back #059669 #059669",
@@ -205,9 +205,9 @@ test("Route Selection joins every route onto one bus and one line out to Estimat
       "owner-regular loop": blue,
       "owner-regular back": blue,
       "owner-regular end": green,
-      "loi-gc no": purple,
-      "loi-gc to-fork2": purple,
-      "loi-gc end": purple,
+      "profab no": purple,
+      "profab to-fork2": purple,
+      "profab end": purple,
     },
   });
 });

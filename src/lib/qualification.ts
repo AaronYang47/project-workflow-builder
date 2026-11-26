@@ -29,6 +29,10 @@ export type Qualification = {
   routePlans?: "yes" | "no";
   /** After CSA: plans now ready (yes) or still none (no), chosen on Route Selection. */
   routeConsultPlans?: "yes" | "no";
+  /** Owner VIP status selected on Route Selection for a Q3 Owner. */
+  routeOwnerVip?: boolean;
+  /** Owner VIP after Plan Ready: the GC under the LOI, or the GC and a PCS. */
+  routeOwnerVipEnd?: "gc-loi" | "gc-pcs";
   /** PROFAB [1.01] Qualification Form data, stored only when edited. */
   form101?: QualificationForm101;
   /** Retained for older saved projects; no longer gates the two-step Qualification flow. */
@@ -171,12 +175,23 @@ export function qualificationOf(node: DomainNode): Qualification {
   return value && typeof value === "object" ? (value as Qualification) : {};
 }
 
-export function qualificationCaseFor(qualification: Qualification) {
-  return qualificationCase(
-    qualification.form101
-      ? qualificationFormRouteAnswers(qualification.form101.sectionA, qualification.routePlans)
-      : qualification,
+export function qualificationRouteAnswers(qualification: Qualification): QualificationRouteAnswers {
+  if (!qualification.form101) return qualification;
+  const answers = qualificationFormRouteAnswers(
+    qualification.form101.sectionA,
+    qualification.routePlans,
   );
+  if (
+    answers.clientCategory === "Owner" &&
+    (qualification.routeOwnerVip ?? qualification.customerTier === "vip")
+  ) {
+    return { ...answers, customerTier: "vip" };
+  }
+  return answers;
+}
+
+export function qualificationCaseFor(qualification: Qualification) {
+  return qualificationCase(qualificationRouteAnswers(qualification));
 }
 
 /**

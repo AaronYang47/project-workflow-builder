@@ -6,14 +6,15 @@ import { Calculator, FileSignature, GitBranch, Handshake } from "lucide-react";
 import {
   COMMERCIAL_ROUTE_STYLE,
   commercialRouteReady,
+  commercialWorkflowAgreements,
   commercialWorkflowReady,
-  type CommercialRoute,
 } from "@/lib/commercial-routes";
 import {
   qualificationCaseFor,
-  qualificationFormRouteAnswers,
+  qualificationRouteAnswers,
   qualificationOf,
   qualificationRoute,
+  type Qualification,
 } from "@/lib/qualification";
 import { ROUTE_FLOW_OFF, ROUTE_FLOW_ON } from "@/lib/route-flow-layout";
 import { evaluateQualificationGate } from "@/lib/qualification-form-101";
@@ -43,13 +44,6 @@ const cad = (amount: number) =>
 /** Pixels per unit of the route chart. */
 const FLOW_SCALE = ROUTE_FLOW_SCALE;
 
-/** The agreements a route goes through: CSA carries on into PCS. */
-const AGREEMENTS: Record<CommercialRoute, CommercialRoute[]> = {
-  CSA: ["CSA", "PCS"],
-  PCS: ["PCS"],
-  LOI: ["LOI"],
-};
-
 /**
  * Route Selection: after Qualification, choose the customer's situation on
  * the route chart, fill in the agreement it leads to, and carry on to
@@ -71,35 +65,38 @@ export function CommercialRouteGroupNode({
   const route = qualificationNode ? qualificationRoute(qualification) : undefined;
   const customerCase = qualificationCaseFor(qualification);
   // Plans are chosen by hand here; with the form's parties they decide the route.
-  const plans = qualification.form101 ? qualification.routePlans : qualification.plansAvailable;
   // Once the form scores enough and says who the customer is, their lane lights
   // up to "Plans?" so its ✓ / ✗ can be chosen.
-  const formAnswers = qualification.form101
-    ? qualificationFormRouteAnswers(qualification.form101.sectionA, plans)
-    : undefined;
+  const answers = qualificationRouteAnswers(qualification);
+  const plans = answers.plansAvailable;
+  const scorePassed = evaluateQualificationGate(qualification).scorePassed;
+  const canChooseOwnerStatus = Boolean(
+    qualification.form101 && answers.clientCategory === "Owner" && scorePassed,
+  );
   const choiceLane =
-    formAnswers && evaluateQualificationGate(qualification).scorePassed
-      ? laneForCustomer(formAnswers.clientCategory, formAnswers.customerTier)
+    qualification.form101 && scorePassed
+      ? laneForCustomer(answers.clientCategory, answers.customerTier)
       : undefined;
-  /** After CSA: plans ready now (on to Plan Ready) or still none (round again). */
-  const setConsultPlans = (next: "yes" | "no" | undefined) => {
+  const updateRoute = (patch: Partial<Qualification>) => {
     if (!qualificationNode) return;
     const store = useWorkflowStore.getState();
     const target = store.file.graph.nodes.find((item) => item.id === qualificationNode.id);
     if (!target) return;
-    const updated = { ...qualificationOf(target), routeConsultPlans: next };
-    store.updateNode(target.id, { config: { ...target.config, qualification: updated } });
-  };
-  const setPlans = (next: "yes" | "no" | undefined) => {
-    if (!qualificationNode) return;
-    const store = useWorkflowStore.getState();
-    const target = store.file.graph.nodes.find((item) => item.id === qualificationNode.id);
-    if (!target) return;
-    const current = qualificationOf(target);
-    const updated = { ...current, routePlans: next };
+    const updated = { ...qualificationOf(target), ...patch };
     updated.commercialPath = qualificationRoute(updated);
     store.updateNode(target.id, { config: { ...target.config, qualification: updated } });
   };
+
+  const setConsultPlans = (next: Qualification["routeConsultPlans"]) =>
+    updateRoute({ routeConsultPlans: next, routeOwnerVipEnd: undefined });
+  const setOwnerVipEnd = (next: Qualification["routeOwnerVipEnd"]) =>
+    updateRoute({ routeOwnerVipEnd: next });
+  const setPlans = (next: Qualification["routePlans"]) =>
+    updateRoute({
+      ...(qualification.form101 ? { routePlans: next } : { plansAvailable: next }),
+      routeConsultPlans: undefined,
+      routeOwnerVipEnd: undefined,
+    });
 
   const modules = Number(node.customFields.commercialRouteModuleCount || 0);
   const csaHours = Number(node.customFields.commercialRouteCsaHours || 0);
@@ -173,7 +170,8 @@ export function CommercialRouteGroupNode({
     if (exit || entry) updateNodeInternals(node.id);
   }, [exit, entry, node.id, updateNodeInternals]);
 
-  const agreements = route ? AGREEMENTS[route] : [];
+  const ownerVipEnd = qualification.routeOwnerVipEnd;
+  const agreements = commercialWorkflowAgreements(qualification);
   const ready = commercialWorkflowReady(node, qualification);
   const activeCase = reached ? customerCase : undefined;
   // Lit as soon as the chart's path reaches the way out, so the line meets the dot.
@@ -184,9 +182,10 @@ export function CommercialRouteGroupNode({
         choiceLane,
         plansOfCase(chartCase, plans),
         qualification.routeConsultPlans,
+        ownerVipEnd,
       ).out
-    : routeHighlight(layout, chartCase, plans, qualification.routeConsultPlans).out;
-  const exitActive = Boolean(activeCase) || chartOut;
+    : routeHighlight(layout, chartCase, plans, qualification.routeConsultPlans, ownerVipEnd).out;
+  const exitActive = chartOut;
   const lineColor = exitActive ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF;
 
   return (
@@ -296,28 +295,54 @@ export function CommercialRouteGroupNode({
         />
       )}
 
-      <p className="mt-2 text-sm text-muted-foreground">Route from Qualification Form [1.01]</p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
+        <p className="text-sm text-muted-foreground">Route from Qualification Form [1.01]</p>
+        {canChooseOwnerStatus && (
+          <div role="group" aria-label="Owner status" className="nodrag flex gap-1">
+            {(["regular", "vip"] as const).map((tier) => {
+              const active = answers.customerTier === tier;
+              return (
+                <button
+                  key={tier}
+                  type="button"
+                  aria-pressed={active}
+                  className={`rounded border px-2 py-0.5 text-[11px] ${active ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                  onClick={() => {
+                    if (!active)
+                      updateRoute({
+                        routeOwnerVip: tier === "vip",
+                        routeConsultPlans: undefined,
+                        routeOwnerVipEnd: undefined,
+                      });
+                  }}
+                >
+                  {tier === "vip" ? "VIP" : "Regular"}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <QualificationRouteFlow
         id={node.id}
         svgRef={svgRef}
         exitBus
         scale={FLOW_SCALE}
         currentId={activeCase?.id ?? (choiceLane ? customerCase?.id : undefined)}
-        client={choiceLane ? formAnswers?.clientCategory : activeCase?.client}
+        client={choiceLane ? answers.clientCategory : activeCase?.client}
         laneId={choiceLane}
         plans={plans}
         onChoosePlans={qualificationNode ? setPlans : undefined}
         consultPlans={qualification.routeConsultPlans}
         onChooseConsultPlans={qualificationNode ? setConsultPlans : undefined}
+        endChoice={ownerVipEnd}
+        onChooseEnd={qualificationNode ? setOwnerVipEnd : undefined}
       />
       <p data-qualification-route className="mt-1 text-base font-semibold text-foreground">
         Route:{" "}
-        {routePathText(customerCase, plans) ??
+        {routePathText(customerCase, plans, layout, ownerVipEnd, qualification.routeConsultPlans) ??
           (qualification.form101
-            ? pendingRouteText(
-                qualificationFormRouteAnswers(qualification.form101.sectionA).clientCategory,
-                qualificationFormRouteAnswers(qualification.form101.sectionA).customerTier,
-              )
+            ? pendingRouteText(answers.clientCategory, answers.customerTier)
             : undefined) ??
           route ??
           "Complete Form [1.01]"}
@@ -336,7 +361,11 @@ export function CommercialRouteGroupNode({
         {agreements.map((path) => {
           const style = COMMERCIAL_ROUTE_STYLE[path];
           const onRoute = reached;
-          const active = reached && route === path;
+          const active =
+            reached &&
+            (route === path ||
+              (path === "PCS" &&
+                (customerCase?.id === "owner-vip" || customerCase?.id === "owner-no-plans")));
           const pathReady = commercialRouteReady(node, path);
           const Icon = path === "CSA" ? Handshake : path === "PCS" ? Calculator : FileSignature;
           return (
@@ -361,6 +390,9 @@ export function CommercialRouteGroupNode({
                 {active && <span className="ml-auto">{pathReady ? "READY" : "INCOMPLETE"}</span>}
                 {path === "PCS" && route === "CSA" && !active && (
                   <span className="ml-auto">AFTER CSA</span>
+                )}
+                {path === "PCS" && route === "LOI" && !active && (
+                  <span className="ml-auto">WITH THE GC</span>
                 )}
               </div>
               {path === "CSA" && (
@@ -451,9 +483,10 @@ export function CommercialRouteGroupNode({
                       }}
                     />
                   </label>
-                  <label className="nodrag mt-1 flex items-center gap-1">
+                  <label className="nodrag mt-1 flex min-h-7 cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
+                      className="size-4 shrink-0"
                       aria-label="LOI signed by the company CEO"
                       checked={signed}
                       onChange={(event) => updateSignature(event.target.checked)}
