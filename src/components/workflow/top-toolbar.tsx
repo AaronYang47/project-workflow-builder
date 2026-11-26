@@ -102,7 +102,7 @@ export function TopToolbar({
   canOpenExecutionView?: boolean;
   onOpenExecutionView?: () => void;
   onCloseExecutionView?: () => void;
-  pageLayer?: "L3" | "L4" | "L5";
+  pageLayer?: "L3" | "L4" | "L5" | "L6";
   onPageExport?: (format: string) => void;
   onPageSearch?: () => void;
 }) {
@@ -641,7 +641,7 @@ export function TopToolbar({
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </ToolButton>
         {/* L5 collapses its inputs with the panel's own edge toggle. */}
-        {pageLayer === "L5" ? null : (
+        {pageLayer === "L5" || pageLayer === "L6" ? null : (
           <>
             <ToolButton label="Toggle node library" onClick={() => store.togglePanel("left")}>
               <PanelLeftClose className="size-4" />

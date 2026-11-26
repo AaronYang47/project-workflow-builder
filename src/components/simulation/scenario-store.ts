@@ -30,6 +30,31 @@ export function newScenario(name: string, today: string): SimScenario {
   };
 }
 
+const ACTIVE_KEY = "construction-simulation:active-scenario:v1";
+
+/** The scenario open in L5, which L6 shows too. */
+export function loadActiveScenarioId() {
+  try {
+    return window.localStorage.getItem(ACTIVE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function saveActiveScenarioId(id: string) {
+  try {
+    window.localStorage.setItem(ACTIVE_KEY, id);
+  } catch {
+    /* private mode: L5 and L6 fall back to the first scenario */
+  }
+}
+
+/** The active scenario, else the first. */
+export function pickActiveScenario(scenarios: SimScenario[]) {
+  const id = loadActiveScenarioId();
+  return scenarios.find((item) => item.id === id) ?? scenarios[0];
+}
+
 /** Saved scenarios live in this browser. Reads never throw. */
 export function loadScenarios(): SimScenario[] {
   try {

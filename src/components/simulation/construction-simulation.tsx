@@ -64,6 +64,8 @@ import {
   fetchCloudScenarios,
   loadScenarios,
   mergeScenarios,
+  pickActiveScenario,
+  saveActiveScenarioId,
   newScenario,
   saveCloudScenario,
   saveScenarios,
@@ -99,7 +101,7 @@ export function ConstructionSimulation() {
 function firstScenario(currentFile: WorkflowFile, currentId: string | undefined) {
   const today = todayIso();
   const saved = loadScenarios();
-  if (saved.length) return { saved, draft: saved[0] };
+  if (saved.length) return { saved, draft: pickActiveScenario(saved) };
   const draft = newScenario("Scenario A", today);
   if (currentFile.graph.nodes.length || currentFile.highLevel?.graph.nodes.length) {
     const current = simProjectFromWorkflow(currentFile, currentId ?? "current", 0, today);
@@ -141,8 +143,15 @@ function SimulationWorkspace() {
         saveScenarios(merged);
         for (const scenario of localOnly) void saveCloudScenario(scenario).catch(() => undefined);
         // A browser with nothing saved yet opens the account's latest scenario.
-        if (!initial.saved.length && merged.length)
-          setDraft((current) => (current === initial.draft ? merged[0] : current));
+        if (merged.length)
+          setDraft((current) => {
+            if (current !== initial.draft) return current;
+            // L6 may have changed the scenario: take the account's copy of it.
+            return (
+              merged.find((item) => item.id === current.id) ??
+              (initial.saved.length ? current : pickActiveScenario(merged))
+            );
+          });
       })
       .catch(() => undefined);
     return () => {
@@ -547,6 +556,9 @@ function SimulationWorkspace() {
       setNotice(error instanceof Error ? error.message : "Could not load that project.");
     }
   };
+
+  // L6 shows the scenario open here.
+  useEffect(() => saveActiveScenarioId(draft.id), [draft.id]);
 
   // Every change is saved: to this browser at once (a backup when offline),
   // then to the account.

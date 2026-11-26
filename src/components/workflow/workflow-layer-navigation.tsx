@@ -27,6 +27,12 @@ const layers = [
     path: "/construction-simulation",
     aria: "Open Construction Simulation",
   },
+  {
+    id: "L6",
+    label: "L6 · Multi-Project",
+    path: "/multi-project",
+    aria: "Open Multi-Project Schedule",
+  },
 ] as const;
 
 export function WorkflowLayerNavigation({
@@ -34,7 +40,7 @@ export function WorkflowLayerNavigation({
   onlyAdvanced = false,
   embedded = false,
 }: {
-  currentLayer: "L1" | "L2" | "L3" | "L4" | "L5";
+  currentLayer: "L1" | "L2" | "L3" | "L4" | "L5" | "L6";
   onlyAdvanced?: boolean;
   embedded?: boolean;
 }) {
@@ -51,7 +57,7 @@ export function WorkflowLayerNavigation({
       }
     >
       {layers
-        .filter((layer) => !onlyAdvanced || ["L3", "L4", "L5"].includes(layer.id))
+        .filter((layer) => !onlyAdvanced || ["L3", "L4", "L5", "L6"].includes(layer.id))
         .map((layer) => {
           const query = new URLSearchParams();
           if (room !== "local-only") {
@@ -61,10 +67,11 @@ export function WorkflowLayerNavigation({
           if (layer.id === "L1" || layer.id === "L2") query.set("layer", layer.id);
           const href = `${layer.path}${query.size ? `?${query}` : ""}`;
           // L5 is a desktop page: hidden on phones, its long name only on wide screens.
-          const isL5 = layer.id === "L5";
+          const isL5 = layer.id === "L5" || layer.id === "L6";
           const style = `${isL5 ? "max-sm:hidden" : ""} flex h-7 items-center whitespace-nowrap rounded px-2 text-[11px] font-semibold ${currentLayer === layer.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`;
-          const shortClass = isL5 ? "2xl:hidden" : "xl:hidden";
-          const longClass = isL5 ? "hidden 2xl:inline" : "hidden xl:inline";
+          // Six layers: full names only on the widest screens.
+          const shortClass = "2xl:hidden";
+          const longClass = "hidden 2xl:inline";
           return canEdit ? (
             <Link
               key={layer.id}
