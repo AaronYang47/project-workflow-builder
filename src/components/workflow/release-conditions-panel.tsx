@@ -212,6 +212,8 @@ export function ReleaseConditionsPanel({
               label: "New step",
               required: true,
               checked: false,
+              duration: 1,
+              durationUnit: "weeks",
             },
           ]),
         )}

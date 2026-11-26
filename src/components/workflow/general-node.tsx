@@ -416,6 +416,8 @@ export function GeneralNode({
                       label: "New step",
                       required: true,
                       checked: false,
+                      duration: 1,
+                      durationUnit: "weeks",
                     },
                   ]),
                 )}

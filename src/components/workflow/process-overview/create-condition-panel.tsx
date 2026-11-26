@@ -43,9 +43,9 @@ export function CreateConditionPanel({
       label: draft.trim(),
       required: true,
       checked: false,
-      ...(Number.isFinite(duration) && duration > 0
-        ? { duration, durationUnit: "weeks" as const }
-        : {}),
+      // A step without an entered duration starts at 1 week.
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 1,
+      durationUnit: "weeks" as const,
     };
     setInbox([...currentInbox(), wholeDayCondition(condition, workingDaysPerWeek)]);
     setDraftState(EMPTY_CONDITION_DRAFT);

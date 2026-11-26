@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { ListOrdered, Plus } from "lucide-react";
 import { TopToolbar } from "./top-toolbar";
 import { AuthGate } from "./auth-gate";
 import { CollaborationControlOverlay } from "./collaboration-control-overlay";
@@ -32,6 +32,7 @@ import { calendarWorkSummary } from "@/lib/gantt-bar-label";
 import { taskCalendarBadges } from "@/lib/calendar-badges";
 import { wholeDayCondition } from "@/lib/condition-duration";
 import type { Condition } from "@/types/workflow";
+import { sequenceSchedule } from "@/lib/sequence-schedule";
 
 const ROW_GRID = "grid grid-cols-[168px_minmax(660px,1fr)] sm:grid-cols-[280px_minmax(660px,1fr)]";
 
@@ -273,6 +274,24 @@ export function ProcessOverview() {
                 >
                   <Plus className="mr-1 inline size-3.5" />
                   Create Step{inboxCount > 0 ? ` · ${inboxCount} unassigned` : ""}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Sequence all steps"
+                  disabled={!canEdit}
+                  title="Each step starts when the step above it finishes, Phase by Phase. Steps without a duration get 1 week. Undo restores the previous schedule."
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Sequence every step in order? Each step will start when the step above it finishes (Phase by Phase), replacing the start offsets and predecessors you set. Steps without a duration get 1 week. You can undo this.",
+                      )
+                    )
+                      commit(sequenceSchedule);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border bg-panel px-3 py-2 font-semibold hover:bg-muted disabled:opacity-50"
+                >
+                  <ListOrdered className="size-3.5" />
+                  Sequence all
                 </button>
                 <span className="rounded-lg border bg-panel px-3 py-2">
                   {schedule.phases.length} phases

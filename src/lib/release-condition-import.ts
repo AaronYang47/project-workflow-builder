@@ -83,7 +83,14 @@ export function applyReleaseConditionImport(file: WorkflowFile, rows: ReleaseCon
       } else if (label !== previous.condition.label) result.updated++;
       else result.unchanged++;
     } else {
-      condition = { id: `condition-${crypto.randomUUID()}`, label, required: true, checked: false };
+      condition = {
+        id: `condition-${crypto.randomUUID()}`,
+        label,
+        required: true,
+        checked: false,
+        duration: 1,
+        durationUnit: "weeks",
+      };
       if (targetId === RELEASE_CONDITION_INBOX_ID) result.addedUnassigned++;
       else result.addedAssigned++;
     }

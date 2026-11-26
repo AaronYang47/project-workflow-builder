@@ -23,6 +23,9 @@ export function parseReleaseConditionLines(input: string): Condition[] {
         ...(dated ? { displayDate: dated[1] } : {}),
         required: true,
         checked: false,
+        // Every new step starts at 1 week in the Gantt.
+        duration: 1,
+        durationUnit: "weeks" as const,
       },
     ];
   });
