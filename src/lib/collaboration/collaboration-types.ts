@@ -52,6 +52,16 @@ export type SyncMessage =
       senderId: string;
       file: WorkflowFile;
       view?: CollaborativeViewState;
+      /** The editor's last cloud save of this file, so a later editor saves from it. */
+      cloud?: { projectId: string; updatedAt: string };
+      timestamp: number;
+    }
+  | {
+      /** The editor saved to the cloud: everyone in the room now saves from this version. */
+      type: "CLOUD_SAVED";
+      senderId: string;
+      projectId: string;
+      updatedAt: string;
       timestamp: number;
     }
   | {

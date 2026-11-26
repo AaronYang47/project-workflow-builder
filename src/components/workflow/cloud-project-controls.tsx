@@ -1,5 +1,6 @@
 "use client";
 
+import { broadcastIfLocal } from "@/store/workflow-store-helpers";
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -400,6 +401,14 @@ export function CloudProjectControls({
       wrote = true;
       if (useWorkflowStore.getState().activeProjectId === projectId)
         useWorkflowStore.getState().setCloudUpdatedAt(saved.project.updated_at);
+      // Other sessions in the live room save from this version next.
+      broadcastIfLocal((senderId) => ({
+        type: "CLOUD_SAVED",
+        senderId,
+        projectId,
+        updatedAt: saved.project.updated_at,
+        timestamp: Date.now(),
+      }));
       if (
         useWorkflowStore.getState().file === savedFile &&
         useWorkflowStore.getState().activeProjectId === projectId

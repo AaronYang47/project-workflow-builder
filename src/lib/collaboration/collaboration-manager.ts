@@ -21,6 +21,25 @@ const COLLABORATION_RELAYS = [
   "wss://nostr-01.yakihonne.com",
 ];
 
+/** This session's cloud save version of the open project, for full-state syncs. */
+export function cloudStamp(): { cloud?: { projectId: string; updatedAt: string } } {
+  const { activeProjectId, cloudUpdatedAt } = useWorkflowStore.getState();
+  return activeProjectId && cloudUpdatedAt
+    ? { cloud: { projectId: activeProjectId, updatedAt: cloudUpdatedAt } }
+    : {};
+}
+
+/**
+ * Another session in the room saved this project: save from that version, so a
+ * session that takes editing control next is not refused as out of date.
+ */
+export function adoptCloudStamp(projectId: string, updatedAt: string) {
+  const store = useWorkflowStore.getState();
+  if (store.activeProjectId !== projectId) return;
+  if (store.cloudUpdatedAt && store.cloudUpdatedAt >= updatedAt) return;
+  store.setCloudUpdatedAt(updatedAt);
+}
+
 class CollaborationManager {
   private room: Room | null = null;
   private controlRevision = 0;
@@ -295,6 +314,7 @@ class CollaborationManager {
         type: "SYNC_FULL_STATE",
         senderId: local.peerId,
         file: pending,
+        ...cloudStamp(),
         timestamp: Date.now(),
       });
     }, 180);
@@ -323,6 +343,7 @@ class CollaborationManager {
       type: "SYNC_FULL_STATE",
       senderId: local.peerId,
       file: useWorkflowStore.getState().file,
+      ...cloudStamp(),
       ...(collaboration.editorViewState ? { view: collaboration.editorViewState } : {}),
       timestamp: Date.now(),
     });
@@ -503,11 +524,16 @@ class CollaborationManager {
         this.applyRemoteView(msg.senderId, msg.view, msg.timestamp);
         break;
       }
+      case "CLOUD_SAVED": {
+        adoptCloudStamp(msg.projectId, msg.updatedAt);
+        break;
+      }
       case "SYNC_FULL_STATE": {
         if (!collabStore.editControlReady || msg.senderId !== collabStore.editorPeerId) break;
         collabStore.setIsRemoteApplying(true);
         try {
           useWorkflowStore.getState().applyCollaborativeFile(msg.file);
+          if (msg.cloud) adoptCloudStamp(msg.cloud.projectId, msg.cloud.updatedAt);
           if (msg.view) this.applyRemoteView(msg.senderId, msg.view, msg.timestamp);
         } finally {
           collabStore.setIsRemoteApplying(false);
