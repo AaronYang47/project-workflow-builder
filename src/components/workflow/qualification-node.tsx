@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { ClipboardCheck, FileSpreadsheet } from "lucide-react";
+import { ClipboardCheck, FileDown, FileSpreadsheet, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qualificationOf, qualificationRoute, type Qualification } from "@/lib/qualification";
 import {
@@ -15,12 +15,16 @@ import {
   FORM_101_VERSION,
   evaluateQualificationForm101,
   evaluateQualificationGate,
+  normalizeQualificationForm101,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import { QualificationForm101Dialog, gradeToneClasses } from "./qualification-form-101-dialog";
 import { ScoreExplanation } from "./qualification-form-101/score-explanation";
 import { COMMERCIAL_ROUTE_STYLE } from "@/lib/commercial-routes";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { salesSubmissionOf } from "@/lib/sales-intake";
+import { workflowLegacyJobNumber } from "@/lib/project-id";
+import { loadQfLogo, qualificationFormPdfBlob, qualificationFormPdfName } from "@/lib/qf-pdf";
 import { DepartmentHeaderBar } from "./node-department-field";
 import type { DomainNode } from "@/types/workflow";
 
@@ -31,6 +35,31 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
   const score = evaluateQualificationForm101(qualification);
   const gate = evaluateQualificationGate(qualification);
   const route = qualificationRoute(qualification);
+  const salesSubmission = salesSubmissionOf(qualification);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const file = useWorkflowStore.getState().file;
+      const form = normalizeQualificationForm101(qualification.form101);
+      const meta = {
+        projectName: file.graph.metadata.name || "Project",
+        jobNumber: workflowLegacyJobNumber(file),
+      };
+      const blob = await qualificationFormPdfBlob(form, {
+        ...meta,
+        logoDataUrl: await loadQfLogo(),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = qualificationFormPdfName(form, meta);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const update = (patch: Partial<Qualification>) => {
     const next = { ...qualification, ...patch };
@@ -165,12 +194,34 @@ export function QualificationNode({ node, selected }: { node: DomainNode; select
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
             Grade {score.grade} · {score.scoreStage.label}
           </p>
+          {salesSubmission ? (
+            <p
+              data-sales-submission
+              className="mt-2 flex items-start gap-1.5 rounded-lg border border-violet-500/35 bg-violet-500/10 px-2 py-1.5 text-[11px] font-semibold text-violet-800 dark:text-violet-200"
+              title={salesSubmission.email}
+            >
+              <Megaphone className="mt-px size-3.5 shrink-0" />
+              <span>
+                Submitted by Sales: {salesSubmission.by} ·{" "}
+                {new Date(salesSubmission.at).toLocaleDateString()} · Rev {salesSubmission.revision}
+              </span>
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => setFormOpen(true)}
             className="nodrag mt-auto inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
           >
             <FileSpreadsheet className="size-4" /> Open Form [{FORM_101_CODE}]
+          </button>
+          <button
+            type="button"
+            data-qualification-pdf
+            disabled={pdfBusy}
+            onClick={() => void downloadPdf()}
+            className="nodrag mt-1.5 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-60"
+          >
+            <FileDown className="size-4" /> {pdfBusy ? "Making PDF…" : "Download PDF"}
           </button>
         </section>
       </div>

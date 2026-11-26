@@ -80,8 +80,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    void request<{ user: User | null }>("/api/auth/me")
+    void request<{ user: User | null; sales?: boolean }>("/api/auth/me")
       .then((result) => {
+        if (result.user && result.sales) {
+          window.location.replace("/sales");
+          return;
+        }
         if (result.user) {
           acceptUser(result.user);
         } else {
@@ -155,13 +159,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         setPassword("");
         return;
       }
-      const result = await request<{ user: User }>(
+      const result = await request<{ user: User; sales?: boolean }>(
         `/api/auth/${registering ? "register" : "login"}`,
         {
           method: "POST",
           body: JSON.stringify({ name, email, password }),
         },
       );
+      if (result.sales) {
+        window.location.replace("/sales");
+        return;
+      }
       acceptUser(result.user);
       setPassword("");
     } catch (caught) {

@@ -1,5 +1,6 @@
 import { createSession, hashPassword, json, readJson, secureEqual, sessionCookie } from "../_lib";
 import { checkAuthRateLimit } from "./_rate-limit";
+import { isSalesUser } from "../_sales";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const body = await readJson<{ email?: string; password?: string }>(request);
@@ -43,6 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   return json(
     {
       user: { id: record.id, email: record.email, name: record.name, role: record.role },
+      sales: await isSalesUser(env.DB, record.id).catch(() => false),
     },
     200,
     { "set-cookie": sessionCookie(token) },

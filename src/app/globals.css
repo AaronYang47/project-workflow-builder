@@ -1342,3 +1342,12 @@ button:disabled {
     transform: translateX(0);
   }
 }
+
+/* Sales site: phones zoom into fields under 16px, so form fields use 16px there. */
+@media (max-width: 640px) {
+  .sales-site input:not([type="checkbox"]):not([type="radio"]),
+  .sales-site textarea,
+  .sales-site select {
+    font-size: 16px;
+  }
+}

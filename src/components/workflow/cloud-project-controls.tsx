@@ -10,6 +10,7 @@ import {
   Copy,
   FolderOpen,
   LogOut,
+  Megaphone,
   Plus,
   Save,
   Trash2,
@@ -20,6 +21,7 @@ import { createProjectWorkflow, duplicateWorkflowFile } from "@/lib/project-temp
 import { parseWorkflow } from "@/lib/serialization";
 import { workflowLegacyJobNumber } from "@/lib/project-id";
 import { useWorkflowStore } from "@/store/workflow-store";
+import { SalesAccessDialog } from "./sales-access-dialog";
 import { normalizeLoadedWorkflow } from "@/store/workflow-store-helpers";
 
 type User = { id: string; email: string; name: string };
@@ -82,6 +84,7 @@ export function CloudProjectControls({
     () => store.authUser ?? (isAuthBypass() ? DEV_USER : null),
   );
   const [view, setView] = useState<View>(null);
+  const [salesOpen, setSalesOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -673,6 +676,18 @@ export function CloudProjectControls({
             >
               <Copy className="size-4" />
             </Button>
+            {user && !isAuthBypass() ? (
+              <Button
+                title="Sales site: access codes and templates"
+                aria-label="Sales site"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => setSalesOpen(true)}
+              >
+                <Megaphone className="size-4" />
+              </Button>
+            ) : null}
             <Button
               title="Open project"
               aria-label="Open project"
@@ -716,6 +731,7 @@ export function CloudProjectControls({
         ) : null}
       </div>
 
+      <SalesAccessDialog open={salesOpen} onOpenChange={setSalesOpen} />
       <Dialog.Root
         open={view !== null}
         onOpenChange={(next) => {

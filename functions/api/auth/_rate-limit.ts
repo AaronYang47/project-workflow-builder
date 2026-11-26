@@ -7,6 +7,13 @@ const hashKey = async (value: string) => {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
+export type RateLimitRule = {
+  scope: string;
+  identity: string;
+  limit: number;
+  windowSeconds: number;
+};
+
 export const checkAuthRateLimit = async (
   request: Request,
   env: Env,
@@ -22,7 +29,11 @@ export const checkAuthRateLimit = async (
           { scope: "login-ip", identity: ip, limit: 40, windowSeconds: 900 },
         ]
       : [{ scope: "register-ip", identity: ip, limit: 5, windowSeconds: 3600 }];
+  return checkRateLimits(env, rules);
+};
 
+/** Counts one attempt against each rule; a 429 response once any rule is over its limit. */
+export const checkRateLimits = async (env: Env, rules: RateLimitRule[]) => {
   for (const rule of rules) {
     const now = Math.floor(Date.now() / 1000);
     const windowStart = Math.floor(now / rule.windowSeconds) * rule.windowSeconds;

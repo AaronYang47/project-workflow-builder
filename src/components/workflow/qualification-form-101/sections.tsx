@@ -156,6 +156,7 @@ export function SectionAIntake({
   questions,
   onAdvance,
   onApplyRoute,
+  salesMode = false,
 }: {
   form: QualificationForm101;
   onChange: (updater: (prev: QualificationForm101) => QualificationForm101) => void;
@@ -164,6 +165,8 @@ export function SectionAIntake({
   questions: readonly FormStepId[];
   onAdvance?: () => void;
   onApplyRoute?: () => void;
+  /** Sales site: no route-impact pop-ups (they explain internal routing and scores). */
+  salesMode?: boolean;
 }) {
   const { sectionA } = form;
   const occupancyRadioName = useId();
@@ -173,6 +176,7 @@ export function SectionAIntake({
   const routeAnswers = qualificationFormRouteAnswers(sectionA);
   const customerCase = qualificationCase(routeAnswers);
   const showRouteImpact = (question: HTMLElement) => {
+    if (salesMode) return;
     routeQuestionRef.current = question;
     setRouteImpactOpen(true);
   };
@@ -366,7 +370,7 @@ export function SectionAIntake({
             >
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
-                  <thead>
+                  <thead className="max-sm:hidden">
                     <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="py-1.5 pr-2">Role</th>
                       <th className="py-1.5 px-2">Company</th>
@@ -375,9 +379,14 @@ export function SectionAIntake({
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {PROJECT_PARTY_ROLES.map((role) => (
-                      <tr key={role.key}>
-                        <td className="py-1.5 pr-2 font-medium whitespace-nowrap">{role.label}</td>
-                        <td className="py-1.5 px-2">
+                      <tr
+                        key={role.key}
+                        className="max-sm:grid max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:py-2"
+                      >
+                        <td className="max-sm:p-0 py-1.5 pr-2 font-medium whitespace-nowrap">
+                          {role.label}
+                        </td>
+                        <td className="max-sm:p-0 py-1.5 px-2">
                           <input
                             aria-label={`${role.label} company`}
                             value={sectionA.parties[role.key].company}
@@ -395,7 +404,7 @@ export function SectionAIntake({
                             className={cellInputCls}
                           />
                         </td>
-                        <td className="py-1.5 pl-2">
+                        <td className="max-sm:p-0 py-1.5 pl-2">
                           <input
                             aria-label={`${role.label} contact`}
                             value={sectionA.parties[role.key].contact}
@@ -581,7 +590,7 @@ export function SectionAIntake({
             >
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
-                  <thead>
+                  <thead className="max-sm:hidden">
                     <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="py-1.5 pr-2">Discipline</th>
                       <th className="py-1.5 px-2">Name</th>
@@ -591,12 +600,15 @@ export function SectionAIntake({
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {DISCIPLINE_DEFINITIONS.map((discipline) => (
-                      <tr key={discipline.key}>
-                        <td className="py-1.5 pr-2 font-medium whitespace-nowrap">
+                      <tr
+                        key={discipline.key}
+                        className="max-sm:grid max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:py-2"
+                      >
+                        <td className="max-sm:p-0 py-1.5 pr-2 font-medium whitespace-nowrap">
                           {discipline.consultantLabel}
                         </td>
                         {(["name", "company", "contact"] as const).map((fieldKey) => (
-                          <td key={fieldKey} className="py-1.5 px-1.5">
+                          <td key={fieldKey} className="max-sm:p-0 py-1.5 px-1.5">
                             <input
                               aria-label={`${discipline.consultantLabel} consultant ${fieldKey}`}
                               value={sectionA.consultants[discipline.key][fieldKey]}
@@ -773,7 +785,7 @@ export function SectionAIntake({
                 ) : null}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-xs">
-                    <thead>
+                    <thead className="max-sm:hidden">
                       <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         <th className="py-1.5 pr-2">Document</th>
                         <th className="py-1.5 px-2">Available?</th>
@@ -784,9 +796,12 @@ export function SectionAIntake({
                       {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
                         const entry = sectionA.documents[doc.key];
                         return (
-                          <tr key={doc.key}>
-                            <td className="py-1.5 pr-2 font-medium">{doc.label}</td>
-                            <td className="py-1.5 px-2 whitespace-nowrap">
+                          <tr
+                            key={doc.key}
+                            className="max-sm:grid max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:py-2"
+                          >
+                            <td className="max-sm:p-0 py-1.5 pr-2 font-medium">{doc.label}</td>
+                            <td className="max-sm:p-0 py-1.5 px-2 whitespace-nowrap">
                               <YesNoToggle
                                 label={`${doc.label} available`}
                                 value={entry.available}
@@ -802,7 +817,7 @@ export function SectionAIntake({
                                 }}
                               />
                             </td>
-                            <td className="py-1.5 pl-2">
+                            <td className="max-sm:p-0 py-1.5 pl-2">
                               <input
                                 aria-label={`${doc.label} file location or email date`}
                                 value={entry.locationOrDate}
@@ -1054,7 +1069,7 @@ export function SectionBIntake({
             {sec.items.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
-                  <thead>
+                  <thead className="max-sm:hidden">
                     <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="py-1 pr-2 w-1/2">Item</th>
                       <th className="py-1 px-2">Remark</th>
@@ -1063,8 +1078,11 @@ export function SectionBIntake({
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {sec.items.map((row, idx) => (
-                      <tr key={row.id}>
-                        <td className="py-1 pr-2">
+                      <tr
+                        key={row.id}
+                        className="max-sm:grid max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:py-2"
+                      >
+                        <td className="max-sm:p-0 py-1 pr-2">
                           <input
                             aria-label={`${discipline.sectionTitle} item ${idx + 1}`}
                             value={row.item}
@@ -1081,7 +1099,7 @@ export function SectionBIntake({
                             className={cellInputCls}
                           />
                         </td>
-                        <td className="py-1 px-2">
+                        <td className="max-sm:p-0 py-1 px-2">
                           <input
                             aria-label={`${discipline.sectionTitle} remark ${idx + 1}`}
                             value={row.remark}
@@ -1097,7 +1115,7 @@ export function SectionBIntake({
                             className={cellInputCls}
                           />
                         </td>
-                        <td className="py-1 pl-1 text-right">
+                        <td className="max-sm:p-0 max-sm:text-left py-1 pl-1 text-right">
                           <Button
                             type="button"
                             variant="ghost"
@@ -1468,7 +1486,7 @@ export function SectionCIntake({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs">
-              <thead>
+              <thead className="max-sm:hidden">
                 <tr className="border-b text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="py-1.5 pr-2 w-24">RFI #</th>
                   <th className="py-1.5 px-2">Discipline / Issue</th>
@@ -1479,8 +1497,11 @@ export function SectionCIntake({
               </thead>
               <tbody className="divide-y divide-border/60">
                 {rfis.map((row, idx) => (
-                  <tr key={row.id}>
-                    <td className="py-1.5 pr-2">
+                  <tr
+                    key={row.id}
+                    className="max-sm:grid max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:py-2"
+                  >
+                    <td className="max-sm:p-0 py-1.5 pr-2">
                       <input
                         aria-label={`RFI ${idx + 1} number`}
                         value={row.rfiNo}
@@ -1495,7 +1516,7 @@ export function SectionCIntake({
                         className={cellInputCls}
                       />
                     </td>
-                    <td className="py-1.5 px-2">
+                    <td className="max-sm:p-0 py-1.5 px-2">
                       <input
                         aria-label={`RFI ${idx + 1} discipline or issue`}
                         value={row.disciplineOrIssue}
@@ -1510,7 +1531,7 @@ export function SectionCIntake({
                         className={cellInputCls}
                       />
                     </td>
-                    <td className="py-1.5 px-2">
+                    <td className="max-sm:p-0 py-1.5 px-2">
                       <input
                         aria-label={`RFI ${idx + 1} sent by`}
                         value={row.sentBy}
@@ -1525,7 +1546,7 @@ export function SectionCIntake({
                         className={cellInputCls}
                       />
                     </td>
-                    <td className="py-1.5 px-2">
+                    <td className="max-sm:p-0 py-1.5 px-2">
                       <input
                         aria-label={`RFI ${idx + 1} due date`}
                         value={row.dueDate}
@@ -1540,7 +1561,7 @@ export function SectionCIntake({
                         className={cellInputCls}
                       />
                     </td>
-                    <td className="py-1.5 pl-1 text-right">
+                    <td className="max-sm:p-0 max-sm:text-left py-1.5 pl-1 text-right">
                       <Button
                         type="button"
                         variant="ghost"
