@@ -164,6 +164,21 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
     "N/A — no consultant",
   );
   await expect(page.getByLabel("Structural consultant name")).toHaveCount(0);
+  // A consultant that is started must be finished.
+  await page.locator('[data-sales-disclosure="consultant-civil"] > button').click();
+  await page.getByLabel("Civil consultant name").fill("J. Roy");
+  await expect(page.locator('[data-sales-disclosure="consultant-civil"]')).toContainText(
+    "Missing: company, contact",
+  );
+  await page.locator('[data-step-index="8"]').click();
+  await expect(page.locator("[data-sales-unfinished-consultants]")).toContainText("Civil");
+  await expect(page.locator("[data-sales-submit]")).toBeDisabled();
+  await page.locator("[data-sales-unfinished-consultants] button").click();
+  await page.getByLabel("Civil consultant company").fill("Roy Génie");
+  await page.getByLabel("Civil consultant contact").fill("jroy@example.com");
+  await expect(page.locator('[data-sales-disclosure="consultant-civil"]')).toContainText(
+    "J. Roy · Roy Génie",
+  );
 
   // Big Yes / No buttons, and the phone's own date picker.
   await page.locator('[data-step-index="4"]').click();

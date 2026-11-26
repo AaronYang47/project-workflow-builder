@@ -139,7 +139,7 @@ const en = {
   companyRolePlaceholder: "e.g. Laurier inc. — owner's rep",
   phone: "Phone",
   q7: "Responsible consultants",
-  q7Hint: "For each discipline: a name or company, and how to reach them. Tap to open.",
+  q7Hint: "For each discipline: name, company and contact — or Unknown / N/A. Tap to open.",
   notFilled: "Not filled in",
   emailOrPhone: "Email or phone",
   unknown: "Unknown",
@@ -147,6 +147,14 @@ const en = {
   consultantUnknown: "Unknown",
   consultantNa: "N/A — no consultant",
   consultantStatusHelp: "Tap again to enter a name instead.",
+  consultantField: { name: "name", company: "company", contact: "contact" } as Record<
+    "name" | "company" | "contact",
+    string
+  >,
+  missingFields: (fields: string[]) => `Missing: ${fields.join(", ")}`,
+  finishConsultant: "If there is a consultant, fill in all three — or choose Unknown / N/A.",
+  unfinishedConsultants: (names: string) => `Finish these consultants: ${names}`,
+  unfinishedConsultantsHelp: "Name, company and contact, or Unknown / N/A.",
   q8: "Is there a project budget?",
   totalBudget: "Total budget (CAD)",
   budgetBad: "Use numbers only, e.g. 1,250,000",
@@ -199,6 +207,8 @@ const en = {
     nameTaken: "A project with this name already exists. Choose it from the list instead.",
     noTemplate: "New projects are not open yet: the team has not chosen a template.",
     offline: "No connection. Check your network and try again.",
+    consultantIncomplete:
+      "Some consultants are only partly filled in. Fill in all three fields or choose Unknown / N/A.",
     generic: "Something went wrong. Please try again.",
   },
 };
@@ -335,7 +345,7 @@ const fr: SalesStrings = {
   phone: "Téléphone",
   q7: "Consultants responsables",
   q7Hint:
-    "Pour chaque discipline : un nom ou une entreprise, et comment les joindre. Touchez pour ouvrir.",
+    "Pour chaque discipline : nom, entreprise et coordonnées — ou Inconnu / S.O. Touchez pour ouvrir.",
   notFilled: "Non rempli",
   emailOrPhone: "Courriel ou téléphone",
   unknown: "Inconnu",
@@ -343,6 +353,12 @@ const fr: SalesStrings = {
   consultantUnknown: "Inconnu",
   consultantNa: "S.O. — aucun consultant",
   consultantStatusHelp: "Touchez de nouveau pour plutôt entrer un nom.",
+  consultantField: { name: "nom", company: "entreprise", contact: "coordonnées" },
+  missingFields: (fields) => `Manque : ${fields.join(", ")}`,
+  finishConsultant:
+    "S’il y a un consultant, remplissez les trois champs — ou choisissez Inconnu / S.O.",
+  unfinishedConsultants: (names) => `Complétez ces consultants : ${names}`,
+  unfinishedConsultantsHelp: "Nom, entreprise et coordonnées, ou Inconnu / S.O.",
   q8: "Un budget de projet est-il établi?",
   totalBudget: "Budget total (CAD)",
   budgetBad: "Chiffres seulement, ex. 1 250 000",
@@ -396,6 +412,8 @@ const fr: SalesStrings = {
     nameTaken: "Un projet porte déjà ce nom. Choisissez-le plutôt dans la liste.",
     noTemplate: "Les nouveaux projets ne sont pas encore possibles : aucun modèle choisi.",
     offline: "Pas de connexion. Vérifiez votre réseau et réessayez.",
+    consultantIncomplete:
+      "Certains consultants sont incomplets. Remplissez les trois champs ou choisissez Inconnu / S.O.",
     generic: "Une erreur s’est produite. Réessayez.",
   },
 };
@@ -493,6 +511,7 @@ export function errorText(caught: unknown, t: SalesStrings) {
   const status = caught instanceof SalesApiError ? caught.status : undefined;
   const message = caught.message;
   if (code === "NAME_TAKEN") return t.errors.nameTaken;
+  if (code === "CONSULTANT_INCOMPLETE") return t.errors.consultantIncomplete;
   if (status === 0) return t.errors.offline;
   if (status === 429) return t.errors.tooMany;
   const known: [RegExp, string][] = [

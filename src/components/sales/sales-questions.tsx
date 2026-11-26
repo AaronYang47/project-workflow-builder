@@ -13,6 +13,7 @@ import {
   PROJECT_DOCUMENT_DEFINITIONS,
   TARGET_DATE_FIELDS,
   consultantAnswered,
+  consultantMissingFields,
   qualificationBudgetComplete,
   type DisciplineKey,
   type QualificationForm101,
@@ -230,6 +231,7 @@ function Disclosure({
   children,
   defaultOpen = false,
   testId,
+  warning = false,
 }: {
   title: string;
   summary: string;
@@ -237,12 +239,17 @@ function Disclosure({
   children: ReactNode;
   defaultOpen?: boolean;
   testId?: string;
+  /** Started but not finished: the summary says what is missing, in red. */
+  warning?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div
       data-sales-disclosure={testId}
-      className="overflow-hidden rounded-xl border border-[#e3e8ef] bg-white"
+      className={cn(
+        "overflow-hidden rounded-xl border bg-white",
+        warning ? "border-[#fda29b]" : "border-[#e3e8ef]",
+      )}
     >
       <button
         type="button"
@@ -260,7 +267,14 @@ function Disclosure({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-[#172033]">{title}</span>
-          <span className="block truncate text-sm text-[#667085]">{summary}</span>
+          <span
+            className={cn(
+              "block truncate text-sm",
+              warning ? "font-medium text-[#b42318]" : "text-[#667085]",
+            )}
+          >
+            {summary}
+          </span>
         </span>
         <ChevronDown
           className={cn(
@@ -490,8 +504,10 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
         {DISCIPLINE_DEFINITIONS.map((discipline) => {
           const entry = a.consultants[discipline.key];
           const filled = consultantAnswered(entry);
-          const summary =
-            entry.status === "unknown"
+          const missingFields = consultantMissingFields(entry);
+          const summary = missingFields.length
+            ? t.missingFields(missingFields.map((field) => t.consultantField[field]))
+            : entry.status === "unknown"
               ? t.consultantUnknown
               : entry.status === "na"
                 ? t.consultantNa
@@ -511,6 +527,8 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
               title={labels.discipline[discipline.key]}
               summary={summary}
               done={filled}
+              warning={missingFields.length > 0}
+              defaultOpen={missingFields.length > 0}
             >
               <div
                 role="group"
@@ -538,23 +556,31 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
                 <p className="text-sm text-[#667085]">{t.consultantStatusHelp}</p>
               ) : (
                 <>
+                  {missingFields.length ? (
+                    <p data-sales-consultant-missing className="text-sm text-[#b42318]">
+                      {t.finishConsultant}
+                    </p>
+                  ) : null}
                   <TextInput
                     aria-label={`${discipline.consultantLabel} consultant name`}
                     value={entry.name}
                     onChange={(value) => set(discipline.key, "name", value)}
                     placeholder={t.name}
+                    className={cn(missingFields.includes("name") && "border-[#f04438]")}
                   />
                   <TextInput
                     aria-label={`${discipline.consultantLabel} consultant company`}
                     value={entry.company}
                     onChange={(value) => set(discipline.key, "company", value)}
                     placeholder={t.company}
+                    className={cn(missingFields.includes("company") && "border-[#f04438]")}
                   />
                   <TextInput
                     aria-label={`${discipline.consultantLabel} consultant contact`}
                     value={entry.contact}
                     onChange={(value) => set(discipline.key, "contact", value)}
                     placeholder={t.emailOrPhone}
+                    className={cn(missingFields.includes("contact") && "border-[#f04438]")}
                   />
                 </>
               )}

@@ -14,6 +14,7 @@ import { formChanges } from "@/lib/qf-changes";
 import {
   compactQualificationForm101,
   normalizeQualificationForm101,
+  unfinishedConsultants,
 } from "@/lib/qualification-form-101";
 
 /**
@@ -28,6 +29,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!validKey(key)) return json({ error: "Form not found." }, 404);
   const parsed = readDraftBody(key, await readJson(request));
   if (parsed.response) return parsed.response;
+  // A consultant that was started must be finished, or marked Unknown / N/A.
+  if (unfinishedConsultants(normalizeQualificationForm101(parsed.draft.form101)).length)
+    return json(
+      {
+        error:
+          "Some consultants are only partly filled in. Fill in all three fields or choose Unknown / N/A.",
+        code: "CONSULTANT_INCOMPLETE",
+      },
+      400,
+    );
   const owner = auth.sales.ownerUserId;
   const isNew = isNewDraftKey(key);
 

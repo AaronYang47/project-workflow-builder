@@ -263,11 +263,28 @@ export interface ConsultantEntry {
 
 export type ConsultantStatus = "unknown" | "na";
 
-/** Name or company, and a contact — or marked Unknown / N/A. */
+/** Name, company and contact all filled in — or marked Unknown / N/A. */
 export function consultantAnswered(entry: ConsultantEntry | undefined) {
   if (!entry) return false;
   if (entry.status) return true;
-  return Boolean((entry.name.trim() || entry.company.trim()) && entry.contact.trim());
+  return CONSULTANT_FIELDS.every((field) => entry[field].trim());
+}
+
+export const CONSULTANT_FIELDS = ["name", "company", "contact"] as const;
+
+/** Started but not finished: some fields filled, others empty, and no Unknown / N/A. */
+export function consultantMissingFields(entry: ConsultantEntry | undefined) {
+  if (!entry || entry.status) return [];
+  const filledIn = CONSULTANT_FIELDS.filter((field) => entry[field].trim());
+  if (!filledIn.length) return [];
+  return CONSULTANT_FIELDS.filter((field) => !entry[field].trim());
+}
+
+/** Consultants that were started but not finished (they block a Sales submission). */
+export function unfinishedConsultants(form: QualificationForm101) {
+  return DISCIPLINE_DEFINITIONS.filter(
+    (discipline) => consultantMissingFields(form.sectionA.consultants[discipline.key]).length,
+  ).map((discipline) => discipline.key);
 }
 
 export interface DocumentEntry {

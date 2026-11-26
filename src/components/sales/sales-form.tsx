@@ -21,6 +21,7 @@ import {
   compactQualificationForm101,
   evaluateQualificationForm101,
   normalizeQualificationForm101,
+  unfinishedConsultants,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import { formChanges, type RevisionEntry } from "@/lib/qf-changes";
@@ -255,7 +256,7 @@ export function SalesForm({
   onOpenProject: (key: string) => void;
   onNeedsCode: () => void;
 }) {
-  const { t, lang } = useT();
+  const { t, lang, labels } = useT();
   const locale = localeOf(lang);
   const [data, setData] = useState<SalesFormData | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -357,6 +358,8 @@ export function SalesForm({
   const isLoi = qualificationRoute({ form101: draft.form101 }) === "LOI";
   const jobNumberValid = isValidJobNumberInput(draft.jobNumber);
   const nameMissing = data.isNew && !draft.projectName.trim();
+  // A consultant that was started must be finished (or marked Unknown / N/A).
+  const unfinished = unfinishedConsultants(draft.form101);
   const missing = evaluateQualificationForm101({ form101: draft.form101 }).missingItems;
   // An update: what it changes compared with what the project holds now.
   const isUpdate = Boolean(data.submission && data.savedForm101);
@@ -754,6 +757,26 @@ export function SalesForm({
                   <Check className="size-5" /> {t.allFilled}
                 </p>
               )}
+              {unfinished.length ? (
+                <div
+                  data-sales-unfinished-consultants
+                  className="rounded-2xl border border-[#fda29b] bg-[#fef3f2] p-4"
+                >
+                  <p className="font-semibold text-[#b42318]">
+                    {t.unfinishedConsultants(
+                      unfinished.map((key) => labels.discipline[key]).join(", "),
+                    )}
+                  </p>
+                  <p className="mt-1 text-sm text-[#667085]">{t.unfinishedConsultantsHelp}</p>
+                  <button
+                    type="button"
+                    className={cn(SECONDARY_BUTTON, "mt-3 h-10")}
+                    onClick={() => goTo(salesStepOf("q7") + 1, "sales-q7")}
+                  >
+                    {t.steps.consultants} <ChevronRight className="size-4" />
+                  </button>
+                </div>
+              ) : null}
               {nameMissing ? <p className="text-sm text-[#b42318]">{t.needName}</p> : null}
               {!jobNumberValid ? <p className="text-sm text-[#b42318]">{t.fixJob}</p> : null}
               {submitError ? (
@@ -778,7 +801,11 @@ export function SalesForm({
                 data-sales-submit
                 className={cn(PRIMARY_BUTTON, "h-14 w-full rounded-2xl text-[17px]")}
                 disabled={
-                  submitting || nameMissing || !jobNumberValid || (isUpdate && !changes.length)
+                  submitting ||
+                  nameMissing ||
+                  !jobNumberValid ||
+                  unfinished.length > 0 ||
+                  (isUpdate && !changes.length)
                 }
                 onClick={() => void submit()}
               >

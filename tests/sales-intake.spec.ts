@@ -5,8 +5,11 @@ import { workflowLegacyJobNumber } from "../src/lib/project-id";
 import { qualificationOf } from "../src/lib/qualification";
 import {
   createEmptyQualificationForm101,
+  consultantAnswered,
+  consultantMissingFields,
   evaluateQualificationForm101,
   normalizeQualificationForm101,
+  unfinishedConsultants,
 } from "../src/lib/qualification-form-101";
 import { isForm101StepComplete } from "../src/components/workflow/qualification-form-101/steps";
 import {
@@ -263,4 +266,17 @@ test("a consultant can be Unknown or N/A", async () => {
   ).output();
   expect(text).toContain("(Inconnu)");
   expect(text).toContain("(S.O.)");
+});
+
+test("a named consultant needs name, company and contact", () => {
+  const form = createEmptyQualificationForm101();
+  form.sectionA.consultants.civil = { name: "J. Roy", company: "", contact: "" };
+  expect(consultantMissingFields(form.sectionA.consultants.civil)).toEqual(["company", "contact"]);
+  expect(consultantAnswered(form.sectionA.consultants.civil)).toBe(false);
+  expect(unfinishedConsultants(form)).toEqual(["civil"]);
+  form.sectionA.consultants.civil = { name: "J. Roy", company: "Roy inc.", contact: "jroy@x.ca" };
+  expect(consultantAnswered(form.sectionA.consultants.civil)).toBe(true);
+  // Untouched and Unknown / N/A consultants are not "unfinished".
+  form.sectionA.consultants.plumbing = { name: "", company: "", contact: "", status: "unknown" };
+  expect(unfinishedConsultants(form)).toEqual([]);
 });
