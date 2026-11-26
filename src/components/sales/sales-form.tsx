@@ -268,23 +268,6 @@ export function SalesForm({
   );
   const [submitted, setSubmitted] = useState<SubmitResult | null>(null);
   const lastSaved = useRef<Draft | null>(null);
-  // While the phone keyboard is up, the Back / Next bar steps aside.
-  const [typing, setTyping] = useState(false);
-  useEffect(() => {
-    const isField = (target: EventTarget | null) =>
-      target instanceof HTMLElement &&
-      (target.matches("textarea, select") ||
-        (target instanceof HTMLInputElement &&
-          !["checkbox", "radio", "button", "submit"].includes(target.type)));
-    const onIn = (event: FocusEvent) => setTyping(isField(event.target));
-    const onOut = () => setTyping(false);
-    document.addEventListener("focusin", onIn);
-    document.addEventListener("focusout", onOut);
-    return () => {
-      document.removeEventListener("focusin", onIn);
-      document.removeEventListener("focusout", onOut);
-    };
-  }, []);
   const stepsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -822,8 +805,7 @@ export function SalesForm({
       {step < REVIEW ? (
         <nav
           data-sales-nav
-          data-hidden={typing || undefined}
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-[#e3e8ef] bg-white/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)] data-[hidden]:max-sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-[#e3e8ef] bg-white/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)]"
         >
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
             <button

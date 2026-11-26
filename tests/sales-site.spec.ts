@@ -138,11 +138,8 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await page.mouse.move(180, 500);
   await page.mouse.wheel(0, 800);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-  // The Back / Next bar steps aside while typing, so it never covers the field.
-  await expect(page.locator("[data-sales-nav]")).toBeVisible();
+  // The Back / Next bar stays on screen while typing.
   await page.getByLabel("Owner company").focus();
-  await expect(page.locator("[data-sales-nav]")).toBeHidden();
-  await page.getByLabel("Owner company").blur();
   await expect(page.locator("[data-sales-nav]")).toBeVisible();
 
   // Every step fits the phone screen.
