@@ -48,7 +48,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { useWorkflowStore } from "@/store/workflow-store";
 import { canEditCollaborativeWorkflow } from "@/lib/collaboration/collaboration-store";
 import { ProcessCalendarButton } from "@/components/workflow/process-calendar-settings";
-import type { WorkflowFile } from "@/types/workflow";
+import type { ScheduleCalendar, WorkflowFile } from "@/types/workflow";
 import {
   listCloudProjects,
   loadCloudProject,
@@ -98,6 +98,25 @@ export function ConstructionSimulation() {
   );
 }
 
+/**
+ * The parts of a calendar L4 and L5 share: work week, holidays, shutdowns and
+ * day-off colours. Each keeps its own start dates.
+ */
+function sharedCalendar(calendar: ScheduleCalendar) {
+  const { startDate, projectStartDate, ...shared } = calendar;
+  return shared;
+}
+
+/** L5's factory calendar, following the open project's L4 calendar. */
+export function factoryCalendarFromL4(
+  l4: ScheduleCalendar | undefined,
+  own: ScheduleCalendar | undefined,
+  startDate: string,
+): ScheduleCalendar | undefined {
+  if (!l4) return own;
+  return { ...sharedCalendar(l4), startDate: own?.startDate ?? startDate };
+}
+
 function firstScenario(currentFile: WorkflowFile, currentId: string | undefined) {
   const today = todayIso();
   const saved = loadScenarios();
@@ -116,6 +135,15 @@ function SimulationWorkspace() {
   const [initial] = useState(() => firstScenario(currentFile, currentId));
   const [scenarios, setScenarios] = useState<SimScenario[]>(initial.saved);
   const [draft, setDraft] = useState<SimScenario>(initial.draft);
+  // Follow the L4 calendar: whatever L4 changes, the factory calendar takes too.
+  const l4Calendar = currentFile.calendar;
+  const [seenL4Calendar, setSeenL4Calendar] = useState<ScheduleCalendar | null | undefined>(null);
+  if (l4Calendar !== seenL4Calendar) {
+    setSeenL4Calendar(l4Calendar);
+    const next = factoryCalendarFromL4(l4Calendar, draft.factory.calendar, todayIso());
+    if (JSON.stringify(next) !== JSON.stringify(draft.factory.calendar))
+      setDraft({ ...draft, factory: { ...draft.factory, calendar: next } });
+  }
   const [files, setFiles] = useState<Record<string, WorkflowFile>>(() =>
     currentId ? { [`cloud-${currentId}`]: currentFile } : {},
   );
@@ -528,6 +556,17 @@ function SimulationWorkspace() {
     setDraft((current) => ({ ...current, factory: { ...current.factory, ...patch } }));
   const calendarStart = result.days[0]?.date ?? todayIso();
   const calendar = draft.factory.calendar ?? { startDate: calendarStart, shutdowns: [] };
+  // The factory calendar is the open project's L4 calendar: a change in either shows in both.
+  const linkedToL4 = Boolean(currentFile.calendar);
+  const updateCalendar = (next: ScheduleCalendar) => {
+    updateFactory({ calendar: next });
+    if (!linkedToL4 || !canEditCollaborativeWorkflow()) return;
+    useWorkflowStore
+      .getState()
+      .commit((file) =>
+        file.calendar ? { ...file, calendar: { ...file.calendar, ...sharedCalendar(next) } } : file,
+      );
+  };
 
   const openPicker = async () => {
     setPicker({ open: true, loading: true, projects: [] });
@@ -636,7 +675,7 @@ function SimulationWorkspace() {
             </div>
             <fieldset className="mt-2 space-y-1 text-xs">
               <legend className="text-[11px] font-semibold text-muted-foreground">
-                Factory calendar
+                Factory calendar{linkedToL4 ? " · same as L4" : ""}
               </legend>
               {(
                 [
@@ -665,7 +704,7 @@ function SimulationWorkspace() {
                         if (on) next.holidayRegion = "CA-ON";
                         else delete next.holidayRegion;
                       } else next.automaticShutdowns = on;
-                      updateFactory({ calendar: next });
+                      updateCalendar(next);
                     }}
                   />
                   {label}
@@ -678,10 +717,7 @@ function SimulationWorkspace() {
                   canEdit
                   workingDays={result.days.length}
                   onSave={(saved) =>
-                    saved &&
-                    updateFactory({
-                      calendar: { ...saved, startDate: calendarStart },
-                    })
+                    saved && updateCalendar({ ...saved, startDate: calendarStart })
                   }
                 />
               </div>

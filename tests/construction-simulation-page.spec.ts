@@ -1044,3 +1044,66 @@ test("Earliest line start follows the production schedule: the Factory Productio
   // The box moves up to that date by itself.
   await expect(start).toHaveValue(factoryStart);
 });
+
+test("the factory calendar is the L4 calendar: a change on either side shows on the other", async ({
+  page,
+}) => {
+  const file = createE2EWorkflow();
+  file.calendar = {
+    startDate: "2027-01-04",
+    shutdowns: [],
+    holidayRegion: "CA-ON",
+    automaticShutdowns: false,
+  };
+  await page.addInitScript(
+    ({ key, file }) => {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: { file, workspaceOwnerId: "dev-bypass", dirty: false },
+          version: 0,
+        }),
+      );
+    },
+    { key: WORKFLOW_STORAGE_KEY, file },
+  );
+  const l4Calendar = () =>
+    page.evaluate(
+      (key) =>
+        (JSON.parse(localStorage.getItem(key)!) as { state: { file: { calendar: unknown } } }).state
+          .file.calendar as Record<string, unknown>,
+      WORKFLOW_STORAGE_KEY,
+    );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/construction-simulation");
+  await expect(page.getByText("Factory calendar · same as L4")).toBeVisible();
+  const workWeek = page.getByRole("checkbox", { name: /Work Monday–Thursday/ });
+  const holidays = page.getByRole("checkbox", { name: "Ontario statutory holidays off" });
+  const shutdowns = page.getByRole("checkbox", { name: "Summer and winter shutdowns" });
+  // L5 opens with L4's settings, not its own defaults.
+  await expect(workWeek).not.toBeChecked();
+  await expect(holidays).toBeChecked();
+  await expect(shutdowns).not.toBeChecked();
+
+  // Changed in L5: L4's calendar takes it too, and keeps its own start date.
+  await workWeek.check();
+  await shutdowns.check();
+  await expect.poll(async () => (await l4Calendar()).workWeek).toBe("mon-thu");
+  expect(await l4Calendar()).toMatchObject({
+    startDate: "2027-01-04",
+    automaticShutdowns: true,
+    holidayRegion: "CA-ON",
+  });
+
+  // Changed in L4: L5 follows it.
+  await page.evaluate((key) => {
+    const saved = JSON.parse(localStorage.getItem(key)!);
+    delete saved.state.file.calendar.holidayRegion;
+    localStorage.setItem(key, JSON.stringify(saved));
+  }, WORKFLOW_STORAGE_KEY);
+  await page.reload();
+  await expect(holidays).not.toBeChecked();
+  await expect(workWeek).toBeChecked();
+  await expect(shutdowns).toBeChecked();
+});
