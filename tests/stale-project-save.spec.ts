@@ -75,3 +75,73 @@ test("an old copy left in another browser loads the newer cloud save instead of 
   expect(cloud.workflow.graph.nodes[0].title).toBe("Saved on the office PC");
   expect(puts.every((body) => body.baseUpdatedAt !== cloud.updated_at)).toBe(true);
 });
+
+test("an out-of-date copy can be kept and saved over the cloud on purpose", async ({ page }) => {
+  test.skip(authBypassEnabled(), NEEDS_REAL_AUTH);
+  const user = { id: "test-owner", name: "Owner", email: "owner@example.com" };
+  const chapter = (title: string) => {
+    const node = createDomainNode("general", "sales");
+    node.title = title;
+    node.conditions = [];
+    return node;
+  };
+  const newer = createProjectWorkflow("Other tab copy");
+  newer.graph.nodes = [chapter("Saved in the other tab")];
+  newer.layout.nodes = { sales: { nodeId: "sales", x: 0, y: 0, width: 384, height: 400 } };
+  const mine = createProjectWorkflow("This tab copy");
+  mine.graph.nodes = [chapter("My unsaved work")];
+  mine.layout.nodes = newer.layout.nodes;
+  const cloud = {
+    id: "kept-project",
+    name: "Other tab copy",
+    project_number: "27001",
+    created_at: "2026-10-27T10:00:00Z",
+    updated_at: "2026-11-26T01:27:00.174Z",
+    workflow: newer,
+  };
+  await page.route("**/api/auth/me", (route) => route.fulfill({ json: { user } }));
+  await page.route("**/api/projects/kept-project", async (route) => {
+    if (route.request().method() === "PUT") {
+      const body = route.request().postDataJSON();
+      if (body.baseUpdatedAt !== cloud.updated_at)
+        return route.fulfill({
+          status: 409,
+          json: { error: "stale", code: "STALE_PROJECT", updated_at: cloud.updated_at },
+        });
+      cloud.workflow = body.workflow;
+      cloud.updated_at = "2026-11-26T02:00:00.000Z";
+    }
+    await route.fulfill({ json: { project: structuredClone(cloud) } });
+  });
+  await page.addInitScript(
+    ({ key, workflow, owner }) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          state: {
+            file: workflow,
+            activeProjectId: "kept-project",
+            cloudUpdatedAt: "2026-11-26T01:26:20.354Z",
+            workspaceOwnerId: owner.id,
+            dirty: true,
+          },
+          version: 0,
+        }),
+      ),
+    { key: WORKFLOW_STORAGE_KEY, workflow: mine, owner: user },
+  );
+  const dialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    dialogs.push(dialog.message());
+    // Cancel "load the latest version", then OK "save this copy over the cloud".
+    if (dialog.message().includes("OK: load")) void dialog.dismiss();
+    else void dialog.accept();
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "L2 · Detailed Workflow" }).click();
+  await expect.poll(() => cloud.workflow.graph.nodes[0].title, { timeout: 15_000 }).toBe(
+    "My unsaved work",
+  );
+  expect(dialogs.some((text) => text.includes("Save this screen's copy"))).toBe(true);
+  await expect(page.getByText("My unsaved work").first()).toBeVisible();
+});

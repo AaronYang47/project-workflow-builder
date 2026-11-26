@@ -112,19 +112,42 @@ export function CloudProjectControls({
     staleOfferOpen.current = true;
     try {
       const latest = await api<{ project: Project }>(`/api/projects/${projectId}`);
-      const load = window.confirm(
-        `“${latest.project.name}” was saved more recently on another device or tab.\n\nLoad the latest saved version? Changes on this device that were not saved will be discarded. Choose Cancel to keep this copy on screen without saving it.`,
-      );
       const current = useWorkflowStore.getState();
-      if (load && current.activeProjectId === projectId) {
+      if (current.activeProjectId !== projectId) return;
+      const latestFile = parseWorkflow(JSON.stringify(latest.project.workflow));
+      // The newer cloud copy is this same content: just continue from it.
+      if (JSON.stringify(latestFile) === JSON.stringify(current.file)) {
+        current.setCloudUpdatedAt(latest.project.updated_at);
+        current.markSaved();
+        staleProjectId.current = undefined;
+        setAutosaveError("");
+        return;
+      }
+      const savedAt = new Date(latest.project.updated_at).toLocaleString();
+      const load = window.confirm(
+        `“${latest.project.name}” was saved more recently on another device or tab (${savedAt}).\n\nOK: load that latest version. Changes on this screen that were not saved are discarded.\nCancel: keep this screen's copy (you can then choose to save it over the cloud).`,
+      );
+      if (load) {
         current.loadProject(
-          parseWorkflow(JSON.stringify(latest.project.workflow)),
+          latestFile,
           projectId,
           current.workspaceOwnerId,
           latest.project.updated_at,
         );
         staleProjectId.current = undefined;
         setAutosaveError("");
+        return;
+      }
+      const keep = window.confirm(
+        `Save this screen's copy to the cloud now, replacing the version saved ${savedAt}?\n\nThat version stays in the project's saved history. Cancel leaves this copy on screen without saving.`,
+      );
+      if (keep && useWorkflowStore.getState().activeProjectId === projectId) {
+        // Save from the latest version on purpose: this copy wins.
+        useWorkflowStore.getState().setCloudUpdatedAt(latest.project.updated_at);
+        staleProjectId.current = undefined;
+        setAutosaveError("");
+        staleOfferOpen.current = false;
+        await persistCloud(false);
       }
     } catch {
       // Keep saving paused; the message on the save button explains why.
@@ -378,7 +401,11 @@ export function CloudProjectControls({
       return;
     }
     if (silent && !workflow.dirty) return;
-    if (staleProjectId.current === workflow.activeProjectId) return;
+    if (staleProjectId.current === workflow.activeProjectId) {
+      // Saving by hand while out of date: offer the latest version or saving this copy.
+      if (!silent) void offerLatestVersion(workflow.activeProjectId);
+      return;
+    }
     inFlight.current = true;
     if (silent) setAutosaving(true);
     else {
