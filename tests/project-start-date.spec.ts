@@ -69,9 +69,19 @@ test("L4 shows the Technical handoff date as a line and in the summary", async (
   expect(timeline.originDay).toBeGreaterThan(0);
   await seedE2EWorkflow(page, file);
   await page.goto("/process-overview");
-  await expect(page.locator("[data-technical-handoff-summary]")).toContainText(timeline.handoffDate);
+  await expect(page.locator("[data-technical-handoff-summary]")).toContainText(
+    timeline.handoffDate,
+  );
   await expect(page.locator("[data-technical-handoff]")).toHaveAttribute(
     "data-technical-handoff",
     timeline.handoffDate,
   );
+  // Project start has its own line and colour.
+  await expect(page.locator("[data-project-start-summary]")).toContainText("2026-10-05");
+  await expect(page.locator("[data-project-start]")).toHaveAttribute(
+    "data-project-start",
+    "2026-10-05",
+  );
+  await expect(page.locator("[data-project-start]")).toHaveClass(/border-violet-600/);
+  await expect(page.locator("[data-technical-handoff]")).toHaveClass(/border-orange-600/);
 });

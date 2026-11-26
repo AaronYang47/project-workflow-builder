@@ -206,6 +206,12 @@ export function ProcessOverview() {
     handoff.elapsedDays === null
       ? "Time after Sales handoff not estimated"
       : `${Number((handoff.elapsedDays / workingDaysPerWeek).toFixed(1))} ${handoff.elapsedDays === workingDaysPerWeek ? "week" : "weeks"} estimated${timeline.enabled ? " total elapsed time" : handoff.hasSalesDepartment ? " from Sales handoff" : ""}${schedule.unscheduled ? " · partial" : ""}`;
+  // Project start: schedule day 0, the day Sales starts (a date once the Calendar is set).
+  const startLabel = timeline.enabled
+    ? timeline.projectStartDate
+    : handoff.hasSalesDepartment
+      ? axis.timeLabel(0)
+      : "";
   // Technical handoff: the end of the last Sales step (a date once the Calendar is set).
   const handoffLabel =
     handoff.originDay === null ? "" : timeline.handoffDate || axis.timeLabel(handoff.originDay);
@@ -312,10 +318,18 @@ export function ProcessOverview() {
                     commit((current) => ({ ...current, factoryProduction }))
                   }
                 />
+                {startLabel ? (
+                  <span
+                    data-project-start-summary
+                    className="rounded-lg border border-violet-600/40 bg-violet-600/10 px-3 py-2 font-semibold text-violet-700 dark:text-violet-300"
+                  >
+                    Project start · {startLabel}
+                  </span>
+                ) : null}
                 {handoff.hasSalesDepartment ? (
                   <span
                     data-technical-handoff-summary
-                    className="rounded-lg border border-blue-600/40 bg-blue-600/10 px-3 py-2 font-semibold text-blue-700 dark:text-blue-300"
+                    className="rounded-lg border border-orange-600/40 bg-orange-600/10 px-3 py-2 font-semibold text-orange-700 dark:text-orange-300"
                   >
                     Technical handoff ·{" "}
                     {handoff.originDay === null
@@ -398,6 +412,25 @@ export function ProcessOverview() {
                 className={`${mobileGanttView === "timeline" ? "block" : "hidden sm:block"} overflow-x-auto overscroll-x-contain data-[gantt-panning=true]:cursor-grabbing`}
               >
                 <div className="relative" style={{ minWidth: 168 + minimumTimelineWidth }}>
+                  {startLabel ? (
+                    <div
+                      aria-hidden="true"
+                      className={`${ROW_GRID} pointer-events-none absolute inset-0 z-[15]`}
+                    >
+                      <div />
+                      <div className="relative">
+                        <div
+                          data-project-start={startLabel}
+                          title={`Project start · Sales starts · ${startLabel}`}
+                          className="absolute inset-y-0 left-0 border-l-[3px] border-violet-600"
+                        >
+                          <span className="absolute left-1 top-[86px] whitespace-nowrap rounded bg-violet-600 px-1 text-[9px] font-bold leading-4 text-white">
+                            Project start · {startLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {handoff.hasSalesDepartment &&
                   handoff.originDay !== null &&
                   handoff.originDay > 0 ? (
@@ -410,10 +443,10 @@ export function ProcessOverview() {
                         <div
                           data-technical-handoff={handoffLabel}
                           title={`Technical handoff · ${handoffLabel}`}
-                          className="absolute inset-y-0 -translate-x-1/2 border-l-2 border-dashed border-blue-600"
+                          className="absolute inset-y-0 -translate-x-1/2 border-l-2 border-dashed border-orange-600"
                           style={{ left: `${(handoff.originDay / total) * 100}%` }}
                         >
-                          <span className="absolute left-1 top-[86px] whitespace-nowrap rounded bg-blue-600 px-1 text-[9px] font-bold leading-4 text-white">
+                          <span className="absolute left-1 top-[104px] whitespace-nowrap rounded bg-orange-600 px-1 text-[9px] font-bold leading-4 text-white">
                             Technical handoff · {handoffLabel}
                           </span>
                         </div>
