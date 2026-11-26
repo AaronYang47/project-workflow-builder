@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -17,6 +17,14 @@ import { cn } from "@/lib/utils";
 import { SALES_NEW_DRAFT_PREFIX } from "@/lib/sales-intake";
 import { SalesApiError, salesEndpoints, type SalesMe, type SalesProjectList } from "./sales-api";
 import { SalesForm } from "./sales-form";
+import {
+  LanguageSwitch,
+  SalesLanguageProvider,
+  errorText,
+  localeOf,
+  useT,
+  type SalesStrings,
+} from "./sales-i18n";
 
 /**
  * The Sales site (/sales). Sales sign in, enter the access code their team
@@ -43,15 +51,20 @@ function Shell({ children, wide = false }: { children: React.ReactNode; wide?: b
   );
 }
 
-function Brand({ subtitle }: { subtitle: string }) {
+function Brand({ subtitle, children }: { subtitle: string; children?: React.ReactNode }) {
+  const { t } = useT();
   return (
     <div className="mb-6 flex items-center gap-3">
       <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
         <ClipboardCheck className="size-6" />
       </div>
       <div className="min-w-0">
-        <h1 className="text-lg font-bold leading-tight">PROFAB Qualification</h1>
+        <h1 className="text-lg font-bold leading-tight">{t.brand}</h1>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <LanguageSwitch />
+        {children}
       </div>
     </div>
   );
@@ -67,6 +80,7 @@ function ErrorNote({ message }: { message: string }) {
 }
 
 function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
+  const { t } = useT();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -82,14 +96,14 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
       setPassword("");
       onSignedIn();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not sign in.");
+      setError(errorText(caught, t));
     } finally {
       setBusy(false);
     }
   };
   return (
     <Shell>
-      <Brand subtitle="Sales intake" />
+      <Brand subtitle={t.salesIntake} />
       <div className="mb-4 grid grid-cols-2 rounded-xl border bg-muted/40 p-1" role="tablist">
         {(["login", "register"] as const).map((value) => (
           <button
@@ -106,7 +120,7 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
               mode === value ? "bg-background shadow-sm" : "text-muted-foreground",
             )}
           >
-            {value === "login" ? "Sign in" : "Create account"}
+            {value === "login" ? t.signIn : t.createAccount}
           </button>
         ))}
       </div>
@@ -119,18 +133,18 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
       >
         {mode === "register" ? (
           <input
-            aria-label="Your name"
+            aria-label={t.yourName}
             autoComplete="name"
             required
             maxLength={100}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Your name"
+            placeholder={t.yourName}
             className={FIELD}
           />
         ) : null}
         <input
-          aria-label="Email"
+          aria-label={t.email}
           type="email"
           inputMode="email"
           autoComplete="email"
@@ -139,11 +153,11 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
           maxLength={254}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="Email"
+          placeholder={t.email}
           className={FIELD}
         />
         <input
-          aria-label="Password"
+          aria-label={t.password}
           type="password"
           autoComplete={mode === "register" ? "new-password" : "current-password"}
           required
@@ -151,11 +165,11 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
           maxLength={256}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder={mode === "register" ? "Password (12+ characters)" : "Password"}
+          placeholder={mode === "register" ? t.passwordNew : t.password}
           className={FIELD}
         />
         <Button type="submit" className="h-12 w-full rounded-xl text-base" disabled={busy}>
-          {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
+          {busy ? t.pleaseWait : mode === "register" ? t.createAccount : t.signIn}
         </Button>
         <ErrorNote message={error} />
       </form>
@@ -164,6 +178,7 @@ function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
 }
 
 function SignOutButton({ onSignedOut }: { onSignedOut: () => void }) {
+  const { t } = useT();
   return (
     <button
       type="button"
@@ -171,7 +186,7 @@ function SignOutButton({ onSignedOut }: { onSignedOut: () => void }) {
       className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2 text-sm text-muted-foreground hover:text-foreground"
     >
       <LogOut className="size-4" />
-      <span className="max-sm:sr-only">Sign out</span>
+      <span className="max-sm:sr-only">{t.signOut}</span>
     </button>
   );
 }
@@ -193,6 +208,7 @@ function CodeScreen({
   onLinked: () => void;
   onSignedOut: () => void;
 }) {
+  const { t } = useT();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -203,20 +219,18 @@ function CodeScreen({
       await salesEndpoints.link(code);
       onLinked();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not check the code.");
+      setError(errorText(caught, t));
     } finally {
       setBusy(false);
     }
   };
   return (
     <Shell>
-      <Brand subtitle={`Signed in as ${me.user?.name}`} />
+      <Brand subtitle={t.signedInAs(me.user?.name ?? "")} />
       <div className="rounded-2xl border bg-card p-5">
         <KeyRound className="mb-3 size-7 text-primary" />
-        <h2 className="text-lg font-bold">Enter your access code</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your team gives you an 8-character code. You only enter it once.
-        </p>
+        <h2 className="text-lg font-bold">{t.enterCode}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t.codeHelp}</p>
         <form
           className="mt-4 space-y-3"
           onSubmit={(event) => {
@@ -225,7 +239,7 @@ function CodeScreen({
           }}
         >
           <input
-            aria-label="Access code"
+            aria-label={t.accessCode}
             autoComplete="one-time-code"
             autoCapitalize="characters"
             autoCorrect="off"
@@ -240,7 +254,7 @@ function CodeScreen({
             className="h-12 w-full rounded-xl text-base"
             disabled={busy || code.replace("-", "").length !== 8}
           >
-            {busy ? "Checking…" : "Continue"}
+            {busy ? t.checking : t.continue}
           </Button>
           <ErrorNote message={error} />
         </form>
@@ -253,18 +267,16 @@ function CodeScreen({
 }
 
 function TeamAccountScreen({ onSignedOut }: { onSignedOut: () => void }) {
+  const { t } = useT();
   return (
     <Shell>
-      <Brand subtitle="Sales intake" />
+      <Brand subtitle={t.salesIntake} />
       <div className="rounded-2xl border bg-card p-5 text-sm">
-        <p className="font-semibold">This is a team account.</p>
-        <p className="mt-1 text-muted-foreground">
-          The Sales site is for Sales accounts. Open the main app to work on projects, or sign out
-          and sign in with a Sales account.
-        </p>
+        <p className="font-semibold">{t.teamAccount}</p>
+        <p className="mt-1 text-muted-foreground">{t.teamAccountHelp}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild className="h-11 rounded-xl">
-            <Link href="/">Open the app</Link>
+            <Link href="/">{t.openApp}</Link>
           </Button>
           <SignOutButton onSignedOut={onSignedOut} />
         </div>
@@ -273,14 +285,14 @@ function TeamAccountScreen({ onSignedOut }: { onSignedOut: () => void }) {
   );
 }
 
-function relativeTime(iso: string) {
+function relativeTime(iso: string, t: SalesStrings, locale: string) {
   const minutes = Math.round((Date.now() - Date.parse(iso)) / 60_000);
   if (!Number.isFinite(minutes)) return "";
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t.justNow;
+  if (minutes < 60) return t.minutesAgo(minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return new Date(iso).toLocaleDateString();
+  if (hours < 24) return t.hoursAgo(hours);
+  return new Date(iso).toLocaleDateString(locale);
 }
 
 function ProjectList({
@@ -294,6 +306,8 @@ function ProjectList({
   onSignedOut: () => void;
   onNeedsCode: () => void;
 }) {
+  const { t, lang } = useT();
+  const locale = localeOf(lang);
   const [list, setList] = useState<SalesProjectList | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -306,7 +320,7 @@ function ProjectList({
       })
       .catch((caught: unknown) => {
         if (caught instanceof SalesApiError && caught.code === "NEEDS_ACCESS_CODE") onNeedsCode();
-        else setError(caught instanceof Error ? caught.message : "Could not load projects.");
+        else setError(caught instanceof Error ? caught.message : "");
       });
   }, [onNeedsCode]);
   useEffect(() => {
@@ -325,9 +339,10 @@ function ProjectList({
 
   return (
     <Shell wide>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <Brand subtitle={list?.team ? `${list.team} · ${me.user?.name}` : (me.user?.name ?? "")} />
-        <SignOutButton onSignedOut={onSignedOut} />
+      <div className="mb-4">
+        <Brand subtitle={list?.team ? `${list.team} · ${me.user?.name}` : (me.user?.name ?? "")}>
+          <SignOutButton onSignedOut={onSignedOut} />
+        </Brand>
       </div>
 
       <Button
@@ -336,18 +351,16 @@ function ProjectList({
         disabled={!list?.canCreate}
         onClick={() => onOpen(`${SALES_NEW_DRAFT_PREFIX}${crypto.randomUUID()}`)}
       >
-        <FilePlus2 className="size-5" /> New project
+        <FilePlus2 className="size-5" /> {t.newProject}
       </Button>
       {list && !list.canCreate ? (
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          New projects open once your team chooses a project template.
-        </p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">{t.noTemplate}</p>
       ) : null}
 
       {newDrafts.length ? (
         <section className="mt-6">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Not submitted yet
+            {t.notSubmitted}
           </h2>
           <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
             {newDrafts.map((draft) => (
@@ -360,10 +373,10 @@ function ProjectList({
                   <PencilLine className="size-5 shrink-0 text-amber-600" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">
-                      {draft.projectName || "New project"}
+                      {draft.projectName || t.newProject}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      New project · draft saved {relativeTime(draft.updatedAt)}
+                      {t.newProjectDraft(relativeTime(draft.updatedAt, t, locale))}
                     </span>
                   </span>
                   <ChevronRight className="size-5 text-muted-foreground" />
@@ -376,16 +389,16 @@ function ProjectList({
 
       <section className="mt-6">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Projects
+          {t.projects}
         </h2>
         <label className="relative mb-3 block">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <input
-            aria-label="Search projects"
+            aria-label={t.searchProjects}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by project name"
+            placeholder={t.searchPlaceholder}
             className={cn(FIELD, "pl-11")}
           />
         </label>
@@ -412,7 +425,7 @@ function ProjectList({
                         <span className="block truncate font-semibold">{project.name}</span>
                         {draft ? (
                           <span className="text-xs text-[#b54708]">
-                            Draft saved {relativeTime(draft.updatedAt)} · not submitted
+                            {t.draftNotSubmitted(relativeTime(draft.updatedAt, t, locale))}
                           </span>
                         ) : null}
                       </span>
@@ -424,7 +437,7 @@ function ProjectList({
             </ul>
           ) : (
             <p className="rounded-2xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-              {needle ? "No project matches this name." : "No projects yet."}
+              {needle ? t.noMatch : t.noProjects}
             </p>
           )
         ) : null}
@@ -434,10 +447,24 @@ function ProjectList({
 }
 
 export function SalesApp() {
+  return (
+    <SalesLanguageProvider>
+      <SalesSite />
+    </SalesLanguageProvider>
+  );
+}
+
+function SalesSite() {
+  const { t } = useT();
   const [me, setMe] = useState<SalesMe | null>(null);
   const [error, setError] = useState("");
   const [formKey, setFormKey] = useState<string | null>(null);
 
+  // Switching language must not reload the account.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const refresh = useCallback(() => {
     salesEndpoints
       .me()
@@ -445,9 +472,7 @@ export function SalesApp() {
         setMe(result);
         setError("");
       })
-      .catch((caught: unknown) =>
-        setError(caught instanceof Error ? caught.message : "Could not reach the server."),
-      );
+      .catch((caught: unknown) => setError(errorText(caught, tRef.current)));
   }, []);
 
   useEffect(() => {
@@ -488,7 +513,7 @@ export function SalesApp() {
           <div className="space-y-3 pt-10">
             <ErrorNote message={error} />
             <Button className="h-12 w-full rounded-xl" onClick={refresh}>
-              Try again
+              {t.tryAgain}
             </Button>
           </div>
         ) : (

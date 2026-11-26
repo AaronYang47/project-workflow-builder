@@ -33,6 +33,7 @@ import {
   type SubmitResult,
 } from "./sales-api";
 import { ChangedQuestions, INPUT, SALES_FORM_STEPS, salesStepOf } from "./sales-questions";
+import { LanguageSwitch, errorText, localeOf, useT } from "./sales-i18n";
 
 type Draft = { projectName: string; jobNumber: string; form101: QualificationForm101 };
 type SaveState = "idle" | "saving" | "saved" | "offline";
@@ -49,6 +50,22 @@ const PRIMARY_BUTTON =
   "inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#245e9b] px-4 text-base font-semibold text-white shadow-sm active:bg-[#1d4f84] disabled:opacity-45";
 const SECONDARY_BUTTON =
   "inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#d5dbe4] bg-white px-4 text-base font-semibold text-[#344054] active:bg-[#f2f4f7] disabled:opacity-45";
+
+/** French names for the form's missing-answer list (its own labels are English). */
+const MISSING_FR = (t: ReturnType<typeof useT>["t"]): Record<string, string> => ({
+  q1: t.q1,
+  q2: t.q2,
+  q3: t.q3,
+  q4: t.q4,
+  q5: t.q5,
+  q6: t.q6,
+  q7: t.q7,
+  q8: t.q8,
+  q9: t.q9,
+  q11: t.q11,
+  q12: t.q12,
+  q13: t.q13,
+});
 
 const backupKey = (key: string) => `sales-draft-backup:${key}`;
 
@@ -87,6 +104,7 @@ function withFormProjectName(draft: Draft, projectName: string): Draft {
 const sameDraft = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
 
 function SaveBadge({ state }: { state: SaveState }) {
+  const { t } = useT();
   if (state === "idle") return null;
   return (
     <span
@@ -103,7 +121,7 @@ function SaveBadge({ state }: { state: SaveState }) {
       ) : (
         <Check className="size-3.5 text-emerald-600" />
       )}
-      {state === "saving" ? "Saving" : state === "offline" ? "On this phone" : "Saved"}
+      {state === "saving" ? t.saving : state === "offline" ? t.savedOnPhone : t.saved}
     </span>
   );
 }
@@ -123,6 +141,7 @@ function PdfActions({
   revisions: RevisionEntry[];
   primary?: boolean;
 }) {
+  const { t } = useT();
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -139,7 +158,7 @@ function PdfActions({
       });
       setFile(new File([blob], qualificationFormPdfName(form, meta), { type: "application/pdf" }));
     } catch {
-      setError("Could not make the PDF. Please try again.");
+      setError(t.pdfFailed);
     } finally {
       setBusy(false);
     }
@@ -186,7 +205,7 @@ function PdfActions({
           ) : (
             <FileText className="size-5" />
           )}
-          {busy ? "Making the PDF…" : "Generate PDF"}
+          {busy ? t.makingPdf : t.generatePdf}
         </button>
       ) : (
         <>
@@ -205,10 +224,10 @@ function PdfActions({
               className={PRIMARY_BUTTON}
               onClick={() => (canShare ? void share() : download())}
             >
-              <Share2 className="size-5" /> Share
+              <Share2 className="size-5" /> {t.share}
             </button>
             <button type="button" className={SECONDARY_BUTTON} onClick={download}>
-              <Download className="size-5" /> Save
+              <Download className="size-5" /> {t.save}
             </button>
           </div>
           <button
@@ -216,7 +235,7 @@ function PdfActions({
             className="h-10 w-full text-sm text-[#667085] underline"
             onClick={() => void generate()}
           >
-            Make it again
+            {t.makeAgain}
           </button>
         </>
       )}
@@ -236,6 +255,8 @@ export function SalesForm({
   onOpenProject: (key: string) => void;
   onNeedsCode: () => void;
 }) {
+  const { t, lang } = useT();
+  const locale = localeOf(lang);
   const [data, setData] = useState<SalesFormData | null>(null);
   const [loadError, setLoadError] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -294,11 +315,13 @@ export function SalesForm({
       })
       .catch((caught: unknown) => {
         if (caught instanceof SalesApiError && caught.code === "NEEDS_ACCESS_CODE") onNeedsCode();
-        else setLoadError(caught instanceof Error ? caught.message : "Could not open the form.");
+        else setLoadError(errorText(caught, t));
       });
     return () => {
       active = false;
     };
+    // Loads once per form; the language only changes how errors read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formKey, onNeedsCode]);
 
   // Save a draft a moment after typing stops (and on this phone at once).
@@ -333,7 +356,7 @@ export function SalesForm({
             {loadError}
           </p>
           <button type="button" className={cn(PRIMARY_BUTTON, "w-full")} onClick={onClose}>
-            Back to projects
+            {t.backToProjects}
           </button>
         </div>
       </main>
@@ -369,6 +392,7 @@ export function SalesForm({
         ),
         compactQualificationForm101(draft.form101),
         { before: data.savedJobNumber, after: draft.jobNumber.trim() },
+        lang,
       )
     : [];
   const changedIds = new Set(changes.map((change) => change.question));
@@ -411,7 +435,7 @@ export function SalesForm({
       window.scrollTo({ top: 0 });
     } catch (caught) {
       setSubmitError({
-        message: caught instanceof Error ? caught.message : "Could not submit.",
+        message: errorText(caught, t),
         projectId:
           caught instanceof SalesApiError && caught.code === "NAME_TAKEN"
             ? String(caught.body?.projectId ?? "")
@@ -430,13 +454,12 @@ export function SalesForm({
             <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <Check className="size-9" strokeWidth={2.5} />
             </div>
-            <h1 className="text-2xl font-bold text-[#172033]">Submitted</h1>
+            <h1 className="text-2xl font-bold text-[#172033]">{t.submitted}</h1>
             <p className="mt-1 text-[#667085]">
-              {submitted.projectName} · Rev {submitted.submission.revision}
+              {submitted.projectName} · {lang === "fr" ? "Rév." : "Rev"}{" "}
+              {submitted.submission.revision}
             </p>
-            <p className="mt-4 text-[15px] leading-relaxed text-[#344054]">
-              The technical team can see it now. Make the PDF to send it by email.
-            </p>
+            <p className="mt-4 text-[15px] leading-relaxed text-[#344054]">{t.submittedHelp}</p>
           </div>
           <PdfActions
             draft={{ ...draft, jobNumber: submitted.jobNumber || draft.jobNumber }}
@@ -446,7 +469,7 @@ export function SalesForm({
             primary
           />
           <button type="button" className={cn(SECONDARY_BUTTON, "w-full")} onClick={onClose}>
-            Back to projects
+            {t.backToProjects}
           </button>
         </div>
       </main>
@@ -461,7 +484,7 @@ export function SalesForm({
         <div className="mx-auto flex max-w-2xl items-center gap-1 px-2 pt-2">
           <button
             type="button"
-            aria-label="Back to projects"
+            aria-label={t.backToProjects}
             onClick={onClose}
             className="flex size-11 shrink-0 items-center justify-center rounded-xl text-[#344054] active:bg-[#f2f4f7]"
           >
@@ -472,20 +495,17 @@ export function SalesForm({
               className="truncate text-[15px] font-semibold leading-tight text-[#172033]"
               data-sales-form-title
             >
-              {projectName || "New project"}
+              {projectName || t.newProjectTitle}
             </p>
-            <p className="text-xs text-[#667085]">Qualification Form [1.01]</p>
+            <p className="truncate text-xs text-[#667085]">{t.formName}</p>
           </div>
           <SaveBadge state={saveState} />
+          <LanguageSwitch compact />
         </div>
         <div className="mx-auto max-w-2xl px-4 pb-2 pt-2">
           <div className="mb-1 flex justify-between text-xs text-[#667085]">
-            <span>
-              Step {step + 1} of {STEPS.length} · {current.title}
-            </span>
-            <span>
-              {doneCount}/{REVIEW} done
-            </span>
+            <span>{t.stepOf(step + 1, STEPS.length, t.steps[current.id] ?? current.title)}</span>
+            <span>{t.doneCount(doneCount, REVIEW)}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
             <div
@@ -498,7 +518,7 @@ export function SalesForm({
           ref={stepsRef}
           className="scroll-thin mx-auto flex max-w-2xl snap-x snap-mandatory scroll-px-3 gap-1.5 overflow-x-auto overscroll-x-contain px-3 pb-2.5"
           role="tablist"
-          aria-label="Form steps"
+          aria-label={t.formSteps}
         >
           {STEPS.map((item, index) => (
             <button
@@ -518,7 +538,7 @@ export function SalesForm({
               )}
             >
               {stepDone(index) && index !== step ? <Check className="size-3.5" /> : null}
-              {item.title}
+              {t.steps[item.id] ?? item.title}
               {changedSteps.has(index) ? (
                 <span
                   aria-label="changed"
@@ -541,13 +561,14 @@ export function SalesForm({
               className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-[#344054]"
             >
               <p className="font-semibold text-violet-800">
-                Updating Rev {data.submission.revision}
+                {t.updating(data.submission.revision)}
               </p>
               <p className="mt-1 leading-relaxed">
-                The answers from the last submission ({data.submission.by},{" "}
-                {new Date(data.submission.at).toLocaleDateString()}) are already filled in. Change
-                only what is new — every change is marked and recorded as Rev{" "}
-                {nextRevision || "next"}.
+                {t.updatingHelp(
+                  data.submission.by,
+                  new Date(data.submission.at).toLocaleDateString(locale),
+                  nextRevision || "+1",
+                )}
               </p>
             </div>
           ) : null}
@@ -557,7 +578,7 @@ export function SalesForm({
               <section className="space-y-4 rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                 {data.isNew ? (
                   <label className="block space-y-1.5">
-                    <span className="text-sm font-medium text-[#344054]">Project name</span>
+                    <span className="text-sm font-medium text-[#344054]">{t.projectName}</span>
                     <input
                       data-sales-project-name
                       value={draft.projectName}
@@ -582,25 +603,23 @@ export function SalesForm({
                             : next,
                         );
                       }}
-                      placeholder="e.g. Maison Laurier — Phase 2"
+                      placeholder={t.projectNamePlaceholder}
                       className={INPUT}
                     />
-                    <span className="block text-xs text-[#667085]">
-                      The project is created from your team&apos;s template when you submit.
-                    </span>
+                    <span className="block text-xs text-[#667085]">{t.fromTemplate}</span>
                   </label>
                 ) : (
                   <div>
-                    <p className="text-sm font-medium text-[#344054]">Project</p>
+                    <p className="text-sm font-medium text-[#344054]">{t.project}</p>
                     <p className="mt-1 text-lg font-semibold text-[#172033]">{data.projectName}</p>
                   </div>
                 )}
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium text-[#344054]">
-                    Job number
+                    {t.jobNumber}
                     {changedIds.has("job") ? (
                       <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-                        Changed
+                        {t.changed}
                       </span>
                     ) : null}
                   </span>
@@ -616,7 +635,7 @@ export function SalesForm({
                         jobNumber: event.target.value.replace(/\D/g, "").slice(0, 5),
                       })
                     }
-                    placeholder="5 digits, e.g. 26014"
+                    placeholder={t.jobNumberPlaceholder}
                     className={cn(
                       INPUT,
                       "font-mono text-lg tracking-[0.2em]",
@@ -629,15 +648,12 @@ export function SalesForm({
                       jobNumberValid ? "text-[#667085]" : "text-[#b42318]",
                     )}
                   >
-                    {jobNumberValid
-                      ? "Leave it empty if there is no job number yet."
-                      : "The Job number has 5 digits."}
+                    {jobNumberValid ? t.jobNumberEmpty : t.jobNumberBad}
                   </span>
                 </label>
               </section>
               <div className="rounded-2xl bg-[#f5f8fc] px-4 py-3 text-sm leading-relaxed text-[#475467]">
-                Answer what you know and leave the rest empty. Everything saves as you type, so you
-                can stop and come back any time. Nothing reaches the team until you press Submit.
+                {t.intro}
               </div>
             </>
           ) : topic ? (
@@ -646,10 +662,10 @@ export function SalesForm({
             <section className="space-y-4">
               <div className="rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                 <p className="text-lg font-semibold text-[#172033]">
-                  {projectName || "New project"}
+                  {projectName || t.newProjectTitle}
                 </p>
                 <p className="text-sm text-[#667085]">
-                  {draft.jobNumber ? `Job ${draft.jobNumber}` : "No Job number yet"}
+                  {draft.jobNumber ? t.job(draft.jobNumber) : t.noJob}
                 </p>
                 <div className="mt-4 space-y-1">
                   {STEPS.slice(1, REVIEW).map((item, offset) => {
@@ -671,7 +687,9 @@ export function SalesForm({
                         >
                           {stepDone(index) ? <Check className="size-3.5" strokeWidth={3} /> : null}
                         </span>
-                        <span className="flex-1 text-[15px] text-[#344054]">{item.title}</span>
+                        <span className="flex-1 text-[15px] text-[#344054]">
+                          {t.steps[item.id] ?? item.title}
+                        </span>
                         <ChevronRight className="size-4 text-[#98a2b3]" />
                       </button>
                     );
@@ -685,10 +703,8 @@ export function SalesForm({
                 >
                   <p className="font-semibold text-violet-800">
                     {changes.length
-                      ? `This update changes ${changes.length} ${
-                          changes.length === 1 ? "answer" : "answers"
-                        } (Rev ${nextRevision})`
-                      : `Nothing has changed since Rev ${data.submission!.revision}`}
+                      ? t.updateChanges(changes.length, nextRevision)
+                      : t.nothingChanged(data.submission!.revision)}
                   </p>
                   {changes.length ? (
                     <ul className="mt-2 divide-y divide-[#eef1f5]">
@@ -710,11 +726,11 @@ export function SalesForm({
                                   {change.before}
                                 </span>
                               ) : (
-                                <span className="italic">empty</span>
+                                <span className="italic">{t.empty}</span>
                               )}{" "}
                               →{" "}
                               <span className="font-medium text-violet-800">
-                                {change.after || "removed"}
+                                {change.after || t.removed}
                               </span>
                             </span>
                           </button>
@@ -722,21 +738,16 @@ export function SalesForm({
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-1 text-sm text-[#667085]">
-                      Change an answer before submitting an update.
-                    </p>
+                    <p className="mt-1 text-sm text-[#667085]">{t.changeFirst}</p>
                   )}
                 </div>
               ) : null}
               {missing.length ? (
                 <div className="rounded-2xl border border-[#fedf89] bg-[#fffcf5] p-4">
                   <p className="flex items-center gap-1.5 font-semibold text-[#b54708]">
-                    <AlertCircle className="size-4" /> {missing.length}{" "}
-                    {missing.length === 1 ? "answer" : "answers"} still empty
+                    <AlertCircle className="size-4" /> {t.stillEmpty(missing.length)}
                   </p>
-                  <p className="mt-1 text-sm text-[#667085]">
-                    You can submit now and fill them in later. Tap one to go to it.
-                  </p>
+                  <p className="mt-1 text-sm text-[#667085]">{t.stillEmptyHelp}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5" data-sales-missing>
                     {missing.map((item) => (
                       <button
@@ -748,22 +759,20 @@ export function SalesForm({
                         }}
                         className="min-h-9 rounded-xl border border-[#fedf89] bg-white px-3 py-1.5 text-left text-sm text-[#93370d]"
                       >
-                        {item.label.replace(/^Q\d+\s*/, "")}
+                        {lang === "fr"
+                          ? (MISSING_FR(t)[item.id] ?? item.label.replace(/^Q\d+\s*/, ""))
+                          : item.label.replace(/^Q\d+\s*/, "")}
                       </button>
                     ))}
                   </div>
                 </div>
               ) : (
                 <p className="flex items-center gap-1.5 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-700">
-                  <Check className="size-5" /> Every answer is filled in.
+                  <Check className="size-5" /> {t.allFilled}
                 </p>
               )}
-              {nameMissing ? (
-                <p className="text-sm text-[#b42318]">Enter the project name on the first step.</p>
-              ) : null}
-              {!jobNumberValid ? (
-                <p className="text-sm text-[#b42318]">Fix the Job number on the first step.</p>
-              ) : null}
+              {nameMissing ? <p className="text-sm text-[#b42318]">{t.needName}</p> : null}
+              {!jobNumberValid ? <p className="text-sm text-[#b42318]">{t.fixJob}</p> : null}
               {submitError ? (
                 <div
                   role="alert"
@@ -776,7 +785,7 @@ export function SalesForm({
                       className={SECONDARY_BUTTON}
                       onClick={() => onOpenProject(submitError.projectId!)}
                     >
-                      Open that project
+                      {t.openThatProject}
                     </button>
                   ) : null}
                 </div>
@@ -795,19 +804,13 @@ export function SalesForm({
                 ) : (
                   <Send className="size-5" />
                 )}
-                {submitting
-                  ? "Submitting…"
-                  : isUpdate
-                    ? `Submit update (Rev ${nextRevision})`
-                    : "Submit to the technical team"}
+                {submitting ? t.submitting : isUpdate ? t.submitUpdate(nextRevision) : t.submit}
               </button>
               <div className="border-t border-[#e3e8ef] pt-4">
-                <p className="mb-2 text-sm text-[#667085]">
-                  Want to check the PDF first? It shows what you have filled in so far.
-                </p>
+                <p className="mb-2 text-sm text-[#667085]">{t.pdfFirst}</p>
                 <PdfActions
                   draft={draft}
-                  projectName={projectName || "New project"}
+                  projectName={projectName || t.newProjectTitle}
                   revisions={data.history}
                 />
               </div>
@@ -829,7 +832,7 @@ export function SalesForm({
               disabled={step === 0}
               onClick={() => goTo(step - 1)}
             >
-              <ChevronLeft className="size-5" /> Back
+              <ChevronLeft className="size-5" /> {t.back}
             </button>
             <button
               type="button"
@@ -837,7 +840,7 @@ export function SalesForm({
               className={cn(PRIMARY_BUTTON, "flex-[2]")}
               onClick={() => goTo(step + 1)}
             >
-              {step === REVIEW - 1 ? "Review" : "Next"} <ChevronRight className="size-5" />
+              {step === REVIEW - 1 ? t.steps.review : t.next} <ChevronRight className="size-5" />
             </button>
           </div>
         </nav>

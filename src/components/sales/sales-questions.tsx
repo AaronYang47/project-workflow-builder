@@ -4,9 +4,9 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qualificationPartyIssue } from "@/lib/qualification";
+import { disciplineExamples, specialExamples } from "@/lib/qf-labels";
+import { useT } from "./sales-i18n";
 import {
-  ANNEX_1_CATEGORIES,
-  ANNEX_2_BY_DISCIPLINE,
   DISCIPLINE_DEFINITIONS,
   DRAWING_ISSUE_STATUS_SUGGESTIONS,
   OCCUPANCY_GROUPS,
@@ -56,6 +56,7 @@ function Question({
   done?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useT();
   const changedIds = useContext(ChangedQuestions);
   const changed =
     changedIds.has(id) ||
@@ -75,12 +76,12 @@ function Question({
               data-sales-changed
               className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full bg-violet-100 px-2 py-0.5 align-middle text-[11px] font-semibold text-violet-700"
             >
-              Changed
+              {t.changed}
             </span>
           ) : null}
         </h3>
         <span
-          aria-label={done ? "Answered" : "Not answered yet"}
+          aria-label={done ? t.answered : t.notAnswered}
           className={cn(
             "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border",
             done ? "border-emerald-500 bg-emerald-500 text-white" : "border-[#cfd6e0] bg-white",
@@ -128,8 +129,8 @@ function YesNo({
   value,
   onChange,
   label,
-  yes = "Yes",
-  no = "No",
+  yes,
+  no,
 }: {
   value?: "yes" | "no";
   onChange: (value: "yes" | "no" | undefined) => void;
@@ -137,12 +138,13 @@ function YesNo({
   yes?: string;
   no?: string;
 }) {
+  const { t } = useT();
   return (
     <div role="group" aria-label={label} className="grid grid-cols-2 gap-2">
       {(
         [
-          ["yes", yes],
-          ["no", no],
+          ["yes", yes ?? t.yes],
+          ["no", no ?? t.no],
         ] as const
       ).map(([option, text]) => {
         const active = value === option;
@@ -305,47 +307,36 @@ const done = (form: Form, id: FormStepId, isLoi: boolean) => isForm101StepComple
 
 /* ------------------------------------------------------------------ steps */
 
-const OCCUPANCY_TEXT: Record<string, { title: string; text: string }> = {
-  A: { title: "Assembly", text: "Group A — places where people gather" },
-  C: { title: "Residential", text: "Group C — homes, apartments" },
-  D: { title: "Business & personal services", text: "Group D — offices, services" },
-  E: { title: "Mercantile", text: "Group E — stores, retail" },
-};
-
 export function BuildingStep({ form, patch, isLoi }: StepProps) {
+  const { t, labels } = useT();
   const a = form.sectionA;
   const patchA = patchSectionA(patch);
   return (
     <>
-      <Question id="q1" title="Project name" done={done(form, "q1", isLoi)}>
+      <Question id="q1" title={t.q1} done={done(form, "q1", isLoi)}>
         <TextInput
           aria-label="Project name on the form"
           value={a.projectName}
           onChange={(projectName) => patchA((p) => ({ ...p, projectName }))}
-          placeholder="Name used by the client"
+          placeholder={t.q1Placeholder}
         />
       </Question>
-      <Question id="q2" title="Full project address" done={done(form, "q2", isLoi)}>
+      <Question id="q2" title={t.q2} done={done(form, "q2", isLoi)}>
         <textarea
           aria-label="Full project address"
           rows={2}
           value={a.projectAddress}
           onChange={(event) => patchA((p) => ({ ...p, projectAddress: event.target.value }))}
-          placeholder="Street, city, province, postal code"
+          placeholder={t.q2Placeholder}
           autoComplete="street-address"
           className={cn(INPUT, "h-auto min-h-12 resize-none py-3 leading-snug")}
         />
       </Question>
-      <Question
-        id="q5"
-        title="Main use of the building"
-        hint="Pick the one main occupancy group."
-        done={done(form, "q5", isLoi)}
-      >
+      <Question id="q5" title={t.q5} hint={t.q5Hint} done={done(form, "q5", isLoi)}>
         <div role="radiogroup" aria-label="Main occupancy group" className="grid gap-2">
           {OCCUPANCY_GROUPS.map((group) => {
             const active = a.occupancyGroups.length === 1 && a.occupancyGroups[0] === group.code;
-            const text = OCCUPANCY_TEXT[group.code];
+            const text = labels.occupancy[group.code];
             return (
               <button
                 key={group.code}
@@ -375,12 +366,7 @@ export function BuildingStep({ form, patch, isLoi }: StepProps) {
           })}
         </div>
       </Question>
-      <Question
-        id="q6"
-        title="Approximate gross floor area"
-        hint="All levels together."
-        done={done(form, "q6", isLoi)}
-      >
+      <Question id="q6" title={t.q6} hint={t.q6Hint} done={done(form, "q6", isLoi)}>
         <div className="relative">
           <TextInput
             aria-label="Gross area sq ft"
@@ -391,7 +377,7 @@ export function BuildingStep({ form, patch, isLoi }: StepProps) {
             className="pr-16"
           />
           <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-[#667085]">
-            sq. ft.
+            {t.sqft}
           </span>
         </div>
       </Question>
@@ -400,6 +386,7 @@ export function BuildingStep({ form, patch, isLoi }: StepProps) {
 }
 
 export function PeopleStep({ form, patch, isLoi }: StepProps) {
+  const { t, lang } = useT();
   const a = form.sectionA;
   const patchA = patchSectionA(patch);
   const partyIssue = qualificationPartyIssue(a.parties);
@@ -412,16 +399,11 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
     patchA((p) => ({ ...p, mainContact: { ...p.mainContact, [key]: value } }));
   return (
     <>
-      <Question
-        id="q3"
-        title="Who are the project parties?"
-        hint="At least one company, with a contact for each company you enter."
-        done={done(form, "q3", isLoi)}
-      >
+      <Question id="q3" title={t.q3} hint={t.q3Hint} done={done(form, "q3", isLoi)}>
         {roles.map(([key, label]) => (
           <fieldset key={key} className="space-y-2 rounded-xl bg-[#f7f9fc] p-3">
-            <legend className="sr-only">{label}</legend>
-            <p className="text-sm font-semibold text-[#344054]">{label}</p>
+            <legend className="sr-only">{t.parties[key]}</legend>
+            <p className="text-sm font-semibold text-[#344054]">{t.parties[key]}</p>
             <TextInput
               aria-label={`${label} company`}
               value={a.parties[key].company}
@@ -431,7 +413,7 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
                   parties: { ...p.parties, [key]: { ...p.parties[key], company } },
                 }))
               }
-              placeholder="Company"
+              placeholder={t.company}
               autoComplete="organization"
             />
             <TextInput
@@ -443,16 +425,16 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
                   parties: { ...p.parties, [key]: { ...p.parties[key], contact: value } },
                 }))
               }
-              placeholder="Contact: name, email or phone"
+              placeholder={t.contactPlaceholder}
             />
           </fieldset>
         ))}
         {partyIssue && a.parties.owner.company + a.parties.gc.company + a.parties.client.company ? (
-          <p className="text-sm text-[#b54708]">{partyIssue}</p>
+          <p className="text-sm text-[#b54708]">{lang === "fr" ? t.q3Hint : partyIssue}</p>
         ) : null}
       </Question>
-      <Question id="q4" title="Main contact for the project" done={done(form, "q4", isLoi)}>
-        <Field label="Name">
+      <Question id="q4" title={t.q4} done={done(form, "q4", isLoi)}>
+        <Field label={t.name}>
           <TextInput
             aria-label="Main contact name"
             value={a.mainContact.name}
@@ -460,15 +442,15 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
             autoComplete="name"
           />
         </Field>
-        <Field label="Company & role">
+        <Field label={t.companyRole}>
           <TextInput
             aria-label="Main contact company and role"
             value={a.mainContact.companyRole}
             onChange={(value) => contact("companyRole", value)}
-            placeholder="e.g. Laurier inc. — owner's rep"
+            placeholder={t.companyRolePlaceholder}
           />
         </Field>
-        <Field label="Email">
+        <Field label={t.email}>
           <TextInput
             aria-label="Main contact email"
             type="email"
@@ -478,7 +460,7 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
             onChange={(value) => contact("email", value)}
           />
         </Field>
-        <Field label="Phone">
+        <Field label={t.phone}>
           <TextInput
             aria-label="Main contact phone"
             type="tel"
@@ -493,6 +475,7 @@ export function PeopleStep({ form, patch, isLoi }: StepProps) {
 }
 
 export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
+  const { t, labels } = useT();
   const a = form.sectionA;
   const patchA = patchSectionA(patch);
   const set = (key: DisciplineKey, field: "name" | "company" | "contact", value: string) =>
@@ -501,12 +484,7 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
       consultants: { ...p.consultants, [key]: { ...p.consultants[key], [field]: value } },
     }));
   return (
-    <Question
-      id="q7"
-      title="Responsible consultants"
-      hint="For each discipline: a name or company, and how to reach them. Tap to open."
-      done={done(form, "q7", isLoi)}
-    >
+    <Question id="q7" title={t.q7} hint={t.q7Hint} done={done(form, "q7", isLoi)}>
       <div className="space-y-2">
         {DISCIPLINE_DEFINITIONS.map((discipline) => {
           const entry = a.consultants[discipline.key];
@@ -514,13 +492,12 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
             (entry.name.trim() || entry.company.trim()) && entry.contact.trim(),
           );
           const summary =
-            [entry.name, entry.company].filter((value) => value.trim()).join(" · ") ||
-            "Not filled in";
+            [entry.name, entry.company].filter((value) => value.trim()).join(" · ") || t.notFilled;
           return (
             <Disclosure
               key={discipline.key}
               testId={`consultant-${discipline.key}`}
-              title={discipline.consultantLabel}
+              title={labels.discipline[discipline.key]}
               summary={summary}
               done={filled}
             >
@@ -528,19 +505,19 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
                 aria-label={`${discipline.consultantLabel} consultant name`}
                 value={entry.name}
                 onChange={(value) => set(discipline.key, "name", value)}
-                placeholder="Name"
+                placeholder={t.name}
               />
               <TextInput
                 aria-label={`${discipline.consultantLabel} consultant company`}
                 value={entry.company}
                 onChange={(value) => set(discipline.key, "company", value)}
-                placeholder="Company"
+                placeholder={t.company}
               />
               <TextInput
                 aria-label={`${discipline.consultantLabel} consultant contact`}
                 value={entry.contact}
                 onChange={(value) => set(discipline.key, "contact", value)}
-                placeholder="Email or phone"
+                placeholder={t.emailOrPhone}
               />
             </Disclosure>
           );
@@ -551,6 +528,7 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
 }
 
 export function CommercialStep({ form, patch, isLoi }: StepProps) {
+  const { t, labels } = useT();
   const a = form.sectionA;
   const patchA = patchSectionA(patch);
   const budgetAmountBad =
@@ -559,17 +537,14 @@ export function CommercialStep({ form, patch, isLoi }: StepProps) {
     !qualificationBudgetComplete(a);
   return (
     <>
-      <Question id="q8" title="Is there a project budget?" done={done(form, "q8", isLoi)}>
+      <Question id="q8" title={t.q8} done={done(form, "q8", isLoi)}>
         <YesNo
           label="Project budget established"
           value={a.budgetEstablished}
           onChange={(budgetEstablished) => patchA((p) => ({ ...p, budgetEstablished }))}
         />
         {a.budgetEstablished === "yes" ? (
-          <Field
-            label="Total budget (CAD)"
-            note={budgetAmountBad ? "Use numbers only, e.g. 1,250,000" : undefined}
-          >
+          <Field label={t.totalBudget} note={budgetAmountBad ? t.budgetBad : undefined}>
             <div className="relative">
               <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#667085]">
                 $
@@ -588,8 +563,8 @@ export function CommercialStep({ form, patch, isLoi }: StepProps) {
       </Question>
       <Question
         id="q9"
-        title="Deposit received (CSA or PCS)?"
-        hint={isLoi ? "This project goes through an LOI, which has no deposit." : undefined}
+        title={t.q9}
+        hint={isLoi ? t.q9Loi : undefined}
         done={done(form, "q9", isLoi)}
       >
         <YesNo
@@ -598,15 +573,10 @@ export function CommercialStep({ form, patch, isLoi }: StepProps) {
           onChange={(depositReceived) => patchA((p) => ({ ...p, depositReceived }))}
         />
       </Question>
-      <Question
-        id="q11"
-        title="Target dates"
-        hint="Best guess is fine. Tap a date to pick it."
-        done={done(form, "q11", isLoi)}
-      >
+      <Question id="q11" title={t.q11} hint={t.q11Hint} done={done(form, "q11", isLoi)}>
         <div className="grid gap-3">
           {TARGET_DATE_FIELDS.map((field) => (
-            <Field key={field.key} label={field.label}>
+            <Field key={field.key} label={labels.targetDate[field.key]}>
               <DateInput
                 label={`Target date: ${field.label}`}
                 value={a.targetDates[field.key]}
@@ -622,17 +592,8 @@ export function CommercialStep({ form, patch, isLoi }: StepProps) {
   );
 }
 
-const DOCUMENT_TEXT: Record<string, string> = {
-  permit: "Permit",
-  archDrawings: "Architectural drawings (with site plan)",
-  bylawsZoning: "Municipal bylaws / zoning",
-  productSpecs: "Product requirements / specs",
-  classEstimate: "Class estimate (CEC)",
-  existingRfis: "Existing RFIs",
-  priorCorrespondence: "Earlier emails / instructions",
-};
-
 export function DocumentsStep({ form, patch, isLoi }: StepProps) {
+  const { t, labels } = useT();
   const a = form.sectionA;
   const patchA = patchSectionA(patch);
   const unanswered = PROJECT_DOCUMENT_DEFINITIONS.some((doc) => !a.documents[doc.key].available);
@@ -643,23 +604,16 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
     }));
   return (
     <>
-      <Question
-        id="q12"
-        title="Which documents do you have?"
-        hint="Where a document is, add the folder, link or email date."
-        done={done(form, "q12", isLoi)}
-      >
+      <Question id="q12" title={t.q12} hint={t.q12Hint} done={done(form, "q12", isLoi)}>
         {PROJECT_DOCUMENT_DEFINITIONS.map((doc) => {
           const entry = a.documents[doc.key];
           return (
             <div key={doc.key} className="space-y-2 rounded-xl bg-[#f7f9fc] p-3">
-              <p className="text-sm font-semibold text-[#344054]">
-                {DOCUMENT_TEXT[doc.key] ?? doc.label}
-              </p>
+              <p className="text-sm font-semibold text-[#344054]">{labels.document[doc.key]}</p>
               <YesNo
                 label={`${doc.label} available`}
-                yes="Have it"
-                no="Not yet"
+                yes={t.haveIt}
+                no={t.notYet}
                 value={entry.available}
                 onChange={(available) =>
                   patchA((p) => ({
@@ -684,7 +638,7 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
                       },
                     }))
                   }
-                  placeholder="Folder, link or email date"
+                  placeholder={t.locationPlaceholder}
                 />
               ) : null}
             </div>
@@ -704,23 +658,18 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
             }
             className="h-11 w-full rounded-xl text-sm font-semibold text-[#245e9b] active:bg-[#eaf1f9]"
           >
-            Mark the rest as “Not yet”
+            {t.markRestNotYet}
           </button>
         ) : null}
       </Question>
       {a.documents.archDrawings.available !== "no" ? (
-        <Question
-          id="q13"
-          title="Latest drawings"
-          hint="Name, revision, issue status and where to find them."
-          done={done(form, "q13", isLoi)}
-        >
+        <Question id="q13" title={t.q13} hint={t.q13Hint} done={done(form, "q13", isLoi)}>
           {a.latestDrawings.map((row, index) => (
             <div key={row.id} className="space-y-2 rounded-xl bg-[#f7f9fc] p-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[#344054]">Drawing set {index + 1}</p>
+                <p className="text-sm font-semibold text-[#344054]">{t.drawingSet(index + 1)}</p>
                 <RemoveButton
-                  label={`Delete drawing set ${index + 1}`}
+                  label={t.deleteDrawing(index + 1)}
                   onClick={() =>
                     patchA((p) => ({
                       ...p,
@@ -733,14 +682,14 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
                 aria-label={`Drawing ${index + 1} name`}
                 value={row.drawingName}
                 onChange={(drawingName) => updateDrawing(row.id, { drawingName })}
-                placeholder="Drawing name / set"
+                placeholder={t.drawingName}
               />
               <div className="grid grid-cols-[6rem_1fr] gap-2">
                 <TextInput
                   aria-label={`Drawing ${index + 1} revision number`}
                   value={row.revisionNumber}
                   onChange={(revisionNumber) => updateDrawing(row.id, { revisionNumber })}
-                  placeholder="Rev #"
+                  placeholder={t.rev}
                 />
                 <DateInput
                   label={`Drawing ${index + 1} revision date`}
@@ -762,7 +711,7 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
                       })
                     }
                   >
-                    {status}
+                    {labels.issueStatus[status] ?? status}
                   </Chip>
                 ))}
               </div>
@@ -770,7 +719,7 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
                 aria-label={`Drawing ${index + 1} exact location`}
                 value={row.exactLocation}
                 onChange={(exactLocation) => updateDrawing(row.id, { exactLocation })}
-                placeholder="Exact folder, link or email"
+                placeholder={t.exactLocation}
               />
             </div>
           ))}
@@ -792,7 +741,7 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
               }))
             }
           >
-            Add a drawing set
+            {t.addDrawing}
           </AddButton>
         </Question>
       ) : null}
@@ -800,20 +749,8 @@ export function DocumentsStep({ form, patch, isLoi }: StepProps) {
   );
 }
 
-/** "1.2. Foundation plan: dimensioned…" → "Foundation plan" */
-const shortExample = (example: string) =>
-  example
-    .replace(/^\d+\.\d+\.\s*/, "")
-    .split(/[:?]/)[0]
-    .trim();
-
-const SUPPLY_TEXT: Record<SupplyScopeCode, string> = {
-  "FI/SI": "PROFAB supplies & installs",
-  "F/S": "PROFAB supplies only",
-  "FIA/SIO": "Others supply & install",
-};
-
 export function TechnicalStep({ form, patch }: StepProps) {
+  const { t, labels, lang } = useT();
   const b = form.sectionB;
   const patchDiscipline = (
     key: DisciplineKey,
@@ -842,8 +779,8 @@ export function TechnicalStep({ form, patch }: StepProps) {
     <>
       <Question
         id="b-disciplines"
-        title="What did the client mention, by discipline?"
-        hint="One short line per item, including what the client is still considering. Tap a suggestion to add it."
+        title={t.bDisciplines}
+        hint={t.bDisciplinesHint}
         done={DISCIPLINE_DEFINITIONS.every((d) => {
           const sec = b.disciplines[d.key];
           return Boolean(sec.reviewedNone || sec.items.some((row) => row.item.trim()));
@@ -859,19 +796,19 @@ export function TechnicalStep({ form, patch }: StepProps) {
               <Disclosure
                 key={discipline.key}
                 testId={`discipline-${discipline.key}`}
-                title={discipline.sectionTitle.replace(/^\d+\.\s*/, "")}
+                title={labels.discipline[discipline.key]}
                 summary={
                   sec.reviewedNone
-                    ? "Nothing to note"
+                    ? t.nothingToNote
                     : items.length
-                      ? `${items.length} item${items.length === 1 ? "" : "s"}`
-                      : "Not filled in"
+                      ? t.items(items.length)
+                      : t.notFilled
                 }
                 done={sectionDone}
               >
-                {"note" in discipline && discipline.note ? (
+                {labels.disciplineNote[discipline.key] ? (
                   <p className="rounded-lg bg-[#fffaeb] px-3 py-2 text-sm text-[#93370d]">
-                    {discipline.note}
+                    {labels.disciplineNote[discipline.key]}
                   </p>
                 ) : null}
                 <label className="flex min-h-11 items-center gap-3 text-base">
@@ -886,7 +823,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                     }
                     className="size-5 accent-[#245e9b]"
                   />
-                  Nothing to note for {discipline.consultantLabel.toLowerCase()}
+                  {t.nothingToNoteFor(labels.discipline[discipline.key])}
                 </label>
                 {!sec.reviewedNone ? (
                   <>
@@ -904,7 +841,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                                 ),
                               }))
                             }
-                            placeholder="Item"
+                            placeholder={t.item}
                           />
                           <RemoveButton
                             label={`Delete ${discipline.sectionTitle} item ${index + 1}`}
@@ -928,7 +865,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                               ),
                             }))
                           }
-                          placeholder="Details, or what the client is still considering"
+                          placeholder={t.details}
                           className={cn(INPUT, "h-auto min-h-12 resize-none py-3 leading-snug")}
                         />
                       </div>
@@ -941,15 +878,14 @@ export function TechnicalStep({ form, patch }: StepProps) {
                         }))
                       }
                     >
-                      Add an item
+                      {t.addItem}
                     </AddButton>
                     <div>
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#667085]">
-                        Suggestions
+                        {t.suggestions}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {ANNEX_2_BY_DISCIPLINE[discipline.key]
-                          .map(shortExample)
+                        {disciplineExamples(discipline.key, lang)
                           .filter((example) => !used.has(example))
                           .map((example) => (
                             <Chip
@@ -974,12 +910,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
         </div>
       </Question>
 
-      <Question
-        id="b-special"
-        title="Special products and items"
-        hint="Anything that changes PROFAB's scope, by us or by others. Must match the options in the Preliminary Estimation."
-        done={specialDone}
-      >
+      <Question id="b-special" title={t.bSpecial} hint={t.bSpecialHint} done={specialDone}>
         <label className="flex min-h-11 items-center gap-3 text-base">
           <input
             type="checkbox"
@@ -989,7 +920,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
             }
             className="size-5 accent-[#245e9b]"
           />
-          No special products or items
+          {t.noSpecial}
         </label>
         {!special.reviewedNone ? (
           <>
@@ -1005,7 +936,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                         items: s.items.map((it) => (it.id === row.id ? { ...it, item } : it)),
                       }))
                     }
-                    placeholder="Item"
+                    placeholder={t.item}
                   />
                   <RemoveButton
                     label={`Delete special item ${index + 1}`}
@@ -1026,14 +957,14 @@ export function TechnicalStep({ form, patch }: StepProps) {
                       items: s.items.map((it) => (it.id === row.id ? { ...it, description } : it)),
                     }))
                   }
-                  placeholder="Description (make, model, spec)"
+                  placeholder={t.specialDescription}
                 />
                 <div
                   role="radiogroup"
                   aria-label={`Special item ${index + 1} supply`}
                   className="grid gap-1.5"
                 >
-                  {(Object.keys(SUPPLY_TEXT) as SupplyScopeCode[]).map((code) => {
+                  {(Object.keys(labels.supply) as SupplyScopeCode[]).map((code) => {
                     const active = row.supply === code;
                     return (
                       <button
@@ -1056,7 +987,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                             : "border-[#d5dbe4] bg-white text-[#344054]",
                         )}
                       >
-                        {SUPPLY_TEXT[code]}
+                        {labels.supply[code]}
                         <span className="text-xs text-[#667085]">{code}</span>
                       </button>
                     );
@@ -1071,7 +1002,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
                       items: s.items.map((it) => (it.id === row.id ? { ...it, relatedFiles } : it)),
                     }))
                   }
-                  placeholder="Related files (optional)"
+                  placeholder={t.relatedFiles}
                 />
               </div>
             ))}
@@ -1086,17 +1017,16 @@ export function TechnicalStep({ form, patch }: StepProps) {
                 }))
               }
             >
-              Add a special item
+              {t.addSpecial}
             </AddButton>
             <div className="space-y-2">
-              {ANNEX_1_CATEGORIES.map((category) => (
-                <div key={category.category}>
+              {specialExamples(lang).map((category) => (
+                <div key={category.title}>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#667085]">
-                    {category.category}
+                    {category.title}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {category.items
-                      .map((example) => example.split(" — ")[0].split(" (")[0].trim())
                       .filter((example) => !special.items.some((row) => row.item === example))
                       .map((example) => (
                         <Chip
@@ -1132,6 +1062,7 @@ export function TechnicalStep({ form, patch }: StepProps) {
 }
 
 export function OpenQuestionsStep({ form, patch, isLoi }: StepProps) {
+  const { t } = useT();
   const rfis = form.sectionC.rfis;
   const patchRfis = (updater: (rows: Form["sectionC"]["rfis"]) => Form["sectionC"]["rfis"]) =>
     patch((prev) => ({
@@ -1141,12 +1072,7 @@ export function OpenQuestionsStep({ form, patch, isLoi }: StepProps) {
   const update = (id: string, change: Partial<Form["sectionC"]["rfis"][number]>) =>
     patchRfis((rows) => rows.map((row) => (row.id === id ? { ...row, ...change } : row)));
   return (
-    <Question
-      id="c-rfis"
-      title="Missing information and next actions"
-      hint="What is still missing, who asked for it and by when."
-      done={done(form, "c-rfis", isLoi)}
-    >
+    <Question id="c-rfis" title={t.cRfis} hint={t.cRfisHint} done={done(form, "c-rfis", isLoi)}>
       {rfis.map((row, index) => (
         <div key={row.id} className="space-y-2 rounded-xl bg-[#f7f9fc] p-3">
           <div className="flex items-center gap-2">
@@ -1168,7 +1094,7 @@ export function OpenQuestionsStep({ form, patch, isLoi }: StepProps) {
             rows={2}
             value={row.disciplineOrIssue}
             onChange={(event) => update(row.id, { disciplineOrIssue: event.target.value })}
-            placeholder="What is missing (drawing, spec, decision…)"
+            placeholder={t.rfiPlaceholder}
             className={cn(INPUT, "h-auto min-h-12 resize-none py-3 leading-snug")}
           />
           <div className="grid grid-cols-2 gap-2">
@@ -1176,7 +1102,7 @@ export function OpenQuestionsStep({ form, patch, isLoi }: StepProps) {
               aria-label={`RFI ${index + 1} sent by`}
               value={row.sentBy}
               onChange={(sentBy) => update(row.id, { sentBy })}
-              placeholder="Sent by"
+              placeholder={t.sentBy}
             />
             <DateInput
               label={`RFI ${index + 1} due date`}
@@ -1200,7 +1126,7 @@ export function OpenQuestionsStep({ form, patch, isLoi }: StepProps) {
           ])
         }
       >
-        Add a missing item
+        {t.addRfi}
       </AddButton>
     </Question>
   );

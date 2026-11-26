@@ -230,3 +230,52 @@ test("an update with nothing changed cannot be submitted", async ({ page }) => {
   );
   await expect(page.locator("[data-sales-submit]")).toBeDisabled();
 });
+
+test.describe("on a phone set to French", () => {
+  test.use({ locale: "fr-CA" });
+
+  test("the Sales site opens in French and the EN / FR switch is remembered", async ({ page }) => {
+    const server = await mockSalesServer(page);
+    server.signedIn = true;
+    server.linked = true;
+    await page.goto("/sales");
+    await expect(page.locator("[data-sales-language]")).toHaveAttribute(
+      "data-sales-language",
+      "fr",
+    );
+    await expect(page.locator("[data-sales-new-project]")).toContainText("Nouveau projet");
+    await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible();
+
+    await page.locator('[data-sales-project="26014 Maison Laurier"]').click();
+    await expect(page.locator("[data-sales-update-banner]")).toContainText(
+      "Mise à jour de la rév. 0",
+    );
+    await page.locator('[data-step-index="1"]').click();
+    await expect(page.getByText("Usage principal du bâtiment")).toBeVisible();
+    await expect(page.getByText("Habitation", { exact: true })).toBeVisible();
+    await page.locator('[data-step-index="6"]').click();
+    await expect(page.locator('[data-sales-disclosure="discipline-civil"]')).toContainText(
+      "Génie civil",
+    );
+    await page.locator('[data-sales-disclosure="discipline-civil"] > button').click();
+    await expect(page.getByText("La position ET l’orientation")).toBeVisible();
+    await page.getByRole("button", { name: "+ Plan d’implantation à jour" }).click();
+    await expect(page.getByLabel("1. Civil item 1", { exact: true })).toHaveValue(
+      "Plan d’implantation à jour",
+    );
+    await page.locator('[data-step-index="8"]').click();
+    await expect(page.locator("[data-sales-changes]")).toContainText(
+      "Cette mise à jour modifie 1 réponse",
+    );
+    await expect(page.locator("[data-sales-changes]")).toContainText("Génie civil");
+
+    // Switch by hand: English, and it stays English after reloading.
+    await page.locator("[data-sales-language] button", { hasText: "en" }).click();
+    await expect(page.locator("[data-sales-submit]")).toHaveText(/Submit update \(Rev 1\)/);
+    await page.reload();
+    await expect(page.locator("[data-sales-language]")).toHaveAttribute(
+      "data-sales-language",
+      "en",
+    );
+  });
+});
