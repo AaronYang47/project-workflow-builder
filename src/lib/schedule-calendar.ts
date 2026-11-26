@@ -203,7 +203,14 @@ export function shutdownLabel(kind: ScheduleShutdown["kind"]) {
 
 export function normalizeScheduleCalendar(value: unknown): ScheduleCalendar | undefined {
   if (!value || typeof value !== "object") return undefined;
-  const calendar = value as Partial<ScheduleCalendar>;
+  const raw = value as Partial<ScheduleCalendar>;
+  const projectStartDate =
+    calendarDateDay(raw.projectStartDate) === null ? undefined : raw.projectStartDate;
+  // A Project Start Date alone is enough: it also stands in for the handoff date.
+  const calendar =
+    calendarDateDay(raw.startDate) === null && projectStartDate
+      ? { ...raw, startDate: projectStartDate }
+      : raw;
   if (calendarDateDay(calendar.startDate) === null) return undefined;
   const shutdowns = (Array.isArray(calendar.shutdowns) ? calendar.shutdowns : [])
     .filter((item) => {
@@ -245,6 +252,7 @@ export function normalizeScheduleCalendar(value: unknown): ScheduleCalendar | un
   ) as NonNullable<ScheduleCalendar["dayOffColors"]>;
   return {
     startDate: calendar.startDate!,
+    ...(projectStartDate ? { projectStartDate } : {}),
     shutdowns,
     ...(calendar.automaticShutdowns === true ? { automaticShutdowns: true } : {}),
     ...(Object.keys(shutdownOverrides).length ? { shutdownOverrides } : {}),
@@ -262,8 +270,14 @@ export function buildProcessTimeline(
   schedule: ReturnType<typeof buildProcessSchedule>,
 ) {
   const calendar = normalizeScheduleCalendar(file.calendar);
-  const origin = salesHandoffTime(schedule).originDay;
-  const anchor = calendar ? calendarDateDay(calendar.startDate)! : null;
+  const salesOrigin = salesHandoffTime(schedule).originDay;
+  // With a Project Start Date, schedule day 0 is that date (Sales starts) and the
+  // handoff follows from the Sales durations; otherwise the handoff date anchors.
+  const projectStart = calendar?.projectStartDate
+    ? calendarDateDay(calendar.projectStartDate)
+    : null;
+  const origin = projectStart !== null ? 0 : salesOrigin;
+  const anchor = projectStart ?? (calendar ? calendarDateDay(calendar.startDate)! : null);
   const enabled = anchor !== null && origin !== null;
   const firstYear = enabled ? new Date((anchor! - origin! * 2) * DAY_MS).getUTCFullYear() - 1 : 0;
   const customPeriods = calendar
@@ -447,7 +461,11 @@ export function buildProcessTimeline(
     calendar,
     /** Day-off colours chosen in the Calendar. */
     palette: dayOffPalette(calendar),
-    originDay: origin === null ? null : origin + axisShift,
+    originDay: salesOrigin === null ? null : salesOrigin + axisShift,
+    /** The day Sales starts: schedule day 0. */
+    projectStartDate: enabled ? dateAt(0) : "",
+    /** The Sales-to-Technical handoff, once every Sales step has a duration. */
+    handoffDate: enabled && salesOrigin !== null ? dateAt(salesOrigin) : "",
     shutdowns,
     holidays,
     weekends,

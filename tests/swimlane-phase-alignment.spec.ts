@@ -397,6 +397,8 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
     expect(Math.abs(position.right - result.phaseInvolvementPositions[3].right)).toBeLessThan(1);
   });
   expect(result.barLabels).toEqual([
+    // Sales rows have bars too, like L4.
+    "SALE",
     "TECH 2W",
     "TECH 0.43W",
     "TECH 2W",
@@ -407,7 +409,7 @@ test("Gantt PDF aligns original single-row cards and phase colors to the Gantt a
     "SITE 1W",
   ]);
   expect(result.salesGanttRows).toBe(1);
-  expect(result.salesBars).toBe(0);
+  expect(result.salesBars).toBe(1);
   expect(result.shortBarLabels).toEqual([]);
   expect(result.barLabelOverflow).toBe(false);
   expect(result.differences).toHaveLength(3);

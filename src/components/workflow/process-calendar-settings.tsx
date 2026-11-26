@@ -20,9 +20,17 @@ type CalendarSettingsProps = {
   canEdit: boolean;
   workingDays: number;
   onSave: (value: ScheduleCalendar | undefined) => void;
+  /** The Technical handoff the schedule works out from the Project Start Date. */
+  handoffDate?: string;
   /** "factory": the L5 factory calendar; its start date is the simulation start. */
   mode?: "project" | "factory";
 };
+
+/** "Project start … · Technical handoff …" for the button title and the saved status. */
+function calendarSummary(value: ScheduleCalendar, handoffDate?: string) {
+  if (!value.projectStartDate) return `Calendar · Technical handoff ${value.startDate}`;
+  return `Calendar · Project start ${value.projectStartDate} · Technical handoff ${handoffDate || "after Sales durations are set"}`;
+}
 
 export function ProcessCalendarButton(props: CalendarSettingsProps) {
   const [open, setOpen] = useState(false);
@@ -33,9 +41,7 @@ export function ProcessCalendarButton(props: CalendarSettingsProps) {
           type="button"
           aria-label={props.mode === "factory" ? "Factory calendar years" : "Calendar"}
           title={
-            props.value
-              ? `Calendar · Technical handoff ${props.value.startDate}`
-              : "Set schedule calendar"
+            props.value ? calendarSummary(props.value, props.handoffDate) : "Set schedule calendar"
           }
           className="inline-flex items-center gap-1.5 rounded-lg border bg-panel px-3 py-2 font-semibold hover:bg-muted"
         >
@@ -90,16 +96,22 @@ export function ProcessCalendarSettings({
   workingDays,
   onSave,
   mode = "project",
+  handoffDate,
 }: CalendarSettingsProps) {
   const startLabel = "Technical handoff date";
-  const [startDate, setStartDate] = useState(value?.startDate ?? "");
+  const projectStartLabel = "Project Start Date";
+  const [projectStartDate, setProjectStartDate] = useState(value?.projectStartDate ?? "");
+  const hasProjectStart = mode === "project" && calendarDateDay(projectStartDate) !== null;
+  const [handoffInput, setStartDate] = useState(value?.startDate ?? "");
+  // With a Project Start Date, dates count from it; the handoff date only fills the required field.
+  const startDate = hasProjectStart ? projectStartDate : handoffInput;
   const shutdowns = value?.shutdowns ?? [];
   const [shutdownOverrides, setShutdownOverrides] = useState<Record<string, ShutdownOverride>>(
     value?.shutdownOverrides ?? {},
   );
   const [customOpen, setCustomOpen] = useState(false);
   const [yearInput, setYearInput] = useState(
-    value?.startDate.slice(0, 4) ?? String(new Date().getFullYear()),
+    (value?.projectStartDate ?? value?.startDate)?.slice(0, 4) ?? String(new Date().getFullYear()),
   );
   const [editing, setEditing] = useState<Partial<Record<ScheduleShutdown["kind"], boolean>>>({});
   const [fourDayWeek, setFourDayWeek] = useState(value?.workWeek === "mon-thu" || !value);
@@ -133,7 +145,8 @@ export function ProcessCalendarSettings({
     ? selectedYear
     : Math.min(9998, Math.max(1900, Number(startDate.slice(0, 4)) || new Date().getFullYear()));
   const draft: ScheduleCalendar = {
-    startDate,
+    startDate: calendarDateDay(handoffInput) !== null ? handoffInput : startDate,
+    ...(hasProjectStart ? { projectStartDate } : {}),
     shutdowns,
     automaticShutdowns: true,
     shutdownOverrides,
@@ -154,7 +167,7 @@ export function ProcessCalendarSettings({
         event.preventDefault();
         if (!canEdit) return;
         if (calendarDateDay(startDate) === null) {
-          setError(`Choose a valid ${startLabel}.`);
+          setError(`Choose a valid ${projectStartLabel} or ${startLabel}.`);
           return;
         }
         if (
@@ -189,7 +202,7 @@ export function ProcessCalendarSettings({
       <p className="mt-1 text-xs text-muted-foreground">
         {mode === "factory"
           ? "The factory line only moves on working days. "
-          : "The start date is Technical handoff (M1). Total task durations include all days off: 1 week = 7 calendar days. Grey days are deducted to show actual working days; task durations do not expand. "}
+          : "Project Start Date is the day Sales starts work; the Technical handoff (M1) follows from the Sales step durations. Without it, the Technical handoff date anchors the schedule. Total task durations include all days off: 1 week = 7 calendar days. Grey days are deducted to show actual working days; task durations do not expand. "}
         {fourDayWeek
           ? "Work Monday–Thursday; Friday–Sunday are non-working days."
           : "No weekly days off selected."}
@@ -197,11 +210,38 @@ export function ProcessCalendarSettings({
       <fieldset disabled={!canEdit} className="mt-4 space-y-3 disabled:opacity-60">
         {mode === "project" ? (
           <label className="block max-w-xs text-xs font-semibold">
+            {projectStartLabel}{" "}
+            <span className="font-normal text-muted-foreground">· Sales starts work</span>
+            <input
+              type="date"
+              aria-label={projectStartLabel}
+              value={projectStartDate}
+              onChange={(event) => {
+                setProjectStartDate(event.target.value);
+                if (calendarDateDay(event.target.value) !== null) {
+                  setYearInput(event.target.value.slice(0, 4));
+                  setEditing({});
+                }
+              }}
+              className="mt-1 block min-h-10 w-full rounded-md border bg-background px-3 text-sm"
+            />
+          </label>
+        ) : null}
+        {mode === "project" && hasProjectStart ? (
+          <p data-calculated-handoff className="max-w-md text-xs">
+            <strong>{startLabel}:</strong>{" "}
+            {handoffDate && value?.projectStartDate === projectStartDate
+              ? `${handoffDate} (calculated from the Sales step durations)`
+              : "calculated from the Sales step durations after you save"}
+          </p>
+        ) : null}
+        {mode === "project" && !hasProjectStart ? (
+          <label className="block max-w-xs text-xs font-semibold">
             {startLabel}
             <input
               type="date"
               aria-label={startLabel}
-              value={startDate}
+              value={handoffInput}
               onChange={(event) => {
                 setStartDate(event.target.value);
                 if (calendarDateDay(event.target.value) !== null) {
@@ -579,7 +619,7 @@ export function ProcessCalendarSettings({
           )}
           <span role="status" className="text-xs text-muted-foreground">
             {value
-              ? `Saved · Technical handoff ${value.startDate}`
+              ? `Saved · ${calendarSummary(value, handoffDate).replace(/^Calendar · /, "")}`
               : "No calendar set · showing relative weeks / months"}
           </span>
         </div>

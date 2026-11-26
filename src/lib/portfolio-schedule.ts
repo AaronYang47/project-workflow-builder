@@ -19,6 +19,11 @@ export type PortfolioTask = {
   /** ISO dates, inclusive. */
   start: string;
   end: string;
+  /** The step's key in its project's L4 schedule, for drag edits. */
+  scheduleKey: string;
+  /** Schedule day it starts on, and its length in days (as in L4). */
+  startDay: number;
+  days: number;
 };
 
 export type PortfolioPhase = { title: string; color: string; start: string; end: string };
@@ -31,6 +36,10 @@ export type PortfolioProject = {
   issue?: string;
   start?: string;
   end?: string;
+  /** The day Sales starts (Calendar Project Start Date, or worked out from the handoff). */
+  projectStartDate?: string;
+  /** The Sales-to-Technical handoff, once every Sales step has a duration. */
+  handoffDate?: string;
   phases: PortfolioPhase[];
   departments: { name: string; tasks: PortfolioTask[] }[];
   /** Steps with no duration yet, so not on the timeline. */
@@ -55,8 +64,8 @@ export function buildPortfolioProject(
     return {
       ...base,
       issue: file.calendar?.startDate
-        ? "Not on dates yet: set every Sales step's duration in this project's L4 (L4 needs them to place the Technical handoff)."
-        : "Not on dates yet: set a Calendar start date in this project's L4.",
+        ? "Not on dates yet: set a Project Start Date in this project's L4 Calendar, or every Sales step's duration (to place the Technical handoff)."
+        : "Not on dates yet: set a Project Start Date in this project's L4 Calendar.",
     };
   const endDate = (end: number, start: number) => timeline.dateAt(Math.max(start, end - 1));
   const phaseOf = (index: number) => schedule.phases[index];
@@ -77,6 +86,9 @@ export function buildPortfolioProject(
                 phaseColor: phaseOf(task.phaseIndex)?.color ?? "#94a3b8",
                 start: timeline.dateAt(task.start),
                 end: endDate(task.end, task.start),
+                scheduleKey: task.key,
+                startDay: task.start,
+                days: task.end - task.start,
               },
             ],
       ),
@@ -95,10 +107,19 @@ export function buildPortfolioProject(
     ];
   });
   const tasks = departments.flatMap((department) => department.tasks);
+  const dates = {
+    projectStartDate: timeline.projectStartDate || undefined,
+    handoffDate: timeline.handoffDate || undefined,
+  };
   if (!tasks.length)
-    return { ...base, issue: "No step has a duration yet. Set durations in this project's L4." };
+    return {
+      ...base,
+      ...dates,
+      issue: "No step has a duration yet. Set durations in this project's L4.",
+    };
   return {
     ...base,
+    ...dates,
     phases,
     departments,
     start: tasks.map((task) => task.start).sort()[0],
@@ -155,7 +176,12 @@ export function portfolioRange(projects: PortfolioProject[]) {
   const dated = projects.filter((project) => project.start && project.end);
   if (!dated.length) return undefined;
   return {
-    start: dated.map((project) => project.start!).sort()[0],
+    start: dated
+      .flatMap((project) => [
+        project.start!,
+        ...(project.projectStartDate ? [project.projectStartDate] : []),
+      ])
+      .sort()[0],
     end: dated
       .map((project) => project.end!)
       .sort()

@@ -534,8 +534,13 @@ export interface ScheduleCalendar {
   shutdownOverrides?: Record<string, ShutdownOverride>;
   /** Four working days per week; Friday through Sunday pause work. */
   workWeek?: "mon-thu";
-  /** Calendar date of the formal Sales-to-Technical handoff. */
+  /**
+   * Calendar date of the formal Sales-to-Technical handoff. When a Project
+   * Start Date is set, dates count from it instead and this is only a fallback.
+   */
   startDate: string;
+  /** Project Start Date: the day Sales starts work (the first day of the schedule). */
+  projectStartDate?: string;
   /** Both dates are inclusive. These intervals reduce actual work inside total task durations. */
   shutdowns: ScheduleShutdown[];
   holidayRegion?: "CA-ON";

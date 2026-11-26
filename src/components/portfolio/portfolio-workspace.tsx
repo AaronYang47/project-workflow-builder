@@ -15,6 +15,7 @@ import { TopToolbar } from "@/components/workflow/top-toolbar";
 import {
   listCloudProjects,
   loadCloudProject,
+  updateCloudProject,
   type CloudProjectSummary,
 } from "@/components/simulation/cloud-projects";
 import {
@@ -38,8 +39,14 @@ import {
   tasksOn,
   weekStart,
   type PortfolioProject,
+  type PortfolioTask,
 } from "@/lib/portfolio-schedule";
 import { useHydrated } from "@/lib/use-hydrated";
+import { applyGanttEdit, type GanttEdit } from "@/lib/gantt-edit";
+import {
+  canEditCollaborativeWorkflow,
+  useCollaborationStore,
+} from "@/lib/collaboration/collaboration-store";
 import { useWorkflowStore } from "@/store/workflow-store";
 import type { WorkflowFile } from "@/types/workflow";
 
@@ -193,6 +200,44 @@ function PortfolioWorkspace() {
       }),
     [draft.projects, files, failed, currentFile, currentId],
   );
+
+  const canEditCurrent = useCollaborationStore(canEditCollaborativeWorkflow);
+  const [notice, setNotice] = useState("");
+  /**
+   * A bar dragged here saves to the project exactly as the same drag in L4: the
+   * open project through the editor (L4 shows it at once), any other project
+   * to its cloud copy, which L4 opens.
+   */
+  const editTask = (projectId: string, scheduleKey: string, edit: GanttEdit) => {
+    const project = draft.projects.find((item) => item.id === projectId);
+    if (!project || project.source.kind !== "cloud") return;
+    const cloudId = project.source.projectId;
+    if (cloudId === currentId) {
+      if (!canEditCurrent) {
+        setNotice("This project is open read-only.");
+        return;
+      }
+      useWorkflowStore.getState().commit((file) => applyGanttEdit(file, scheduleKey, edit));
+      return;
+    }
+    const before = files[projectId];
+    if (before)
+      setFiles((current) => ({
+        ...current,
+        [projectId]: applyGanttEdit(before, scheduleKey, edit),
+      }));
+    void updateCloudProject(cloudId, (file) => applyGanttEdit(file, scheduleKey, edit))
+      .then((saved) => {
+        setFiles((current) => ({ ...current, [projectId]: saved }));
+        setNotice(`${project.name} saved.`);
+      })
+      .catch((error: unknown) => {
+        if (before) setFiles((current) => ({ ...current, [projectId]: before }));
+        setNotice(
+          `${project.name} was not saved: ${error instanceof Error ? error.message : "save failed"}`,
+        );
+      });
+  };
 
   const openPicker = async () => {
     setPicker({ open: true, loading: true, list: [] });
@@ -365,18 +410,129 @@ function PortfolioWorkspace() {
         </div>
       ) : null}
 
+      {notice ? (
+        <p role="status" className="border-b px-4 py-1.5 text-xs text-muted-foreground">
+          {notice}
+        </p>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-auto">
         {!draft.projects.length ? (
           <p className="p-8 text-sm text-muted-foreground">
             No projects yet. Add saved projects here or in L5; both pages use the same list.
           </p>
         ) : view === "gantt" ? (
-          <PortfolioGantt projects={portfolio} />
+          <PortfolioGantt projects={portfolio} onEdit={editTask} />
         ) : (
           <PortfolioCalendar projects={portfolio} />
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A step's bar: drag to move it, drag its right edge to change its length.
+ * Moves snap to whole days; the drop is saved like the same drag in L4.
+ */
+function DraggableBar({
+  task,
+  projectName,
+  color,
+  left,
+  width,
+  onEdit,
+}: {
+  task: PortfolioTask;
+  projectName: string;
+  color: string;
+  left: number;
+  width: number;
+  onEdit: (edit: GanttEdit) => void;
+}) {
+  const label = useRef<HTMLSpanElement>(null);
+  const begin = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (event.button !== 0) return;
+    const bar = event.currentTarget;
+    const resize = event.clientX > bar.getBoundingClientRect().right - 8;
+    const originX = event.clientX;
+    let delta = 0;
+    bar.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    const show = () => {
+      if (resize) bar.style.width = `${Math.max(PX_PER_DAY, width + delta * PX_PER_DAY)}px`;
+      else bar.style.transform = `translateX(${delta * PX_PER_DAY}px)`;
+      if (label.current) {
+        const startIso = dayIso(isoDay(task.start) + (resize ? 0 : delta));
+        const days = Math.max(1, task.days + (resize ? delta : 0));
+        label.current.hidden = delta === 0;
+        label.current.textContent = `${fmt(startIso)} – ${fmt(dayIso(isoDay(startIso) + days - 1))} · ${days} days`;
+        label.current.style.left = `${left + (resize ? 0 : delta * PX_PER_DAY)}px`;
+      }
+    };
+    const move = (pointer: PointerEvent) => {
+      delta = Math.round((pointer.clientX - originX) / PX_PER_DAY);
+      if (resize) delta = Math.max(1 - task.days, delta);
+      show();
+    };
+    const end = () => {
+      bar.removeEventListener("pointermove", move);
+      bar.removeEventListener("pointerup", end);
+      bar.removeEventListener("pointercancel", cancel);
+      bar.style.transform = "";
+      bar.style.width = "";
+      if (label.current) label.current.hidden = true;
+    };
+    const cancel = () => {
+      delta = 0;
+      end();
+    };
+    bar.addEventListener("pointermove", move);
+    bar.addEventListener(
+      "pointerup",
+      () => {
+        const change = delta;
+        end();
+        if (!change) return;
+        onEdit(
+          resize
+            ? { kind: "resize", days: task.days + change }
+            : { kind: "move", startDay: task.startDay + change },
+        );
+      },
+      { once: true },
+    );
+    bar.addEventListener("pointercancel", cancel);
+  };
+  return (
+    <>
+      <span
+        role="slider"
+        aria-label={`${projectName} · ${task.title}`}
+        aria-valuenow={task.startDay}
+        aria-valuetext={`${task.start} to ${task.end}`}
+        tabIndex={0}
+        data-portfolio-task={task.title}
+        title={`${projectName} · ${task.title} · ${fmt(task.start)} – ${fmt(task.end)}\nDrag to move · drag the right edge to change its length`}
+        onPointerDown={begin}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const step = event.key === "ArrowRight" ? 1 : -1;
+          onEdit(
+            event.shiftKey
+              ? { kind: "resize", days: Math.max(1, task.days + step) }
+              : { kind: "move", startDay: task.startDay + step },
+          );
+        }}
+        className="absolute top-1.5 h-4 cursor-grab touch-none rounded-sm border-l-4 outline-none after:absolute after:inset-y-0 after:right-0 after:w-2 after:cursor-ew-resize focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
+        style={{ left, width, backgroundColor: color, borderLeftColor: task.phaseColor }}
+      />
+      <span
+        ref={label}
+        hidden
+        className="pointer-events-none absolute top-6 z-30 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+      />
+    </>
   );
 }
 
@@ -425,7 +581,13 @@ function GanttRow({
   );
 }
 
-function PortfolioGantt({ projects }: { projects: PortfolioProject[] }) {
+function PortfolioGantt({
+  projects,
+  onEdit,
+}: {
+  projects: PortfolioProject[];
+  onEdit: (projectId: string, scheduleKey: string, edit: GanttEdit) => void;
+}) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const range = portfolioRange(projects);
   if (!range) return <p className="p-8 text-sm text-muted-foreground">No project has dates yet.</p>;
@@ -444,7 +606,31 @@ function PortfolioGantt({ projects }: { projects: PortfolioProject[] }) {
   const grid = { first, width, weeks, todayX };
 
   return (
-    <div data-portfolio-gantt className="min-w-max text-foreground">
+    <div data-portfolio-gantt className="relative min-w-max text-foreground">
+      {/* Each project's Project Start (solid) and Technical handoff (dashed), full height. */}
+      {projects.flatMap((project) =>
+        (
+          [
+            ["start", project.projectStartDate],
+            ["handoff", project.handoffDate],
+          ] as const
+        ).flatMap(([kind, date]) =>
+          date ? (
+            <span
+              key={`${project.id}-${kind}`}
+              aria-hidden
+              data-portfolio-milestone={`${project.name}:${kind}`}
+              className="pointer-events-none absolute bottom-0 top-9 z-[15]"
+              style={{
+                left: LABEL_WIDTH + x(date),
+                borderLeft: `2px ${kind === "start" ? "solid" : "dashed"} ${project.color}`,
+              }}
+            />
+          ) : (
+            []
+          ),
+        ),
+      )}
       <div className="sticky top-0 z-20 bg-card">
         <GanttRow
           grid={grid}
@@ -465,6 +651,40 @@ function PortfolioGantt({ projects }: { projects: PortfolioProject[] }) {
         </GanttRow>
       </div>
 
+      <GanttRow
+        grid={grid}
+        className="h-11"
+        label={
+          <span className="flex flex-col leading-tight">
+            <span className="font-bold uppercase tracking-wider">Milestones</span>
+            <span className="text-[10px] text-muted-foreground">
+              Solid: project start · dashed: Technical handoff
+            </span>
+          </span>
+        }
+      >
+        {projects.flatMap((project) =>
+          (
+            [
+              ["Start", project.projectStartDate],
+              ["Handoff", project.handoffDate],
+            ] as const
+          ).flatMap(([label, date]) =>
+            date ? (
+              <span
+                key={`${project.id}-${label}`}
+                title={`${project.name} · ${label === "Start" ? "Project start (Sales starts)" : "Technical handoff"} · ${fmt(date)}`}
+                className="absolute top-3 z-[16] whitespace-nowrap rounded px-1 text-[10px] font-bold leading-5 text-white"
+                style={{ left: x(date) + 3, backgroundColor: project.color }}
+              >
+                {label} {fmt(date)}
+              </span>
+            ) : (
+              []
+            ),
+          ),
+        )}
+      </GanttRow>
       <GanttRow
         grid={grid}
         label={<span className="font-bold uppercase tracking-wider">Department load</span>}
@@ -566,16 +786,13 @@ function PortfolioGantt({ projects }: { projects: PortfolioProject[] }) {
                           </span>
                         }
                       >
-                        <span
-                          data-portfolio-task={task.title}
-                          title={`${project.name} · ${task.title} · ${fmt(task.start)} – ${fmt(task.end)}`}
-                          className="absolute top-1.5 h-4 rounded-sm border-l-4"
-                          style={{
-                            left: x(task.start),
-                            width: w(task.start, task.end),
-                            backgroundColor: project.color,
-                            borderLeftColor: task.phaseColor,
-                          }}
+                        <DraggableBar
+                          task={task}
+                          projectName={project.name}
+                          color={project.color}
+                          left={x(task.start)}
+                          width={w(task.start, task.end)}
+                          onEdit={(edit) => onEdit(project.id, task.scheduleKey, edit)}
                         />
                       </GanttRow>
                     ))}

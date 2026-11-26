@@ -27,12 +27,12 @@ import {
 import { buildProcessSchedule, salesHandoffTime, type ScheduleTask } from "@/lib/process-schedule";
 import { buildProcessTimeline, taskSegmentBackground } from "@/lib/schedule-calendar";
 import { buildGanttAxis } from "@/lib/gantt-axis";
-import { planGanttPlacement } from "@/lib/gantt-placement";
 import { calendarWorkSummary } from "@/lib/gantt-bar-label";
 import { taskCalendarBadges } from "@/lib/calendar-badges";
 import { wholeDayCondition } from "@/lib/condition-duration";
 import type { Condition } from "@/types/workflow";
 import { sequenceSchedule } from "@/lib/sequence-schedule";
+import { ganttEditPatch, type GanttEdit } from "@/lib/gantt-edit";
 
 const ROW_GRID = "grid grid-cols-[168px_minmax(660px,1fr)] sm:grid-cols-[280px_minmax(660px,1fr)]";
 
@@ -111,24 +111,18 @@ export function ProcessOverview() {
       ),
     });
   };
-  const resizeTask = (taskKey: string, days: number) => {
-    const task = currentSchedule().tasks.find((item) => item.key === taskKey);
-    if (!task) return;
-    const preserveWeeks =
-      task.condition.durationUnit === "weeks" && days % workingDaysPerWeek === 0;
-    updateTask(task, {
-      duration: preserveWeeks ? days / workingDaysPerWeek : days,
-      durationUnit: preserveWeeks ? "weeks" : "days",
-    });
-  };
-  const placeTaskAt = (taskKey: string, startDay: number) => {
+  // The same edits L6 makes (src/lib/gantt-edit.ts), so both pages save alike.
+  const editTask = (taskKey: string, edit: GanttEdit) => {
     if (!canEdit) return;
     const latest = currentSchedule();
     const task = latest.tasks.find((item) => item.key === taskKey);
     if (!task) return;
-    const placement = planGanttPlacement(latest, task, startDay, 0);
-    if (placement && placement.startDay !== task.start) updateTask(task, placement.patch);
+    const patch = ganttEditPatch(latest, task, edit);
+    if (patch) updateTask(task, patch);
   };
+  const resizeTask = (taskKey: string, days: number) => editTask(taskKey, { kind: "resize", days });
+  const placeTaskAt = (taskKey: string, startDay: number) =>
+    editTask(taskKey, { kind: "move", startDay });
   /** Saving timing also makes the task follow the previous condition in its chapter. */
   const saveTaskTiming = (taskKey: string, durationWeeks: number) => {
     const task = currentSchedule().tasks.find((item) => item.key === taskKey);
@@ -301,6 +295,7 @@ export function ProcessOverview() {
                 </span>
                 <ProcessCalendarButton
                   value={file.calendar}
+                  handoffDate={timeline.handoffDate}
                   canEdit={canEdit}
                   workingDays={schedule.totalDays}
                   onSave={(calendar) => {
