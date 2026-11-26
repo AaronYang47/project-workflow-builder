@@ -257,6 +257,17 @@ export interface ConsultantEntry {
   name: string;
   company: string;
   contact: string;
+  /** "unknown": not known yet. "na": no such consultant on this project. */
+  status?: ConsultantStatus;
+}
+
+export type ConsultantStatus = "unknown" | "na";
+
+/** Name or company, and a contact — or marked Unknown / N/A. */
+export function consultantAnswered(entry: ConsultantEntry | undefined) {
+  if (!entry) return false;
+  if (entry.status) return true;
+  return Boolean((entry.name.trim() || entry.company.trim()) && entry.contact.trim());
 }
 
 export interface DocumentEntry {
@@ -487,10 +498,12 @@ export function normalizeQualificationForm101(
   }
   for (const discipline of DISCIPLINE_DEFINITIONS) {
     const c = rawA.consultants?.[discipline.key];
+    const status = (c as ConsultantEntry | undefined)?.status;
     empty.sectionA.consultants[discipline.key] = {
       name: str(c?.name),
       company: str(c?.company),
       contact: str(c?.contact),
+      ...(status === "unknown" || status === "na" ? { status } : {}),
     };
     const intake = rawB.disciplines?.[discipline.key];
     empty.sectionB.disciplines[discipline.key] = {
@@ -755,9 +768,15 @@ export function evaluateQualificationForm101(
   let fullConsultants = 0;
   for (const discipline of DISCIPLINE_DEFINITIONS) {
     const entry = sectionA.consultants[discipline.key];
-    const fieldsFilled = [entry.name, entry.company, entry.contact].filter(filled).length;
+    // N/A: nothing to provide, full marks. Unknown: answered, but no information yet.
+    const fieldsFilled =
+      entry.status === "na"
+        ? 3
+        : entry.status === "unknown"
+          ? 0
+          : [entry.name, entry.company, entry.contact].filter(filled).length;
     consultantUnits += fieldsFilled;
-    if (fieldsFilled === 3) {
+    if (fieldsFilled === 3 || entry.status) {
       fullConsultants += 1;
     }
   }

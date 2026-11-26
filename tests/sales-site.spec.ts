@@ -153,6 +153,18 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await page.getByLabel("Owner contact").click();
   await expect(page.getByText("Route impact")).toHaveCount(0);
 
+  // A consultant can be N/A instead of a name.
+  await page.locator('[data-step-index="3"]').click();
+  await page.locator('[data-sales-disclosure="consultant-structural"] > button').click();
+  await page
+    .getByRole("group", { name: "Structural consultant status" })
+    .getByRole("button", { name: "N/A" })
+    .click();
+  await expect(page.locator('[data-sales-disclosure="consultant-structural"]')).toContainText(
+    "N/A — no consultant",
+  );
+  await expect(page.getByLabel("Structural consultant name")).toHaveCount(0);
+
   // Big Yes / No buttons, and the phone's own date picker.
   await page.locator('[data-step-index="4"]').click();
   await page
@@ -194,6 +206,10 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
     sectionB: { disciplines: { civil: { items: { item: string }[] } } };
   };
   expect(sent.sectionA.budgetEstablished).toBe("yes");
+  expect(
+    (server.submits[0].form101 as { sectionA: { consultants: { structural: { status: string } } } })
+      .sectionA.consultants.structural.status,
+  ).toBe("na");
   // Dates are kept the way the form in the app keeps them.
   expect(sent.sectionA.targetDates.delivery).toBe("2027.06.01");
   expect(sent.sectionB.disciplines.civil.items[0].item).toBe("Foundation plan");

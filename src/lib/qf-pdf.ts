@@ -328,11 +328,22 @@ function sectionATable(
         itemRow(
           fr,
           en,
-          [filled("Nom / Name:", a.consultants[key]?.name)],
           [
-            filled("Entreprise / Company:", a.consultants[key]?.company),
-            filled("Coordonnées / Contact:", a.consultants[key]?.contact),
+            filled(
+              "Nom / Name:",
+              a.consultants[key]?.status === "na"
+                ? "S.O. / N/A"
+                : a.consultants[key]?.status === "unknown"
+                  ? "Inconnu / Unknown"
+                  : a.consultants[key]?.name,
+            ),
           ],
+          a.consultants[key]?.status
+            ? [p(t("Entreprise / Company:")), p(t("Coordonnées / Contact:"))]
+            : [
+                filled("Entreprise / Company:", a.consultants[key]?.company),
+                filled("Coordonnées / Contact:", a.consultants[key]?.contact),
+              ],
         ),
       ),
       groupRow(

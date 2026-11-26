@@ -3,7 +3,12 @@ import { createDomainNode } from "../src/lib/create-domain-node";
 import { createProjectWorkflow } from "../src/lib/project-template";
 import { workflowLegacyJobNumber } from "../src/lib/project-id";
 import { qualificationOf } from "../src/lib/qualification";
-import { createEmptyQualificationForm101 } from "../src/lib/qualification-form-101";
+import {
+  createEmptyQualificationForm101,
+  evaluateQualificationForm101,
+  normalizeQualificationForm101,
+} from "../src/lib/qualification-form-101";
+import { isForm101StepComplete } from "../src/components/workflow/qualification-form-101/steps";
 import {
   applySalesIntake,
   nextSalesRevision,
@@ -225,13 +230,37 @@ test("the PDF's revision log lists every submission and its changes", async () =
     ],
   });
   const text = doc.output();
-  for (const word of [
-    "(Journal)",
-    "(Revision)",
-    "(First)",
-    "(address:)",
-    "(»)",
-    "(2026.11.27)",
-  ])
+  for (const word of ["(Journal)", "(Revision)", "(First)", "(address:)", "(»)", "(2026.11.27)"])
     expect(text, word).toContain(word);
+});
+
+test("a consultant can be Unknown or N/A", async () => {
+  const form = filledForm();
+  for (const key of Object.keys(
+    form.sectionA.consultants,
+  ) as (keyof typeof form.sectionA.consultants)[])
+    form.sectionA.consultants[key] = { name: "", company: "", contact: "", status: "na" };
+  form.sectionA.consultants.structural = { name: "", company: "", contact: "", status: "unknown" };
+  // Kept through a save, and the question counts as answered.
+  const saved = normalizeQualificationForm101(JSON.parse(JSON.stringify(form)));
+  expect(saved.sectionA.consultants.structural.status).toBe("unknown");
+  expect(isForm101StepComplete("q7", saved, false)).toBe(true);
+  const evaluation = evaluateQualificationForm101({ form101: saved });
+  expect(evaluation.missingItems.map((item) => item.id)).not.toContain("q7");
+  // N/A scores in full, Unknown scores nothing.
+  const allNa = structuredClone(saved);
+  allNa.sectionA.consultants.structural.status = "na";
+  expect(evaluateQualificationForm101({ form101: allNa }).totalScore - evaluation.totalScore).toBe(
+    3,
+  );
+
+  const lines = formChanges(filledForm(), saved).map(describeChange);
+  expect(lines).toContain("Structural consultant: Unknown (added)");
+  expect(lines).toContain("Civil consultant: N/A (added)");
+
+  const text = (
+    await buildQualificationFormPdf(saved, { projectName: "X", compress: false })
+  ).output();
+  expect(text).toContain("(Inconnu)");
+  expect(text).toContain("(S.O.)");
 });

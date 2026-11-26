@@ -12,6 +12,7 @@ import {
   OCCUPANCY_GROUPS,
   PROJECT_DOCUMENT_DEFINITIONS,
   TARGET_DATE_FIELDS,
+  consultantAnswered,
   qualificationBudgetComplete,
   type DisciplineKey,
   type QualificationForm101,
@@ -488,11 +489,21 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
       <div className="space-y-2">
         {DISCIPLINE_DEFINITIONS.map((discipline) => {
           const entry = a.consultants[discipline.key];
-          const filled = Boolean(
-            (entry.name.trim() || entry.company.trim()) && entry.contact.trim(),
-          );
+          const filled = consultantAnswered(entry);
           const summary =
-            [entry.name, entry.company].filter((value) => value.trim()).join(" · ") || t.notFilled;
+            entry.status === "unknown"
+              ? t.consultantUnknown
+              : entry.status === "na"
+                ? t.consultantNa
+                : [entry.name, entry.company].filter((value) => value.trim()).join(" · ") ||
+                  t.notFilled;
+          const setStatus = (status: "unknown" | "na") =>
+            patchA((p) => {
+              const next = { ...p.consultants[discipline.key] };
+              if (next.status === status) delete next.status;
+              else next.status = status;
+              return { ...p, consultants: { ...p.consultants, [discipline.key]: next } };
+            });
           return (
             <Disclosure
               key={discipline.key}
@@ -501,24 +512,52 @@ export function ConsultantsStep({ form, patch, isLoi }: StepProps) {
               summary={summary}
               done={filled}
             >
-              <TextInput
-                aria-label={`${discipline.consultantLabel} consultant name`}
-                value={entry.name}
-                onChange={(value) => set(discipline.key, "name", value)}
-                placeholder={t.name}
-              />
-              <TextInput
-                aria-label={`${discipline.consultantLabel} consultant company`}
-                value={entry.company}
-                onChange={(value) => set(discipline.key, "company", value)}
-                placeholder={t.company}
-              />
-              <TextInput
-                aria-label={`${discipline.consultantLabel} consultant contact`}
-                value={entry.contact}
-                onChange={(value) => set(discipline.key, "contact", value)}
-                placeholder={t.emailOrPhone}
-              />
+              <div
+                role="group"
+                aria-label={`${discipline.consultantLabel} consultant status`}
+                className="grid grid-cols-2 gap-2"
+              >
+                {(["unknown", "na"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    aria-pressed={entry.status === status}
+                    onClick={() => setStatus(status)}
+                    className={cn(
+                      "h-11 rounded-xl border text-[15px] font-semibold",
+                      entry.status === status
+                        ? "border-[#475467] bg-[#475467] text-white"
+                        : "border-[#d5dbe4] bg-white text-[#344054]",
+                    )}
+                  >
+                    {status === "unknown" ? t.unknown : t.notApplicable}
+                  </button>
+                ))}
+              </div>
+              {entry.status ? (
+                <p className="text-sm text-[#667085]">{t.consultantStatusHelp}</p>
+              ) : (
+                <>
+                  <TextInput
+                    aria-label={`${discipline.consultantLabel} consultant name`}
+                    value={entry.name}
+                    onChange={(value) => set(discipline.key, "name", value)}
+                    placeholder={t.name}
+                  />
+                  <TextInput
+                    aria-label={`${discipline.consultantLabel} consultant company`}
+                    value={entry.company}
+                    onChange={(value) => set(discipline.key, "company", value)}
+                    placeholder={t.company}
+                  />
+                  <TextInput
+                    aria-label={`${discipline.consultantLabel} consultant contact`}
+                    value={entry.contact}
+                    onChange={(value) => set(discipline.key, "contact", value)}
+                    placeholder={t.emailOrPhone}
+                  />
+                </>
+              )}
             </Disclosure>
           );
         })}

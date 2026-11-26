@@ -37,6 +37,7 @@ import {
   type QualificationForm101,
   type SpecialProductItem,
   type TechnicalRfiItem,
+  consultantAnswered,
 } from "@/lib/qualification-form-101";
 
 const inputCls =
@@ -268,10 +269,8 @@ export function SectionAIntake({
     sectionA.mainContact.email,
     sectionA.mainContact.phone,
   ].every((v) => v.trim().length > 0);
-  const consultantsComplete = DISCIPLINE_DEFINITIONS.every(
-    (d) =>
-      (sectionA.consultants[d.key].name.trim() || sectionA.consultants[d.key].company.trim()) &&
-      sectionA.consultants[d.key].contact.trim(),
+  const consultantsComplete = DISCIPLINE_DEFINITIONS.every((d) =>
+    consultantAnswered(sectionA.consultants[d.key]),
   );
   const datesComplete = TARGET_DATE_FIELDS.every((f) => sectionA.targetDates[f.key].trim());
   const drawingsComplete =
@@ -624,6 +623,7 @@ export function SectionAIntake({
                       <th className="py-1.5 px-2">Name</th>
                       <th className="py-1.5 px-2">Company</th>
                       <th className="py-1.5 pl-2">Contact</th>
+                      <th className="py-1.5 pl-2">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
@@ -640,6 +640,7 @@ export function SectionAIntake({
                             <input
                               aria-label={`${discipline.consultantLabel} consultant ${fieldKey}`}
                               value={sectionA.consultants[discipline.key][fieldKey]}
+                              disabled={Boolean(sectionA.consultants[discipline.key].status)}
                               onChange={(e) =>
                                 patchA((p) => ({
                                   ...p,
@@ -659,10 +660,33 @@ export function SectionAIntake({
                                     ? "Firm"
                                     : "Email / phone"
                               }
-                              className={cellInputCls}
+                              className={cn(cellInputCls, "disabled:opacity-45")}
                             />
                           </td>
                         ))}
+                        <td className="max-sm:p-0 py-1.5 pl-1.5">
+                          <select
+                            aria-label={`${discipline.consultantLabel} consultant status`}
+                            value={sectionA.consultants[discipline.key].status ?? ""}
+                            onChange={(e) =>
+                              patchA((p) => {
+                                const next = { ...p.consultants[discipline.key] };
+                                if (e.target.value === "unknown" || e.target.value === "na")
+                                  next.status = e.target.value;
+                                else delete next.status;
+                                return {
+                                  ...p,
+                                  consultants: { ...p.consultants, [discipline.key]: next },
+                                };
+                              })
+                            }
+                            className={cn(cellInputCls, "min-w-20")}
+                          >
+                            <option value="">—</option>
+                            <option value="unknown">Unknown</option>
+                            <option value="na">N/A</option>
+                          </select>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

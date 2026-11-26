@@ -4,6 +4,7 @@ import {
   PROJECT_DOCUMENT_DEFINITIONS,
   TARGET_DATE_FIELDS,
   normalizeQualificationForm101,
+  type DisciplineKey,
   type QualificationForm101,
 } from "@/lib/qualification-form-101";
 import { QF_LABELS, type Lang } from "@/lib/qf-labels";
@@ -157,6 +158,18 @@ export function formChanges(
   const W = WORDS[lang];
   const L = QF_LABELS[lang];
   const yesNo = yesNoIn(lang);
+  const consultantText = (
+    entry?: QualificationForm101["sectionA"]["consultants"][DisciplineKey],
+  ) =>
+    entry?.status === "na"
+      ? lang === "fr"
+        ? "S.O."
+        : "N/A"
+      : entry?.status === "unknown"
+        ? lang === "fr"
+          ? "Inconnu"
+          : "Unknown"
+        : joined(entry?.name, entry?.company, entry?.contact);
   const before = normalizeQualificationForm101(beforeInput);
   const after = normalizeQualificationForm101(afterInput);
   const out: FormChange[] = [];
@@ -196,8 +209,8 @@ export function formChanges(
     field(
       "q7",
       W.consultant(lang === "en" ? discipline.consultantLabel : L.discipline[discipline.key]),
-      joined(x?.name, x?.company, x?.contact),
-      joined(y?.name, y?.company, y?.contact),
+      consultantText(x),
+      consultantText(y),
     );
   }
   field("q8", W.budget, yesNo(A.budgetEstablished), yesNo(B.budgetEstablished));

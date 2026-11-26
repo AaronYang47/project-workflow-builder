@@ -3,6 +3,7 @@ import {
   DISCIPLINE_DEFINITIONS,
   PROJECT_DOCUMENT_DEFINITIONS,
   TARGET_DATE_FIELDS,
+  consultantAnswered,
   qualificationBudgetComplete,
   type DisciplineKey,
   type QualificationForm101,
@@ -89,11 +90,7 @@ export function isForm101StepComplete(
     case "q6":
       return Boolean(sectionA.grossAreaSqFt.trim());
     case "q7":
-      return DISCIPLINE_DEFINITIONS.every(
-        (d) =>
-          (sectionA.consultants[d.key].name.trim() || sectionA.consultants[d.key].company.trim()) &&
-          sectionA.consultants[d.key].contact.trim(),
-      );
+      return DISCIPLINE_DEFINITIONS.every((d) => consultantAnswered(sectionA.consultants[d.key]));
     case "q8":
       return qualificationBudgetComplete(sectionA);
     case "q9":
