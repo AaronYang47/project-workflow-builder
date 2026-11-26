@@ -8,8 +8,8 @@ import type { QualificationCase } from "@/lib/qualification";
  *   GC VIP             → LOI → Plans? → PCS
  *   GC Regular         →       Plans? → PCS
  *
- * "Plans?" — with plans, straight on; without, CSA (with an LOI tag after an
- * LOI) until there are plans, then back onto the line. Every box after an LOI
+ * "Plans?" — with plans, straight on; without, CSA (Consultation after an
+ * LOI), then "Plans?" again: with plans back onto the line, without, round again. Every box after an LOI
  * carries a small LOI tag.
  *
  * Units are pixels at a 9–10px font; the canvas and the PDF both draw this.
@@ -50,12 +50,16 @@ export type PlanLane = {
   no: Point[];
   csa: PlanBox;
   /** CSA until there are plans. */
+  /** CSA / Consultation to the second "Plans?". */
+  toFork2: Point[];
+  fork2X: number;
+  /** Still no plans: round and back into CSA / Consultation. */
   loop: Point[];
-  loopLabel: Point;
   /** Plans now: back up onto the line. */
   back: Point[];
-  chips: { x: number; y: number; ok: boolean; part: "yes" | "no" | "back" }[];
-  question: Point;
+  chips: { x: number; y: number; ok: boolean; part: "yes" | "no" | "back" | "loop" }[];
+  /** Where each "Plans?" is written. */
+  questions: Point[];
   ends: PlanBox[];
   endLinks: [Point, Point][];
   exit: Point;
@@ -100,8 +104,10 @@ export function routePlanLayout(): PlanFlowLayout {
   const csaX = 210;
   const csaWidth = 34;
   const consultationWidth = 74;
-  // Columns line up in every lane, so the merge sits past the widest box.
-  const mergeX = csaX + consultationWidth + 34;
+  // Columns line up in every lane: the second "Plans?" sits past the widest box.
+  const fork2X = csaX + consultationWidth + 12;
+  const chip2X = fork2X + 8;
+  const mergeX = fork2X + 34;
   const endX = mergeX + 12;
   const endGap = 14;
   const boxWidth = (text: string) => Math.ceil(text.length * 5.6 + 12);
@@ -109,12 +115,12 @@ export function routePlanLayout(): PlanFlowLayout {
   // Even spacing: each client box sits exactly between its two situations
   // (Owner VIP / Regular, GC VIP / Regular), so both branch lines are the same
   // distance from the box's middle line.
-  const branchGap = 56;
+  const branchGap = 70;
   const yLane = {
     "loi-gc": 16,
-    "owner-regular": 108,
-    "gc-vip": 180,
-    "gc-regular": 180 + branchGap,
+    "owner-regular": 128,
+    "gc-vip": 204,
+    "gc-regular": 204 + branchGap,
   };
   const specs: { id: PlanLaneId; loi: boolean; cases: string[]; ends: string[] }[] = [
     { id: "loi-gc", loi: true, cases: ["profab", "owner-vip"], ends: ["GC", "PCS"] },
@@ -153,7 +159,8 @@ export function routePlanLayout(): PlanFlowLayout {
       x += width + endGap;
     }
     const last = ends.at(-1)!;
-    const loopBottom = yBottom + half + 7;
+    // The second "Plans?" opens as wide as the first.
+    const yLoop = yBottom + 22;
     return {
       ...spec,
       yTop,
@@ -180,24 +187,34 @@ export function routePlanLayout(): PlanFlowLayout {
         { x: csa.x, y: yBottom },
       ],
       csa,
-      loop: [
-        { x: csa.x + csa.width - 6, y: yBottom + half },
-        { x: csa.x + csa.width - 6, y: loopBottom },
-        { x: csa.x + 8, y: loopBottom },
-        { x: csa.x + 8, y: yBottom + half },
-      ],
-      loopLabel: { x: csa.x + csa.width + 2, y: loopBottom },
-      back: [
+      toFork2: [
         { x: csa.x + csa.width, y: yBottom },
+        { x: fork2X, y: yBottom },
+      ],
+      fork2X,
+      loop: [
+        { x: fork2X, y: yBottom },
+        { x: fork2X, y: yLoop },
+        { x: chip2X + chip.width + 10, y: yLoop },
+        { x: chip2X + chip.width + 10, y: yLoop + 8 },
+        { x: csa.x + csa.width / 2, y: yLoop + 8 },
+        { x: csa.x + csa.width / 2, y: yBottom + half },
+      ],
+      back: [
+        { x: fork2X, y: yBottom },
         { x: mergeX, y: yBottom },
         { x: mergeX, y: yTop },
       ],
       chips: [
         { x: chipX, y: yTop, ok: true, part: "yes" },
         { x: chipX, y: yBottom, ok: false, part: "no" },
-        { x: csa.x + csa.width + 8, y: yBottom, ok: true, part: "back" },
+        { x: chip2X, y: yBottom, ok: true, part: "back" },
+        { x: chip2X, y: yLoop, ok: false, part: "loop" },
       ],
-      question: { x: chipX - 1, y: yTop + 11 },
+      questions: [
+        { x: chipX - 1, y: yTop + 11 },
+        { x: chip2X - 1, y: yBottom + 11 },
+      ],
       ends,
       endLinks: ends.slice(1).map((box, index) => [
         { x: ends[index].x + ends[index].width, y: yTop },
@@ -316,8 +333,8 @@ export function routePlanLayout(): PlanFlowLayout {
     boxHeight,
     chip,
     width,
-    // Below the last lane's "until plans" loop.
-    height: Math.max(gcBottom, lanes.at(-1)!.yBottom + boxHeight / 2 + 7 + 6) + 2,
+    // Below the last lane's loop back into CSA.
+    height: Math.max(gcBottom, lanes.at(-1)!.yBottom + 22 + 8 + 6) + 2,
   };
 }
 

@@ -110,18 +110,22 @@ test("the chart is laid out evenly", () => {
     expect(layout.clients[index].top).toBeGreaterThan(layout.clients[index - 1].bottom);
   for (let index = 1; index < layout.lanes.length; index++) {
     const above = layout.lanes[index - 1];
-    const loopBottom = above.yBottom + layout.boxHeight / 2 + 7;
+    const loopBottom = above.loop[3].y;
     expect(layout.lanes[index].yTop - layout.boxHeight / 2).toBeGreaterThan(loopBottom + 6);
   }
-  expect(layout.height).toBeGreaterThanOrEqual(
-    layout.lanes.at(-1)!.yBottom + layout.boxHeight / 2 + 7,
-  );
+  expect(layout.height).toBeGreaterThanOrEqual(layout.lanes.at(-1)!.loop[3].y);
   // Lines meet the boxes: into the LOI or the fork, out onto the end boxes, back up at the merge.
   for (const lane of layout.lanes) {
     expect(lane.entry.at(-1)!.x).toBe(lane.loiBox ? lane.loiBox.x : lane.forkX);
     expect(lane.yes.at(-1)!.x).toBe(lane.ends[0].x);
     expect(lane.no.at(-1)!.x).toBe(lane.csa.x);
-    expect(lane.back[0].x).toBe(lane.csa.x + lane.csa.width);
+    expect(lane.toFork2[0].x).toBe(lane.csa.x + lane.csa.width);
+    expect(lane.back[0].x).toBe(lane.fork2X);
+    // ✗ at the second "Plans?" loops back into CSA / Consultation from below.
+    expect(lane.loop.at(-1)!.x).toBe(lane.csa.x + lane.csa.width / 2);
+    expect(lane.loop.at(-1)!.y).toBe(lane.csa.y + layout.boxHeight / 2);
+    expect(lane.questions).toHaveLength(2);
+    expect(lane.fork2X).toBe(layout.lanes[0].fork2X);
     expect(lane.back.at(-1)!.y).toBe(lane.yTop);
     expect(lane.exit.x).toBe(lane.ends.at(-1)!.x + lane.ends.at(-1)!.width);
     // Every lane lines up on the same columns.

@@ -299,17 +299,9 @@ export function QualificationRouteFlow({
               part: "no",
               printColor: tagColor(lane.csa.text),
             })}
+            {/* Second "Plans?": ✓ back onto the line, ✗ round and back into CSA / Consultation. */}
+            {line(lane.toFork2, viaCsa, { part: "to-fork2" })}
             {line(lane.loop, false, { arrow: true, part: "loop", dashed: true })}
-            <text
-              x={lane.loopLabel.x}
-              y={lane.loopLabel.y}
-              dominantBaseline="central"
-              fontSize={7}
-              fontStyle="italic"
-              fill="#64748b"
-            >
-              until plans
-            </text>
             {line(lane.back, viaCsa, {
               arrow: true,
               part: "back",
@@ -329,20 +321,25 @@ export function QualificationRouteFlow({
                 markerEnd={`url(#${ends ? markerOn : markerOff})`}
               />
             ))}
-            <text
-              x={lane.question.x}
-              y={lane.question.y}
-              dominantBaseline="central"
-              fontSize={7}
-              fontStyle="italic"
-              fill="#64748b"
-            >
-              Plans?
-            </text>
+            {lane.questions.map((point, index) => (
+              <text
+                key={`question-${index}`}
+                x={point.x}
+                y={point.y}
+                dominantBaseline="central"
+                fontSize={7}
+                fontStyle="italic"
+                fill="#64748b"
+              >
+                Plans?
+              </text>
+            ))}
             {lane.chips.map((chip) => {
               // Grey until chosen; only the lit lane's ✓ / ✗ can be chosen.
               const palette = chip.ok ? YES : NO;
-              const lit = (chip.part === "yes" && viaPlans) || (chip.part !== "yes" && viaCsa);
+              const lit =
+                (chip.part === "yes" && viaPlans) ||
+                ((chip.part === "no" || chip.part === "back") && viaCsa);
               // The ✓ / ✗ at "Plans?" are the plans choice itself.
               const choice = chip.part === "yes" ? "yes" : chip.part === "no" ? "no" : undefined;
               const chosen = Boolean(laneOn && choice && litPlans === choice);

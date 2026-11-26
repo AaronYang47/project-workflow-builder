@@ -209,8 +209,10 @@ test("Qualification is added from the L2 library at the far left, linked to Proj
   await expect(
     flow.locator('[data-route-branch="owner-vip"] [data-route-part="join"]'),
   ).toHaveCount(1);
-  // One "Plans?" per lane; without plans, CSA until there are plans.
-  await expect(flow.getByText("Plans?")).toHaveCount(4);
+  // Each lane asks "Plans?" twice: ✓ on, ✗ to CSA / Consultation and round again.
+  await expect(flow.getByText("Plans?")).toHaveCount(8);
+  await expect(flow.locator('[data-route-chip="loop"]')).toHaveCount(4);
+  await expect(flow.getByText("until plans")).toHaveCount(0);
   // Without plans: CSA, or the purple Consultation after an LOI.
   await expect(flow.locator('[data-route-box="CSA"]')).toHaveCount(2);
   await expect(flow.locator('[data-route-box="Consultation"]')).toHaveCount(2);
