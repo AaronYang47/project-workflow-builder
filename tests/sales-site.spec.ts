@@ -125,7 +125,7 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await expect(page.locator('[data-sales-save-state="saved"]')).toBeVisible();
 
   // A real swipe scrolls the page (the app's canvas pages lock scrolling).
-  await page.locator('[data-step-index="1"]').click();
+  await page.locator('[data-step-index="2"]').click();
   await page.mouse.move(180, 500);
   await page.mouse.wheel(0, 800);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
@@ -137,17 +137,32 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
   await expect(page.locator("[data-sales-nav]")).toBeVisible();
 
   // Every step fits the phone screen.
-  for (let step = 1; step <= 7; step++) {
+  for (let step = 1; step <= 8; step++) {
     await page.locator(`[data-step-index="${step}"]`).click();
     expect(await noSideScroll(page), `step ${step}`).toBe(true);
   }
-  await page.locator('[data-step-index="1"]').click();
+  await page.locator('[data-step-index="2"]').click();
   await page.getByLabel("Owner company").fill("Immeubles Laurier");
   // Sales never get the internal route pop-up.
   await page.getByLabel("Owner contact").click();
   await expect(page.getByText("Route impact")).toHaveCount(0);
 
-  await page.locator('[data-step-index="7"]').click();
+  // Big Yes / No buttons, and the phone's own date picker.
+  await page.locator('[data-step-index="4"]').click();
+  await page
+    .getByRole("group", { name: "Project budget established" })
+    .getByRole("button", { name: "Yes" })
+    .click();
+  await page.getByLabel("Project budget CAD").fill("1,250,000");
+  await page.getByLabel("Target date: Delivery").fill("2027-06-01");
+  // The form's own examples are a tap away.
+  await page.locator('[data-step-index="6"]').click();
+  await page.locator('[data-sales-disclosure="discipline-civil"] > button').click();
+  await page.getByRole("button", { name: "+ Foundation plan" }).click();
+  await expect(page.getByLabel("2. Architecture item 1", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("1. Civil item 1", { exact: true })).toHaveValue("Foundation plan");
+
+  await page.locator('[data-step-index="8"]').click();
   await expect(page.locator("[data-sales-missing] button").first()).toBeVisible();
   await page.locator("[data-sales-submit]").click();
 
@@ -158,6 +173,14 @@ test("Sales sign in, enter the access code, fill in a project and submit it on a
     (server.submits[0].form101 as { sectionA: { parties: { owner: { company: string } } } })
       .sectionA.parties.owner.company,
   ).toBe("Immeubles Laurier");
+  const sent = server.submits[0].form101 as {
+    sectionA: { budgetEstablished: string; projectName: string; targetDates: { delivery: string } };
+    sectionB: { disciplines: { civil: { items: { item: string }[] } } };
+  };
+  expect(sent.sectionA.budgetEstablished).toBe("yes");
+  // Dates are kept the way the form in the app keeps them.
+  expect(sent.sectionA.targetDates.delivery).toBe("2027.06.01");
+  expect(sent.sectionB.disciplines.civil.items[0].item).toBe("Foundation plan");
 
   await page.locator("[data-sales-generate-pdf]").click();
   await expect(page.locator("[data-sales-pdf-name]")).toHaveText(

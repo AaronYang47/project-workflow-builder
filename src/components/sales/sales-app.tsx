@@ -411,7 +411,7 @@ function ProjectList({
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{project.name}</span>
                         {draft ? (
-                          <span className="text-xs text-amber-700 dark:text-amber-300">
+                          <span className="text-xs text-[#b54708]">
                             Draft saved {relativeTime(draft.updatedAt)} · not submitted
                           </span>
                         ) : null}

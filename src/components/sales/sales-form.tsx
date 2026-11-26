@@ -14,20 +14,8 @@ import {
   Send,
   Share2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  FORM_101_GROUPS,
-  form101GroupIndex,
-  isForm101GroupComplete,
-  type FormGroup,
-  type FormStepId,
-} from "@/components/workflow/qualification-form-101/steps";
-import {
-  SectionAIntake,
-  SectionBIntake,
-  SectionCIntake,
-} from "@/components/workflow/qualification-form-101/sections";
+import { isForm101StepComplete } from "@/components/workflow/qualification-form-101/steps";
 import { qualificationRoute } from "@/lib/qualification";
 import {
   evaluateQualificationForm101,
@@ -42,20 +30,23 @@ import {
   type SalesForm as SalesFormData,
   type SubmitResult,
 } from "./sales-api";
+import { INPUT, SALES_FORM_STEPS, salesStepOf } from "./sales-questions";
 
 type Draft = { projectName: string; jobNumber: string; form101: QualificationForm101 };
 type SaveState = "idle" | "saving" | "saved" | "offline";
 
-const FIELD =
-  "h-12 w-full rounded-xl border bg-background px-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20";
-
-/** Step 0 is the project (name, Job number); then the Form 1.01 groups; then Review. */
+/** Step 0 is the project (name, Job number); then the form topics; then Review. */
 const STEPS = [
   { id: "project", title: "Project" },
-  ...FORM_101_GROUPS.map((group) => ({ id: group.id, title: group.title })),
-  { id: "review", title: "Review & submit" },
+  ...SALES_FORM_STEPS.map((step) => ({ id: step.id, title: step.title })),
+  { id: "review", title: "Review" },
 ] as const;
 const REVIEW = STEPS.length - 1;
+
+const PRIMARY_BUTTON =
+  "inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#245e9b] px-4 text-base font-semibold text-white shadow-sm active:bg-[#1d4f84] disabled:opacity-45";
+const SECONDARY_BUTTON =
+  "inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#d5dbe4] bg-white px-4 text-base font-semibold text-[#344054] active:bg-[#f2f4f7] disabled:opacity-45";
 
 const backupKey = (key: string) => `sales-draft-backup:${key}`;
 
@@ -78,6 +69,19 @@ function writeBackup(key: string, draft: Draft | null) {
   }
 }
 
+/** Q1 starts as the project's own name (without the Job number in front). */
+function withFormProjectName(draft: Draft, projectName: string): Draft {
+  const name = projectName.replace(/^\s*\d{5}[\s_-]*/, "").trim();
+  if (draft.form101.sectionA.projectName.trim() || !name) return draft;
+  return {
+    ...draft,
+    form101: {
+      ...draft.form101,
+      sectionA: { ...draft.form101.sectionA, projectName: name },
+    },
+  };
+}
+
 const sameDraft = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
 
 function SaveBadge({ state }: { state: SaveState }) {
@@ -86,8 +90,8 @@ function SaveBadge({ state }: { state: SaveState }) {
     <span
       data-sales-save-state={state}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 text-xs",
-        state === "offline" ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
+        state === "offline" ? "bg-[#fffaeb] text-[#b54708]" : "text-[#667085]",
       )}
     >
       {state === "saving" ? (
@@ -95,9 +99,9 @@ function SaveBadge({ state }: { state: SaveState }) {
       ) : state === "offline" ? (
         <CloudOff className="size-3.5" />
       ) : (
-        <Check className="size-3.5" />
+        <Check className="size-3.5 text-emerald-600" />
       )}
-      {state === "saving" ? "Saving" : state === "offline" ? "Saved on this phone" : "Saved"}
+      {state === "saving" ? "Saving" : state === "offline" ? "On this phone" : "Saved"}
     </span>
   );
 }
@@ -164,10 +168,10 @@ function PdfActions({
   return (
     <div className="space-y-2">
       {!file ? (
-        <Button
+        <button
+          type="button"
           data-sales-generate-pdf
-          variant={primary ? "default" : "outline"}
-          className="h-12 w-full rounded-xl text-base"
+          className={cn(primary ? PRIMARY_BUTTON : SECONDARY_BUTTON, "w-full")}
           disabled={busy}
           onClick={() => void generate()}
         >
@@ -176,35 +180,41 @@ function PdfActions({
           ) : (
             <FileText className="size-5" />
           )}
-          {busy ? "Making PDF…" : "Generate PDF"}
-        </Button>
+          {busy ? "Making the PDF…" : "Generate PDF"}
+        </button>
       ) : (
         <>
-          <p className="truncate text-center text-xs text-muted-foreground" data-sales-pdf-name>
-            {file.name}
-          </p>
+          <div className="flex items-center gap-3 rounded-xl border border-[#e3e8ef] bg-white p-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#fef3f2] text-[#b42318]">
+              <FileText className="size-5" />
+            </div>
+            <p className="min-w-0 flex-1 truncate text-sm text-[#344054]" data-sales-pdf-name>
+              {file.name}
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            <Button
+            <button
+              type="button"
               data-sales-share-pdf
-              className="h-12 rounded-xl text-base"
+              className={PRIMARY_BUTTON}
               onClick={() => (canShare ? void share() : download())}
             >
               <Share2 className="size-5" /> Share
-            </Button>
-            <Button variant="outline" className="h-12 rounded-xl text-base" onClick={download}>
+            </button>
+            <button type="button" className={SECONDARY_BUTTON} onClick={download}>
               <Download className="size-5" /> Save
-            </Button>
+            </button>
           </div>
           <button
             type="button"
-            className="w-full text-xs text-muted-foreground underline"
+            className="h-10 w-full text-sm text-[#667085] underline"
             onClick={() => void generate()}
           >
             Make it again
           </button>
         </>
       )}
-      {error ? <p className="text-center text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-center text-sm text-[#b42318]">{error}</p> : null}
     </div>
   );
 }
@@ -267,11 +277,12 @@ export function SalesForm({
           backup &&
           (!result.draftSavedAt || backup.at > result.draftSavedAt) &&
           !sameDraft(backup.draft, server);
-        const start = useBackup
+        const base = useBackup
           ? { ...backup.draft, form101: normalizeQualificationForm101(backup.draft.form101) }
           : server;
+        const start = withFormProjectName(base, result.projectName);
         // Nothing to save until something changes (an empty new form leaves no draft).
-        lastSaved.current = server;
+        lastSaved.current = withFormProjectName(server, result.projectName);
         setData(result);
         setDraft(start);
       })
@@ -310,24 +321,21 @@ export function SalesForm({
 
   if (loadError)
     return (
-      <main className="sales-site min-h-dvh bg-background px-4 py-6 text-foreground">
+      <main className="sales-site min-h-dvh px-4 py-6">
         <div className="mx-auto max-w-md space-y-3">
-          <p
-            role="alert"
-            className="rounded-xl bg-destructive/10 px-3.5 py-3 text-sm text-destructive"
-          >
+          <p role="alert" className="rounded-xl bg-[#fef3f2] px-3.5 py-3 text-sm text-[#b42318]">
             {loadError}
           </p>
-          <Button className="h-12 w-full rounded-xl" onClick={onClose}>
+          <button type="button" className={cn(PRIMARY_BUTTON, "w-full")} onClick={onClose}>
             Back to projects
-          </Button>
+          </button>
         </div>
       </main>
     );
   if (!data || !draft)
     return (
-      <main className="sales-site flex min-h-dvh justify-center bg-background pt-24">
-        <LoaderCircle className="size-7 animate-spin text-muted-foreground" />
+      <main className="sales-site flex min-h-dvh justify-center pt-24">
+        <LoaderCircle className="size-7 animate-spin text-[#98a2b3]" />
       </main>
     );
 
@@ -338,10 +346,22 @@ export function SalesForm({
   const jobNumberValid = isValidJobNumberInput(draft.jobNumber);
   const nameMissing = data.isNew && !draft.projectName.trim();
   const missing = evaluateQualificationForm101({ form101: draft.form101 }).missingItems;
-  const goTo = (index: number) => {
+  const goTo = (index: number, anchor?: string) => {
     setStep(Math.max(0, Math.min(REVIEW, index)));
-    window.scrollTo({ top: 0 });
+    requestAnimationFrame(() => {
+      const target = anchor ? document.getElementById(anchor) : null;
+      if (target) target.scrollIntoView({ block: "start" });
+      else window.scrollTo({ top: 0 });
+    });
   };
+  const stepDone = (index: number) => {
+    if (index === 0) return !nameMissing && jobNumberValid && Boolean(draft.jobNumber.trim());
+    if (index === REVIEW) return false;
+    return SALES_FORM_STEPS[index - 1].questions.every((id) =>
+      isForm101StepComplete(id, draft.form101, isLoi),
+    );
+  };
+  const doneCount = STEPS.slice(0, REVIEW).filter((_, index) => stepDone(index)).length;
 
   const submit = async () => {
     setSubmitting(true);
@@ -371,20 +391,17 @@ export function SalesForm({
 
   if (submitted)
     return (
-      <main
-        data-sales-submitted
-        className="sales-site min-h-dvh bg-background px-4 py-8 text-foreground"
-      >
+      <main data-sales-submitted className="sales-site min-h-dvh px-4 py-10">
         <div className="mx-auto max-w-md space-y-5">
-          <div className="rounded-2xl border bg-card p-6 text-center">
-            <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
-              <Check className="size-8" />
+          <div className="rounded-3xl border border-[#e3e8ef] bg-white p-6 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <Check className="size-9" strokeWidth={2.5} />
             </div>
-            <h1 className="text-xl font-bold">Submitted</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold text-[#172033]">Submitted</h1>
+            <p className="mt-1 text-[#667085]">
               {submitted.projectName} · Rev {submitted.submission.revision}
             </p>
-            <p className="mt-3 text-sm">
+            <p className="mt-4 text-[15px] leading-relaxed text-[#344054]">
               The technical team can see it now. Make the PDF to send it by email.
             </p>
           </div>
@@ -394,62 +411,58 @@ export function SalesForm({
             revision={submitted.submission.revision}
             primary
           />
-          <Button variant="ghost" className="h-12 w-full rounded-xl text-base" onClick={onClose}>
+          <button type="button" className={cn(SECONDARY_BUTTON, "w-full")} onClick={onClose}>
             Back to projects
-          </Button>
+          </button>
         </div>
       </main>
     );
 
-  const renderGroup = (group: FormGroup) =>
-    group.section === "a" ? (
-      <SectionAIntake
-        form={draft.form101}
-        onChange={setForm}
-        isLoi={isLoi}
-        workflowTitleHint={projectName}
-        questions={group.questions}
-        salesMode
-      />
-    ) : group.section === "b" ? (
-      <SectionBIntake form={draft.form101} onChange={setForm} hideHeader />
-    ) : (
-      <SectionCIntake form={draft.form101} onChange={setForm} hideHeader />
-    );
-
   const current = STEPS[step];
-  const group = step > 0 && step < REVIEW ? FORM_101_GROUPS[step - 1] : null;
-  const stepDone = (index: number) => {
-    if (index === 0) return !nameMissing && jobNumberValid && Boolean(draft.jobNumber.trim());
-    if (index === REVIEW) return false;
-    return isForm101GroupComplete(FORM_101_GROUPS[index - 1], draft.form101, isLoi);
-  };
+  const topic = step > 0 && step < REVIEW ? SALES_FORM_STEPS[step - 1] : null;
 
   return (
-    <main data-sales-form={formKey} className="sales-site min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur [padding-top:env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-2xl items-center gap-2 px-2 py-2">
+    <main data-sales-form={formKey} className="sales-site min-h-dvh">
+      <header className="sticky top-0 z-20 border-b border-[#e3e8ef] bg-white/95 backdrop-blur [padding-top:env(safe-area-inset-top)]">
+        <div className="mx-auto flex max-w-2xl items-center gap-1 px-2 pt-2">
           <button
             type="button"
             aria-label="Back to projects"
             onClick={onClose}
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl active:bg-muted"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-[#344054] active:bg-[#f2f4f7]"
           >
             <ArrowLeft className="size-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold leading-tight" data-sales-form-title>
+            <p
+              className="truncate text-[15px] font-semibold leading-tight text-[#172033]"
+              data-sales-form-title
+            >
               {projectName || "New project"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              Qualification Form [1.01] · Step {step + 1} of {STEPS.length}
-            </p>
+            <p className="text-xs text-[#667085]">Qualification Form [1.01]</p>
           </div>
           <SaveBadge state={saveState} />
         </div>
+        <div className="mx-auto max-w-2xl px-4 pb-2 pt-2">
+          <div className="mb-1 flex justify-between text-xs text-[#667085]">
+            <span>
+              Step {step + 1} of {STEPS.length} · {current.title}
+            </span>
+            <span>
+              {doneCount}/{REVIEW} done
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
+            <div
+              className="h-full rounded-full bg-[#245e9b] transition-all"
+              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+            />
+          </div>
+        </div>
         <div
           ref={stepsRef}
-          className="scroll-thin mx-auto flex max-w-2xl snap-x snap-mandatory scroll-px-3 gap-1.5 overflow-x-auto overscroll-x-contain px-3 pb-2"
+          className="scroll-thin mx-auto flex max-w-2xl snap-x snap-mandatory scroll-px-3 gap-1.5 overflow-x-auto overscroll-x-contain px-3 pb-2.5"
           role="tablist"
           aria-label="Form steps"
         >
@@ -462,10 +475,12 @@ export function SalesForm({
               aria-selected={index === step}
               onClick={() => goTo(index)}
               className={cn(
-                "inline-flex h-9 shrink-0 snap-start items-center gap-1 rounded-full border px-3 text-xs font-semibold",
+                "inline-flex h-8 shrink-0 snap-start items-center gap-1 rounded-full px-3 text-[13px] font-medium",
                 index === step
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground",
+                  ? "bg-[#245e9b] text-white"
+                  : stepDone(index)
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-[#f2f4f7] text-[#475467]",
               )}
             >
               {stepDone(index) && index !== step ? <Check className="size-3.5" /> : null}
@@ -475,147 +490,189 @@ export function SalesForm({
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 pb-32 pt-4" data-sales-step={current.id}>
+      <div className="mx-auto max-w-2xl space-y-3 px-4 pb-32 pt-4" data-sales-step={current.id}>
         {data.submission && step === 0 ? (
-          <p className="mb-4 rounded-xl border bg-muted/40 px-3.5 py-3 text-sm">
-            Last submitted by {data.submission.by} on{" "}
+          <p className="rounded-2xl border border-[#d1e0f0] bg-[#f5f8fc] px-4 py-3 text-sm text-[#344054]">
+            Last submitted by <b>{data.submission.by}</b> on{" "}
             {new Date(data.submission.at).toLocaleDateString()} (Rev {data.submission.revision}).
-            Changes you submit become the next revision.
+            What you submit now becomes the next revision.
           </p>
         ) : null}
 
         {step === 0 ? (
-          <section className="space-y-5">
-            {data.isNew ? (
+          <>
+            <section className="space-y-4 rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              {data.isNew ? (
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-[#344054]">Project name</span>
+                  <input
+                    data-sales-project-name
+                    value={draft.projectName}
+                    maxLength={200}
+                    onChange={(event) => {
+                      // Q1 follows the new project's name until it is changed by hand.
+                      const followsName =
+                        draft.form101.sectionA.projectName === draft.projectName.trim();
+                      const next = { ...draft, projectName: event.target.value };
+                      setDraft(
+                        followsName
+                          ? {
+                              ...next,
+                              form101: {
+                                ...next.form101,
+                                sectionA: {
+                                  ...next.form101.sectionA,
+                                  projectName: event.target.value.trim(),
+                                },
+                              },
+                            }
+                          : next,
+                      );
+                    }}
+                    placeholder="e.g. Maison Laurier — Phase 2"
+                    className={INPUT}
+                  />
+                  <span className="block text-xs text-[#667085]">
+                    The project is created from your team&apos;s template when you submit.
+                  </span>
+                </label>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium text-[#344054]">Project</p>
+                  <p className="mt-1 text-lg font-semibold text-[#172033]">{data.projectName}</p>
+                </div>
+              )}
               <label className="block space-y-1.5">
-                <span className="text-sm font-semibold">Project name</span>
+                <span className="text-sm font-medium text-[#344054]">Job number</span>
                 <input
-                  data-sales-project-name
-                  value={draft.projectName}
-                  maxLength={200}
-                  onChange={(event) => setDraft({ ...draft, projectName: event.target.value })}
-                  placeholder="e.g. Maison Laurier — Phase 2"
-                  className={FIELD}
+                  data-sales-job-number
+                  value={draft.jobNumber}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={5}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      jobNumber: event.target.value.replace(/\D/g, "").slice(0, 5),
+                    })
+                  }
+                  placeholder="5 digits, e.g. 26014"
+                  className={cn(
+                    INPUT,
+                    "font-mono text-lg tracking-[0.2em]",
+                    !jobNumberValid && "border-[#f04438]",
+                  )}
                 />
-                <span className="block text-xs text-muted-foreground">
-                  The new project is made from your team&apos;s template when you submit.
+                <span
+                  className={cn(
+                    "block text-xs",
+                    jobNumberValid ? "text-[#667085]" : "text-[#b42318]",
+                  )}
+                >
+                  {jobNumberValid
+                    ? "Leave it empty if there is no job number yet."
+                    : "The Job number has 5 digits."}
                 </span>
               </label>
-            ) : (
-              <div className="space-y-1.5">
-                <span className="text-sm font-semibold">Project</span>
-                <p className="rounded-xl border bg-muted/40 px-3.5 py-3 text-base">
-                  {data.projectName}
-                </p>
-              </div>
-            )}
-            <label className="block space-y-1.5">
-              <span className="text-sm font-semibold">Job number</span>
-              <input
-                data-sales-job-number
-                value={draft.jobNumber}
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={5}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    jobNumber: event.target.value.replace(/\D/g, "").slice(0, 5),
-                  })
-                }
-                placeholder="5 digits, e.g. 26014"
-                className={cn(
-                  FIELD,
-                  "font-mono tracking-widest",
-                  !jobNumberValid && "border-destructive",
-                )}
-              />
-              <span
-                className={cn(
-                  "block text-xs",
-                  jobNumberValid ? "text-muted-foreground" : "text-destructive",
-                )}
-              >
-                {jobNumberValid
-                  ? "Leave it empty if there is no job number yet."
-                  : "The Job number has 5 digits."}
-              </span>
-            </label>
-            <p className="rounded-xl bg-primary/8 px-3.5 py-3 text-sm text-muted-foreground">
+            </section>
+            <div className="rounded-2xl bg-[#f5f8fc] px-4 py-3 text-sm leading-relaxed text-[#475467]">
               Answer what you know and leave the rest empty. Everything saves as you type, so you
-              can stop and come back any time. Nothing is sent until you press Submit.
-            </p>
-          </section>
-        ) : group ? (
-          <section className="space-y-3">
-            <h2 className="text-base font-bold">{group.title}</h2>
-            {renderGroup(group)}
-          </section>
-        ) : (
-          <section className="space-y-5">
-            <h2 className="text-base font-bold">Review &amp; submit</h2>
-            <div className="rounded-2xl border bg-card p-4">
-              <p className="text-sm">
-                <span className="font-semibold">{projectName || "New project"}</span>
-                {draft.jobNumber ? ` · Job ${draft.jobNumber}` : ""}
-              </p>
-              {missing.length ? (
-                <>
-                  <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-amber-700 dark:text-amber-300">
-                    <AlertCircle className="size-4" /> {missing.length}{" "}
-                    {missing.length === 1 ? "answer" : "answers"} still empty
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    You can submit now and fill them in later. Tap one to go to it.
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-1.5" data-sales-missing>
-                    {missing.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          const index = form101GroupIndex(item.id as FormStepId);
-                          if (index >= 0) goTo(index + 1);
-                        }}
-                        className="min-h-9 rounded-lg border border-amber-500/40 bg-amber-500/8 px-2.5 py-1 text-left text-xs"
-                      >
-                        {item.label.replace(/^Q\d+\s*/, "")}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  <Check className="size-4" /> Every answer is filled in.
-                </p>
-              )}
+              can stop and come back any time. Nothing reaches the team until you press Submit.
             </div>
+          </>
+        ) : topic ? (
+          <topic.Step form={draft.form101} patch={setForm} isLoi={isLoi} />
+        ) : (
+          <section className="space-y-4">
+            <div className="rounded-2xl border border-[#e3e8ef] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              <p className="text-lg font-semibold text-[#172033]">{projectName || "New project"}</p>
+              <p className="text-sm text-[#667085]">
+                {draft.jobNumber ? `Job ${draft.jobNumber}` : "No Job number yet"}
+              </p>
+              <div className="mt-4 space-y-1">
+                {STEPS.slice(1, REVIEW).map((item, offset) => {
+                  const index = offset + 1;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => goTo(index)}
+                      className="flex min-h-11 w-full items-center gap-3 rounded-lg px-1 text-left active:bg-[#f9fafb]"
+                    >
+                      <span
+                        className={cn(
+                          "flex size-5 items-center justify-center rounded-full border",
+                          stepDone(index)
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-[#cfd6e0]",
+                        )}
+                      >
+                        {stepDone(index) ? <Check className="size-3.5" strokeWidth={3} /> : null}
+                      </span>
+                      <span className="flex-1 text-[15px] text-[#344054]">{item.title}</span>
+                      <ChevronRight className="size-4 text-[#98a2b3]" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {missing.length ? (
+              <div className="rounded-2xl border border-[#fedf89] bg-[#fffcf5] p-4">
+                <p className="flex items-center gap-1.5 font-semibold text-[#b54708]">
+                  <AlertCircle className="size-4" /> {missing.length}{" "}
+                  {missing.length === 1 ? "answer" : "answers"} still empty
+                </p>
+                <p className="mt-1 text-sm text-[#667085]">
+                  You can submit now and fill them in later. Tap one to go to it.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5" data-sales-missing>
+                  {missing.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        const index = salesStepOf(item.id);
+                        if (index >= 0) goTo(index + 1, `sales-${item.id}`);
+                      }}
+                      className="min-h-9 rounded-xl border border-[#fedf89] bg-white px-3 py-1.5 text-left text-sm text-[#93370d]"
+                    >
+                      {item.label.replace(/^Q\d+\s*/, "")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="flex items-center gap-1.5 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-700">
+                <Check className="size-5" /> Every answer is filled in.
+              </p>
+            )}
             {nameMissing ? (
-              <p className="text-sm text-destructive">Enter the project name on the first step.</p>
+              <p className="text-sm text-[#b42318]">Enter the project name on the first step.</p>
             ) : null}
             {!jobNumberValid ? (
-              <p className="text-sm text-destructive">Fix the Job number on the first step.</p>
+              <p className="text-sm text-[#b42318]">Fix the Job number on the first step.</p>
             ) : null}
             {submitError ? (
               <div
                 role="alert"
-                className="space-y-2 rounded-xl bg-destructive/10 px-3.5 py-3 text-sm text-destructive"
+                className="space-y-2 rounded-2xl bg-[#fef3f2] px-4 py-3 text-sm text-[#b42318]"
               >
                 <p>{submitError.message}</p>
                 {submitError.projectId ? (
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-xl"
+                  <button
+                    type="button"
+                    className={SECONDARY_BUTTON}
                     onClick={() => onOpenProject(submitError.projectId!)}
                   >
                     Open that project
-                  </Button>
+                  </button>
                 ) : null}
               </div>
             ) : null}
-            <Button
+            <button
+              type="button"
               data-sales-submit
-              className="h-14 w-full rounded-2xl text-base"
+              className={cn(PRIMARY_BUTTON, "h-14 w-full rounded-2xl text-[17px]")}
               disabled={submitting || nameMissing || !jobNumberValid}
               onClick={() => void submit()}
             >
@@ -625,9 +682,9 @@ export function SalesForm({
                 <Send className="size-5" />
               )}
               {submitting ? "Submitting…" : "Submit to the technical team"}
-            </Button>
-            <div className="border-t pt-4">
-              <p className="mb-2 text-xs text-muted-foreground">
+            </button>
+            <div className="border-t border-[#e3e8ef] pt-4">
+              <p className="mb-2 text-sm text-[#667085]">
                 Want to check the PDF first? It shows what you have filled in so far.
               </p>
               <PdfActions draft={draft} projectName={projectName || "New project"} />
@@ -640,24 +697,25 @@ export function SalesForm({
         <nav
           data-sales-nav
           data-hidden={typing || undefined}
-          className="data-[hidden]:max-sm:hidden fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)]"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-[#e3e8ef] bg-white/95 backdrop-blur [padding-bottom:env(safe-area-inset-bottom)] data-[hidden]:max-sm:hidden"
         >
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
-            <Button
-              variant="outline"
-              className="h-12 flex-1 rounded-xl text-base"
+            <button
+              type="button"
+              className={cn(SECONDARY_BUTTON, "flex-1")}
               disabled={step === 0}
               onClick={() => goTo(step - 1)}
             >
               <ChevronLeft className="size-5" /> Back
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
               data-sales-next
-              className="h-12 flex-[2] rounded-xl text-base"
+              className={cn(PRIMARY_BUTTON, "flex-[2]")}
               onClick={() => goTo(step + 1)}
             >
               {step === REVIEW - 1 ? "Review" : "Next"} <ChevronRight className="size-5" />
-            </Button>
+            </button>
           </div>
         </nav>
       ) : null}

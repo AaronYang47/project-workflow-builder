@@ -1368,3 +1368,37 @@ html:has(.sales-site) {
   scroll-padding-bottom: 96px;
   -webkit-text-size-adjust: 100%;
 }
+
+/* Sales site: always the light theme, in a plain sans-serif, whatever the app's theme. */
+.sales-site {
+  --background: #f5f7fa;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --popover: #ffffff;
+  --popover-foreground: #172033;
+  --primary: #245e9b;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f5;
+  --secondary-foreground: #263449;
+  --muted: #f2f4f7;
+  --muted-foreground: #667085;
+  --accent: #e9eef5;
+  --accent-foreground: #172033;
+  --destructive: #b42318;
+  --border: #e3e8ef;
+  --input: #d5dbe4;
+  --ring: #245e9b;
+  color-scheme: light;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+html:has(.sales-site),
+html:has(.sales-site) body {
+  background: #f5f7fa;
+  color-scheme: light;
+}
