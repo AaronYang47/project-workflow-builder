@@ -1,4 +1,5 @@
 import type { QualificationCase } from "@/lib/qualification";
+import { EDGE_CORNER_RADIUS } from "@/lib/semantic-edge-geometry";
 
 /**
  * The Route Selection chart. Customers that take the same path share a lane:
@@ -31,6 +32,14 @@ export type PlanBox = {
 
 /** After an LOI, the consultation without plans is Consultation (styled like the LOI). */
 export const PLAN_CONSULTATION = "Consultation";
+
+/**
+ * One corner radius for every bend in the chart. Every segment next to a bend
+ * is at least twice this long, so no corner is drawn smaller.
+ */
+export const ROUTE_FLOW_SCALE = 2.2;
+/** Matches the canvas connectors' corners (EDGE_CORNER_RADIUS px) at the card's scale. */
+export const ROUTE_CORNER = EDGE_CORNER_RADIUS / ROUTE_FLOW_SCALE;
 
 /** Every lane reaches Plan Ready (green) before the GC / PCS. */
 export const PLAN_READY = "Plan Ready";
@@ -118,7 +127,7 @@ export function routePlanLayout(): PlanFlowLayout {
   // Even spacing: each client box sits exactly between its two situations
   // (Owner VIP / Regular, GC VIP / Regular), so both branch lines are the same
   // distance from the box's middle line.
-  const branchGap = 70;
+  const branchGap = 72;
   const yLane = {
     "loi-gc": 16,
     "owner-regular": 128,
@@ -201,8 +210,8 @@ export function routePlanLayout(): PlanFlowLayout {
         { x: fork2X, y: yBottom },
         { x: fork2X, y: yLoop },
         { x: chip2X + chip.width + 10, y: yLoop },
-        { x: chip2X + chip.width + 10, y: yLoop + 8 },
-        { x: csa.x + csa.width / 2, y: yLoop + 8 },
+        { x: chip2X + chip.width + 10, y: yLoop + 2 * ROUTE_CORNER },
+        { x: csa.x + csa.width / 2, y: yLoop + 2 * ROUTE_CORNER },
         { x: csa.x + csa.width / 2, y: yBottom + half },
       ],
       back: [
@@ -339,7 +348,7 @@ export function routePlanLayout(): PlanFlowLayout {
     chip,
     width,
     // Below the last lane's loop back into CSA.
-    height: Math.max(gcBottom, lanes.at(-1)!.yBottom + 22 + 8 + 6) + 2,
+    height: Math.max(gcBottom, lanes.at(-1)!.yBottom + 22 + 2 * ROUTE_CORNER + 6) + 2,
   };
 }
 

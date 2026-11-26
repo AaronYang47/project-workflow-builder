@@ -1,9 +1,13 @@
 import { expect, test } from "playwright/test";
 import { QUALIFICATION_CASES, qualificationCaseFor } from "../src/lib/qualification";
 import { createEmptyQualificationForm101 } from "../src/lib/qualification-form-101";
+import { EDGE_CORNER_RADIUS } from "../src/lib/semantic-edge-geometry";
 import {
+  ROUTE_CORNER,
+  ROUTE_FLOW_SCALE,
   laneOfCase,
   routeHighlight,
+  routePlanExitBus,
   routePathText,
   routePlanLayout,
   type PlanFlowLayout,
@@ -152,4 +156,43 @@ test("the chart is laid out evenly", () => {
     expect(lane.csa.x).toBe(layout.lanes[0].csa.x);
     expect(lane.ends[0].x).toBe(layout.lanes[0].ends[0].x);
   }
+});
+
+test("every bend in the chart has the same radius", () => {
+  const layout = routePlanLayout();
+  const bus = routePlanExitBus(layout);
+  type P = { x: number; y: number };
+  const polylines: [string, P[]][] = [];
+  for (const lane of layout.lanes) {
+    for (const key of ["entry", "toFork", "yes", "no", "toFork2", "loop", "back"] as const)
+      polylines.push([`${lane.id} ${key}`, lane[key]]);
+    polylines.push([
+      `${lane.id} exit`,
+      [
+        { x: lane.exit.x + 3.5, y: lane.exit.y },
+        { x: bus.busX, y: lane.exit.y },
+        { x: bus.busX, y: bus.busY },
+        { x: bus.width, y: bus.busY },
+      ],
+    ]);
+  }
+  for (const branch of layout.branches)
+    polylines.push([`${branch.caseIds.join("+")} branch`, branch.points]);
+  for (const [name, points] of polylines)
+    for (let index = 1; index < points.length - 1; index++) {
+      const before = Math.hypot(
+        points[index].x - points[index - 1].x,
+        points[index].y - points[index - 1].y,
+      );
+      const after = Math.hypot(
+        points[index + 1].x - points[index].x,
+        points[index + 1].y - points[index].y,
+      );
+      // Long enough on both sides for the full corner, so none is drawn smaller.
+      expect(Math.min(before, after), `${name} corner ${index}`).toBeGreaterThanOrEqual(
+        2 * ROUTE_CORNER - 1e-9,
+      );
+    }
+  // The chart's corners match the canvas connectors at the card's scale.
+  expect(ROUTE_CORNER * ROUTE_FLOW_SCALE).toBeCloseTo(EDGE_CORNER_RADIUS, 5);
 });

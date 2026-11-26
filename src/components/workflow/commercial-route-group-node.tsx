@@ -22,6 +22,7 @@ import type { DomainNode } from "@/types/workflow";
 import { DepartmentHeaderBar } from "./node-department-field";
 import { QualificationRouteFlow } from "./qualification-route-flow";
 import {
+  ROUTE_FLOW_SCALE,
   laneForCustomer,
   pendingRouteText,
   routePathText,
@@ -37,7 +38,7 @@ const cad = (amount: number) =>
   }).format(amount);
 
 /** Pixels per unit of the route chart. */
-const FLOW_SCALE = 2.2;
+const FLOW_SCALE = ROUTE_FLOW_SCALE;
 
 /** The agreements a route goes through: CSA carries on into PCS. */
 const AGREEMENTS: Record<CommercialRoute, CommercialRoute[]> = {

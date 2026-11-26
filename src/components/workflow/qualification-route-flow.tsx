@@ -17,6 +17,7 @@ import {
   type PlanBox,
   type PlanLaneId,
   PLAN_READY,
+  ROUTE_CORNER,
 } from "@/lib/route-plan-flow";
 import { roundedPath } from "@/lib/semantic-edge-geometry";
 
@@ -147,7 +148,7 @@ export function QualificationRouteFlow({
         data-route-part={options.part}
         data-route-part-on={on ? "true" : undefined}
         data-print-route-color={options.printColor}
-        d={roundedPath(points, 5)}
+        d={roundedPath(points, ROUTE_CORNER)}
         fill="none"
         stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
         strokeWidth={on ? 2.2 : 1.2}
@@ -194,7 +195,7 @@ export function QualificationRouteFlow({
               { x: -left + 4, y: layout.clients[0].mid },
               { x: -left + 4, y: layout.clients.at(-1)!.mid },
             ],
-            4,
+            ROUTE_CORNER,
           )}
           fill="none"
           stroke={ROUTE_FLOW_OFF}
@@ -220,7 +221,7 @@ export function QualificationRouteFlow({
                   y: layout.clients.find((item) => item.client === litClient)?.mid ?? bus.entryY,
                 },
               ],
-              4,
+              ROUTE_CORNER,
             )}
             fill="none"
             stroke={ROUTE_FLOW_ON}
@@ -500,7 +501,7 @@ export function QualificationRouteFlow({
                   key={`bus-${lane.id}`}
                   data-qualification-route-exit-line={lane.id}
                   data-print-route-color={tagColor(lane.ends.at(-1)?.text)}
-                  d={roundedPath(points, 8)}
+                  d={roundedPath(points, ROUTE_CORNER)}
                   fill="none"
                   stroke={on ? ROUTE_FLOW_ON : ROUTE_FLOW_OFF}
                   strokeWidth={on ? 2.2 : 1}
